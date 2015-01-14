@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+set -o nounset
+set -o pipefail
+set -o errexit
+
+BOWTIE_IDX=$1
+READ1=$2
+READ2=$3
+NUMTHREADS=$4
+GENOMESIZE=$5
+CHROMSIZE=$6
+OUTPUTDIR=$7
+
+MAPQ_THRESH=10
+
+# trim adapters
+# .fastq/.fastq.gz/.fq -> .trim.fastq
+# assumes that trimAdapters outputs the R1/R2 output filenames 
+# as the last 2 lines in stdout
+outputFiles=( $(trimAdapters -a "$READ1" -b "$READ2" | tail -n 2) )
+numOutputs=${#outputFiles[@]}
+if (( numOutputs != 2 ))
+then
+  >&2 echo "ERROR: trimAdapters did not output the required 2 filenames"
+  >&2 echo "ERROR: trimAdapters output:"
+  >&2 printf "%s\n" "${outputFiles[@]}"
+  >&2 echo "ERROR: --- end of output ---"
+fi
+
+trimmedR1=${outputFiles[0]}
+trimmedR2=${outputFiles[1]}
+
+# align
+outputBAM=$(alignATAC "$BOWTIE_IDX" "$trimmedR1" "$trimmedR2" "$NUMTHREADS" | \
+            tail -n 1)
+
+# postprocess
+# This output prefix assumes that the alignPostprocessPE will not overwrite
+# the original BAM (i.e., will add some more suffixes other than just .bam)
+postprocessBAMprefix=${outputBAM/.bam/}
+postprocessedBAM=$(\
+  alignPostprocessPE "$outputBAM" "$postprocessBAMprefix" "$MAPQ_THRESH" | \
+  tail -n 1)
+
+# ATAC specific postprocessing
+readBED=${postprocessedBAM/.bam/.nonchrM.tn5.bed.gz}
+alignPostprocessATAC "$postprocessedBAM" "$readBED"
+
+# peak calling - peaks wil be in $OUTPUTDIR
+callATACpeaks "$readBED" 75 "$GENOMESIZE" "$CHROMSIZE" "$OUTPUTDIR"
