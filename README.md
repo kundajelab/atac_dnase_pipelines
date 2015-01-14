@@ -1,4 +1,4 @@
-docs
-====
+Pipelines
+=========
 
-Useful documentation for working in the lab
+Repository of pipelines for processing data
