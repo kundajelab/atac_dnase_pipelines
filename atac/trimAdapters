@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 
 # Author: Jason Buenrostro, Stanford University
 # The following program will compress daisy chain seq data into singe molecules
