@@ -37,7 +37,7 @@ samtools view -F 1804 -f 2 -q "${MAPQ_THRESH}" -u "${RAW_BAM_FILE}" | \
 # and read pairs mapping to different chromosomes
 # Obtain position sorted BAM
 
-samtools fixmate -r "${TMP_FILT_BAM_FILE}" - | \
+samtools fixmate -O bam -r "${TMP_FILT_BAM_FILE}" - | \
     samtools view -F 1804 -f 2 -u - | \
     samtools sort - "${FILT_BAM_PREFIX}" # Will produce coordinate sorted BAM
 rm "${TMP_FILT_BAM_FILE}"
