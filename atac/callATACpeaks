@@ -28,7 +28,7 @@ adjustedBed="slopBed -i ${readBed} -g ${chrSize} -l 75 -r -75 -s"
 
 macs2 callpeak \
     -t <(${adjustedBed}) -f BED -n "${peakFile}" -g "${genomeSize}" -p 1e-2 \
-    --nomodel --shiftsize "${fragLen}" -B --SPMR --keep-dup all --call-summits
+    --nomodel --shift "${fragLen}" -B --SPMR --keep-dup all --call-summits
 
 if [[ ! -e "${peakFile}.fc.signal.bigwig" ]]
 then
