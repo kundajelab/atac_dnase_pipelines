@@ -45,7 +45,7 @@ postprocessedBAM=$(\
 
 # ATAC specific postprocessing
 readBED=${postprocessedBAM/.bam/.nonchrM.tn5.bed.gz}
-alignPostprocessATAC "$postprocessedBAM" "$readBED"
+alignPostprocessATAC "$postprocessedBAM" "$readBED" "$OUTPUTDIR"
 
 # peak calling - peaks wil be in $OUTPUTDIR
 callATACpeaks "$readBED" 75 "$GENOMESIZE" "$CHROMSIZE" "$OUTPUTDIR"
