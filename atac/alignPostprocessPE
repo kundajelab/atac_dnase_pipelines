@@ -73,7 +73,8 @@ samtools view -F 1804 -f 2 -b "${FILT_BAM_FILE}" > "${FINAL_BAM_FILE}"
 samtools sort -n "${FINAL_BAM_FILE}" "${FINAL_NMSRT_BAM_PREFIX}"
 
 # Index Final BAM file
-samtools index "${FINAL_BAM_FILE}" "${FINAL_BAM_INDEX_FILE}"
+samtools index "${FINAL_BAM_FILE}"
+mv -f "${FINAL_BAM_FILE}".bai "${FINAL_BAM_INDEX_FILE}" 
 samtools flagstat "${FINAL_BAM_FILE}" > "${FINAL_BAM_FILE_MAPSTATS}"
 
 # =============================
