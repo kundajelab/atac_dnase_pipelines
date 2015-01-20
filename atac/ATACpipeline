@@ -32,7 +32,7 @@ trimmedR1=${outputFiles[0]}
 trimmedR2=${outputFiles[1]}
 
 # align
-outputBAM=$(alignATAC "$BOWTIE_IDX" "$trimmedR1" "$trimmedR2" "$NUMTHREADS" | \
+outputBAM=$(alignATAC "$BOWTIE_IDX" "$trimmedR1" "$trimmedR2" "$NUMTHREADS" "$OUTPUTDIR" | \
             tail -n 1)
 
 # postprocess
