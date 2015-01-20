@@ -17,11 +17,7 @@ outputDir=$5
 
 peakFile="${outputDir}/${readBed}"
 
-if [[ ! -d "${outputDir}" ]]
-then
-    echo "Making output dir: ${outputDir}" >&2
-    mkdir -p "${outputDir}"
-fi
+mkdir -p "${outputDir}"
 
 # Shift reads by 75bp for peak calling
 adjustedBed="slopBed -i ${readBed} -g ${chrSize} -l 75 -r -75 -s"
