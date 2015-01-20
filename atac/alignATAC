@@ -64,6 +64,7 @@ bowtie2 -X2000 --threads "$NUMTHREADS" -x "$BOWTIE_IDX" \
     2>"$outputLog" | \
     samtools view -bS - > "$outputBAM"
     
+mkdir -p "${OUTPUTDIR}"
 mv "$outputLog" "$OUTPUTDIR"/"$outputLog"
 
 echo "Alignment done - output BAM file is:"
