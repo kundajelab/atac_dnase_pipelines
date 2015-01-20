@@ -22,4 +22,4 @@ Usage
 * NUMTHREADS: number of threads for bowtie2
 * GENOMESIZE: hs / mm (this is for MACS2)
 * CHROMSIZE: chromosome size file (may be found in $GENOMESIZEDIR)
-* OUTPUTDIR: directory to put MACS2 peak calls / signal tracks
+* OUTPUTDIR: directory to put MACS2 peak calls / signal tracks and other relevant output files
