@@ -47,12 +47,12 @@ if [[ $type == 'gz' ]]
 then
     # process zipped file
     outputBAM=${inputPrefix//.fastq.gz/.bam}
-    outputLog=${inputPrefix//.fastq.gz/.alignlog}
+    outputLog=${inputPrefix//.fastq.gz/.align.log}
 elif [[ $type == 'fastq' || $type == 'fq' ]]
 then
     # process unzipped file
     outputBAM=${inputPrefix//.$type/.bam}
-    outputLog=${inputPrefix//.$type/.alignlog}
+    outputLog=${inputPrefix//.$type/.align.log}
 else
     >&2 echo "Unrecognized file type, accepts .fastq or .fq or .gz"
     exit 1
