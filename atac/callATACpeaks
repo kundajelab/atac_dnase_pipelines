@@ -4,20 +4,14 @@ set -o nounset
 set -o pipefail
 set -o errexit
 
-module add bedtools/2.19.1
-module add MACS2/2.0.10
-module add ucsc_tools/2.7.2
 
 readBed=$1
 # This should really be shift size
 fragLen=$2
 genomeSize=$3
 chrSize=$4
-outputDir=$5
 
-peakFile="${outputDir}/${readBed}"
-
-mkdir -p "${outputDir}"
+peakFile="${readBed}.pf"
 
 # Shift reads by 75bp for peak calling
 adjustedBed="slopBed -i ${readBed} -g ${chrSize} -l 75 -r -75 -s"

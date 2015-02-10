@@ -1,17 +1,14 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash                                                                                                                                                                                        [6/1074]
 
 set -o pipefail
 set -o errexit
 
-module add bowtie/2.2.4
-module add samtools/0.1.19
 
 # read from command line which files to align
 BOWTIE_IDX=$1 # first input is the bowtie index filename prefix (excluding trailing .X.bt2)
 READ1=$2  # second input is read 1 fastq
 READ2=$3  # third input is read 2 fastq
 NUMTHREADS=$4
-OUTPUTDIR=$5 # bowtie alignment log file goes here
 
 # help
 if [[ -z "$READ1" ]]
@@ -62,11 +59,6 @@ bowtie2 -X2000 --threads "$NUMTHREADS" -x "$BOWTIE_IDX" \
     -1 <(zcat -f "$READ1") -2 <(zcat -f "$READ2") \
     2>"$outputLog" | \
     samtools view -bS - > "$outputBAM"
-
-# add alignment outputs
-mkdir -p "${OUTPUTDIR}"
-mv "$outputLog" "$OUTPUTDIR"/"$outputLog"
-cp "$outputBAM" "$OUTPUTDIR"/"$outputBAM"
 
 echo "Alignment done - output BAM file is:"
 echo "$outputBAM"
