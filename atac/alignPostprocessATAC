@@ -18,7 +18,6 @@ module add samtools/0.1.19
 
 input_bam=$1
 output_file=$2
-OUTPUTDIR=$3
 
 if [[ -z $output_file ]]
 then
@@ -43,6 +42,3 @@ insertSizeMetrics="${PICARDROOT}/CollectInsertSizeMetrics.jar"
 java -Xmx4G -jar "${insertSizeMetrics}" \
     INPUT="${nonMitoBAM}" OUTPUT="${nonMitoBAM}".hist_data.log \
     H="${nonMitoBAM}".hist_graph.pdf W=1000 STOP_AFTER=5000000
-mkdir -p "${OUTPUTDIR}"
-mv "${nonMitoBAM}".hist_data.log "${OUTPUTDIR}"/
-mv "${nonMitoBAM}".hist_graph.pdf "${OUTPUTDIR}"/

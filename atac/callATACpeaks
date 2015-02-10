@@ -13,11 +13,8 @@ readBed=$1
 fragLen=$2
 genomeSize=$3
 chrSize=$4
-outputDir=$5
 
-peakFile="${outputDir}/${readBed}"
-
-mkdir -p "${outputDir}"
+peakFile="${readBed}.pf"
 
 # Shift reads by 75bp for peak calling
 adjustedBed="slopBed -i ${readBed} -g ${chrSize} -l 75 -r -75 -s"
