@@ -3,8 +3,10 @@
 set -o pipefail
 set -o errexit
 
-module add bowtie/2.2.4
-module add samtools/0.1.19
+if hash module 2>/dev/null; then
+   module add bowtie/2.2.4
+   module add samtools/0.1.19
+fi
 
 # read from command line which files to align
 BOWTIE_IDX=$1 # first input is the bowtie index filename prefix (excluding trailing .X.bt2)

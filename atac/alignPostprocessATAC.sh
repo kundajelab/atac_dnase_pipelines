@@ -12,9 +12,11 @@ set -o nounset
 set -o pipefail
 set -o errexit
 
-module add bedtools/2.19.1
-module add picard-tools/1.92
-module add samtools/0.1.19
+if hash module 2>/dev/null; then
+   module add bedtools/2.19.1
+   module add picard-tools/1.92
+   module add samtools/0.1.19
+fi
 
 input_bam=$1
 output_file=$2

@@ -4,9 +4,11 @@ set -o nounset
 set -o pipefail
 set -o errexit
 
-module add samtools/0.1.19
-module add picard-tools/1.92
-module add bedtools/2.19.1
+if hash module 2>/dev/null; then
+   module add samtools/0.1.19
+   module add picard-tools/1.92
+   module add bedtools/2.19.1
+fi
 
 RAW_BAM_FILE=$1
 OFPREFIX=$2

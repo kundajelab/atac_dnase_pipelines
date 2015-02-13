@@ -4,9 +4,11 @@ set -o nounset
 set -o pipefail
 set -o errexit
 
-module add bedtools/2.19.1
-module add MACS2/2.0.10
-module add ucsc_tools/2.7.2
+if hash module 2>/dev/null; then
+   module add bedtools/2.19.1
+   module add MACS2/2.0.10
+   module add ucsc_tools/2.7.2
+fi
 
 readBed=$1
 # This should really be shift size
