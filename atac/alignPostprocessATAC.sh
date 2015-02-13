@@ -35,7 +35,7 @@ samtools view -b "${input_bam}" chrM > "${mitoBAM}"
 
 # Process only non chrM reads
 bamToBed -i "${nonMitoBAM}" | \
-    adjustBedTn5 | \
+    adjustBedTn5.sh | \
     gzip -c > "${output_file}"
 
 insertSizeMetrics="${PICARDROOT}/CollectInsertSizeMetrics.jar"
