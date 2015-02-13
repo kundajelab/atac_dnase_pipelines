@@ -49,4 +49,4 @@ else
    java -Xmx4G -jar "${insertSizeMetrics}" \
       INPUT="${nonMitoBAM}" OUTPUT="${nonMitoBAM}".hist_data.log \
       H="${nonMitoBAM}".hist_graph.pdf W=1000 STOP_AFTER=5000000
-end
+fi
