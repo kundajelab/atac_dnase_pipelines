@@ -40,7 +40,13 @@ bamToBed -i "${nonMitoBAM}" | \
     adjustBedTn5.sh | \
     gzip -c > "${output_file}"
 
-insertSizeMetrics="${PICARDROOT}/CollectInsertSizeMetrics.jar"
-java -Xmx4G -jar "${insertSizeMetrics}" \
-    INPUT="${nonMitoBAM}" OUTPUT="${nonMitoBAM}".hist_data.log \
-    H="${nonMitoBAM}".hist_graph.pdf W=1000 STOP_AFTER=5000000
+if hash picard 2>/dev/null; then
+   picard CollectInsertSizeMetrics \
+      INPUT="${nonMitoBAM}" OUTPUT="${nonMitoBAM}".hist_data.log \
+      H="${nonMitoBAM}".hist_graph.pdf W=1000 STOP_AFTER=5000000
+else
+   insertSizeMetrics="${PICARDROOT}/CollectInsertSizeMetrics.jar"
+   java -Xmx4G -jar "${insertSizeMetrics}" \
+      INPUT="${nonMitoBAM}" OUTPUT="${nonMitoBAM}".hist_data.log \
+      H="${nonMitoBAM}".hist_graph.pdf W=1000 STOP_AFTER=5000000
+end

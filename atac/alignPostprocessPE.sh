@@ -49,13 +49,20 @@ rm "${TMP_FILT_BAM_FILE}"
 # =============
 
 TMP_FILT_BAM_FILE="${FILT_BAM_PREFIX}.dupmark.bam"
-MARKDUP="$PICARDROOT/MarkDuplicates.jar"
 DUP_FILE_QC="${FILT_BAM_PREFIX}.dup.qc"
 
-java -Xmx4G -jar "${MARKDUP}" \
-    INPUT="${FILT_BAM_FILE}" OUTPUT="${TMP_FILT_BAM_FILE}" \
-    METRICS_FILE="${DUP_FILE_QC}" VALIDATION_STRINGENCY=LENIENT \
-    ASSUME_SORTED=true REMOVE_DUPLICATES=false
+if hash picard 2>/dev/null; then
+   picard MarkDuplicates \
+      INPUT="${FILT_BAM_FILE}" OUTPUT="${TMP_FILT_BAM_FILE}" \
+      METRICS_FILE="${DUP_FILE_QC}" VALIDATION_STRINGENCY=LENIENT \
+      ASSUME_SORTED=true REMOVE_DUPLICATES=false
+else
+   MARKDUP="$PICARDROOT/MarkDuplicates.jar"
+   java -Xmx4G -jar "${MARKDUP}" \
+      INPUT="${FILT_BAM_FILE}" OUTPUT="${TMP_FILT_BAM_FILE}" \
+      METRICS_FILE="${DUP_FILE_QC}" VALIDATION_STRINGENCY=LENIENT \
+      ASSUME_SORTED=true REMOVE_DUPLICATES=false
+fi
 mv "${TMP_FILT_BAM_FILE}" "${FILT_BAM_FILE}"
 
 # ============================
