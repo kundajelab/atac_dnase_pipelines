@@ -12,40 +12,27 @@ GENOMESIZE=$5
 CHROMSIZE=$6
 OUTPUTDIR=$7
 
-MAPQ_THRESH=10
+MAPQ_THRESH=30
 
 # trim adapters
 # .fastq/.fastq.gz/.fq -> .trim.fastq
 # assumes that trimAdapters outputs the R1/R2 output filenames 
 # as the last 2 lines in stdout
-outputFiles=( $(trimAdapters -a "$READ1" -b "$READ2" | tail -n 2) )
-numOutputs=${#outputFiles[@]}
-if (( numOutputs != 2 ))
-then
-  >&2 echo "ERROR: trimAdapters did not output the required 2 filenames"
-  >&2 echo "ERROR: trimAdapters output:"
-  >&2 printf "%s\n" "${outputFiles[@]}"
-  >&2 echo "ERROR: --- end of output ---"
-fi
+trim_jobid=$(qrun trimAdapters -a "$READ1" -b "$READ2")
 
-trimmedR1=${outputFiles[0]}
-trimmedR2=${outputFiles[1]}
+echo "Submitted adapter trimming job: ${trim_jobid}"
 
-# align
-outputBAM=$(alignATAC "$BOWTIE_IDX" "$trimmedR1" "$trimmedR2" "$NUMTHREADS" "$OUTPUTDIR" | \
-            tail -n 1)
+# submit alignment job, with more cores
+align_jobid=$(
+qrun -N alignATAC -hold_jid ${trim_jobid} -pe shm ${NUMTHREADS} -l h_rt=24:00:00 -l h_stack=10M \
+    ATACpipeline-2 "$BOWTIE_IDX" "$NUMTHREADS" "$OUTPUTDIR" "$trim_jobid"
+)
 
-# postprocess
-# This output prefix assumes that the alignPostprocessPE will not overwrite
-# the original BAM (i.e., will add some more suffixes other than just .bam)
-postprocessBAMprefix=${outputBAM/.bam/}
-postprocessedBAM=$(\
-  alignPostprocessPE "$outputBAM" "$postprocessBAMprefix" "$MAPQ_THRESH" | \
-  tail -n 1)
+echo "Submitted alignment job: ${align_jobid}"
 
-# ATAC specific postprocessing
-readBED=${postprocessedBAM/.bam/.nonchrM.tn5.bed.gz}
-alignPostprocessATAC "$postprocessedBAM" "$readBED" "$OUTPUTDIR"
+postprocess_jobid=$(qrun -N postprocessATAC -hold_jid ${align_jobid} -l h_vmem=8G -l h_rt=24:00:00 \
+    ATACpipeline-3 "$GENOMESIZE" "$CHROMSIZE" "$OUTPUTDIR" "$MAPQ_THRESH" "$align_jobid"
+)
 
-# peak calling - peaks wil be in $OUTPUTDIR
-callATACpeaks "$readBED" 75 "$GENOMESIZE" "$CHROMSIZE" "$OUTPUTDIR"
+echo "Submitted postprocessing job: ${postprocess_jobid}"
+

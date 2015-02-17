@@ -66,7 +66,7 @@ bowtie2 -X2000 --threads "$NUMTHREADS" -x "$BOWTIE_IDX" \
 # add alignment outputs
 mkdir -p "${OUTPUTDIR}"
 mv "$outputLog" "$OUTPUTDIR"/"$outputLog"
-cp "$outputBAM" "$OUTPUTDIR"/"$outputBAM"
+mv "$outputBAM" "$OUTPUTDIR"/"$outputBAM"
 
 echo "Alignment done - output BAM file is:"
 echo "$outputBAM"

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+set -o nounset
+set -o pipefail
+set -o errexit
+
+GENOMESIZE=$1
+CHROMSIZE=$2
+OUTPUTDIR=$3
+MAPQ_THRESH=$4
+ALIGN_JOBID=$5
+
+sleep 5
+
+outputBAM="${OUTPUTDIR}"/$(tail -n 1 alignATAC.o${ALIGN_JOBID})
+
+>&2 echo "Postprocessing ${outputBAM}"
+
+# postprocess
+# This output prefix assumes that the alignPostprocessPE will not overwrite
+# the original BAM (i.e., will add some more suffixes other than just .bam)
+postprocessBAMprefix=${outputBAM/.bam/}
+postprocessedBAM=$(\
+  alignPostprocessPE "$outputBAM" "$postprocessBAMprefix" "$MAPQ_THRESH" | \
+  tail -n 1)
+
+
+>&2 echo "ATAC specific postprocessing on ${postprocessedBAM}"
+
+# ATAC specific postprocessing
+readBED=${postprocessedBAM/.bam/.nonchrM.tn5.bed.gz}
+alignPostprocessATAC "$postprocessedBAM" "$readBED" "$OUTPUTDIR"
+
+# Include this step also in postprocessing once debugged
+# peak calling - peaks wil be in $OUTPUTDIR
+#callATACpeaks "$readBED" 75 "$GENOMESIZE" "$CHROMSIZE" "$OUTPUTDIR/peaks"

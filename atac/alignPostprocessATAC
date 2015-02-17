@@ -43,6 +43,7 @@ insertSizeMetrics="${PICARDROOT}/CollectInsertSizeMetrics.jar"
 java -Xmx4G -jar "${insertSizeMetrics}" \
     INPUT="${nonMitoBAM}" OUTPUT="${nonMitoBAM}".hist_data.log \
     H="${nonMitoBAM}".hist_graph.pdf W=1000 STOP_AFTER=5000000
-mkdir -p "${OUTPUTDIR}"
-mv "${nonMitoBAM}".hist_data.log "${OUTPUTDIR}"/
-mv "${nonMitoBAM}".hist_graph.pdf "${OUTPUTDIR}"/
+
+#mkdir -p "${OUTPUTDIR}"
+#mv "${nonMitoBAM}".hist_data.log "${OUTPUTDIR}"/
+#mv "${nonMitoBAM}".hist_graph.pdf "${OUTPUTDIR}"/

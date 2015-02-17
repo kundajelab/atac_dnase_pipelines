@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+set -o nounset
+set -o pipefail
+set -o errexit
+
+BOWTIE_IDX=$1
+NUMTHREADS=$2
+OUTPUTDIR=$3
+TRIM_JOBID=$4
+
+sleep 5
+
+outputFiles=($(tail -n 2 trimAdapters.o${TRIM_JOBID}))
+numOutputs=${#outputFiles[@]}
+if (( numOutputs != 2 ))
+then
+  >&2 echo "ERROR: trimAdapters did not output the required 2 filenames"
+  >&2 echo "ERROR: trimAdapters output:"
+  >&2 printf "%s\n" "${outputFiles[@]}"
+  >&2 echo "ERROR: --- end of output ---"
+fi
+
+trimmedR1=${outputFiles[0]}
+trimmedR2=${outputFiles[1]}
+
+# align
+alignATAC "$BOWTIE_IDX" "$trimmedR1" "$trimmedR2" "$NUMTHREADS" "$OUTPUTDIR"
