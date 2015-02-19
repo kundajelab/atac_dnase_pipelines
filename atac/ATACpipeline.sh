@@ -22,7 +22,7 @@ echo "==========Trimming Adapters=========="
 # .fastq/.fastq.gz/.fq -> .trim.fastq
 # assumes that trimAdapters outputs the R1/R2 output filenames 
 # as the last 2 lines in stdout
-trimAdapters.py -a "$READ1" -b "$READ2" > >(tee trimAdapters.log) 2> >(tee trimAdapters.error.log >&2)
+time trimAdapters.py -a "$READ1" -b "$READ2" > >(tee trimAdapters.log) 2> >(tee trimAdapters.error.log >&2)
 outputFiles=( $(tail -n 2 trimAdapters.log ) )
 numOutputs=${#outputFiles[@]}
 if (( numOutputs != 2 ))
@@ -38,7 +38,7 @@ trimmedR2=${outputFiles[1]}
 
 echo "==========Aligning=========="
 # align
-alignATAC.sh "$BOWTIE_IDX" "$trimmedR1" "$trimmedR2" "$NUMTHREADS" > >(tee alignATAC.log) 2> >(tee alignATAC.error.log >&2)
+time alignATAC.sh "$BOWTIE_IDX" "$trimmedR1" "$trimmedR2" "$NUMTHREADS" > >(tee alignATAC.log) 2> >(tee alignATAC.error.log >&2)
 outputBAM=$(tail -n 1 alignATAC.log)
 
 echo "==========Postprocessing=========="
@@ -46,14 +46,14 @@ echo "==========Postprocessing=========="
 # This output prefix assumes that the alignPostprocessPE will not overwrite
 # the original BAM (i.e., will add some more suffixes other than just .bam)
 postprocessBAMprefix=${outputBAM/.bam/}
-alignPostprocessPE.sh "$outputBAM" "$postprocessBAMprefix" "$MAPQ_THRESH" > >(tee alignPostprocessPE.log) 2> >(tee alignPostprocessPE.error.log >&2)
+time alignPostprocessPE.sh "$outputBAM" "$postprocessBAMprefix" "$MAPQ_THRESH" > >(tee alignPostprocessPE.log) 2> >(tee alignPostprocessPE.error.log >&2)
 postprocessedBAM=$(tail -n 1 alignPostprocessPE.log)
 
 echo "==========ATAC Postprocessing=========="
 # ATAC specific postprocessing
 readBED=${postprocessedBAM/.bam/.nonchrM.tn5.bed.gz}
-alignPostprocessATAC.sh "$postprocessedBAM" "$readBED" > >(tee alignPostprocessATAC.log) 2> >(tee alignPostprocessATAC.error.log >&2)
+time alignPostprocessATAC.sh "$postprocessedBAM" "$readBED" > >(tee alignPostprocessATAC.log) 2> >(tee alignPostprocessATAC.error.log >&2)
 
 echo "==========Peak Calling=========="
 # peak calling
-callATACpeaks.sh "$readBED" 75 "$GENOMESIZE" "$CHROMSIZE" > >(tee callATACpeaks.log) 2> >(tee callATACpeaks.error.log >&2)
+time callATACpeaks.sh "$readBED" 75 "$GENOMESIZE" "$CHROMSIZE" > >(tee callATACpeaks.log) 2> >(tee callATACpeaks.error.log >&2)
