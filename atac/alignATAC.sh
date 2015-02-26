@@ -9,10 +9,18 @@ if hash module 2>/dev/null; then
 fi
 
 # read from command line which files to align
-BOWTIE_IDX=$1 # first input is the bowtie index filename prefix (excluding trailing .X.bt2)
-READ1=$2  # second input is read 1 fastq
-READ2=$3  # third input is read 2 fastq
-NUMTHREADS=$4
+if [ -n "$1" ]; then
+   BOWTIE_IDX=$1 # first input is the bowtie index filename prefix (excluding trailing .X.bt2)
+fi
+if [ -n "$2" ]; then
+   READ1=$2  # second input is read 1 fastq
+fi
+if [ -n "$3" ]; then
+   READ2=$3  # third input is read 2 fastq
+fi
+if [ -n "$4" ]; then
+   NUMTHREADS=$4
+fi
 
 # help
 if [[ -z "$READ1" ]]

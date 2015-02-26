@@ -10,11 +10,19 @@ if hash module 2>/dev/null; then
    module add ucsc_tools/2.7.2
 fi
 
-readBed=$1
+if [ -n "$1" ]; then
+   readBed=$1
+fi
 # This should really be shift size
-fragLen=$2
-genomeSize=$3
-chrSize=$4
+if [ -n "$2" ]; then
+   fragLen=$2
+fi
+if [ -n "$3" ]; then
+   genomeSize=$3
+fi
+if [ -n "$4" ]; then
+   chrSize=$4
+fi
 
 peakFile="${readBed}.pf"
 
