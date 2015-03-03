@@ -1,0 +1,38 @@
+#!/usr/bin/env bds
+#
+
+string{} map = {"key1"=>"key1","key2"=>"key2"}
+
+print( map{"key3"} + "\n")
+
+me_rong_rong := "merongrong"
+
+print "merong: $me_rong_rong\n"
+task echo merong $me_rong_rong
+
+exit(0)
+
+par func1( "A", 1 )
+par func1( "B", 2 )
+
+wait
+
+
+// functions
+
+void func1( string a, int m ) {
+	par func2( a+"1", 3*m )
+	par func2( a+"2", 10*m )
+
+	wait
+
+	print( "passed func1 " + a + m + "\n")
+}
+
+void func2( string b, int t ) {
+	sys echo $t sec; sleep $t;
+
+	print( "passed func2 " + b + t + "\n")
+}
+
+
