@@ -18,8 +18,12 @@ if hash module 2>/dev/null; then
    module add samtools/0.1.19
 fi
 
-input_bam=$1
-output_file=$2
+if [ -n "$1" ]; then
+   input_bam=$1
+fi
+if [ -n "$1" ]; then
+   output_file=$2
+fi
 
 if [[ -z $output_file ]]
 then

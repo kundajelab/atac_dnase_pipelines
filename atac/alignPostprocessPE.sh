@@ -10,9 +10,15 @@ if hash module 2>/dev/null; then
    module add bedtools/2.19.1
 fi
 
-RAW_BAM_FILE=$1
-OFPREFIX=$2
-MAPQ_THRESH=$3
+if [ -n "$1" ]; then
+   RAW_BAM_FILE=$1
+fi
+if [ -n "$2" ]; then
+   OFPREFIX=$2
+fi
+if [ -n "$3" ]; then
+   MAPQ_THRESH=$3
+fi
 
 if [[ -z $MAPQ_THRESH ]]
 then
