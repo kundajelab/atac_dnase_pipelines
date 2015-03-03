@@ -1,6 +1,3 @@
-// paired end?
-PAIRED_END=1
-
 // general
 NTHREADS=4 // bwa (align_bwa), Rscript (xcor)
 TMP="/srv/gsfs0/scratch/leepc12"

@@ -1,14 +1,17 @@
-// groovy functions
+NTHREADS=4 // bwa (align_bwa), Rscript (xcor)
+TMP="/srv/gsfs0/scratch/leepc12"
+BWA_INDEX_NAME="/srv/gsfs0/projects/kundaje/commonRepository/indexes/bwa_indexes/encodeHg19Male/v0.7.10/encodeHg19Male_bwa-0.7.10.fa"
+BWA_PARAM="-q 5 -l 32 -k 2"
+MARKDUP="/srv/gs1/software/picard-tools/1.92/MarkDuplicates.jar"
+MAPQ_THRESH=30
+RSCRIPT="/srv/gs1/software/R/R-2.15.1/bin/Rscript"
+NREADS=15000000
+NREADS_PER_MILLION=15
+NPEAK=300000
+SPEAK=220
 
-private int get_line_cnt(File f) { // count number of lines in a text file
-    int i = 0
-    f.eachLine { i++ }
-    return i
-}
+load "func.groovy"
 
-load "config.groovy"
-
-// body
 
 prepare = { // temporary initial step due to bpipe bug. without this, the second square bracket does not work well
 	outputs = inputs 
@@ -16,16 +19,20 @@ prepare = { // temporary initial step due to bpipe bug. without this, the second
 
 align_bwa = { // inputs : two fastq files (paired end)
 
+	// check if paired end
+        branch.PAIRED_END = inputs.split().join().count("PE2") > 0 // check if "PE2" exists in concatenation of input strings
+
 	// declaration
 	branch.OFPREFIX = input1.replaceAll(".PE1","").replaceAll(".PE2","").replaceAll(".fastq.gz","")
 
 	doc "align_bwa: ${OFPREFIX}"
 
 	branch.FASTQ_FILE_1=input1
-	branch.FASTQ_FILE_2=input2
+	if ( PAIRED_END ) branch.FASTQ_FILE_2=input2
 
 	branch.SAI_FILE_1="${OFPREFIX}_1.sai"
-	branch.SAI_FILE_2="${OFPREFIX}_2.sai"
+	if ( PAIRED_END ) branch.SAI_FILE_2="${OFPREFIX}_2.sai"
+
 	branch.RAW_SAM_FILE="${OFPREFIX}.raw.sam.gz"
 
 	branch.RAW_BAM_PREFIX="${OFPREFIX}.raw.srt"
@@ -35,42 +42,47 @@ align_bwa = { // inputs : two fastq files (paired end)
 	
 	// run for outputs
 	produce( RAW_BAM_FILE, RAW_BAM_FILE_MAPSTATS ) {
-	
-		multi 	"bwa aln ${BWA_PARAM} -t ${NTHREADS} ${BWA_INDEX_NAME} ${FASTQ_FILE_1} > ${SAI_FILE_1}",
-			"bwa aln ${BWA_PARAM} -t ${NTHREADS} ${BWA_INDEX_NAME} ${FASTQ_FILE_2} > ${SAI_FILE_2}"
-		
-		exec "bwa sampe ${BWA_INDEX_NAME} ${SAI_FILE_1} ${SAI_FILE_2} ${FASTQ_FILE_1} ${FASTQ_FILE_2} | gzip -c > ${RAW_SAM_FILE}"
-		
-		exec "rm ${SAI_FILE_1} ${SAI_FILE_2}"
-		
-		//# ==============================================================                                         
-		//# Remove read pairs with bad CIGAR strings and sort by position                                                                
-		//# ==============================================================
 
-		//# Find bad CIGAR read names                                                                                                                                                  
-		exec """
-			zcat ${RAW_SAM_FILE} | awk 'BEGIN {FS="\t" ; OFS="\t"} ! /^@/ && \$6!="*" { cigar=\$6; gsub("[0-9]+D","",cigar); n = split(cigar,vals,"[A-Z]"); s = 0; for (i=1;i<=n;i++) s=s+vals[i]; seqlen=length(\$10) ; if (s!=seqlen) print \$1"t"; }' | sort | uniq > ${BADCIGAR_FILE}
-		"""
-		
-		//# Remove bad CIGAR read pairs                                                                                                                                                
-		/*
-		exec """
-			if [[ \$(cat ${BADCIGAR_FILE} | wc -l) -gt 0 ]]
-			then
-			    zcat ${RAW_SAM_FILE} | grep -v -F -f ${BADCIGAR_FILE} | samtools view -Su - | samtools sort - ${RAW_BAM_PREFIX}
+		if ( PAIRED_END ) {
+			multi 	"bwa aln ${BWA_PARAM} -t ${NTHREADS} ${BWA_INDEX_NAME} ${FASTQ_FILE_1} > ${SAI_FILE_1}",
+				"bwa aln ${BWA_PARAM} -t ${NTHREADS} ${BWA_INDEX_NAME} ${FASTQ_FILE_2} > ${SAI_FILE_2}"
+			exec "bwa sampe ${BWA_INDEX_NAME} ${SAI_FILE_1} ${SAI_FILE_2} ${FASTQ_FILE_1} ${FASTQ_FILE_2} | gzip -c > ${RAW_SAM_FILE}"
+			exec "rm ${SAI_FILE_1} ${SAI_FILE_2}"
+
+			//# ==============================================================                                         
+			//# Remove read pairs with bad CIGAR strings and sort by position                                                                
+			//# ==============================================================
+	
+			//# Find bad CIGAR read names                                                                                                                                                  
+			exec """
+				zcat ${RAW_SAM_FILE} | awk 'BEGIN {FS="\t" ; OFS="\t"} ! /^@/ && \$6!="*" { cigar=\$6; gsub("[0-9]+D","",cigar); n = split(cigar,vals,"[A-Z]"); s = 0; for (i=1;i<=n;i++) s=s+vals[i]; seqlen=length(\$10) ; if (s!=seqlen) print \$1"t"; }' | sort | uniq > ${BADCIGAR_FILE}
+			"""
+			
+			//# Remove bad CIGAR read pairs                                                                                                                                                
+			/*
+			exec """
+				if [[ \$(cat ${BADCIGAR_FILE} | wc -l) -gt 0 ]]
+				then
+				    zcat ${RAW_SAM_FILE} | grep -v -F -f ${BADCIGAR_FILE} | samtools view -Su - | samtools sort - ${RAW_BAM_PREFIX}
+				else
+				    samtools view -Su ${RAW_SAM_FILE} | samtools sort - ${RAW_BAM_PREFIX}
+				fi
+			"""
+			*/
+			if ( get_line_cnt( file(BADCIGAR_FILE) ) > 0 )
+			    exec "zcat ${RAW_SAM_FILE} | grep -v -F -f ${BADCIGAR_FILE} | samtools view -Su - | samtools sort - ${RAW_BAM_PREFIX}"
 			else
-			    samtools view -Su ${RAW_SAM_FILE} | samtools sort - ${RAW_BAM_PREFIX}
-			fi
-		"""
-		*/
-		if ( get_line_cnt( file(BADCIGAR_FILE) ) > 0 )
-		    exec "zcat ${RAW_SAM_FILE} | grep -v -F -f ${BADCIGAR_FILE} | samtools view -Su - | samtools sort - ${RAW_BAM_PREFIX}"
-		else
-		    exec "samtools view -Su ${RAW_SAM_FILE} | samtools sort - ${RAW_BAM_PREFIX}"
-		
-		//exec "rm ${BADCIGAR_FILE} ${RAW_SAM_FILE}"
-		
-		exec "samtools flagstat ${RAW_BAM_FILE} > ${RAW_BAM_FILE_MAPSTATS}"
+			    exec "samtools view -Su ${RAW_SAM_FILE} | samtools sort - ${RAW_BAM_PREFIX}"
+			
+			exec "rm ${BADCIGAR_FILE} ${RAW_SAM_FILE}"
+			exec "samtools flagstat ${RAW_BAM_FILE} > ${RAW_BAM_FILE_MAPSTATS}"
+		}
+		else {
+			exec "bwa aln ${BWA_PARAM} -t ${NTHREADS} ${BWA_INDEX_NAME} ${FASTQ_FILE_1} > ${SAI_FILE_1}",
+			exec "bwa samse ${BWA_INDEX_NAME} ${SAI_FILE_1} ${FASTQ_FILE_1} | samtools view -Su - | samtools sort - ${RAW_BAM_PREFIX}"
+			exec "rm ${SAI_FILE_1}"
+			exec "samtools flagstat ${RAW_BAM_FILE} > ${RAW_BAM_FILE_MAPSTATS}"
+		}
 	}
 }
 
@@ -80,11 +92,13 @@ post_align_filt = {
 
 	branch.FILT_BAM_PREFIX="${OFPREFIX}.filt.srt"
 	branch.FILT_BAM_FILE="${FILT_BAM_PREFIX}.bam"
-	branch.TMP_FILT_BAM_PREFIX="tmp.${FILT_BAM_PREFIX}.nmsrt"
-	branch.TMP_FILT_BAM_FILE="${TMP_FILT_BAM_PREFIX}.bam"
+
+	if ( PAIRED_END ) {
+		branch.TMP_FILT_BAM_PREFIX="tmp.${FILT_BAM_PREFIX}.nmsrt"
+		branch.TMP_FILT_BAM_FILE="${TMP_FILT_BAM_PREFIX}.bam"
+	}
 	branch.TMP_FILT_BAM_FILE2="${FILT_BAM_PREFIX}.dupmark.bam"
 	branch.DUP_FILE_QC="${FILT_BAM_PREFIX}.dup.qc"
-	//MARKDUP="/srv/gs1/software/picard-tools/1.92/MarkDuplicates.jar"
 
 	branch.FINAL_BAM_PREFIX="${OFPREFIX}.filt.srt.nodup"
 	branch.FINAL_BAM_FILE="${FINAL_BAM_PREFIX}.bam" //# To be stored
@@ -103,70 +117,89 @@ post_align_filt = {
 		//# Only keep properly paired reads
 		//# Obtain name sorted BAM file
 		//# ==================
-		exec """		
-			samtools view -F 1804 -f 2 -q ${MAPQ_THRESH} -u ${RAW_BAM_FILE} | samtools sort -n - ${TMP_FILT_BAM_PREFIX} # Will produce name sorted BAM
-		"""
-		
-		//# Remove orphan reads (pair was removed)
-		//# and read pairs mapping to different chromosomes
-		//# Obtain position sorted BAM
-		
-		exec """		
-			samtools fixmate -r ${TMP_FILT_BAM_FILE} - | samtools view -F 1804 -f 2 -u - | samtools sort - ${FILT_BAM_PREFIX} # Will produce coordinate sorted BAM                       
-		"""
+		if ( PAIRED_END ) {
+			exec "samtools view -F 1804 -f 2 -q ${MAPQ_THRESH} -u ${RAW_BAM_FILE} | samtools sort -n - ${TMP_FILT_BAM_PREFIX} # Will produce name sorted BAM"
+			
+			//# Remove orphan reads (pair was removed)
+			//# and read pairs mapping to different chromosomes
+			//# Obtain position sorted BAM
+			
+			exec "samtools fixmate -r ${TMP_FILT_BAM_FILE} - | samtools view -F 1804 -f 2 -u - | samtools sort - ${FILT_BAM_PREFIX} # Will produce coordinate sorted BAM"
 	
-		//exec "rm ${TMP_FILT_BAM_FILE}"		
+			exec "rm ${TMP_FILT_BAM_FILE}"		
 
-		//# =============
-		//# Mark duplicates
-		//# =============
+			//# =============
+			//# Mark duplicates
+			//# =============
+		
+			exec "java -Xmx4G -jar ${MARKDUP} INPUT=${FILT_BAM_FILE} OUTPUT=${TMP_FILT_BAM_FILE2} METRICS_FILE=${DUP_FILE_QC} VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false"
+			exec "mv ${TMP_FILT_BAM_FILE2} ${FILT_BAM_FILE}"
+		
+			//# ============================
+			//# Remove duplicates
+			//# Index final position sorted BAM
+			//# Create final name sorted BAM
+			//# ============================
+
+			exec "samtools view -F 1804 -f 2 -b ${FILT_BAM_FILE} > ${FINAL_BAM_FILE}"
+			exec "samtools sort -n ${FINAL_BAM_FILE} ${FINAL_NMSRT_BAM_PREFIX}"
 	
-		exec """		
-			java -Xmx4G -jar ${MARKDUP} INPUT=${FILT_BAM_FILE} OUTPUT=${TMP_FILT_BAM_FILE2} METRICS_FILE=${DUP_FILE_QC} VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false
-		"""
+			//# Index Final BAM file
+			exec "samtools index ${FINAL_BAM_FILE} ${FINAL_BAM_INDEX_FILE}"
+			exec "samtools flagstat ${FINAL_BAM_FILE} > ${FINAL_BAM_FILE_MAPSTATS}"
 
-		exec """
-			mv ${TMP_FILT_BAM_FILE2} ${FILT_BAM_FILE}
-		"""
+			//# =============================
+			//# Compute library complexity
+			//# =============================
+			//# Sort by name
+			//# convert to bedPE and obtain fragment coordinates
+			//# sort by position and strand
+			//# Obtain unique count statistics
 		
-		//# ============================
-		//# Remove duplicates
-		//# Index final position sorted BAM
-		//# Create final name sorted BAM
-		//# ============================
+			//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
+		
+			exec """		
+				samtools sort -no ${FILT_BAM_FILE} - | bamToBed -bedpe -i stdin | awk 'BEGIN{OFS="\t"}{print \$1,\$2,\$4,\$6,\$9,\$10}' | grep -v 'chrM' | sort | uniq -c | awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} (\$1==1){m1=m1+1} (\$1==2){m2=m2+1} {m0=m0+1} {mt=mt+\$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > ${PBC_FILE_QC}
+			"""
+			exec "rm ${FILT_BAM_FILE}"
+		}
+		else {
+			exec "samtools view -F 1804 -q ${MAPQ_THRESH} -b ${RAW_BAM_FILE} > ${FILT_BAM_FILE}"
+			//# ========================
+			//# Mark duplicates
+			//# ======================
 
-		exec """		
-			samtools view -F 1804 -f 2 -b ${FILT_BAM_FILE} > ${FINAL_BAM_FILE}
-		"""
-	
-		exec """		
-			samtools sort -n ${FINAL_BAM_FILE} ${FINAL_NMSRT_BAM_PREFIX}
-		"""
-	
-		//# Index Final BAM file
-		exec """		
-			samtools index ${FINAL_BAM_FILE} ${FINAL_BAM_INDEX_FILE}
-		"""
-		
-		exec """		
-			samtools flagstat ${FINAL_BAM_FILE} > ${FINAL_BAM_FILE_MAPSTATS}
-		"""
+			exec " java -Xmx4G -jar ${MARKDUP} INPUT=${FILT_BAM_FILE} OUTPUT=${TMP_FILT_BAM_FILE2} METRICS_FILE=${DUP_FILE_QC} VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false"
+			exec "mv ${TMP_FILT_BAM_FILE2} ${FILT_BAM_FILE}"
 
-		//# =============================
-		//# Compute library complexity
-		//# =============================
-		//# Sort by name
-		//# convert to bedPE and obtain fragment coordinates
-		//# sort by position and strand
-		//# Obtain unique count statistics
-		
-		//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
-		
-		exec """		
-			samtools sort -no ${FILT_BAM_FILE} - | bamToBed -bedpe -i stdin | awk 'BEGIN{OFS="\t"}{print \$1,\$2,\$4,\$6,\$9,\$10}' | grep -v 'chrM' | sort | uniq -c | awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} (\$1==1){m1=m1+1} (\$1==2){m2=m2+1} {m0=m0+1} {mt=mt+\$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > ${PBC_FILE_QC}
-		"""
+			//# ============================
+			//# Remove duplicates
+			//# Index final position sorted BAM
+			//# ============================
 
-		exec "rm ${FILT_BAM_FILE}"
+			exec "samtools view -F 1804 -b ${FILT_BAM_FILE} > ${FINAL_BAM_FILE}"
+
+			//# Index Final BAM file
+			exec " samtools index ${FINAL_BAM_FILE} ${FINAL_BAM_INDEX_FILE}"
+			exec "samtools flagstat ${FINAL_BAM_FILE} > ${FINAL_BAM_FILE_MAPSTATS}"
+
+			//# =============================
+			//# Compute library complexity
+			//# =============================
+			//# sort by position and strand
+			//# Obtain unique count statistics
+
+			PBC_FILE_QC="${FINAL_BAM_PREFIX}.pbc.qc"
+
+			//# PBC File output
+			//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
+
+			exec """
+				bamToBed -i ${FILT_BAM_FILE} | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$6}' | grep -v 'chrM' | sort | uniq -c | awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf “%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > ${PBC_FILE_QC}
+			"""
+			exec "rm ${FILT_BAM_FILE}"
+
+		}
 	}
 
 }
@@ -175,34 +208,51 @@ bam_to_tagalign = {
 
 	doc "bam_to_tagalign: ${OFPREFIX}"
 
-	branch.FINAL_TA_FILE="${FINAL_BAM_PREFIX}.PE2SE.tagAlign.gz"
-	branch.FINAL_BEDPE_FILE="${FINAL_NMSRT_BAM_PREFIX}.bedpe.gz"
+	if ( PAIRED_END )
+		branch.FINAL_TA_FILE="${FINAL_BAM_PREFIX}.PE2SE.tagAlign.gz"
+	else
+		branch.FINAL_TA_FILE="${FINAL_BAM_PREFIX}.SE.tagAlign.gz"
 
+	branch.FINAL_BEDPE_FILE="${FINAL_NMSRT_BAM_PREFIX}.bedpe.gz"
 	branch.SUBSAMPLED_TA_FILE="${OFPREFIX}.filt.nodup.sample.${NREADS_PER_MILLION}.MATE1.tagAlign.gz"
 
-	produce( FINAL_TA_FILE, FINAL_BEDPE_FILE, SUBSAMPLED_TA_FILE ) {
-		//# ===================
-		//# Create tagAlign file
-		//# ===================
+	if ( PAIRED_END ) {
 
-		exec """
-			bamToBed -i ${FINAL_BAM_FILE} | awk 'BEGIN{OFS="\t"}{\$4="N";\$5="1000";print \$0}' | gzip -c > ${FINAL_TA_FILE}
-		"""
+		produce( FINAL_TA_FILE, FINAL_BEDPE_FILE, SUBSAMPLED_TA_FILE ) {
+			//# ===================
+			//# Create tagAlign file
+			//# ===================
+	
+			exec """
+				bamToBed -i ${FINAL_BAM_FILE} | awk 'BEGIN{OFS="\t"}{\$4="N";\$5="1000";print \$0}' | gzip -c > ${FINAL_TA_FILE}
+			"""
+			//# ================
+			//# Create BEDPE file
+			//# ================
+			exec "bamToBed -bedpe -mate1 -i ${FINAL_NMSRT_BAM_FILE} | gzip -c > ${FINAL_BEDPE_FILE}"
 
-		//# ================
-		//# Create BEDPE file
-		//# ================
-		exec """
-			bamToBed -bedpe -mate1 -i ${FINAL_NMSRT_BAM_FILE} | gzip -c > ${FINAL_BEDPE_FILE}
-		"""
-		//# =================================
-		//# Subsample tagAlign file
-		//# Restrict to one read end per pair for CC analysis
-		//# ================================
-		exec """
-			zcat ${FINAL_BEDPE_FILE} | grep -v "chrM" | shuf -n ${NREADS} | awk 'BEGIN{OFS="\t"}{print \$1,\$2,\$3,"N","1000",\$9}' | gzip -c > ${SUBSAMPLED_TA_FILE}
-		"""
+			//# =================================
+			//# Subsample tagAlign file
+			//# Restrict to one read end per pair for CC analysis
+			//# ================================
+			exec """
+				zcat ${FINAL_BEDPE_FILE} | grep -v "chrM" | shuf -n ${NREADS} | awk 'BEGIN{OFS="\t"}{print \$1,\$2,\$3,"N","1000",\$9}' | gzip -c > ${SUBSAMPLED_TA_FILE}
+			"""
+		}
+	}
+	else {
+		produce( FINAL_TA_FILE, SUBSAMPLED_TA_FILE ) {
+			exec """
+				bamToBed -i ${FINAL_BAM_FILE} | awk 'BEGIN{OFS="\t"}{\$4="N";\$5="1000";print \$0}' | gzip -c > ${FINAL_TA_FILE}
+			"""
 
+			# =================================
+			# Subsample tagAlign file
+			# ================================
+			exec """
+				zcat ${FINAL_TA_FILE} | grep -v "chrM" | shuf -n ${NREADS} | gzip -c > ${SUBSAMPLED_TA_FILE}
+			"""
+		}
 	}
 
 }
