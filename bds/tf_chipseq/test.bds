@@ -1,9 +1,23 @@
 #!/usr/bin/env bds
 #
 
-string{} map = {"key1"=>"key1","key2"=>"key2"}
+int a = 1
+int b = 2
 
-print( map{"key3"} + "\n")
+bool aa = true
+bool bb = false
+
+//print( (a==1) || (b==2) + "\n")
+//print( a==1 || b==2 + "\n")
+//print( (aa==true) || (bb==false) + "\n")
+
+funcA( "aa" )
+funcA( "bb", 2 )
+
+
+
+string{} map = {"key1"=>"key1","key2"=>"key2"}
+//print( map{"key3"} + "\n")
 
 me_rong_rong := "merongrong"
 
@@ -33,6 +47,14 @@ void func2( string b, int t ) {
 	sys echo $t sec; sleep $t;
 
 	print( "passed func2 " + b + t + "\n")
+}
+
+void funcA( string a ) { 
+	print(a + "\n")
+}
+
+void funcA( string a, int b ) {
+	print(a + " " + b + "\n")
 }
 
 
