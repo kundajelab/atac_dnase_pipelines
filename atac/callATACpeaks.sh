@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-set -o nounset
 set -o pipefail
 set -o errexit
 
@@ -22,6 +21,12 @@ if [ -n "$3" ]; then
 fi
 if [ -n "$4" ]; then
    chrSize=$4
+fi
+
+# if this variable is the string "FROM_FILE", then load it from the
+# contents of a file that should have been created previously in the pipeline
+if [ "$readBed" == "FROM_FILE" ]; then
+  readBed=`cat readBED.filename`
 fi
 
 peakFile="${readBed}.pf"

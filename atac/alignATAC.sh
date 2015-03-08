@@ -22,6 +22,16 @@ if [ -n "$4" ]; then
    NUMTHREADS=$4
 fi
 
+# if these variables are the string "FROM_FILE", then load them from the
+# contents of some files that should have been created previously in the pipeline
+if [ "$READ1" == "FROM_FILE" ]; then
+  READ1=`cat trimmedR1.filename`
+fi
+
+if [ "$READ2" == "FROM_FILE" ]; then
+  READ2=`cat trimmedR2.filename`
+fi
+
 # help
 if [[ -z "$READ1" ]]
 then

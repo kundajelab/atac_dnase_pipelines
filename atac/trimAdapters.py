@@ -39,15 +39,19 @@ opts.add_option("-a", help="<Read1> Accepts fastq or fastq.gz")
 opts.add_option("-b", help="<Read2> Accepts fastq or fastq.gz")
 options, arguments = opts.parse_args()
 
-# return usage information if no argvs given
+# return usage information if no argvs given AND they're not available in the environment
+# command line arguments always override environment variables
 if len(sys.argv)==1:
-    os.system(sys.argv[0]+" --help")
-    sys.exit()
-
-##### INPUTS AND OUTPUTS #####
-# name input and outputs
-p1_in = options.a
-p2_in = options.b
+	p1_in = os.environ.get('P1_IN')
+	p2_in = os.environ.get('P2_IN')
+	if  (p1_in is None) or (p2_in is None):
+		os.system(sys.argv[0]+" --help")
+		sys.exit()
+else:
+	##### INPUTS AND OUTPUTS #####
+	# name input and outputs
+	p1_in = options.a
+	p2_in = options.b
 
 # name outputs and print to working dir
 p1_file = p1_in.split('/')[-1]

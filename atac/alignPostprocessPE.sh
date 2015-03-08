@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-set -o nounset
 set -o pipefail
 set -o errexit
 
@@ -26,7 +25,17 @@ then
     MAPQ_THRESH=30
 fi
 
->&2 echo "Got inputs: $1 $2 $3"
+# if these variables are the string "FROM_FILE", then load them from the
+# contents of some files that should have been created previously in the pipeline
+if [ "$RAW_BAM_FILE" == "FROM_FILE" ]; then
+  RAW_BAM_FILE=`cat outputBAM.filename`
+fi
+
+if [ "$OFPREFIX" == "FROM_FILE" ]; then
+  OFPREFIX=`cat postprocessBAMprefix.filename`
+fi
+
+>&2 echo "Got inputs: $RAW_BAM_FILE $OFPREFIX $MAPQ_THRESH"
 
 # =============================
 # Remove  unmapped, mate unmapped

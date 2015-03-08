@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-set -o nounset
 set -o pipefail
 set -o errexit
 
@@ -14,46 +13,136 @@ OUTPUTDIR=$7
 
 MAPQ_THRESH=30
 
+rm -rf ${OUTPUTDIR} # make sure output dir is clean before a new run
 mkdir -p ${OUTPUTDIR}
 cd ${OUTPUTDIR}
+
+# for cluster environment
+if hash qsub 2>/dev/null; then
+   echo "Cluster mode enabled"
+   QSUB=true
+   NEED_MEMORY=8G
+   NEED_CPUS=1
+   NEED_RUNTIME=20:00:00
+   NEED_STACK=10M
+   if hash qsig 2>/dev/null; then
+      echo "PBS type cluster detected"
+      PARALLEL='-l ncpus='
+      MEMORY='-l mem='
+      RUNTIME='-l walltime='
+      STACK=''
+      WAITFOR='-W afterany:'
+      WD='-w'
+   else
+      echo "SGE type cluster detected"
+      PARALLEL='-pe shm '
+      MEMORY='-l h_vmem='
+      RUNTIME='-l h_rt='
+      STACK='-l h_stack=10M'
+      WAITFOR='-hold_jid '
+      WD='-wd'
+   fi
+fi
+
 
 echo "==========Trimming Adapters=========="
 # trim adapters
 # .fastq/.fastq.gz/.fq -> .trim.fastq
 # assumes that trimAdapters outputs the R1/R2 output filenames 
 # as the last 2 lines in stdout
-time trimAdapters.py -a "$READ1" -b "$READ2" > >(tee trimAdapters.log) 2> >(tee trimAdapters.error.log >&2)
-outputFiles=( $(tail -n 2 trimAdapters.log ) )
-numOutputs=${#outputFiles[@]}
-if (( numOutputs != 2 ))
-then
-  >&2 echo "ERROR: trimAdapters did not output the required 2 filenames"
-  >&2 echo "ERROR: trimAdapters output:"
-  >&2 printf "%s\n" "${outputFiles[@]}"
-  >&2 echo "ERROR: --- end of output ---"
+CMD=trimAdapters
+export P1_IN="$READ1"
+export P2_IN="$READ2"
+if [ -n "$QSUB" ]; then
+   QSUB="qsub -V ${STACK} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-
-trimmedR1=${outputFiles[0]}
-trimmedR2=${outputFiles[1]}
+${QSUB} ${CMD}.py > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+if [ -n "$QSUB" ]; then
+   JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
+fi
 
 echo "==========Aligning=========="
 # align
-time alignATAC.sh "$BOWTIE_IDX" "$trimmedR1" "$trimmedR2" "$NUMTHREADS" > >(tee alignATAC.log) 2> >(tee alignATAC.error.log >&2)
-outputBAM=$(tail -n 1 alignATAC.log)
+export SOURCE_LOG=${CMD}.log
+CMD=alignATAC
+if [ -n "$QSUB" ]; then
+   QSUB="qsub -V ${WAITFOR}${JOB_ID} -o pre-${CMD}.log -e pre-${CMD}.error.log"
+fi
+${QSUB} pre-${CMD}.sh > >(tee pre-${CMD}.log) 2> >(tee pre-${CMD}.error.log >&2)
+if [ -n "$QSUB" ]; then
+   JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
+fi
+
+export BOWTIE_IDX=$BOWTIE_IDX
+export READ1=FROM_FILE
+export READ2=FROM_FILE
+export NUMTHREADS=$NUMTHREADS
+if [ -n "$QSUB" ]; then
+   NEED_CPUS=$NUMTHREADS
+   QSUB="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
+fi
+${QSUB} ${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+if [ -n "$QSUB" ]; then
+   JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
+fi
 
 echo "==========Postprocessing=========="
 # postprocess
 # This output prefix assumes that the alignPostprocessPE will not overwrite
 # the original BAM (i.e., will add some more suffixes other than just .bam)
-postprocessBAMprefix=${outputBAM/.bam/}
-time alignPostprocessPE.sh "$outputBAM" "$postprocessBAMprefix" "$MAPQ_THRESH" > >(tee alignPostprocessPE.log) 2> >(tee alignPostprocessPE.error.log >&2)
-postprocessedBAM=$(tail -n 1 alignPostprocessPE.log)
+export SOURCE_LOG=${CMD}.log
+CMD=alignPostprocessPE
+if [ -n "$QSUB" ]; then
+   QSUB="qsub -V ${WAITFOR}${JOB_ID} -o pre-${CMD}.log -e pre-${CMD}.error.log"
+fi
+${QSUB} pre-${CMD}.sh > >(tee pre-${CMD}.log) 2> >(tee pre-${CMD}.error.log >&2)
+if [ -n "$QSUB" ]; then
+   JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
+fi
+
+export RAW_BAM_FILE=FROM_FILE
+export OFPREFIX=FROM_FILE
+export MAPQ_THRESH=$MAPQ_THRESH
+if [ -n "$QSUB" ]; then
+   NEED_CPUS=1
+   QSUB="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
+fi
+${QSUB} ${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+if [ -n "$QSUB" ]; then
+   JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
+fi
+
 
 echo "==========ATAC Postprocessing=========="
 # ATAC specific postprocessing
-readBED=${postprocessedBAM/.bam/.nonchrM.tn5.bed.gz}
-time alignPostprocessATAC.sh "$postprocessedBAM" "$readBED" > >(tee alignPostprocessATAC.log) 2> >(tee alignPostprocessATAC.error.log >&2)
+export SOURCE_LOG=${CMD}.log
+CMD=alignPostprocessATAC
+if [ -n "$QSUB" ]; then
+   QSUB="qsub -V ${WAITFOR}${JOB_ID} -o pre-${CMD}.log -e pre-${CMD}.error.log"
+fi
+${QSUB} pre-${CMD}.sh > >(tee pre-${CMD}.log) 2> >(tee pre-${CMD}.error.log >&2)
+if [ -n "$QSUB" ]; then
+   JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
+fi
+
+export input_bam=FROM_FILE
+export output_file=FROM_FILE
+if [ -n "$QSUB" ]; then
+   NEED_CPUS=1
+   QSUB="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
+fi
+${QSUB} ${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
 
 echo "==========Peak Calling=========="
 # peak calling
-time callATACpeaks.sh "$readBED" 75 "$GENOMESIZE" "$CHROMSIZE" > >(tee callATACpeaks.log) 2> >(tee callATACpeaks.error.log >&2)
+CMD=callATACpeaks
+
+export readBed=FROM_FILE
+export fragLen=75
+export genomeSize=$GENOMESIZE
+export chrSize=$CHROMSIZE
+if [ -n "$QSUB" ]; then
+   NEED_CPUS=1
+   QSUB="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
+fi
+${QSUB} ${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
