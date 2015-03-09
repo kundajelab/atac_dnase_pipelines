@@ -4,7 +4,7 @@ set -o pipefail
 set -o errexit
 
 if hash module 2>/dev/null; then
-   module add samtools/0.1.2
+   module add samtools/1.2
    module add picard-tools/1.92
    module add bedtools/2.19.1
 fi

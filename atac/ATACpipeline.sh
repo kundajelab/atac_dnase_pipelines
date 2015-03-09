@@ -10,6 +10,7 @@ NUMTHREADS=$4
 GENOMESIZE=$5
 CHROMSIZE=$6
 OUTPUTDIR=$7
+SCRIPTPATH=$( cd $(dirname $0) ; pwd -P ) #absolute path to directory containing this file
 
 MAPQ_THRESH=30
 
@@ -56,7 +57,7 @@ export P2_IN="$READ2"
 if [ -n "$QSUB" ]; then
    QSUB="qsub -V ${STACK} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-${QSUB} ${CMD}.py > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+${QSUB} ${SCRIPTPATH}/${CMD}.py > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
 if [ -n "$QSUB" ]; then
    JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
@@ -66,11 +67,11 @@ echo "==========Aligning=========="
 export SOURCE_LOG=${CMD}.log
 CMD=alignATAC
 if [ -n "$QSUB" ]; then
-   QSUB="qsub -V ${WAITFOR}${JOB_ID} -o pre-${CMD}.log -e pre-${CMD}.error.log"
+   QSUB="qsub -V -N pre-${CMD} ${WD} `pwd` ${WAITFOR}${JOB_ID} -o pre-${CMD}.log -e pre-${CMD}.error.log"
 fi
-${QSUB} pre-${CMD}.sh > >(tee pre-${CMD}.log) 2> >(tee pre-${CMD}.error.log >&2)
+${QSUB} ${SCRIPTPATH}/pre-${CMD}.sh > >(tee pre-${CMD}.log) 2> >(tee pre-${CMD}.error.log >&2)
 if [ -n "$QSUB" ]; then
-   JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
+   JOB_ID=`head -n 1 pre-${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
 
 export BOWTIE_IDX=$BOWTIE_IDX
@@ -81,7 +82,7 @@ if [ -n "$QSUB" ]; then
    NEED_CPUS=$NUMTHREADS
    QSUB="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-${QSUB} ${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+${QSUB} ${SCRIPTPATH}/${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
 if [ -n "$QSUB" ]; then
    JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
@@ -93,11 +94,11 @@ echo "==========Postprocessing=========="
 export SOURCE_LOG=${CMD}.log
 CMD=alignPostprocessPE
 if [ -n "$QSUB" ]; then
-   QSUB="qsub -V ${WAITFOR}${JOB_ID} -o pre-${CMD}.log -e pre-${CMD}.error.log"
+   QSUB="qsub -V -N pre-${CMD} ${WD} `pwd` ${WAITFOR}${JOB_ID} -o pre-${CMD}.log -e pre-${CMD}.error.log"
 fi
-${QSUB} pre-${CMD}.sh > >(tee pre-${CMD}.log) 2> >(tee pre-${CMD}.error.log >&2)
+${QSUB} ${SCRIPTPATH}/pre-${CMD}.sh > >(tee pre-${CMD}.log) 2> >(tee pre-${CMD}.error.log >&2)
 if [ -n "$QSUB" ]; then
-   JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
+   JOB_ID=`head -n 1 pre-${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
 
 export RAW_BAM_FILE=FROM_FILE
@@ -107,7 +108,7 @@ if [ -n "$QSUB" ]; then
    NEED_CPUS=1
    QSUB="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-${QSUB} ${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+${QSUB} ${SCRIPTPATH}/${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
 if [ -n "$QSUB" ]; then
    JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
@@ -118,11 +119,11 @@ echo "==========ATAC Postprocessing=========="
 export SOURCE_LOG=${CMD}.log
 CMD=alignPostprocessATAC
 if [ -n "$QSUB" ]; then
-   QSUB="qsub -V ${WAITFOR}${JOB_ID} -o pre-${CMD}.log -e pre-${CMD}.error.log"
+   QSUB="qsub -V -N pre-${CMD} ${WD} `pwd` ${WAITFOR}${JOB_ID} -o pre-${CMD}.log -e pre-${CMD}.error.log"
 fi
-${QSUB} pre-${CMD}.sh > >(tee pre-${CMD}.log) 2> >(tee pre-${CMD}.error.log >&2)
+${QSUB} ${SCRIPTPATH}/pre-${CMD}.sh > >(tee pre-${CMD}.log) 2> >(tee pre-${CMD}.error.log >&2)
 if [ -n "$QSUB" ]; then
-   JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
+   JOB_ID=`head -n 1 pre-${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
 
 export input_bam=FROM_FILE
@@ -131,7 +132,7 @@ if [ -n "$QSUB" ]; then
    NEED_CPUS=1
    QSUB="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-${QSUB} ${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+${QSUB} ${SCRIPTPATH}/${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
 
 echo "==========Peak Calling=========="
 # peak calling
@@ -145,4 +146,4 @@ if [ -n "$QSUB" ]; then
    NEED_CPUS=1
    QSUB="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-${QSUB} ${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+${QSUB} ${SCRIPTPATH}/${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
