@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 
-set -o nounset
 set -o pipefail
 set -o errexit
 
 if hash module 2>/dev/null; then
-   module add samtools/0.1.19
+   module add samtools/0.1.2
    module add picard-tools/1.92
    module add bedtools/2.19.1
 fi
@@ -26,6 +25,18 @@ then
     MAPQ_THRESH=30
 fi
 
+# if these variables are the string "FROM_FILE", then load them from the
+# contents of some files that should have been created previously in the pipeline
+if [ "$RAW_BAM_FILE" == "FROM_FILE" ]; then
+  RAW_BAM_FILE=`cat outputBAM.filename`
+fi
+
+if [ "$OFPREFIX" == "FROM_FILE" ]; then
+  OFPREFIX=`cat postprocessBAMprefix.filename`
+fi
+
+>&2 echo "Got inputs: $RAW_BAM_FILE $OFPREFIX $MAPQ_THRESH"
+
 # =============================
 # Remove  unmapped, mate unmapped
 # not primary alignment, reads failing platform
@@ -35,9 +46,10 @@ fi
 # ==================
 FILT_BAM_PREFIX="${OFPREFIX}.filt.srt"
 FILT_BAM_FILE="${FILT_BAM_PREFIX}.bam"
-TMP_FILT_BAM_PREFIX="tmp.${FILT_BAM_PREFIX}.nmsrt"
+TMP_FILT_BAM_PREFIX="${FILT_BAM_PREFIX}.nmsrt.tmp"
 TMP_FILT_BAM_FILE="${TMP_FILT_BAM_PREFIX}.bam"
 
+>&2 echo "Filter reads and sort"
 samtools view -F 1804 -f 2 -q "${MAPQ_THRESH}" -u "${RAW_BAM_FILE}" | \
     samtools sort -n - "${TMP_FILT_BAM_PREFIX}" # Will produce name sorted BAM
 
@@ -45,6 +57,7 @@ samtools view -F 1804 -f 2 -q "${MAPQ_THRESH}" -u "${RAW_BAM_FILE}" | \
 # and read pairs mapping to different chromosomes
 # Obtain position sorted BAM
 
+>&2 echo "Fix mates - orphans and cross chromosomes"
 samtools fixmate -O bam -r "${TMP_FILT_BAM_FILE}" - | \
     samtools view -F 1804 -f 2 -u - | \
     samtools sort - "${FILT_BAM_PREFIX}" # Will produce coordinate sorted BAM
@@ -54,6 +67,7 @@ rm "${TMP_FILT_BAM_FILE}"
 # Mark duplicates
 # =============
 
+>&2 echo "Mark duplicates"
 TMP_FILT_BAM_FILE="${FILT_BAM_PREFIX}.dupmark.bam"
 DUP_FILE_QC="${FILT_BAM_PREFIX}.dup.qc"
 
@@ -77,6 +91,7 @@ mv "${TMP_FILT_BAM_FILE}" "${FILT_BAM_FILE}"
 # Create final name sorted BAM
 # ============================
 
+>&2 echo "Remove duplicates"
 FINAL_BAM_PREFIX="${OFPREFIX}.filt.srt.nodup"
 FINAL_BAM_FILE="${FINAL_BAM_PREFIX}.bam" # To be stored
 FINAL_BAM_INDEX_FILE="${FINAL_BAM_PREFIX}.bai"
@@ -100,10 +115,11 @@ samtools flagstat "${FINAL_BAM_FILE}" > "${FINAL_BAM_FILE_MAPSTATS}"
 # sort by position and strand
 # Obtain unique count statistics
 
+>&2 echo "Compute library complexity"
 PBC_FILE_QC="${FINAL_BAM_PREFIX}.pbc.qc"
 
 # TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
-samtools sort -n -o "${FILT_BAM_FILE}" tmp."${FILT_BAM_FILE}" | \
+samtools sort -n -o "${FILT_BAM_FILE}" "${FILT_BAM_FILE}".tmp | \
     bedtools bamtobed -bedpe -i stdin | \
     awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
     grep -v 'chrM' | \
