@@ -5,7 +5,7 @@ set -o errexit
 
 if hash module 2>/dev/null; then
    module add bedtools/2.19.1
-   module add MACS2/2.0.10
+   module add MACS2/2.1.0
    module add ucsc_tools/2.7.2
 fi
 
