@@ -14,7 +14,6 @@ SCRIPTPATH=$( cd $(dirname $0) ; pwd -P ) #absolute path to directory containing
 
 MAPQ_THRESH=30
 
-rm -rf ${OUTPUTDIR} # make sure output dir is clean before a new run
 mkdir -p ${OUTPUTDIR}
 cd ${OUTPUTDIR}
 
