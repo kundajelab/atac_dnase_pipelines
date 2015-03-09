@@ -1,8 +1,29 @@
 #!/usr/bin/env bds
 #
 
+
+lines := ("/srv/gsfs0/scratch/leepc12/run_pipeline/bds_test_SE/out/TEST_SE_CTL0_Rep1.filt.nodup.sample.15.SE.tagAlign.gz.cc.qc").read()
+cols := lines.split("\t")
+print(cols[2] + "\n")
+
 int a = 1
 int b = 2
+
+string test[]
+
+if (test.size()==0) {
+	print("null!\n")
+}
+
+string merong = 1==1 ? 	"1\n" : \
+						"2\n"
+
+//if ( 1>0 && 2>1 || 1>0 && 2>1 ) \
+if ( (1>0) && (2>1) || (1>0) && (2>1) ) \
+	print("okok\n")
+
+if ( false && true || true ) \
+	print("true\n")
 
 bool aa = true
 bool bb = false

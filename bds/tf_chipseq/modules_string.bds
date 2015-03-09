@@ -48,9 +48,13 @@ string get_path( string str ) {
 }
 
 string rm_slash_at_end( string str ) {
+	return rm_str_at_end( str, "/" )
+}
+
+string rm_str_at_end( string str, string rm ) {
 	trimmed := rm_comment( str )
-	if ( trimmed.substr( str.length()-1 ) == "/" ) { // if "/" exists at the end of the string
-		return trimmed.substr( 0, str.length()-2 )
+	if ( trimmed.substr( str.length()-rm.length() ) == rm ) { // if "/" exists at the end of the string
+		return trimmed.substr( 0, str.length()-rm.length() )
 	}
 	
 	return trimmed

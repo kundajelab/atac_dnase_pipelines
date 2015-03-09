@@ -2,14 +2,11 @@
 
 include "modules_tf_chipseq.bds"
 
-
 read_conf()
 
 tasks_before_spp()
 
-spp()
-
-idr()
+spp_idr()
 
 exit(0)
 

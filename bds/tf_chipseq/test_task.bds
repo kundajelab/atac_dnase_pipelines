@@ -1,0 +1,118 @@
+#!/usr/bin/env bds
+
+ctl := 0
+rep := 0 
+
+print("TEST (tasks_from_align_spr) $ctl $rep "+ (["/srv/gsfs0/scratch/leepc12/run_pipeline/bds_test_SE/out/TEST_SE_CTL0_Rep1.filt.nodup.SE.pr1.tagAlign.gz", "/srv/gsfs0/scratch/leepc12/run_pipeline/bds_test_SE/out/TEST_SE_CTL0_Rep1.filt.nodup.SE.pr2.tagAlign.gz"] <- "/srv/gsfs0/scratch/leepc12/run_pipeline/bds_test_SE/out/TEST_SE_CTL0_Rep1.filt.nodup.srt.SE.tagAlign.gz") + "\n")
+
+//IN := "~/TEST_SE_CTL0_Rep1.filt.nodup.srt.SE.tagAlign.gz"
+//OUT := "~/TEST_SE_CTL0_Rep1.filt.nodup.SE.pr1.tagAlign.gz"
+
+IN := "~/err"
+OUT := "~/out2"
+
+print( (OUT <- IN) +"\n")
+
+/*
+
+par test_func()
+
+exit(0)
+
+
+void test_func() {
+
+	paired_end := false
+
+//	case1 := true
+//	DATASET_PREFIX := "/srv/gsfs0/scratch/leepc12/run_pipeline/bds_test_SE/out/TEST_SE_CTL0"
+
+	case1 := false
+	DATASET_PREFIX := "/srv/gsfs0/scratch/leepc12/run_pipeline/bds_test_SE/out/TEST_SE_CTL1"
+	suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
+	suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
+	suffix_PSR_PE 	:= ".filt.nodup.PE2SE"
+	suffix_PSR_SE 	:= ".filt.nodup.SE"
+
+	suffix 		:= paired_end ? suffix_PE : suffix_SE		
+	suffix_PSR 	:= paired_end ? suffix_PSR_PE : suffix_PSR_SE
+
+	REP1_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix
+	REP2_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix
+
+	POOLED_TA_FILE :="$DATASET_PREFIX"+"_Rep0.tagAlign.gz"
+
+	REP1_PR1_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix_PSR + ".pr1.tagAlign.gz"
+	REP1_PR2_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix_PSR + ".pr2.tagAlign.gz"
+
+	REP2_PR1_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix_PSR + ".pr1.tagAlign.gz"
+	REP2_PR2_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix_PSR + ".pr2.tagAlign.gz"
+
+	PPR1_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
+	PPR2_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
+
+	if ( case1 ) { 
+
+		//# ========================
+		//# Create pooled datasets
+		//# =======================
+		dep( POOLED_TA_FILE <- [REP1_TA_FILE, REP2_TA_FILE] ) {
+			#sys zcat $REP1_TA_FILE $REP2_TA_FILE | gzip -c > $POOLED_TA_FILE
+			sys echo $REP1_TA_FILE $REP2_TA_FILE $POOLED_TA_FILE
+		}
+
+		//# ========================
+		//# Create pooled pseudoreplicates
+		//# =======================
+		dep( PPR1_TA_FILE <- [REP1_PR1_TA_FILE, REP2_PR1_TA_FILE] ) {
+			#sys zcat $REP1_PR1_TA_FILE $REP2_PR1_TA_FILE | gzip -c > $PPR1_TA_FILE
+			sys echo $REP1_PR1_TA_FILE $REP2_PR1_TA_FILE $PPR1_TA_FILE
+		}
+
+		dep( PPR2_TA_FILE <- [REP1_PR2_TA_FILE, REP2_PR2_TA_FILE] ) {
+			#sys zcat $REP1_PR2_TA_FILE $REP2_PR2_TA_FILE | gzip -c > $PPR2_TA_FILE
+			sys echo $REP1_PR2_TA_FILE $REP2_PR2_TA_FILE $PPR2_TA_FILE
+		}
+
+		print("PPR1_TA_FILE <- [REP1_PR1_TA_FILE, REP2_PR1_TA_FILE]: " + (PPR1_TA_FILE <- [REP1_PR1_TA_FILE, REP2_PR1_TA_FILE]) + "\n")
+		print("PPR2_TA_FILE <- [REP1_PR2_TA_FILE, REP2_PR2_TA_FILE]: " + (PPR2_TA_FILE <- [REP1_PR2_TA_FILE, REP2_PR2_TA_FILE]) + "\n")
+
+	}
+	else { // if no data for rep2, just duplicate rep1
+
+		//# ========================
+		//# Create pooled datasets
+		//# =======================
+		dep( POOLED_TA_FILE <- REP1_TA_FILE ) {
+			#sys cp $REP1_TA_FILE $POOLED_TA_FILE
+			sys echo $REP1_TA_FILE $POOLED_TA_FILE
+		}
+
+		//# ========================
+		//# Create pooled pseudoreplicates
+		//# =======================
+		dep( PPR1_TA_FILE <- REP1_PR1_TA_FILE ) {
+			#sys cp $REP1_PR1_TA_FILE $PPR1_TA_FILE
+			sys echo $REP1_PR1_TA_FILE $PPR1_TA_FILE
+		}
+
+		dep( PPR2_TA_FILE <- REP1_PR2_TA_FILE ) {
+			#sys cp $REP1_PR2_TA_FILE $PPR2_TA_FILE
+			sys echo $REP1_PR2_TA_FILE $PPR2_TA_FILE
+		}
+
+
+//		print("PPR1_TA_FILE <- REP2_PR1_TA_FILE: " + (PPR1_TA_FILE <- REP2_PR1_TA_FILE) + "\n")
+		print("PPR2_TA_FILE <- REP1_PR2_TA_FILE: " + (PPR2_TA_FILE <- REP1_PR2_TA_FILE) + "\n")
+
+	}
+
+	print("REP1_PR2_TA_FILE: $REP1_PR2_TA_FILE\n")
+	print("REP2_PR2_TA_FILE: $REP2_PR2_TA_FILE\n")
+	print("PPR2_TA_FILE: $PPR2_TA_FILE\n")
+
+	goal ( PPR2_TA_FILE )
+
+}
+
+*/
