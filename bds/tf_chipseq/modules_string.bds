@@ -44,8 +44,11 @@ string mkdir_path( string str ) {
 }
 
 string get_path( string str ) {
-	base := rm_str_at_end( str, "/" )
-	return (base.indexOf(ppwd)==0) ? base.replace(ppwd,"") : base
+	base := rm_str_at_end( str, "/" ).path()
+	return base
+	//ret := (base.indexOf(ppwd)==0) ? base.replace(ppwd,".") : base
+	//print("$base, $ppwd, $ret\n")
+	//return ret
 }
 
 string rm_str_at_end( string str, string rm ) {

@@ -1,4 +1,5 @@
 #!/usr/bin/env bds
+// code developed by Jin Lee (leepc12@stanford.edu) on Mar. 2015
 
 include "modules_tf_chipseq.bds"
 
