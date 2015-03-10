@@ -1,10 +1,18 @@
 #!/usr/bin/env bds
+// code developed by Jin Lee (leepc12@stanford.edu) on Mar. 2015
+// modules for tf_chipseq
 
 include "modules_string.bds"
 
+int NUM_CTL
+int NUM_REP
+
+bool PRE_IDR
 string PREFIX
 string OUTPUT_DIR
 string TMP_DIR
+bool USE_BGZIP
+string GZIP
 int NTHREADS_BWA
 string BWA_INDEX_NAME
 string BWA_PARAM
@@ -20,21 +28,31 @@ int NPEAK
 string PYTHON3
 string IDR
 real IDR_THRESH
-bool PAIRED_END
-int NUM_CTL=1
+bool CREATE_WIG
+bool CREATE_BEDGRAPH
+bool CONVERT_TO_BIGWIG
+string CHROM_SIZES
+string SEQ_DIR
+string UMAP_DIR
 
 string{} conf // config. file
-
 
 void read_conf() {
 	print( "\nReading configuration...\n" );
 
 	conf = config("conf_tf_chipseq.txt")
 
+	// pre IDR simulation
+	PRE_IDR = parse_bool( conf{ "PRE_IDR"} )
+	NUM_CTL = PRE_IDR ? 0 : 1
+	NUM_REP = PRE_IDR ? parse_int( conf{ "NUM_REP"} ) : 2
+
 	// general
 	PREFIX 		= chk_slash( conf{ "PREFIX" } )
-	OUTPUT_DIR	= mkdir_path( conf{ "OUTPUT_DIR" } )
+	OUTPUT_DIR	= mkdir_path( conf{ "OUTPUT_DIR" } ) //.path()
 	TMP_DIR 	= mkdir_path( conf{ "TMP_DIR" } )
+	USE_BGZIP 	= parse_bool( conf{ "USE_BGZIP"} )
+	GZIP 		= USE_BGZIP ? "bgzip" : "gzip"
 
 	// bwa alignment
 	NTHREADS_BWA 	= parse_int( conf{ "NTHREADS_BWA" } )
@@ -60,11 +78,13 @@ void read_conf() {
 	IDR 		= chk_file( conf{ "IDR" }, "" )
 	IDR_THRESH	= parse_real( conf{ "IDR_THRESH"} )
 
-	// paired-end?
-	PAIRED_END	= parse_bool( conf{ "PAIRED_END"} )
-
-	// # of control fastq data
-	//NUM_CTL 	= parse_int( conf{ "NUM_CTL" } )
+	// signal track
+	CREATE_WIG			= parse_bool( conf{ "CREATE_WIG"} )
+	CREATE_BEDGRAPH		= parse_bool( conf{ "CREATE_BEDGRAPH"} )
+	CONVERT_TO_BIGWIG	= parse_bool( conf{ "CONVERT_TO_BIGWIG"} )
+	UMAP_DIR 	= get_path( conf{"UMAP_DIR"} )
+	SEQ_DIR 	= get_path( conf{"SEQ_DIR"} )
+	CHROM_SIZES = chk_file( conf{"CHROM_SIZES"}, "" )
 
 	// print conf info
 	for( string k : conf.keys() ) {
@@ -75,45 +95,50 @@ void read_conf() {
 		print( k + "\t= " + rm_comment( conf{k} ) + "\n" )
 	}
 
-	print( "\nChecking fastqs...\n" );
+	if ( !PRE_IDR ) { 		
+		print( "\nChecking fastqs...\n" );
 
-	for ( int ctl=0; ctl <= NUM_CTL; ctl++) { // iterate through fastqs (0: not control, 1~: controls)
+		for ( int ctl=0; ctl <= NUM_CTL; ctl++) { // iterate through fastqs (0: not control, 1~: controls)
 
-		fastqs_Rep1 := get_fastqs( ctl, 1 )
-		fastqs_Rep2 := get_fastqs( ctl, 2 )
+			prefix := (ctl==0)? "":"Control "
+			fastqs_Rep1 := get_fastqs( ctl, 1 )
+			fastqs_Rep2 := get_fastqs( ctl, 2 )
 
-		if ( ctl == 0 ) { 
+			print( prefix + "Rep1: "+ (fastqs_Rep1) + "\n")
+			print( prefix + "Rep2: "+ (fastqs_Rep2) + "\n")
+			
+			if ( fastqs_Rep1.size() == 0 ) error( "error(read_conf): " + prefix + "Rep1 fastqs missing!\n")
+			if ( fastqs_Rep2.size() == 0 ) error( "error(read_conf): " + prefix + "Rep2 fastqs missing!\n")
 
-			if ( PAIRED_END ) {
+						/*
+			if ( ctl == 0 ) { 
 
 				if ( fastqs_Rep1.size()!=2 ) \
 					error("error(read_conf): input fastqs are missing or not paired for replicate 1!\n")
 
 				if ( fastqs_Rep2.size()!=2 ) \
 					error("error(read_conf): input fastqs are missing or not paired for replicate 2!\n")
-			}
-			else {
 
 				if ( fastqs_Rep1.size()!=1 ) \
 					error("error(read_conf): input fastq is missing or not single for replicate 1!\n")
 
 				if ( fastqs_Rep2.size()!=1 ) \
 					error("error(read_conf): input fastq is missing or not single for replicate 2!\n")
+
 			}
+			else { // for controls 
 
+				if ( fastqs_Rep1.size()==0 ) \
+					error("error(read_conf): control (ctl:$ctl) fastqs are missing for replicate 1!\n")
+
+				if ( fastqs_Rep2.size()==0 ) \
+					print("warning(read_conf): control (ctl:$ctl) fastqs are missing for replicate 2!\n")
+
+				if ( (fastqs_Rep2.size()>0) && (fastqs_Rep1.size()!=fastqs_Rep2.size()) ) \
+					error("error(read_conf): control (ctl:$ctl) fastqs have both paired and single data!\n")
+			}
+			*/
 		}
-		else { // for controls 
-
-			if ( fastqs_Rep1.size()==0 ) \
-				error("error(read_conf): control (ctl:$ctl) fastqs are missing for replicate 1!\n")
-
-			if ( fastqs_Rep2.size()==0 ) \
-				print("warning(read_conf): control (ctl:$ctl) fastqs are missing for replicate 2!\n")
-
-			if ( (fastqs_Rep2.size()>0) && (fastqs_Rep1.size()!=fastqs_Rep2.size()) ) \
-				error("error(read_conf): control (ctl:$ctl) fastqs have both paired and single data!\n")
-		}
-
 	}
 }
 
@@ -121,120 +146,119 @@ void tasks_before_spp() { // align -> post_align -> xcor -> self-pseudo-replicat
 
 	// align->post_align->xcor->self-pseudo-replicate, 
 	for ( int ctl=0; ctl <= NUM_CTL; ctl++) { // iterate through fastqs (0: not control, 1~: controls)
-		for ( int rep=1; rep <= 2; rep++) {
+		for ( int rep=1; rep <= NUM_REP; rep++) {
 			par tasks_from_align_to_spr( ctl, rep ) // parallel jobs for each control and each replicate
 		}
 	}
 
 	wait
 
-	// pooled psr
-	for ( int ctl=0; ctl <= NUM_CTL; ctl++) \
-		pspr( ctl )
+	if ( !PRE_IDR ) {
+		// pooled psr
+		for ( int ctl=0; ctl <= NUM_CTL; ctl++) \
+			par pspr( ctl )
 
-	wait
+		wait
+	}
 }
 
 void spp_idr() {
 	print( "\nSPP and IDR...\n" );
 
-	// SPP
+	if ( !PRE_IDR ) {
 
-	// get FRAGLEN (3rd column of cc score file) for spp(-speak=$FRAGLEN) from replicate 1 cc score file
-	NREADS_PER_MILLION := NREADS/1000000
-	OFPREFIX_CTL0_REP1 := OUTPUT_DIR + "/" + PREFIX + "_CTL" + 0 + "_Rep" + 1
-	CC_SCORE_FILE_CTL0_REP1 := PAIRED_END ? "$OFPREFIX_CTL0_REP1.filt.nodup.sample.$NREADS_PER_MILLION.MATE1.tagAlign.gz.cc.qc" : \
-											"$OFPREFIX_CTL0_REP1.filt.nodup.sample.$NREADS_PER_MILLION.SE.tagAlign.gz.cc.qc"
-	cols := CC_SCORE_FILE_CTL0_REP1.read().split("\t")
-	FRAGLEN := cols[2]
-	print("FRAGLEN for spp: $FRAGLEN \n")
-	
-	// prepare for tagAlign files
-	fastqs_Rep1 	:= get_fastqs( 0, 1 )
-	fastqs_Rep2 	:= get_fastqs( 0, 2 ) // check if rep2 doesn't exist
-	suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
-	suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
-	suffix 			:= fastqs_Rep1.size()==2 ? suffix_PE : suffix_SE
-	suffix_PSR_PE 	:= ".filt.nodup.PE2SE"
-	suffix_PSR_SE 	:= ".filt.nodup.SE"
-	suffix_PSR 		:= fastqs_Rep1.size()==2 ? suffix_PSR_PE : suffix_PSR_SE
+		// SPP
 
-	DATASET_PREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL0"
-	REP1_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix
-	REP2_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix
-	POOLED_TA_FILE :="$DATASET_PREFIX"+"_Rep0.tagAlign.gz"
-	REP1_PR1_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix_PSR + ".pr1.tagAlign.gz"
-	REP1_PR2_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix_PSR + ".pr2.tagAlign.gz"
-	REP2_PR1_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix_PSR + ".pr1.tagAlign.gz"
-	REP2_PR2_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix_PSR + ".pr2.tagAlign.gz"
-	PPR1_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
-	PPR2_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
+		FRAGLEN := get_fraglen( 0, 1 ) // get it from rep1
+		print("FRAGLEN for spp: $FRAGLEN \n")
+		
+		// prepare for tagAlign files
+		fastqs_Rep1 	:= get_fastqs( 0, 1 )
+		fastqs_Rep2 	:= get_fastqs( 0, 2 ) // check if rep2 doesn't exist
+		suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
+		suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
+		suffix 			:= fastqs_Rep1.size()==2 ? suffix_PE : suffix_SE
+		suffix_PSR_PE 	:= ".filt.nodup.PE2SE"
+		suffix_PSR_SE 	:= ".filt.nodup.SE"
+		suffix_PSR 		:= fastqs_Rep1.size()==2 ? suffix_PSR_PE : suffix_PSR_SE
 
-	ctl_fastqs_Rep1 	:= get_fastqs( 1, 1 )
-	ctl_fastqs_Rep2 	:= get_fastqs( 1, 2 ) // check if rep2 doesn't exist
-	ctl_suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
-	ctl_suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
-	ctl_suffix 			:= ctl_fastqs_Rep1.size()==2 ? ctl_suffix_PE : ctl_suffix_SE
-	ctl_suffix_PSR_PE 	:= ".filt.nodup.PE2SE"
-	ctl_suffix_PSR_SE 	:= ".filt.nodup.SE"
-	ctl_suffix_PSR 		:= ctl_fastqs_Rep1.size()==2 ? ctl_suffix_PSR_PE : ctl_suffix_PSR_SE
+		DATASET_PREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL0"
+		REP1_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix
+		REP2_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix
+		POOLED_TA_FILE :="$DATASET_PREFIX"+"_Rep0.tagAlign.gz"
+		REP1_PR1_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix_PSR + ".pr1.tagAlign.gz"
+		REP1_PR2_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix_PSR + ".pr2.tagAlign.gz"
+		REP2_PR1_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix_PSR + ".pr1.tagAlign.gz"
+		REP2_PR2_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix_PSR + ".pr2.tagAlign.gz"
+		PPR1_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
+		PPR2_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
 
-	CTL_DATASET_PREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL1"
-	CTL_REP1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix
-	CTL_REP2_TA_FILE := ctl_fastqs_Rep2.size()>0 ? "$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix : CTL_REP1_TA_FILE
-	CTL_POOLED_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep0.tagAlign.gz"
-	CTL_REP1_PR1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix_PSR + ".pr1.tagAlign.gz"
-	CTL_REP1_PR2_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix_PSR + ".pr2.tagAlign.gz"
-	CTL_REP2_PR1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix_PSR + ".pr1.tagAlign.gz"
-	CTL_REP2_PR2_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix_PSR + ".pr2.tagAlign.gz"
-	CTL_PPR1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
-	CTL_PPR2_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
+		ctl_fastqs_Rep1 	:= get_fastqs( 1, 1 )
+		ctl_fastqs_Rep2 	:= get_fastqs( 1, 2 ) // check if rep2 doesn't exist
+		ctl_suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
+		ctl_suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
+		ctl_suffix 			:= ctl_fastqs_Rep1.size()==2 ? ctl_suffix_PE : ctl_suffix_SE
+		ctl_suffix_PSR_PE 	:= ".filt.nodup.PE2SE"
+		ctl_suffix_PSR_SE 	:= ".filt.nodup.SE"
+		ctl_suffix_PSR 		:= ctl_fastqs_Rep1.size()==2 ? ctl_suffix_PSR_PE : ctl_suffix_PSR_SE
 
-	// run spp
-	PEAK_OUTPUT_DIR := OUTPUT_DIR + "/peaks"
-	PEAK_OUTPUT_DIR.mkdir() 
+		CTL_DATASET_PREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL1"
+		CTL_REP1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix
+		CTL_REP2_TA_FILE := ctl_fastqs_Rep2.size()>0 ? "$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix : CTL_REP1_TA_FILE
+		CTL_POOLED_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep0.tagAlign.gz"
+		CTL_REP1_PR1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix_PSR + ".pr1.tagAlign.gz"
+		CTL_REP1_PR2_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix_PSR + ".pr2.tagAlign.gz"
+		CTL_REP2_PR1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix_PSR + ".pr1.tagAlign.gz"
+		CTL_REP2_PR2_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix_PSR + ".pr2.tagAlign.gz"
+		CTL_PPR1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
+		CTL_PPR2_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
 
-	// REP1_TA_FILE vs CTL_REP1_TA_FILE
-	PEAK_REP1_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP1_TA_FILE.baseName() + ".ccscores"
-	task( [PEAK_REP1_CCSCORE] <- [REP1_TA_FILE, CTL_REP1_TA_FILE], cpus := NTHREADS_R ) {
-		sys $R_SCRIPT $RUN_SPP -c=$REP1_TA_FILE -p=$NTHREADS_R -i=$CTL_REP1_TA_FILE -npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP1_CCSCORE
+		// run spp
+		PEAK_OUTPUT_DIR := OUTPUT_DIR + "/peaks"
+		PEAK_OUTPUT_DIR.mkdir() 
+
+		// REP1_TA_FILE vs CTL_REP1_TA_FILE
+		PEAK_REP1_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP1_TA_FILE.baseName() + ".ccscores"
+		task( [PEAK_REP1_CCSCORE] <- [REP1_TA_FILE, CTL_REP1_TA_FILE], cpus := NTHREADS_R ) {
+			sys $R_SCRIPT $RUN_SPP -c=$REP1_TA_FILE -p=$NTHREADS_R -i=$CTL_REP1_TA_FILE -npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP1_CCSCORE
+		}
+		// REP2_TA_FILE vs CTL_REP2_TA_FILE
+		PEAK_REP2_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP2_TA_FILE.baseName() + ".ccscores"
+		task( [PEAK_REP2_CCSCORE] <- [REP2_TA_FILE, CTL_REP2_TA_FILE], cpus := NTHREADS_R  ) {
+			sys $R_SCRIPT $RUN_SPP -c=$REP2_TA_FILE -p=$NTHREADS_R -i=$CTL_REP2_TA_FILE -npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP2_CCSCORE
+		}
+		// POOLED_TA_FILE vs CTL_POOLED_TA_FILE
+		PEAK_POOLED_CCSCORE := PEAK_OUTPUT_DIR + "/" + POOLED_TA_FILE.baseName() + ".ccscores"
+		task( [PEAK_POOLED_CCSCORE] <- [POOLED_TA_FILE, CTL_POOLED_TA_FILE], cpus := NTHREADS_R  ) {
+			sys $R_SCRIPT $RUN_SPP -c=$POOLED_TA_FILE -p=$NTHREADS_R -i=$CTL_POOLED_TA_FILE -npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_POOLED_CCSCORE
+		}
+		wait
+
+		// IDR
+
+		REP1_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ rm_str_at_end( REP1_TA_FILE.baseName(),".gz" ) \
+									 + "_VS_" + rm_str_at_end( CTL_REP1_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
+		REP2_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ rm_str_at_end( REP2_TA_FILE.baseName(),".gz" ) \
+									 + "_VS_" + rm_str_at_end( CTL_REP2_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
+		POOLED_PEAK_FILE:= "$PEAK_OUTPUT_DIR/"+ rm_str_at_end( POOLED_TA_FILE.baseName(),".gz" ) \
+									 + "_VS_" + rm_str_at_end( CTL_POOLED_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
+
+		//POOLED_COMMON_PEAKS_IDR :=  "$PEAK_OUTPUT_DIR/REP1_VS_REP2.IDR" + IDR_THRESH +".narrowPeak"
+		IDR_OUTPUT := "$PEAK_OUTPUT_DIR/REP1_VS_REP2.IDR" + IDR_THRESH +".narrowPeak"
+
+		// Nathan's idr code
+		task( IDR_OUTPUT <- [REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE] ) { // --use-old-output-format 
+			sys $PYTHON3 $IDR --samples $REP1_PEAK_FILE $REP1_PEAK_FILE --input-file-type narrowPeak --output-file $IDR_OUTPUT --plot --idr-threshold $IDR_THRESH
+			sys echo NPEAKS_IDR: $(cat $IDR_OUTPUT | wc -l)
+		}
+		wait
+	/*
+		task( POOLED_COMMON_PEAKS_IDR <- [REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE] ) { 
+			sys R_SCRIPT $(which batch-consistency-plot.r) 
+		}
+		wait	
+	*/
 	}
-	// REP2_TA_FILE vs CTL_REP2_TA_FILE
-	PEAK_REP2_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP2_TA_FILE.baseName() + ".ccscores"
-	task( [PEAK_REP2_CCSCORE] <- [REP2_TA_FILE, CTL_REP2_TA_FILE], cpus := NTHREADS_R  ) {
-		sys $R_SCRIPT $RUN_SPP -c=$REP2_TA_FILE -p=$NTHREADS_R -i=$CTL_REP2_TA_FILE -npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP2_CCSCORE
-	}
-	// POOLED_TA_FILE vs CTL_POOLED_TA_FILE
-	PEAK_POOLED_CCSCORE := PEAK_OUTPUT_DIR + "/" + POOLED_TA_FILE.baseName() + ".ccscores"
-	task( [PEAK_POOLED_CCSCORE] <- [POOLED_TA_FILE, CTL_POOLED_TA_FILE], cpus := NTHREADS_R  ) {
-		sys $R_SCRIPT $RUN_SPP -c=$POOLED_TA_FILE -p=$NTHREADS_R -i=$CTL_POOLED_TA_FILE -npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_POOLED_CCSCORE
-	}
-	wait
-
-	// IDR
-
-	REP1_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ rm_str_at_end( REP1_TA_FILE.baseName(),".gz" ) \
-								 + "_VS_" + rm_str_at_end( CTL_REP1_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
-	REP2_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ rm_str_at_end( REP2_TA_FILE.baseName(),".gz" ) \
-								 + "_VS_" + rm_str_at_end( CTL_REP2_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
-	POOLED_PEAK_FILE:= "$PEAK_OUTPUT_DIR/"+ rm_str_at_end( POOLED_TA_FILE.baseName(),".gz" ) \
-								 + "_VS_" + rm_str_at_end( CTL_POOLED_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
-
-	//POOLED_COMMON_PEAKS_IDR :=  "$PEAK_OUTPUT_DIR/REP1_VS_REP2.IDR" + IDR_THRESH +".narrowPeak"
-	IDR_OUTPUT := "$PEAK_OUTPUT_DIR/REP1_VS_REP2.IDR" + IDR_THRESH +".narrowPeak"
-
-	// Nathan's idr code
-	task( IDR_OUTPUT <- [REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE] ) { // --use-old-output-format 
-		sys $PYTHON3 $IDR --samples $REP1_PEAK_FILE $REP1_PEAK_FILE --input-file-type narrowPeak --output-file $IDR_OUTPUT --plot --idr-threshold $IDR_THRESH
-		sys echo NPEAKS_IDR: $(cat $IDR_OUTPUT | wc -l)
-	}
-	wait
-/*
-	task( POOLED_COMMON_PEAKS_IDR <- [REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE] ) { 
-		sys R_SCRIPT $(which batch-consistency-plot.r) 
-	}
-	wait	
-*/
 }
 
 void tasks_from_align_to_spr( int ctl, int rep ) {
@@ -243,15 +267,18 @@ void tasks_from_align_to_spr( int ctl, int rep ) {
 	post_align_filt( ctl, rep )
  	bam_to_tagalign( ctl, rep )
  	xcor( ctl, rep )
- 	spr( ctl, rep )
+
+	if ( !PRE_IDR ) {
+	 	create_sig_trk( ctl, rep )
+	 	spr( ctl, rep )
+	}
 }
 
 void align_bwa( int ctl, int rep ) {
 	print( "\nalign_bwa ctl:$ctl rep:$rep...\n" );
 
+	OFPREFIX := get_ofprefix( ctl, rep )
 	fastqs := get_fastqs( ctl, rep )
-
-	OFPREFIX := OUTPUT_DIR + "/" +PREFIX + "_CTL" + ctl + "_Rep" + rep
 
 	if ( fastqs.size() == 2 ) { // if data is paired-end, therefore PE1 and PE2
 
@@ -280,7 +307,7 @@ void align_bwa( int ctl, int rep ) {
 			wait
 
 			task( RAW_SAM_FILE <- [SAI_FILE_1, SAI_FILE_2] ) {
-				sys bwa sampe $BWA_INDEX_NAME $SAI_FILE_1 $SAI_FILE_2 $FASTQ_FILE_1 $FASTQ_FILE_2 | gzip -c > $RAW_SAM_FILE
+				sys bwa sampe $BWA_INDEX_NAME $SAI_FILE_1 $SAI_FILE_2 $FASTQ_FILE_1 $FASTQ_FILE_2 | $GZIP -c > $RAW_SAM_FILE
 			}
 			wait
 
@@ -346,9 +373,8 @@ void align_bwa( int ctl, int rep ) {
 void post_align_filt( int ctl, int rep ) {
 	print( "\npost_align_filt ctl:$ctl rep:$rep...\n" );
 
+	OFPREFIX := get_ofprefix( ctl, rep )
 	fastqs := get_fastqs( ctl, rep )
-
-	OFPREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL" + ctl + "_Rep" + rep
 
 	if ( fastqs.size() == 2 ) { // if data is paired-end, therefore PE1 and PE2
 
@@ -535,10 +561,10 @@ void post_align_filt( int ctl, int rep ) {
 void bam_to_tagalign( int ctl, int rep ) {
 	print( "\nbam_to_tagalign ctl:$ctl rep:$rep...\n" );
 
-	OFPREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL" + ctl + "_Rep" + rep
-	NREADS_PER_MILLION := NREADS/1000000
-
+	OFPREFIX := get_ofprefix( ctl, rep )
 	fastqs := get_fastqs( ctl, rep )
+
+	NREADS_PER_MILLION := NREADS/1000000
 
 	if ( fastqs.size() == 2 ) { // if data is paired-end, therefore PE1 and PE2
 
@@ -555,20 +581,25 @@ void bam_to_tagalign( int ctl, int rep ) {
 		//# Create tagAlign file
 		//# ===================
 		task( FINAL_TA_FILE <- FINAL_BAM_FILE ) {
-			sys bamToBed -i $FINAL_BAM_FILE | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | gzip -c > $FINAL_TA_FILE
+			sys bamToBed -i $FINAL_BAM_FILE | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | $GZIP -c > $FINAL_TA_FILE			
 		}
+
 		task( [FINAL_BEDPE_FILE, SUBSAMPLED_TA_FILE] <- FINAL_NMSRT_BAM_FILE ) {
 			//# ================
 			//# Create BEDPE file
 			//# ================
-			sys bamToBed -bedpe -mate1 -i $FINAL_NMSRT_BAM_FILE | gzip -c > $FINAL_BEDPE_FILE
+			sys bamToBed -bedpe -mate1 -i $FINAL_NMSRT_BAM_FILE | $GZIP -c > $FINAL_BEDPE_FILE
 
 			//# =================================
 			//# Subsample tagAlign file
 			//# Restrict to one read end per pair for CC analysis
 			//# ================================
-			sys zcat $FINAL_BEDPE_FILE | grep -v "chrM" | shuf -n $NREADS | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | gzip -c > $SUBSAMPLED_TA_FILE
+			sys zcat $FINAL_BEDPE_FILE | grep -v "chrM" | shuf -n $NREADS | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | $GZIP -c > $SUBSAMPLED_TA_FILE
 		}
+
+		wait
+
+		if ( USE_BGZIP ) sys tabix -f -p bed $FINAL_TA_FILE
 
 		wait
 	}
@@ -586,31 +617,98 @@ void bam_to_tagalign( int ctl, int rep ) {
 			//# Create SE tagAlign file
 
 			// bedtools bamtobed -> bamToBed
-			sys bamToBed -i $FINAL_BAM_FILE | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | gzip -c > $FINAL_TA_FILE
+			sys bamToBed -i $FINAL_BAM_FILE | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | $GZIP -c > $FINAL_TA_FILE
 
 			//# =================================
 			//# Subsample tagAlign file
 			//# ================================
-			sys zcat $FINAL_TA_FILE | grep -v "chrM" | shuf -n $NREADS | gzip -c > $SUBSAMPLED_TA_FILE
+			sys zcat $FINAL_TA_FILE | grep -v "chrM" | shuf -n $NREADS | $GZIP -c > $SUBSAMPLED_TA_FILE
 		}
+
+		wait
+
+		if ( USE_BGZIP ) sys tabix -f -p bed $FINAL_TA_FILE
 
 		wait
 	}
 	else { // no data		
 		print("warning(bam_to_tagAlign): no input for ctl $ctl, rep $rep\n")
 	}
+}
 
-	
+void create_sig_trk( int ctl, int rep ) {
+	print( "\ncreate_sig_trk ctl:$ctl rep:$rep...\n" );
+
+	OFPREFIX := get_ofprefix( ctl, rep )
+	fastqs := get_fastqs( ctl, rep )
+
+	FRAGLEN := get_fraglen( ctl, rep ) // get it from rep1
+	print("FRAGLEN for signal track: $FRAGLEN \n")
+
+ 	string FINAL_BAM_PREFIX
+	string FINAL_BAM_FILE
+	string FINAL_TA_FILE 
+	string WIG_FILE
+	string BEDGRAPH_FILE
+	string SORTED_BG_FILE
+	string BIGWIG_FILE
+
+	if ( fastqs.size() == 2 ) { // if data is paired-end
+	 	FINAL_BAM_PREFIX ="$OFPREFIX.filt.srt.nodup"
+		FINAL_BAM_FILE ="$FINAL_BAM_PREFIX.bam"
+		FINAL_TA_FILE ="$FINAL_BAM_PREFIX.PE2SE.tagAlign.gz".path() // align2rawsignal needs absolute path
+		WIG_FILE = "$FINAL_BAM_PREFIX.PE2SE.wig".path()
+		BEDGRAPH_FILE = "$FINAL_BAM_PREFIX.PE2SE.bedGraph".path()
+		SORTED_BG_FILE = "$FINAL_BAM_PREFIX.PE2SE.srt.bedGraph".path()
+		BIGWIG_FILE = "$FINAL_BAM_PREFIX.PE2SE.bigwig".path()
+	}
+	else {
+		FINAL_BAM_PREFIX ="$OFPREFIX.filt.nodup.srt"
+		FINAL_BAM_FILE ="$FINAL_BAM_PREFIX.bam"
+		FINAL_TA_FILE ="$FINAL_BAM_PREFIX.SE.tagAlign.gz".path()
+		WIG_FILE = "$FINAL_BAM_PREFIX.SE.wig".path()
+		BEDGRAPH_FILE = "$FINAL_BAM_PREFIX.SE.bedGraph".path()
+		SORTED_BG_FILE = "$FINAL_BAM_PREFIX.SE.srt.bedGraph".path()
+		BIGWIG_FILE = "$FINAL_BAM_PREFIX.SE.bigwig".path()
+	}
+
+	if ( CREATE_WIG ) {
+			task( WIG_FILE <- FINAL_TA_FILE ) {
+			sys align2rawsignal -i=$FINAL_TA_FILE -o=$WIG_FILE -s=$SEQ_DIR -u=$UMAP_DIR -of=w -l=$FRAGLEN -mm=4
+		}
+	}
+
+	if ( CREATE_BEDGRAPH ) {
+		task( BEDGRAPH_FILE <- FINAL_TA_FILE ) {
+			sys align2rawsignal -i=$FINAL_TA_FILE -o=$BEDGRAPH_FILE -s=$SEQ_DIR -u=$UMAP_DIR -of=bg -l=$FRAGLEN -mm=4
+		}
+
+		wait
+
+		if ( CONVERT_TO_BIGWIG ) {
+
+			if ( BIGWIG_FILE <- BEDGRAPH_FILE ) {
+				task( SORTED_BG_FILE <- BEDGRAPH_FILE ) {
+					sys sort -k1,1 -k2,2n $BEDGRAPH_FILE > $SORTED_BG_FILE
+				}
+				task( BIGWIG_FILE <- SORTED_BG_FILE ) {
+					sys bedGraphToBigWig $SORTED_BG_FILE $CHROM_SIZES $BIGWIG_FILE
+					sys rm -f SORTED_BG_FILE
+				}
+			}
+		}
+	}
+
 }
 
 void xcor( int ctl, int rep ) {
 	print( "\nxcor ctl:$ctl rep:$rep...\n" );
 
-	OFPREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL" + ctl + "_Rep" + rep
-	NREADS_PER_MILLION := NREADS/1000000
-
+	OFPREFIX := get_ofprefix( ctl, rep )
 	fastqs := get_fastqs( ctl, rep )
 
+	NREADS_PER_MILLION := NREADS/1000000
+	
 	if ( fastqs.size() == 0 ) { // if data is paired-end, therefore PE1 and PE2
 		print("warning(xcor): no input for ctl $ctl, rep $rep\n")
 	}
@@ -644,8 +742,7 @@ void xcor( int ctl, int rep ) {
 void spr( int ctl, int rep ) { // self-pseudo-replicate
 	print( "\nspr ctl:$ctl rep:$rep...\n" );
 
-	OFPREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL" + ctl + "_Rep" + rep
-
+	OFPREFIX := get_ofprefix( ctl, rep )
 	fastqs := get_fastqs( ctl, rep )
 
 	if ( fastqs.size() == 2 ) { // if data is paired-end, therefore PE1 and PE2
@@ -668,11 +765,19 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 			sys nlines=$( zcat $FINAL_BEDPE_FILE | wc -l ); nlines=$(( (nlines + 1) / 2 )); zcat $FINAL_BEDPE_FILE | shuf | split -d -l $((nlines)) - $PR_PREFIX. 
 
 			//# Convert read pairs to reads into standard tagAlign file
-			sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$PR_PREFIX.00" | gzip -c > $PR1_TA_FILE
+			sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$PR_PREFIX.00" | $GZIP -c > $PR1_TA_FILE
 			sys rm -f $PR_PREFIX.00
-			sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$PR_PREFIX.01" | gzip -c > $PR2_TA_FILE
+			sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$PR_PREFIX.01" | $GZIP -c > $PR2_TA_FILE
 			sys rm -f $PR_PREFIX.01
 		}
+
+		wait
+
+		if ( USE_BGZIP ) {
+			sys tabix -f -p bed $PR1_TA_FILE
+			sys tabix -f -p bed $PR2_TA_FILE
+		}
+
 		wait
 	}
 	else if ( fastqs.size() == 1 ) {
@@ -694,11 +799,19 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 			sys nlines=$( zcat $FINAL_TA_FILE | wc -l ); nlines=$(( (nlines + 1) / 2 )); zcat $FINAL_TA_FILE | shuf | split -d -l $((nlines)) - $PR_PREFIX.
 
 			//# Convert read pairs to reads into standard tagAlign file
-			sys gzip -c $PR_PREFIX.00 > $PR1_TA_FILE
+			sys $GZIP -c $PR_PREFIX.00 > $PR1_TA_FILE
 			sys rm -f $PR_PREFIX.00
-			sys gzip -c $PR_PREFIX.01 > $PR2_TA_FILE
+			sys $GZIP -c $PR_PREFIX.01 > $PR2_TA_FILE
 			sys rm -f $PR_PREFIX.01
 		}
+
+		wait 
+
+		if ( USE_BGZIP ) {
+			sys tabix -f -p bed $PR1_TA_FILE
+			sys tabix -f -p bed $PR2_TA_FILE
+		}
+
 		wait
 	}
 	else { // no data				
@@ -743,18 +856,27 @@ void pspr( int ctl ) {
 			//# Create pooled datasets
 			//# =======================
 			task( POOLED_TA_FILE <- [REP1_TA_FILE, REP2_TA_FILE] ) {
-				sys zcat $REP1_TA_FILE $REP2_TA_FILE | gzip -c > $POOLED_TA_FILE
+				sys zcat $REP1_TA_FILE $REP2_TA_FILE | $GZIP -c > $POOLED_TA_FILE
 			}
 
 			//# ========================
 			//# Create pooled pseudoreplicates
 			//# =======================
 			task( PPR1_TA_FILE <- [REP1_PR1_TA_FILE, REP2_PR1_TA_FILE] ) {
-				sys zcat $REP1_PR1_TA_FILE $REP2_PR1_TA_FILE | gzip -c > $PPR1_TA_FILE
+				sys zcat $REP1_PR1_TA_FILE $REP2_PR1_TA_FILE | $GZIP -c > $PPR1_TA_FILE
 			}
 			task( PPR2_TA_FILE <- [REP1_PR2_TA_FILE, REP2_PR2_TA_FILE] ) {
-				sys zcat $REP1_PR2_TA_FILE $REP2_PR2_TA_FILE | gzip -c > $PPR2_TA_FILE			
+				sys zcat $REP1_PR2_TA_FILE $REP2_PR2_TA_FILE | $GZIP -c > $PPR2_TA_FILE			
 			}
+
+			wait
+
+			if ( USE_BGZIP ) {
+				sys tabix -f -p bed $POOLED_TA_FILE
+				sys tabix -f -p bed $PPR1_TA_FILE
+				sys tabix -f -p bed $PPR2_TA_FILE
+			}
+
 			wait
 		}
 	}
@@ -776,10 +898,38 @@ void pspr( int ctl ) {
 			task( PPR2_TA_FILE <- REP1_PR2_TA_FILE ) {
 				sys cp $REP1_PR2_TA_FILE $PPR2_TA_FILE
 			}
+
+			wait
+			
+			if ( USE_BGZIP ) {
+				sys tabix -f -p bed $POOLED_TA_FILE
+				sys tabix -f -p bed $PPR1_TA_FILE
+				sys tabix -f -p bed $PPR2_TA_FILE
+			}
+
 			wait			
 		}
 	}
 	
+}
+
+string get_fraglen( int ctl, int rep ) { // get FRAGLEN (3rd column of cc score file) for spp(-speak=$FRAGLEN)
+	
+	NREADS_PER_MILLION := NREADS/1000000
+
+	OFPREFIX := get_ofprefix( ctl, rep )
+	fastqs := get_fastqs( ctl, rep )
+
+	CC_SCORE_FILE := (fastqs.size()==2) ? "$OFPREFIX.filt.nodup.sample.$NREADS_PER_MILLION.MATE1.tagAlign.gz.cc.qc" : \
+											"$OFPREFIX.filt.nodup.sample.$NREADS_PER_MILLION.SE.tagAlign.gz.cc.qc"
+	cols := CC_SCORE_FILE.read().split("\t")
+	return cols[2]
+}
+
+string get_ofprefix( int ctl, int rep ) {
+	//return OUTPUT_DIR + "/" + PREFIX + "_CTL" + ctl + "_Rep" + rep
+	//return OUTPUT_DIR + "/" + PREFIX + ( ctl>0 ? "_Ctl" + ctl : "" ) + "_Rep" + rep 
+	return OUTPUT_DIR + "/" + PREFIX + ( ctl>0 ? "_Ctl" : "" ) + "_Rep" + rep 
 }
 
 string[] get_fastqs( int ctl, int rep ) { 
@@ -798,9 +948,14 @@ string[] get_fastqs( int ctl, int rep ) {
 }
 
 string get_fastq( int ctl, int rep, int pe ) {
-	string key = ( ctl > 0 ? "INPUT_FASTQ_CTL" + ctl : "INPUT_FASTQ" ) + "_REP" + rep + "_PE" + pe
+	//key_wo_PE := ( ctl > 0 ? "INPUT_FASTQ_CTL" + ctl : "INPUT_FASTQ" ) + "_REP" + rep 
+	key_wo_PE := ( ctl > 0 ? "INPUT_FASTQ_CTL" : "INPUT_FASTQ" ) + "_REP" + rep 
+	key := key_wo_PE + "_PE" + pe
 
-	if ( conf.hasKey( key ) ) {
+	if ( (pe==1) && conf.hasKey( key_wo_PE ) ) {
+		return get_path( conf{ key_wo_PE }.trim() )
+	}
+	else if ( conf.hasKey( key ) ) {
 		return get_path( conf{ key }.trim() )
 	}
 	else {
