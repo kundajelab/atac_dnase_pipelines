@@ -132,6 +132,10 @@ if [ -n "$QSUB" ]; then
    QSUB="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
 ${QSUB} ${SCRIPTPATH}/${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+if [ -n "$QSUB" ]; then
+   JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
+fi
+
 
 echo "==========Peak Calling=========="
 # peak calling
