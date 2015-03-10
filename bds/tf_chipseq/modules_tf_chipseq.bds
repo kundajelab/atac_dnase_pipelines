@@ -1,10 +1,13 @@
 #!/usr/bin/env bds
+// code developed by Jin Lee (leepc12@stanford.edu) on Mar. 2015
+// modules for tf_chipseq
 
 include "modules_string.bds"
 
 string PREFIX
 string OUTPUT_DIR
 string TMP_DIR
+bool USE_BGZIP
 int NTHREADS_BWA
 string BWA_INDEX_NAME
 string BWA_PARAM
@@ -20,6 +23,12 @@ int NPEAK
 string PYTHON3
 string IDR
 real IDR_THRESH
+bool CREATE_WIG
+bool CREATE_BEDGRAPH
+bool CONVERT_TO_BIGWIG
+string CHROM_SIZES
+string SEQ_DIR
+string UMAP_DIR
 bool PAIRED_END
 int NUM_CTL=1
 
@@ -35,6 +44,7 @@ void read_conf() {
 	PREFIX 		= chk_slash( conf{ "PREFIX" } )
 	OUTPUT_DIR	= mkdir_path( conf{ "OUTPUT_DIR" } )
 	TMP_DIR 	= mkdir_path( conf{ "TMP_DIR" } )
+	//USE_BGZIP 	= parse_bool( conf{ "USE_BGZIP"} )
 
 	// bwa alignment
 	NTHREADS_BWA 	= parse_int( conf{ "NTHREADS_BWA" } )
@@ -59,6 +69,14 @@ void read_conf() {
 	PYTHON3 	= chk_file( conf{ "PYTHON3" }, "" )
 	IDR 		= chk_file( conf{ "IDR" }, "" )
 	IDR_THRESH	= parse_real( conf{ "IDR_THRESH"} )
+
+	// signal track
+	CREATE_WIG			= parse_bool( conf{ "CREATE_WIG"} )
+	CREATE_BEDGRAPH		= parse_bool( conf{ "CREATE_BEDGRAPH"} )
+	CONVERT_TO_BIGWIG	= parse_bool( conf{ "CONVERT_TO_BIGWIG"} )
+	UMAP_DIR 	= get_path( conf{"UMAP_DIR"} )
+	SEQ_DIR 	= get_path( conf{"SEQ_DIR"} )
+	CHROM_SIZES = chk_file( conf{"CHROM_SIZES"}, "" )
 
 	// paired-end?
 	PAIRED_END	= parse_bool( conf{ "PAIRED_END"} )
@@ -135,18 +153,13 @@ void tasks_before_spp() { // align -> post_align -> xcor -> self-pseudo-replicat
 	wait
 }
 
+
 void spp_idr() {
 	print( "\nSPP and IDR...\n" );
 
 	// SPP
 
-	// get FRAGLEN (3rd column of cc score file) for spp(-speak=$FRAGLEN) from replicate 1 cc score file
-	NREADS_PER_MILLION := NREADS/1000000
-	OFPREFIX_CTL0_REP1 := OUTPUT_DIR + "/" + PREFIX + "_CTL" + 0 + "_Rep" + 1
-	CC_SCORE_FILE_CTL0_REP1 := PAIRED_END ? "$OFPREFIX_CTL0_REP1.filt.nodup.sample.$NREADS_PER_MILLION.MATE1.tagAlign.gz.cc.qc" : \
-											"$OFPREFIX_CTL0_REP1.filt.nodup.sample.$NREADS_PER_MILLION.SE.tagAlign.gz.cc.qc"
-	cols := CC_SCORE_FILE_CTL0_REP1.read().split("\t")
-	FRAGLEN := cols[2]
+	FRAGLEN := get_fraglen( 0, 1 ) // get it from rep1
 	print("FRAGLEN for spp: $FRAGLEN \n")
 	
 	// prepare for tagAlign files
@@ -236,13 +249,16 @@ void spp_idr() {
 	wait	
 */
 }
-
+ 
 void tasks_from_align_to_spr( int ctl, int rep ) {
 
 	align_bwa( ctl, rep )
 	post_align_filt( ctl, rep )
  	bam_to_tagalign( ctl, rep )
  	xcor( ctl, rep )
+
+ 	create_sig_trk( ctl, rep )
+
  	spr( ctl, rep )
 }
 
@@ -347,8 +363,7 @@ void post_align_filt( int ctl, int rep ) {
 	print( "\npost_align_filt ctl:$ctl rep:$rep...\n" );
 
 	fastqs := get_fastqs( ctl, rep )
-
-	OFPREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL" + ctl + "_Rep" + rep
+	OFPREFIX := get_ofprefix( ctl, rep )
 
 	if ( fastqs.size() == 2 ) { // if data is paired-end, therefore PE1 and PE2
 
@@ -535,7 +550,7 @@ void post_align_filt( int ctl, int rep ) {
 void bam_to_tagalign( int ctl, int rep ) {
 	print( "\nbam_to_tagalign ctl:$ctl rep:$rep...\n" );
 
-	OFPREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL" + ctl + "_Rep" + rep
+	OFPREFIX := get_ofprefix( ctl, rep )
 	NREADS_PER_MILLION := NREADS/1000000
 
 	fastqs := get_fastqs( ctl, rep )
@@ -599,14 +614,72 @@ void bam_to_tagalign( int ctl, int rep ) {
 	else { // no data		
 		print("warning(bam_to_tagAlign): no input for ctl $ctl, rep $rep\n")
 	}
+}
 
-	
+void create_sig_trk( int ctl, int rep ) {
+	print( "\ncreate_sig_trk ctl:$ctl rep:$rep...\n" );
+
+	OFPREFIX := get_ofprefix( ctl, rep )
+
+	FRAGLEN := get_fraglen( ctl, rep ) // get it from rep1
+	print("FRAGLEN for signal track: $FRAGLEN \n")
+
+	fastqs := get_fastqs( ctl, rep )
+
+ 	string FINAL_BAM_PREFIX
+	string FINAL_BAM_FILE
+	string FINAL_TA_FILE 
+	string WIG_FILE
+	string BEDGRAPH_FILE
+	string SORTED_BG_FILE
+	string BIGWIG_FILE
+
+	if ( fastqs.size() == 2 ) { // if data is paired-end
+	 	FINAL_BAM_PREFIX ="$OFPREFIX.filt.srt.nodup"
+		FINAL_BAM_FILE ="$FINAL_BAM_PREFIX.bam"
+		FINAL_TA_FILE ="$FINAL_BAM_PREFIX.PE2SE.tagAlign.gz".path() // align2rawsignal needs absolute path
+		WIG_FILE = "$FINAL_BAM_PREFIX.PE2SE.wig".path()
+		BEDGRAPH_FILE = "$FINAL_BAM_PREFIX.PE2SE.bedGraph".path()
+		SORTED_BG_FILE = "$FINAL_BAM_PREFIX.PE2SE.srt.bedGraph".path()
+		BIGWIG_FILE = "$FINAL_BAM_PREFIX.PE2SE.bigwig".path()
+	}
+	else {
+		FINAL_BAM_PREFIX ="$OFPREFIX.filt.nodup.srt"
+		FINAL_BAM_FILE ="$FINAL_BAM_PREFIX.bam"
+		FINAL_TA_FILE ="$FINAL_BAM_PREFIX.SE.tagAlign.gz".path()
+		WIG_FILE = "$FINAL_BAM_PREFIX.SE.wig".path()
+		BEDGRAPH_FILE = "$FINAL_BAM_PREFIX.SE.bedGraph".path()
+		SORTED_BG_FILE = "$FINAL_BAM_PREFIX.SE.srt.bedGraph".path()
+		BIGWIG_FILE = "$FINAL_BAM_PREFIX.SE.bigwig".path()
+	}
+
+	if ( CREATE_WIG ) {
+			task( WIG_FILE <- FINAL_TA_FILE ) {
+			sys align2rawsignal -i=$FINAL_TA_FILE -o=$WIG_FILE -s=$SEQ_DIR -u=$UMAP_DIR -of=w -l=$FRAGLEN -mm=4
+		}
+	}
+
+	if ( CREATE_BEDGRAPH ) {
+		task( BEDGRAPH_FILE <- FINAL_TA_FILE ) {
+			sys align2rawsignal -i=$FINAL_TA_FILE -o=$BEDGRAPH_FILE -s=$SEQ_DIR -u=$UMAP_DIR -of=bg -l=$FRAGLEN -mm=4
+		}
+
+		wait
+
+		if ( CONVERT_TO_BIGWIG ) {
+			task( BIGWIG_FILE <- BEDGRAPH_FILE ) {
+				sys sort -k1,1 -k2,2n $BEDGRAPH_FILE > $SORTED_BG_FILE
+				sys bedGraphToBigWig $SORTED_BG_FILE CHROM_SIZES $BIGWIG_FILE
+			}
+		}
+	}
+
 }
 
 void xcor( int ctl, int rep ) {
 	print( "\nxcor ctl:$ctl rep:$rep...\n" );
 
-	OFPREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL" + ctl + "_Rep" + rep
+	OFPREFIX := get_ofprefix( ctl, rep )
 	NREADS_PER_MILLION := NREADS/1000000
 
 	fastqs := get_fastqs( ctl, rep )
@@ -644,7 +717,7 @@ void xcor( int ctl, int rep ) {
 void spr( int ctl, int rep ) { // self-pseudo-replicate
 	print( "\nspr ctl:$ctl rep:$rep...\n" );
 
-	OFPREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL" + ctl + "_Rep" + rep
+	OFPREFIX := get_ofprefix( ctl, rep )
 
 	fastqs := get_fastqs( ctl, rep )
 
@@ -780,6 +853,20 @@ void pspr( int ctl ) {
 		}
 	}
 	
+}
+
+string get_fraglen( int ctl, int rep ) {
+	// get FRAGLEN (3rd column of cc score file) for spp(-speak=$FRAGLEN) from replicate 1 cc score file
+	NREADS_PER_MILLION := NREADS/1000000
+	OFPREFIX := get_ofprefix( ctl, rep )
+	CC_SCORE_FILE := PAIRED_END ? "$OFPREFIX.filt.nodup.sample.$NREADS_PER_MILLION.MATE1.tagAlign.gz.cc.qc" : \
+											"$OFPREFIX.filt.nodup.sample.$NREADS_PER_MILLION.SE.tagAlign.gz.cc.qc"
+	cols := CC_SCORE_FILE.read().split("\t")
+	return cols[2]
+}
+
+string get_ofprefix( int ctl, int rep ) {
+	return OUTPUT_DIR + "/" + PREFIX + "_CTL" + ctl + "_Rep" + rep
 }
 
 string[] get_fastqs( int ctl, int rep ) { 

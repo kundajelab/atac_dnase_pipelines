@@ -1,4 +1,6 @@
 #!/usr/bin/env bds
+// code developed by Jin Lee (leepc12@stanford.edu) on Mar. 2015
+// string functions for commenting (//) in configuration file, (/*,*/) doesn't work
 
 string chk_slash( string str ) { // if slash found, error
 	trimmed := rm_comment( str )
@@ -26,7 +28,8 @@ string chk_file( string str, string ext ) {
 	}
 }
 
-string mkdir_path( string str ) { // make filename full path and mkdir -p
+string mkdir_path( string str ) { 
+	// make filename full path and mkdir -p
 	path := get_path( str )
 
 	if ( path.exists() ) {		
@@ -41,14 +44,8 @@ string mkdir_path( string str ) { // make filename full path and mkdir -p
 }
 
 string get_path( string str ) {
-	base := rm_slash_at_end( str )
-	path := base.indexOf("/")<0 ? ppwd + "/" + base : base
-
-    return path
-}
-
-string rm_slash_at_end( string str ) {
-	return rm_str_at_end( str, "/" )
+	base := rm_str_at_end( str, "/" )
+	return (base.indexOf(ppwd)==0) ? base.replace(ppwd,"") : base
 }
 
 string rm_str_at_end( string str, string rm ) {

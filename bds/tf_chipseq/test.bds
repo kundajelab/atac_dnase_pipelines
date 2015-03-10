@@ -1,6 +1,8 @@
 #!/usr/bin/env bds
 #
 
+TE:="\$(which run_spp.R)"
+print("$TE\n")
 
 lines := ("/srv/gsfs0/scratch/leepc12/run_pipeline/bds_test_SE/out/TEST_SE_CTL0_Rep1.filt.nodup.sample.15.SE.tagAlign.gz.cc.qc").read()
 cols := lines.split("\t")
