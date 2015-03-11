@@ -48,7 +48,7 @@ Modify conf_tf_chipseq.txt to have your own settings.
 ### Usage 
 
  
-Make sure you have conf_tf_chipseq.txt on your WORKING directory $WORK_DIR (not on your script directory $PIPELINE_DIR). If bds.config is not specified with -c {bds.config}, $HOME/.bds/bds.config will be used by default. bds.config for scg3 (based on SGE) is included in the git repo. Separate your working directory ($WORK_DIR) from $PIPELINE_DIR cause BDS produces a lot of intermediate dir/files on $WORK_DIR.
+Make sure you have the configuration file conf_tf_chipseq.txt on your WORKING directory $WORK_DIR (not on your script directory $PIPELINE_DIR). If bds.config is not specified with -c {bds.config}, $HOME/.bds/bds.config will be used by default. bds.config for scg3 (based on SGE) is included in the git repo. Separate your working directory ($WORK_DIR) from $PIPELINE_DIR cause BDS produces a lot of intermediate dir/files on $WORK_DIR.
 
 If you want to locally run jobs on your machine,
 
@@ -57,31 +57,17 @@ cd $WORK_DIR
 bds $PIPELINE_DIR/tf_chipseq.bds
 ```
 
-On scg3 cluster, 
+On scg3 cluster, specify bds.config for scg3.
 ```
-bds -s sge $PIPELINE_DIR/tf_chipseq.bds -c $PIPELINE_DIR/bds.config.scg3
+bds -c bds.config.scg3 -s sge $PIPELINE_DIR/tf_chipseq.bds 
 ```
+Parameter -c {bds.config} doesn't work if it is put after the BDS script on the command line (bug in BDS). 
 
 If you run BDS script with -dryRun, it does not actually run the job, it compiles the script and list jobs to be executed.
 
 ```
-bds -dryRun -s sge $PIPELINE_DIR/tf_chipseq.bds -c $PIPELINE_DIR/bds.config.scg3
+bds -c bds.config.scg3 -dryRun -s sge $PIPELINE_DIR/tf_chipseq.bds 
 ```
-
-
-In order to make BDS work with Sun Grid Engine (SGE), modify the following lines in bds.config .
-```
-sge.pe = shm
-sge.mem = h_vmem
-sge.timeout = h_rt
-```
-Add the following line:
-```
-clusterRunAdditionalArgs = -l h_rt 08:00:00 -l h_vmem 10G
-```
-You can specify # of cpus for each BDS job in BDS script (by task( {OPTIONS}, cpus:={# of cpus} ) ). However, you cannot do it for memory and walltime (BDS's bug on SGE cluster, should be fixed soon). Specify default walltime and memory in bds.config for all BDS jobs.
-
-
 
 ### BigDataScript (BDS)
 
