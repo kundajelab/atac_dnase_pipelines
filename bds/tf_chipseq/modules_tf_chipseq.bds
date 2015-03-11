@@ -104,40 +104,14 @@ void read_conf() {
 			fastqs_Rep1 := get_fastqs( ctl, 1 )
 			fastqs_Rep2 := get_fastqs( ctl, 2 )
 
-			print( prefix + "Rep1: "+ (fastqs_Rep1) + "\n")
-			print( prefix + "Rep2: "+ (fastqs_Rep2) + "\n")
+			print( prefix + "Rep1: \n")
+			for ( string s : fastqs_Rep1 ) print("\t$s\n")
+
+			print( prefix + "Rep2: \n")
+			for ( string s : fastqs_Rep2 ) print("\t$s\n")
 			
 			if ( fastqs_Rep1.size() == 0 ) error( "error(read_conf): " + prefix + "Rep1 fastqs missing!\n")
 			if ( fastqs_Rep2.size() == 0 ) error( "error(read_conf): " + prefix + "Rep2 fastqs missing!\n")
-
-						/*
-			if ( ctl == 0 ) { 
-
-				if ( fastqs_Rep1.size()!=2 ) \
-					error("error(read_conf): input fastqs are missing or not paired for replicate 1!\n")
-
-				if ( fastqs_Rep2.size()!=2 ) \
-					error("error(read_conf): input fastqs are missing or not paired for replicate 2!\n")
-
-				if ( fastqs_Rep1.size()!=1 ) \
-					error("error(read_conf): input fastq is missing or not single for replicate 1!\n")
-
-				if ( fastqs_Rep2.size()!=1 ) \
-					error("error(read_conf): input fastq is missing or not single for replicate 2!\n")
-
-			}
-			else { // for controls 
-
-				if ( fastqs_Rep1.size()==0 ) \
-					error("error(read_conf): control (ctl:$ctl) fastqs are missing for replicate 1!\n")
-
-				if ( fastqs_Rep2.size()==0 ) \
-					print("warning(read_conf): control (ctl:$ctl) fastqs are missing for replicate 2!\n")
-
-				if ( (fastqs_Rep2.size()>0) && (fastqs_Rep1.size()!=fastqs_Rep2.size()) ) \
-					error("error(read_conf): control (ctl:$ctl) fastqs have both paired and single data!\n")
-			}
-			*/
 		}
 	}
 }

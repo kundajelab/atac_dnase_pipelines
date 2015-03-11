@@ -51,19 +51,31 @@ Make sure you have conf_tf_chipseq.txt on your WORKING directory (not on your sc
 If you want to locally run jobs on your machine,
 
 ```
-bds tf_chipseq.bds
+bds tf_chipseq.bds -c bds.config
 ```
 
 On SGE cluster, 
 ```
-bds -s sge tf_chipseq.bds 
+bds -s sge tf_chipseq.bds -c bds.config
 ```
 
 If you run BDS script with -dryRun, it does not actually run the job, it compiles the script and list jobs to be executed.
 
 ```
-bds -dryRun -s sge tf_chipseq.bds 
+bds -dryRun -s sge tf_chipseq.bds -c bds.config
 ```
+
+In order to make BDS work with Sun Grid Engine (SGE), modify the following lines in bds.config .
+```
+sge.pe = shm
+sge.mem = h_vmem
+sge.timeout = h_rt
+```
+Add the following line:
+```
+clusterRunAdditionalArgs = -l h_rt 08:00:00 -l h_vmem 10G
+```
+You can specify # of cpus for each BDS job in BDS script (by task( {OPTIONS}, cpus:={# of cpus} ) ). However, you cannot do it for memory and walltime (BDS's bug on SGE cluster, should be fixed soon). Specify default walltime and memory in bds.config for all BDS jobs.
 
 
 
@@ -81,18 +93,6 @@ BDS is installed at $HOME/.bds/. You should add it to your PATH. Edit your $HOME
 ```
 export PATH=$PATH:$HOME/.bds/
 ```
-In order to make BDS work with Sun Grid Engine (SGE), modify the following lines in $HOME/.bds/bds.config.
-```
-sge.pe = shm
-sge.mem = h_vmem
-sge.timeout = h_rt
-```
-Add the following line:
-```
-clusterRunAdditionalArgs = -l h_rt 08:00:00 -l h_vmem 10G
-```
-You can specify # of cpus for each BDS job in BDS script (by task( {OPTIONS}, cpus:={# of cpus} ) ). However, you cannot do it for memory and walltime (BDS's bug on SGE cluster, should be fixed soon). Specify default walltime and memory in $HOME/.bds/bds.config for all BDS jobs.
-
 
 ### Local installation instruction for R-2.15.1
 
@@ -149,3 +149,8 @@ export LD_LIBRARY_PATH
 export XAPPLRESDIR
 
 ```
+
+### Contributors
+
+Jin wook Lee - PhD Student, Mechanical Engineering Dept., Stanford University
+Anshul Kundaje - Assistant Professor, Dept. of Genetics, Stanford University
