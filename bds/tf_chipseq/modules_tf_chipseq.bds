@@ -193,17 +193,17 @@ void spp_idr() {
 
 		// REP1_TA_FILE vs CTL_REP1_TA_FILE
 		PEAK_REP1_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP1_TA_FILE.baseName() + ".ccscores"
-		task( [PEAK_REP1_CCSCORE] <- [REP1_TA_FILE, CTL_REP1_TA_FILE], cpus := NTHREADS_R ) {
+		task( taskName := "spp rep1", [PEAK_REP1_CCSCORE] <- [REP1_TA_FILE, CTL_REP1_TA_FILE], cpus := NTHREADS_R ) {
 			sys $R_SCRIPT $RUN_SPP -c=$REP1_TA_FILE -p=$NTHREADS_R -i=$CTL_REP1_TA_FILE -npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP1_CCSCORE
 		}
 		// REP2_TA_FILE vs CTL_REP2_TA_FILE
 		PEAK_REP2_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP2_TA_FILE.baseName() + ".ccscores"
-		task( [PEAK_REP2_CCSCORE] <- [REP2_TA_FILE, CTL_REP2_TA_FILE], cpus := NTHREADS_R  ) {
+		task( taskName := "spp rep2", [PEAK_REP2_CCSCORE] <- [REP2_TA_FILE, CTL_REP2_TA_FILE], cpus := NTHREADS_R  ) {
 			sys $R_SCRIPT $RUN_SPP -c=$REP2_TA_FILE -p=$NTHREADS_R -i=$CTL_REP2_TA_FILE -npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP2_CCSCORE
 		}
 		// POOLED_TA_FILE vs CTL_POOLED_TA_FILE
 		PEAK_POOLED_CCSCORE := PEAK_OUTPUT_DIR + "/" + POOLED_TA_FILE.baseName() + ".ccscores"
-		task( [PEAK_POOLED_CCSCORE] <- [POOLED_TA_FILE, CTL_POOLED_TA_FILE], cpus := NTHREADS_R  ) {
+		task( taskName := "spp pooled", [PEAK_POOLED_CCSCORE] <- [POOLED_TA_FILE, CTL_POOLED_TA_FILE], cpus := NTHREADS_R  ) {
 			sys $R_SCRIPT $RUN_SPP -c=$POOLED_TA_FILE -p=$NTHREADS_R -i=$CTL_POOLED_TA_FILE -npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_POOLED_CCSCORE
 		}
 		wait
@@ -221,7 +221,7 @@ void spp_idr() {
 		IDR_OUTPUT := "$PEAK_OUTPUT_DIR/REP1_VS_REP2.IDR" + IDR_THRESH +".narrowPeak"
 
 		// Nathan's idr code
-		task( IDR_OUTPUT <- [REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE] ) { // --use-old-output-format 
+		task( taskName := "IDR", IDR_OUTPUT <- [REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE] ) { // --use-old-output-format 
 			sys $PYTHON3 $IDR --samples $REP1_PEAK_FILE $REP1_PEAK_FILE --input-file-type narrowPeak --output-file $IDR_OUTPUT --plot --idr-threshold $IDR_THRESH
 			sys echo NPEAKS_IDR: $(cat $IDR_OUTPUT | wc -l)
 		}
@@ -272,20 +272,20 @@ void align_bwa( int ctl, int rep ) {
 		// run for outputs
 		if( [RAW_BAM_FILE, RAW_BAM_FILE_MAPSTATS] <- [FASTQ_FILE_1, FASTQ_FILE_2]  ) {
 
-			task( SAI_FILE_1 <- FASTQ_FILE_1, cpus := NTHREADS_BWA ) {
+			task( taskName := "bwa aln PE1", SAI_FILE_1 <- FASTQ_FILE_1, cpus := NTHREADS_BWA ) {
 				sys bwa aln $BWA_PARAM -t $NTHREADS_BWA $BWA_INDEX_NAME $FASTQ_FILE_1 > $SAI_FILE_1
 			}
-			task( SAI_FILE_2 <- FASTQ_FILE_2, cpus := NTHREADS_BWA ) {
+			task( taskName := "bwa aln PE2", SAI_FILE_2 <- FASTQ_FILE_2, cpus := NTHREADS_BWA ) {
 				sys bwa aln $BWA_PARAM -t $NTHREADS_BWA $BWA_INDEX_NAME $FASTQ_FILE_2 > $SAI_FILE_2
 			}
 			wait
 
-			task( RAW_SAM_FILE <- [SAI_FILE_1, SAI_FILE_2] ) {
+			task( taskName := "bwa sampe PE", RAW_SAM_FILE <- [SAI_FILE_1, SAI_FILE_2] ) {
 				sys bwa sampe $BWA_INDEX_NAME $SAI_FILE_1 $SAI_FILE_2 $FASTQ_FILE_1 $FASTQ_FILE_2 | $GZIP -c > $RAW_SAM_FILE
 			}
 			wait
 
-			task( [RAW_BAM_FILE, RAW_BAM_FILE_MAPSTATS] <- RAW_SAM_FILE ) {
+			task( taskName := "raw bam mapstats", [RAW_BAM_FILE, RAW_BAM_FILE_MAPSTATS] <- RAW_SAM_FILE ) {
 				//# ==============================================================                                         
 				//# Remove read pairs with bad CIGAR strings and sort by position                                                                
 				//# ==============================================================
@@ -319,17 +319,17 @@ void align_bwa( int ctl, int rep ) {
 
 		if ( [RAW_BAM_FILE, RAW_BAM_FILE_MAPSTATS] <- FASTQ_FILE_1 ) {
 			
-			task( SAI_FILE_1 <- FASTQ_FILE_1, cpus := NTHREADS_BWA ) {
+			task( taskName := "bwa aln SE", SAI_FILE_1 <- FASTQ_FILE_1, cpus := NTHREADS_BWA ) {
 				sys bwa aln -q 5 -l 32 -k 2 -t $NTHREADS_BWA $BWA_INDEX_NAME $FASTQ_FILE_1 > $SAI_FILE_1
 			}
 			wait
 
-			task( RAW_BAM_FILE <- SAI_FILE_1 ) {
+			task( taskName := "bwa sampe SE", RAW_BAM_FILE <- SAI_FILE_1 ) {
 				sys bwa samse $BWA_INDEX_NAME $SAI_FILE_1 $FASTQ_FILE_1 | samtools view -Su - | samtools sort - $RAW_BAM_PREFIX
 			}
 			wait
 
-			task( RAW_BAM_FILE_MAPSTATS <- RAW_BAM_FILE ) {
+			task( taskName := "raw bam mapstats", RAW_BAM_FILE_MAPSTATS <- RAW_BAM_FILE ) {
 				sys samtools flagstat $RAW_BAM_FILE > $RAW_BAM_FILE_MAPSTATS
 				sys rm -f $SAI_FILE_1
 			}
@@ -385,12 +385,12 @@ void post_align_filt( int ctl, int rep ) {
 			//# Only keep properly paired reads
 			//# Obtain name sorted BAM file
 			//# ==================
-			task( TMP_FILT_BAM_FILE <- RAW_BAM_FILE ) {
+			task( taskName := "rm unmapped reads", TMP_FILT_BAM_FILE <- RAW_BAM_FILE ) {
 				sys samtools view -F 1804 -f 2 -q $MAPQ_THRESH -u $RAW_BAM_FILE | samtools sort -n - $TMP_FILT_BAM_PREFIX //# Will produce name sorted BAM
 			}
 			wait 
 
-			task( FILT_BAM_FILE <- TMP_FILT_BAM_FILE ) {
+			task( taskName := "rm orphan reads", FILT_BAM_FILE <- TMP_FILT_BAM_FILE ) {
 				//# Remove orphan reads (pair was removed)
 				//# and read pairs mapping to different chromosomes
 				//# Obtain position sorted BAM			
@@ -402,7 +402,7 @@ void post_align_filt( int ctl, int rep ) {
 
 			wait
 
-			task( FINAL_BAM_FILE <- FILT_BAM_FILE ) {
+			task( taskName := "mark dup", FINAL_BAM_FILE <- FILT_BAM_FILE ) {
 				//# =============
 				//# Mark duplicates
 				//# =============
@@ -423,16 +423,17 @@ void post_align_filt( int ctl, int rep ) {
 
 			wait
 
-			task( FINAL_NMSRT_BAM_FILE <- FINAL_BAM_FILE ) {
+			task( taskName := "sort final bam", FINAL_NMSRT_BAM_FILE <- FINAL_BAM_FILE ) {
 				sys samtools sort -n $FINAL_BAM_FILE $FINAL_NMSRT_BAM_PREFIX
 			}
-			task( [FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS] <- FINAL_BAM_FILE ) {
+
+			task( taskName := "index final bam", [FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS] <- FINAL_BAM_FILE ) {
 				//# Index Final BAM file
 				sys samtools index $FINAL_BAM_FILE $FINAL_BAM_INDEX_FILE
 				sys samtools flagstat $FINAL_BAM_FILE > $FINAL_BAM_FILE_MAPSTATS
 			}
 
-			task( PBC_FILE_QC <- FILT_BAM_FILE ) {
+			task( taskName := "QC final bam", PBC_FILE_QC <- FILT_BAM_FILE ) {
 				//# =============================
 				//# Compute library complexity
 				//# =============================
@@ -480,12 +481,12 @@ void post_align_filt( int ctl, int rep ) {
 			//# Remove low MAPQ reads
 			//# ==================  
 
-			task( FILT_BAM_FILE <- RAW_BAM_FILE ) {
+			task( taskName := "rm unmapped reads", FILT_BAM_FILE <- RAW_BAM_FILE ) {
 				sys samtools view -F 1804 -q $MAPQ_THRESH -b $RAW_BAM_FILE > $FILT_BAM_FILE
 			}
 			wait
 
-			task( FINAL_BAM_FILE <- FILT_BAM_FILE ) {
+			task( taskName := "mark dup", FINAL_BAM_FILE <- FILT_BAM_FILE ) {
 				//# ========================
 				//# Mark duplicates
 				//# ======================
@@ -503,11 +504,13 @@ void post_align_filt( int ctl, int rep ) {
 
 			wait
 
-			task( [FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS, PBC_FILE_QC] <- FINAL_BAM_FILE ) {
+			task( taskName := "index final bam", [FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS] <- FINAL_BAM_FILE ) {
 				//# Index Final BAM file
 				sys samtools index $FINAL_BAM_FILE $FINAL_BAM_INDEX_FILE
 				sys samtools flagstat $FINAL_BAM_FILE > $FINAL_BAM_FILE_MAPSTATS
+			}
 
+			task( taskName := "QC final bam", PBC_FILE_QC <- FILT_BAM_FILE ) {
 				//# =============================
 				//# Compute library complexity
 				//# =============================
@@ -554,11 +557,11 @@ void bam_to_tagalign( int ctl, int rep ) {
 		//# ===================
 		//# Create tagAlign file
 		//# ===================
-		task( FINAL_TA_FILE <- FINAL_BAM_FILE ) {
+		task( taskName := "make tagAlign", FINAL_TA_FILE <- FINAL_BAM_FILE ) {
 			sys bamToBed -i $FINAL_BAM_FILE | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | $GZIP -c > $FINAL_TA_FILE			
 		}
 
-		task( [FINAL_BEDPE_FILE, SUBSAMPLED_TA_FILE] <- FINAL_NMSRT_BAM_FILE ) {
+		task( taskName := "make bedpe", [FINAL_BEDPE_FILE, SUBSAMPLED_TA_FILE] <- FINAL_NMSRT_BAM_FILE ) {
 			//# ================
 			//# Create BEDPE file
 			//# ================
@@ -584,7 +587,7 @@ void bam_to_tagalign( int ctl, int rep ) {
 		FINAL_TA_FILE :="$FINAL_BAM_PREFIX.SE.tagAlign.gz"
 		SUBSAMPLED_TA_FILE :="$OFPREFIX.filt.nodup.sample.$NREADS_PER_MILLION.SE.tagAlign.gz"
 
-		task( [FINAL_TA_FILE, SUBSAMPLED_TA_FILE] <- FINAL_BAM_FILE ) { 
+		task( taskName := "make tagAlign", [FINAL_TA_FILE, SUBSAMPLED_TA_FILE] <- FINAL_BAM_FILE ) { 
 			//# ===================
 			//# Create tagAlign file
 			//# ===================
@@ -647,13 +650,13 @@ void create_sig_trk( int ctl, int rep ) {
 	}
 
 	if ( CREATE_WIG ) {
-			task( WIG_FILE <- FINAL_TA_FILE ) {
+			task( taskName := "make wig", WIG_FILE <- FINAL_TA_FILE ) {
 			sys align2rawsignal -i=$FINAL_TA_FILE -o=$WIG_FILE -s=$SEQ_DIR -u=$UMAP_DIR -of=w -l=$FRAGLEN -mm=4
 		}
 	}
 
 	if ( CREATE_BEDGRAPH ) {
-		task( BEDGRAPH_FILE <- FINAL_TA_FILE ) {
+		task( taskName := "make bedgraph", BEDGRAPH_FILE <- FINAL_TA_FILE ) {
 			sys align2rawsignal -i=$FINAL_TA_FILE -o=$BEDGRAPH_FILE -s=$SEQ_DIR -u=$UMAP_DIR -of=bg -l=$FRAGLEN -mm=4
 		}
 
@@ -662,10 +665,10 @@ void create_sig_trk( int ctl, int rep ) {
 		if ( CONVERT_TO_BIGWIG ) {
 
 			if ( BIGWIG_FILE <- BEDGRAPH_FILE ) {
-				task( SORTED_BG_FILE <- BEDGRAPH_FILE ) {
+				task( taskName := "sort bedgraph", SORTED_BG_FILE <- BEDGRAPH_FILE ) {
 					sys sort -k1,1 -k2,2n $BEDGRAPH_FILE > $SORTED_BG_FILE
 				}
-				task( BIGWIG_FILE <- SORTED_BG_FILE ) {
+				task( taskName := "make bigwig", BIGWIG_FILE <- SORTED_BG_FILE ) {
 					sys bedGraphToBigWig $SORTED_BG_FILE $CHROM_SIZES $BIGWIG_FILE
 					sys rm -f SORTED_BG_FILE
 				}
@@ -698,7 +701,7 @@ void xcor( int ctl, int rep ) {
 		CC_SCORES_FILE :="$SUBSAMPLED_TA_FILE.cc.qc"
 		CC_PLOT_FILE :="$SUBSAMPLED_TA_FILE.cc.plot.pdf"
 
-		task( [CC_SCORES_FILE, CC_PLOT_FILE] <- SUBSAMPLED_TA_FILE, cpus := NTHREADS_R ) {
+		task( taskName := "xcor score", [CC_SCORES_FILE, CC_PLOT_FILE] <- SUBSAMPLED_TA_FILE, cpus := NTHREADS_R ) {
 			//# CCSCORE FILE format
 			//# Filename <tab> numReads <tab> estFragLen <tab> correstFragLen <tab> PhantomPeak <tab> corrphantomPeak <tab> argmincorr <tab> mincorr <tab> phantomPeakCoef <tab> relPhantomPeakCoef <tab> QualityTag
 
@@ -728,7 +731,7 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 		PR1_TA_FILE :="$PR_PREFIX.PE2SE.pr1.tagAlign.gz"
 		PR2_TA_FILE :="$PR_PREFIX.PE2SE.pr2.tagAlign.gz"
 
-		task( [PR1_TA_FILE, PR2_TA_FILE] <- FINAL_BEDPE_FILE ) {
+		task( taskName := "make pseudo-rep.", [PR1_TA_FILE, PR2_TA_FILE] <- FINAL_BEDPE_FILE ) {
 			//# ========================
 			//# Create pseudoReplicates
 			//# =======================
@@ -762,7 +765,7 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 		PR1_TA_FILE :="$PR_PREFIX.SE.pr1.tagAlign.gz"
 		PR2_TA_FILE :="$PR_PREFIX.SE.pr2.tagAlign.gz"
 
-		task( [PR1_TA_FILE, PR2_TA_FILE] <- FINAL_TA_FILE ) {
+		task( taskName := "make pseudo-rep.", [PR1_TA_FILE, PR2_TA_FILE] <- FINAL_TA_FILE ) {
 			//# ========================
 			//# Create pseudoReplicates
 			//# =======================
@@ -829,17 +832,17 @@ void pspr( int ctl ) {
 			//# ========================
 			//# Create pooled datasets
 			//# =======================
-			task( POOLED_TA_FILE <- [REP1_TA_FILE, REP2_TA_FILE] ) {
+			task( taskName := "pooled tagAlign", POOLED_TA_FILE <- [REP1_TA_FILE, REP2_TA_FILE] ) {
 				sys zcat $REP1_TA_FILE $REP2_TA_FILE | $GZIP -c > $POOLED_TA_FILE
 			}
 
 			//# ========================
 			//# Create pooled pseudoreplicates
 			//# =======================
-			task( PPR1_TA_FILE <- [REP1_PR1_TA_FILE, REP2_PR1_TA_FILE] ) {
+			task( taskName := "ppr1 tagAlign", PPR1_TA_FILE <- [REP1_PR1_TA_FILE, REP2_PR1_TA_FILE] ) {
 				sys zcat $REP1_PR1_TA_FILE $REP2_PR1_TA_FILE | $GZIP -c > $PPR1_TA_FILE
 			}
-			task( PPR2_TA_FILE <- [REP1_PR2_TA_FILE, REP2_PR2_TA_FILE] ) {
+			task( taskName := "ppr2 tagAlign", PPR2_TA_FILE <- [REP1_PR2_TA_FILE, REP2_PR2_TA_FILE] ) {
 				sys zcat $REP1_PR2_TA_FILE $REP2_PR2_TA_FILE | $GZIP -c > $PPR2_TA_FILE			
 			}
 
@@ -860,16 +863,16 @@ void pspr( int ctl ) {
 			//# ======================== 
 			//# Create pooled datasets
 			//# =======================
-			task( POOLED_TA_FILE <- REP1_TA_FILE ) {
+			task( taskName := "pooled tagAlign", POOLED_TA_FILE <- REP1_TA_FILE ) {
 				sys cp $REP1_TA_FILE $POOLED_TA_FILE			
 			}
 			//# ========================
 			//# Create pooled pseudoreplicates
 			//# =======================
-			task( PPR1_TA_FILE <- REP1_PR1_TA_FILE ) {
+			task( taskName := "ppr1 tagAlign", PPR1_TA_FILE <- REP1_PR1_TA_FILE ) {
 				sys cp $REP1_PR1_TA_FILE $PPR1_TA_FILE			
 			}
-			task( PPR2_TA_FILE <- REP1_PR2_TA_FILE ) {
+			task( taskName := "ppr2 tagAlign", PPR2_TA_FILE <- REP1_PR2_TA_FILE ) {
 				sys cp $REP1_PR2_TA_FILE $PPR2_TA_FILE
 			}
 
