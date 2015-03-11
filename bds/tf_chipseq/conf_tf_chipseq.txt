@@ -6,7 +6,7 @@ NUM_REP=6 			// NUM_REP is the number of replicates you want to QC if PRE_IDR is
 PREFIX=ENCSR703KWN
 OUTPUT_DIR=out
 TMP_DIR=/srv/gsfs0/scratch/leepc12
-USE_BGZIP=true 		// to index BED type files for visualization in genome browser
+USE_BGZIP=false 		// to index BED type files for visualization in genome browser
 
 // bwa
 NTHREADS_BWA=4 		// # of procs for bwa -aln

@@ -51,7 +51,7 @@ void read_conf() {
 	PREFIX 		= chk_slash( conf{ "PREFIX" } )
 	OUTPUT_DIR	= mkdir_path( conf{ "OUTPUT_DIR" } ) //.path()
 	TMP_DIR 	= mkdir_path( conf{ "TMP_DIR" } )
-	USE_BGZIP 	= parse_bool( conf{ "USE_BGZIP"} )
+	USE_BGZIP 	= false // parse_bool( conf{ "USE_BGZIP"} )
 	GZIP 		= USE_BGZIP ? "bgzip" : "gzip"
 
 	// bwa alignment
