@@ -2,9 +2,12 @@
 mem = 10000000000
 # timeout in seconds (43200=12 hrs)
 timeout = 43200
+#timeout = 86400
 
 sge.pe = shm
 sge.mem = h_vmem
 sge.timeout = h_rt
 
+#clusterRunAdditionalArgs = -V -q extended
 clusterRunAdditionalArgs = -V
+#clusterRunAdditionalArgs = -V -A accountID -M user@gmail.com 
