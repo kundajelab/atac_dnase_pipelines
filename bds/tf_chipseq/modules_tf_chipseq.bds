@@ -51,7 +51,7 @@ void read_conf() {
 	PREFIX 		= chk_slash( conf{ "PREFIX" } )
 	OUTPUT_DIR	= mkdir_path( conf{ "OUTPUT_DIR" } ) //.path()
 	TMP_DIR 	= mkdir_path( conf{ "TMP_DIR" } )
-	USE_BGZIP 	= false // parse_bool( conf{ "USE_BGZIP"} )
+	USE_BGZIP 	= parse_bool( conf{ "USE_BGZIP"} )
 	GZIP 		= USE_BGZIP ? "bgzip" : "gzip"
 
 	// bwa alignment
@@ -117,8 +117,7 @@ void read_conf() {
 }
 
 void tasks_before_spp() { // align -> post_align -> xcor -> self-pseudo-replicate -> pooled psr
-
-	// align->post_align->xcor->self-pseudo-replicate, 
+	
 	for ( int ctl=0; ctl <= NUM_CTL; ctl++) { // iterate through fastqs (0: not control, 1~: controls)
 		for ( int rep=1; rep <= NUM_REP; rep++) {
 			par tasks_from_align_to_spr( ctl, rep ) // parallel jobs for each control and each replicate
@@ -127,8 +126,7 @@ void tasks_before_spp() { // align -> post_align -> xcor -> self-pseudo-replicat
 
 	wait
 
-	if ( !PRE_IDR ) {
-		// pooled psr
+	if ( !PRE_IDR ) {		
 		for ( int ctl=0; ctl <= NUM_CTL; ctl++) \
 			par pspr( ctl )
 
@@ -222,16 +220,11 @@ void spp_idr() {
 
 		// Nathan's idr code
 		task( taskName := "IDR", IDR_OUTPUT <- [REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE] ) { // --use-old-output-format 
-			sys $PYTHON3 $IDR --samples $REP1_PEAK_FILE $REP1_PEAK_FILE --input-file-type narrowPeak --output-file $IDR_OUTPUT --plot --idr-threshold $IDR_THRESH
+			sys $PYTHON3 $IDR --samples $REP1_PEAK_FILE $REP1_PEAK_FILE --peak-list $POOLED_PEAK_FILE --input-file-type narrowPeak --output-file $IDR_OUTPUT --plot --idr-threshold $IDR_THRESH
 			sys echo NPEAKS_IDR: $(cat $IDR_OUTPUT | wc -l)
 		}
 		wait
-	/*
-		task( POOLED_COMMON_PEAKS_IDR <- [REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE] ) { 
-			sys R_SCRIPT $(which batch-consistency-plot.r) 
-		}
-		wait	
-	*/
+
 	}
 }
 
@@ -280,7 +273,7 @@ void align_bwa( int ctl, int rep ) {
 			}
 			wait
 
-			task( taskName := "bwa sampe PE", RAW_SAM_FILE <- [SAI_FILE_1, SAI_FILE_2] ) {
+			task( taskName := "bwa sampe", RAW_SAM_FILE <- [SAI_FILE_1, SAI_FILE_2] ) {
 				sys bwa sampe $BWA_INDEX_NAME $SAI_FILE_1 $SAI_FILE_2 $FASTQ_FILE_1 $FASTQ_FILE_2 | $GZIP -c > $RAW_SAM_FILE
 			}
 			wait
@@ -319,12 +312,12 @@ void align_bwa( int ctl, int rep ) {
 
 		if ( [RAW_BAM_FILE, RAW_BAM_FILE_MAPSTATS] <- FASTQ_FILE_1 ) {
 			
-			task( taskName := "bwa aln SE", SAI_FILE_1 <- FASTQ_FILE_1, cpus := NTHREADS_BWA ) {
+			task( taskName := "bwa aln", SAI_FILE_1 <- FASTQ_FILE_1, cpus := NTHREADS_BWA ) {
 				sys bwa aln -q 5 -l 32 -k 2 -t $NTHREADS_BWA $BWA_INDEX_NAME $FASTQ_FILE_1 > $SAI_FILE_1
 			}
 			wait
 
-			task( taskName := "bwa sampe SE", RAW_BAM_FILE <- SAI_FILE_1 ) {
+			task( taskName := "bwa samse", RAW_BAM_FILE <- SAI_FILE_1 ) {
 				sys bwa samse $BWA_INDEX_NAME $SAI_FILE_1 $FASTQ_FILE_1 | samtools view -Su - | samtools sort - $RAW_BAM_PREFIX
 			}
 			wait
