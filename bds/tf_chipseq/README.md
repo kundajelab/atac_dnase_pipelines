@@ -10,39 +10,39 @@ Dependencies: BigDataScript
 
 Modify conf_tf_chipseq.txt to have your own settings.
 
-PRE_IDR 			: Set it true if you just want to compute QC score and stop before peak calling (default: false)
-NUM_REP				: # of replicates you want to test (default:2)
+* PRE_IDR 			: Set it true if you just want to compute QC score and stop before peak calling (default: false)
+* NUM_REP			: # of replicates you want to test (default:2)
 
-PREFIX 				: Prefix for all output files
-OUTPUT_DIR 			: Output directory (absolute path works too)
-TMP_DIR 			: Temporary folder for intermediate files during bwa alignment
+* PREFIX 			: Prefix for all output files
+* OUTPUT_DIR 		: Output directory (absolute path works too)
+* TMP_DIR 			: Temporary folder for intermediate files during bwa alignment
 
-USE_BGZIP			: Index BED type files (for visualization in a genome browser). Make sure bgzip and tabix installed.
+* USE_BGZIP			: Index BED type files (for visualization in a genome browser). Make sure bgzip and tabix installed.
 
-NTHREADS_BWA 		: # of threads for bwa aligment
-BWA_INDEX_NAME		: Prefix of bwa index files (eg. if you have bwa index files including hg19_Male.bwt, BWA_INDEX_NAME=hg19_Male)
-BWA_PARAM			: Parameters for bwa alignment (default: -q 5 -l 32 -k 2)
+* NTHREADS_BWA 		: # of threads for bwa aligment
+* BWA_INDEX_NAME	: Prefix of bwa index files (eg. if you have bwa index files including hg19_Male.bwt, BWA_INDEX_NAME=hg19_Male)
+* BWA_PARAM			: Parameters for bwa alignment (default: -q 5 -l 32 -k 2)
 
-MARKDUP 			: Dupe remover location
-MAPQ_THRESH			: MAPQ_THRESH
+* MARKDUP 			: Dupe remover location
+* MAPQ_THRESH		: MAPQ_THRESH
 
-NTHREADS_R			: # of threads for peak calling (spp)
-R_SCRIPT			: Specify if you have local installation of R (default: Rscript)
-RUN_SPP_DIR 		: Location of Anshul's pantompeakqualtools
-DUPE_REMOVED		: If true, use run_spp.nodups.R instead of run_spp.R
-NREADS 				: NREADS (default: 15000000)
-NPEAK 				: -npeak NPEAK in run_spp.R (default: 300000)
+* NTHREADS_R		: # of threads for peak calling (spp)
+* R_SCRIPT			: Specify if you have local installation of R (default: Rscript)
+* RUN_SPP_DIR 		: Location of Anshul's pantompeakqualtools
+* DUPE_REMOVED		: If true, use run_spp.nodups.R instead of run_spp.R
+* NREADS 			: NREADS (default: 15000000)
+* NPEAK 			: -npeak NPEAK in run_spp.R (default: 300000)
 
-PYTHON3 			: Specify if you have local installation of python3 (default: python3)
-IDR 				: Location of Nathan's IDR code
-IDR_THRESH	 		: Threshold for IDR (default=0.02)
+* PYTHON3 			: Specify if you have local installation of python3 (default: python3)
+* IDR 				: Location of Nathan's IDR code
+* IDR_THRESH	 	: Threshold for IDR (default=0.02)
 
-CREATE_WIG  		: Create wig file from .tagAlign.gz
-CREATE_BEDGRAPH 	: Create bedGraph file from .tagAlign.gz
-CONVERT_TO_BIGWIG 	: Convert bedGraph to bigwig
-CHROM_SIZES 		: Location of chrom.sizes file for your .fa
-UMAP_DIR 			: Location of umap (for hg19, globalmap_k20tok54)
-SEQ_DIR 			: Location of sequence .fa files (for hg19, chr?.fa)
+* CREATE_WIG  		: Create wig file from .tagAlign.gz
+* CREATE_BEDGRAPH 	: Create bedGraph file from .tagAlign.gz
+* CONVERT_TO_BIGWIG : Convert bedGraph to bigwig
+* CHROM_SIZES 		: Location of chrom.sizes file for your .fa
+* UMAP_DIR 			: Location of umap (for hg19, globalmap_k20tok54)
+* SEQ_DIR 			: Location of sequence .fa files (for hg19, chr?.fa)
 
 
 ### Usage 
