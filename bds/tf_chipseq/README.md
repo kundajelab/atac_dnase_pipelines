@@ -124,6 +124,36 @@ Add the following line in your $HOME/.bashrc .
 export R_LIBS=$HOME/RLib
 ```
 
+### Local installation instruction for Python3 and packages
+```
+cd $HOME
+
+echo Python3
+wget https://www.python.org/ftp/python/3.4.3/Python-3.4.3.tgz
+tar zxvf Python-3.4.3.tgz
+cd Python-3.4.3
+./configure --prefix=$HOME/usr/local
+make altinstall prefix=$HOME/usr/local exec-prefix=$HOME/usr/local
+
+echo Cython 
+wget http://cython.org/release/Cython-0.22.tar.gz
+cd Cython-0.22
+$HOME/usr/local/bin/python3.4 setup.py install --prefix=$HOME/local/
+
+echo Packages
+cd $HOME
+$HOME/usr/local/bin/pip3.4 install --install-option="--prefix=$HOME/local" numpy
+$HOME/usr/local/bin/pip3.4 install --install-option="--prefix=$HOME/local" matplotlib
+```
+
+### Local installation instruction for IDR
+
+```
+cd $HOME
+git clone --recursive https://github.com/nboley/idr.git
+cd idr
+$HOME/usr/local/bin/python3.4 setup.py install --prefix=$HOME/local/
+```
 
 ### Local installation instruction for Wiggler
 
