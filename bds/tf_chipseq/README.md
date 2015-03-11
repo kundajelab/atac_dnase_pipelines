@@ -16,6 +16,7 @@ NUM_REP				: # of replicates you want to test (default:2)
 PREFIX 				: Prefix for all output files
 OUTPUT_DIR 			: Output directory (absolute path works too)
 TMP_DIR 			: Temporary folder for intermediate files during bwa alignment
+
 USE_BGZIP			: Index BED type files (for visualization in a genome browser). Make sure bgzip and tabix installed.
 
 NTHREADS_BWA 		: # of threads for bwa aligment
@@ -46,24 +47,27 @@ SEQ_DIR 			: Location of sequence .fa files (for hg19, chr?.fa)
 
 ### Usage 
 
-Make sure you have conf_tf_chipseq.txt on your WORKING directory (not on your script directory).
+ 
+Make sure you have conf_tf_chipseq.txt on your WORKING directory $WORK_DIR (not on your script directory $PIPELINE_DIR). If bds.config is not specified with -c {bds.config}, $HOME/.bds/bds.config will be used by default. bds.config for scg3 (based on SGE) is included in the git repo. Separate your working directory ($WORK_DIR) from $PIPELINE_DIR cause BDS produces a lot of intermediate dir/files on $WORK_DIR.
 
 If you want to locally run jobs on your machine,
 
 ```
-bds tf_chipseq.bds -c bds.config
+cd $WORK_DIR
+bds $PIPELINE_DIR/tf_chipseq.bds
 ```
 
-On SGE cluster, 
+On scg3 cluster, 
 ```
-bds -s sge tf_chipseq.bds -c bds.config
+bds -s sge $PIPELINE_DIR/tf_chipseq.bds -c $PIPELINE_DIR/bds.config.scg3
 ```
 
 If you run BDS script with -dryRun, it does not actually run the job, it compiles the script and list jobs to be executed.
 
 ```
-bds -dryRun -s sge tf_chipseq.bds -c bds.config
+bds -dryRun -s sge $PIPELINE_DIR/tf_chipseq.bds -c $PIPELINE_DIR/bds.config.scg3
 ```
+
 
 In order to make BDS work with Sun Grid Engine (SGE), modify the following lines in bds.config .
 ```
@@ -111,8 +115,9 @@ $HOME/R/bin/R
 	install.packages("snowfall")
 	install.packages("bitops")
 	install.packages("caTools")
-	install.packages("~/spp_1.10.tar.gz")
 q()
+mkdir $HOME/RLib
+$HOME/R/bin/R CMD INSTALL -l ~/RLib spp_1.10.tar.gz
 ```
 Add the following line in your $HOME/.bashrc .
 ```
