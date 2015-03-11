@@ -37,10 +37,10 @@ string UMAP_DIR
 
 string{} conf // config. file
 
-void read_conf() {
+void read_conf( string conf_file ) {
 	print( "\nReading configuration...\n" );
 
-	conf = config("conf_tf_chipseq.txt")
+	conf = config(conf_file)
 
 	// pre IDR simulation
 	PRE_IDR = parse_bool( conf{ "PRE_IDR"} )

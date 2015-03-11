@@ -8,7 +8,7 @@ Dependencies: BigDataScript
 
 ### Configuration file
 
-Modify conf_tf_chipseq.txt to have your own settings.
+Modify $CONF_FILE (by default: conf_tf_chipseq.txt) to have your own settings.
 
 * PRE_IDR 			: Set it true if you just want to compute QC score and stop before peak calling (default: false)
 * NUM_REP			: # of replicates you want to test (default:2)
@@ -47,26 +47,32 @@ Modify conf_tf_chipseq.txt to have your own settings.
 
 ### Usage 
 
- 
-Make sure you have the configuration file conf_tf_chipseq.txt on your WORKING directory $WORK_DIR (not on your script directory $PIPELINE_DIR). If bds.config is not specified with -c {bds.config}, $HOME/.bds/bds.config will be used by default. bds.config for scg3 (based on SGE) is included in the git repo. Separate your working directory ($WORK_DIR) from $PIPELINE_DIR cause BDS produces a lot of intermediate dir/files on $WORK_DIR.
 
-If you want to locally run jobs on your machine,
+There are two configuration files for 1) pipeline ($CONF_FILE) and 2) sge cluster ($BDS_CONFIG). If 1) is not specified, you need to put conf_tf_chipseq.txt in your working directory ($WORK_DIR). If 2) is not specified, $HOME/.bds/bds.config will be used by default. It is recommend to separate $WORK_DIR from $PIPELINE_DIR because BDS produces a lot of intermediate dir/files on $WORK_DIR.
+
+If you want to locally run jobs on your machine with both configuration files not specifed,
 
 ```
 cd $WORK_DIR
 bds $PIPELINE_DIR/tf_chipseq.bds
 ```
 
-On scg3 cluster, specify bds.config for scg3.
-```
-bds -c bds.config.scg3 -s sge $PIPELINE_DIR/tf_chipseq.bds 
-```
-Parameter -c {bds.config} doesn't work if it is put after the BDS script on the command line (bug in BDS). 
-
-If you run BDS script with -dryRun, it does not actually run the job, it compiles the script and list jobs to be executed.
+You can specify the location of configuration file 1).
 
 ```
-bds -c bds.config.scg3 -dryRun -s sge $PIPELINE_DIR/tf_chipseq.bds 
+bds $PIPELINE_DIR/tf_chipseq.bds -c $CONF_FILE
+```
+
+If you want to run your jobs on scg3 cluster, specify 2) cluster configuration file for scg3. $BDS_CONFIG for scg3 (bds.config.scg3) is provided in the git repo.
+```
+$BDS_CONFIG = bds.config.scg3
+bds -c $BDS_CONFIG -s sge $PIPELINE_DIR/tf_chipseq.bds -c $CONF_FILE
+```
+
+Make sure you don't change the order of arguments. If you run BDS script with -dryRun, it does not actually run the job, it compiles the script and list jobs to be executed.
+
+```
+bds -c $BDS_CONFIG -dryRun -s sge $PIPELINE_DIR/tf_chipseq.bds -c $CONF_FILE
 ```
 
 ### BigDataScript (BDS)

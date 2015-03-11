@@ -3,10 +3,12 @@
 
 include "modules_tf_chipseq.bds"
 
-read_conf()
+// arguments
+string c = "conf_tf_chipseq.txt"	help configuration file for tf_chipseq
 
+// pipeline body
+read_conf( c )
 tasks_before_spp()
-
 spp_idr()
 
 exit(0)
