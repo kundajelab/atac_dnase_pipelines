@@ -40,8 +40,8 @@ CREATE_WIG  		: Create wig file from .tagAlign.gz
 CREATE_BEDGRAPH 	: Create bedGraph file from .tagAlign.gz
 CONVERT_TO_BIGWIG 	: Convert bedGraph to bigwig
 CHROM_SIZES 		: Location of chrom.sizes file for your .fa
-UMAP_DIR 			: Location of umap (for hg19, set it to globalmap_k20tok54)
-SEQ_DIR 			: Location of seq.
+UMAP_DIR 			: Location of umap (for hg19, globalmap_k20tok54)
+SEQ_DIR 			: Location of sequence .fa files (for hg19, chr?.fa)
 
 
 ### Usage 
@@ -89,7 +89,7 @@ sge.timeout = h_rt
 ```
 Add the following line:
 ```
-clusterRunAdditionalArgs = -l h_rt 08:00:00 -l h_vmvm 10G
+clusterRunAdditionalArgs = -l h_rt 08:00:00 -l h_vmem 10G
 ```
 You can specify # of cpus for each BDS job in BDS script (by task( {OPTIONS}, cpus:={# of cpus} ) ). However, you cannot do it for memory and walltime (BDS's bug on SGE cluster, should be fixed soon). Specify default walltime and memory in $HOME/.bds/bds.config for all BDS jobs.
 
@@ -122,11 +122,13 @@ export R_LIBS=$HOME/RLib
 
 ### Local installation instruction for Wiggler
 
+<a href="https://code.google.com/p/align2rawsignal/">https://code.google.com/p/align2rawsignal/</a>
+
 Download MCR2010b.bin and install .
 
 ```
-wget http://www.google.com/url?q=http%3A%2F%2Fwww.broadinstitute.org%2F~anshul%2FsoftwareRepo%2FMCR2010b.bin&sa=D&sntz=1&usg=AFQjCNHWRfR6e28U96vf9khdczfButFJMg
-./MCR2010b.bin
+wget http://www.broadinstitute.org/~anshul/softwareRepo/MCR2010b.bin
+./MCR2010b.bin -console
 
 ```
 For human genomes, download UMAP from here <a href="http://www.broadinstitute.org/~anshul/projects/umap/">http://www.broadinstitute.org/~anshul/projects/umap/</a>
