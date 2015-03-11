@@ -1,11 +1,15 @@
+// pre idr
+PRE_IDR=false 		// if true, pipeline computes QC scores and stops before spp.
+NUM_REP=6 			// NUM_REP is the number of replicates you want to QC if PRE_IDR is true
+
 // general
-PREFIX=SE2 // testing comments
+PREFIX=ENCSR703KWN
 OUTPUT_DIR=out
 TMP_DIR=/srv/gsfs0/scratch/leepc12
+USE_BGZIP=true 		// to index BED type files for visualization in genome browser
 
 // bwa
-NTHREADS_BWA=4
-//BWA_INDEX_NAME=/srv/gsfs0/projects/kundaje/users/jinlee/data/bwa_index/male.hg19.fa.gz
+NTHREADS_BWA=4 		// # of procs for bwa -aln
 BWA_INDEX_NAME=/srv/gsfs0/projects/kundaje/commonRepository/indexes/bwa_indexes/encodeHg19Male/v0.7.7/encodeHg19Male_bwa-0.7.7
 BWA_PARAM=-q 5 -l 32 -k 2
 	
@@ -14,27 +18,69 @@ MARKDUP=/srv/gs1/software/picard-tools/1.92/MarkDuplicates.jar
 MAPQ_THRESH=30
 
 // peak calling
-NTHREADS_R=4
-//R_SCRIPT=/srv/gs1/software/R/R-2.15.1/bin/Rscript
-R_SCRIPT=/home/leepc12/R/bin/Rscript
-RUN_SPP_DIR=/home/leepc12/phantompeakqualtools
-DUPE_REMOVED=true
+NTHREADS_R=4										// # of procs for spp
+R_SCRIPT=/home/leepc12/R/bin/Rscript				// locally install Rscript and packages for multi-threading on SCG3
+RUN_SPP_DIR=/home/leepc12/phantompeakqualtools 		// location of run_spp.R
+DUPE_REMOVED=true 									// run_spp.nodups.R for dupe-removed data
 NREADS=15000000
 NPEAK=300000
 
-// IDR
+// IDR (by Nathan's code)
 PYTHON3=/home/leepc12/usr/local/bin/python3.4
 IDR=/srv/gsfs0/projects/kundaje/users/jinlee/work/idr/bin/idr
 IDR_THRESH=0.02
 
-PAIRED_END=false
+// signal track
+CREATE_WIG=false
+CREATE_BEDGRAPH=false
+CONVERT_TO_BIGWIG=false 	// bedgraph to bigwig
+CHROM_SIZES=/srv/gsfs0/projects/kundaje/users/jinlee/data/bwa_index/male.hg19.chrom.sizes
+UMAP_DIR=/srv/gsfs0/projects/kundaje/users/jinlee/data/umap/encodeHg19Male/globalmap_k20tok54
+SEQ_DIR=/srv/gsfs0/projects/kundaje/commonRepository/genomes/encodeHg19Male
 
 // fastqs
-INPUT_FASTQ_REP1_PE1=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/SE2/ENCFF499TRH.fastq.gz
-INPUT_FASTQ_REP2_PE1=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/SE2/ENCFF702LEK.fastq.gz
+INPUT_FASTQ_REP1_PE1=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/1.1_PE/ENCFF024YEM.fastq.gz 
+INPUT_FASTQ_REP1_PE2=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/1.1_PE/ENCFF546XPY.fastq.gz 
+INPUT_FASTQ_REP2=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/2.1/ENCFF499TRH.fastq.gz 
 
-// control fastqs
-NUM_CTL=1
+// control
+INPUT_FASTQ_CTL_REP1_PE1=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/Ctl/1.1_PE/ENCFF597NFC.fastq.gz 
+INPUT_FASTQ_CTL_REP1_PE2=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/Ctl/1.1_PE/ENCFF978BNV.fastq.gz 
+INPUT_FASTQ_CTL_REP2=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/Ctl/2.1/ENCFF169TIB.fastq.gz 
 
-INPUT_FASTQ_CTL1_REP1_PE1=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/SE2/CTL1/ENCFF169TIB.fastq.gz
-INPUT_FASTQ_CTL1_REP2_PE1=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/SE2/CTL1/ENCFF630PTQ.fastq.gz
+
+
+//////// fastqs example /////////
+// paired end data
+// INPUT_FASTQ_REP1_PE1={Rep1 paired 1 fastq file}
+// INPUT_FASTQ_REP1_PE2={Rep1 paired 2 fastq file}
+// INPUT_FASTQ_REP2_PE1={Rep2 paired 1 fastq file}
+// INPUT_FASTQ_REP2_PE2={Rep2 paired 2 fastq file}
+// INPUT_FASTQ_CTL_REP1_PE1={Rep1 paired 1 control fastq file}
+// INPUT_FASTQ_CTL_REP1_PE2={Rep1 paired 2 control fastq file}
+// INPUT_FASTQ_CTL_REP2_PE1={Rep2 paired 1 control fastq file}
+// INPUT_FASTQ_CTL_REP2_PE2={Rep2 paired 2 control fastq file}
+//
+// single ended data
+// INPUT_FASTQ_REP1={Rep1 fastq file}
+// INPUT_FASTQ_REP2={Rep2 fastq file}
+// INPUT_FASTQ_CTL_REP1={Rep1 control fastq file}
+// INPUT_FASTQ_CTL_REP2={Rep2 control fastq file}
+//
+// mixed data
+// INPUT_FASTQ_REP1_PE1={Rep1 paired 1 fastq file}
+// INPUT_FASTQ_REP1_PE2={Rep1 paired 2 fastq file}
+// INPUT_FASTQ_REP2={Rep2 fastq file}
+// INPUT_FASTQ_CTL_REP1_PE1={Rep1 paired 1 control fastq file}
+// INPUT_FASTQ_CTL_REP1_PE2={Rep1 paired 2 control fastq file}
+// INPUT_FASTQ_CTL_REP2={Rep2 control fastq file}
+
+//////////// PRE_IDR QC example ///////////////
+// PRE_IDR=true
+// NUM_REP=5
+// INPUT_FASTQ_REP1={Rep1 fastq file}
+// INPUT_FASTQ_REP2={Rep2 fastq file}
+// INPUT_FASTQ_REP3_PE1={Rep3 paired 1 fastq file}
+// INPUT_FASTQ_REP3_PE2={Rep3 paired 2 fastq file}
+// INPUT_FASTQ_REP4={Rep4 fastq file}
+// INPUT_FASTQ_REP5={Rep5 fastq file}
