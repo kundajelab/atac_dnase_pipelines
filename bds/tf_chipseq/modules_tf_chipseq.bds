@@ -273,7 +273,7 @@ void align_bwa( int ctl, int rep ) {
 			}
 			wait
 
-			task( taskName := "bwa sampe", RAW_SAM_FILE <- [SAI_FILE_1, SAI_FILE_2] ) {
+			task( taskName := "bwa sampe", timeout := 72000, mem := 10000000000, RAW_SAM_FILE <- [SAI_FILE_1, SAI_FILE_2] ) {
 				sys bwa sampe $BWA_INDEX_NAME $SAI_FILE_1 $SAI_FILE_2 $FASTQ_FILE_1 $FASTQ_FILE_2 | $GZIP -c > $RAW_SAM_FILE
 			}
 			wait

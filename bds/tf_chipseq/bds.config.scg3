@@ -3,12 +3,13 @@ sge.mem = h_vmem
 sge.timeout = h_rt
 
 # define default walltime and memory here
-clusterRunAdditionalArgs = -V -l h_vmem=10G -l h_rt=43200
+clusterRunAdditionalArgs = -V -l h_vmem=9G -l h_rt=21000
+#clusterRunAdditionalArgs = -V
 #clusterRunAdditionalArgs = -V -l h_vmem=10G -l h_rt=43200 -A accountID -M user@gmail.com 
 
 # the following doesn't work (BDS' bug)
 # mem in bytes (10G)
 #mem = 10000000000
 # timeout in seconds
-#timeout = 43200
+#timeout = 24200
 

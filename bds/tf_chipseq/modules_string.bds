@@ -53,8 +53,8 @@ string get_path( string str ) {
 
 string rm_str_at_end( string str, string rm ) {
 	trimmed := rm_comment( str )
-	if ( trimmed.substr( str.length()-rm.length() ) == rm ) { // if "/" exists at the end of the string
-		return trimmed.substr( 0, str.length()-rm.length() )
+	if ( trimmed.substr( trimmed.length()-rm.length() ) == rm ) { // if "/" exists at the end of the string
+		return trimmed.substr( 0, trimmed.length()-rm.length() )
 	}
 	
 	return trimmed
