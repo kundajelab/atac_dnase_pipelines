@@ -2,7 +2,8 @@
 // code developed by Jin Lee (leepc12@stanford.edu) on Mar. 2015
 // modules for tf_chipseq
 
-include "modules_string.bds"
+include "../modules_string.bds"
+include "../modules_fastq.bds"
 
 int NUM_CTL
 int NUM_REP
@@ -101,8 +102,8 @@ void read_conf( string conf_file ) {
 		for ( int ctl=0; ctl <= NUM_CTL; ctl++) { // iterate through fastqs (0: not control, 1~: controls)
 
 			prefix := (ctl==0)? "":"Control "
-			fastqs_Rep1 := get_fastqs( ctl, 1 )
-			fastqs_Rep2 := get_fastqs( ctl, 2 )
+			fastqs_Rep1 := get_fastqs( conf, ctl, 1 )
+			fastqs_Rep2 := get_fastqs( conf, ctl, 2 )
 
 			print( prefix + "Rep1: \n")
 			for ( string s : fastqs_Rep1 ) print("\t$s\n")
@@ -145,8 +146,8 @@ void spp_idr() {
 		print("FRAGLEN for spp: $FRAGLEN \n")
 		
 		// prepare for tagAlign files
-		fastqs_Rep1 	:= get_fastqs( 0, 1 )
-		fastqs_Rep2 	:= get_fastqs( 0, 2 ) // check if rep2 doesn't exist
+		fastqs_Rep1 	:= get_fastqs( conf, 0, 1 )
+		fastqs_Rep2 	:= get_fastqs( conf, 0, 2 ) // check if rep2 doesn't exist
 		suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
 		suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
 		suffix 			:= fastqs_Rep1.size()==2 ? suffix_PE : suffix_SE
@@ -165,8 +166,8 @@ void spp_idr() {
 		PPR1_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
 		PPR2_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
 
-		ctl_fastqs_Rep1 	:= get_fastqs( 1, 1 )
-		ctl_fastqs_Rep2 	:= get_fastqs( 1, 2 ) // check if rep2 doesn't exist
+		ctl_fastqs_Rep1 	:= get_fastqs( conf, 1, 1 )
+		ctl_fastqs_Rep2 	:= get_fastqs( conf, 1, 2 ) // check if rep2 doesn't exist
 		ctl_suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
 		ctl_suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
 		ctl_suffix 			:= ctl_fastqs_Rep1.size()==2 ? ctl_suffix_PE : ctl_suffix_SE
@@ -245,7 +246,7 @@ void align_bwa( int ctl, int rep ) {
 	print( "\nalign_bwa ctl:$ctl rep:$rep...\n" );
 
 	OFPREFIX := get_ofprefix( ctl, rep )
-	fastqs := get_fastqs( ctl, rep )
+	fastqs := get_fastqs( conf, ctl, rep )
 
 	if ( fastqs.size() == 2 ) { // if data is paired-end, therefore PE1 and PE2
 
@@ -341,7 +342,7 @@ void post_align_filt( int ctl, int rep ) {
 	print( "\npost_align_filt ctl:$ctl rep:$rep...\n" );
 
 	OFPREFIX := get_ofprefix( ctl, rep )
-	fastqs := get_fastqs( ctl, rep )
+	fastqs := get_fastqs( conf, ctl, rep )
 
 	if ( fastqs.size() == 2 ) { // if data is paired-end, therefore PE1 and PE2
 
@@ -532,7 +533,7 @@ void bam_to_tagalign( int ctl, int rep ) {
 	print( "\nbam_to_tagalign ctl:$ctl rep:$rep...\n" );
 
 	OFPREFIX := get_ofprefix( ctl, rep )
-	fastqs := get_fastqs( ctl, rep )
+	fastqs := get_fastqs( conf, ctl, rep )
 
 	NREADS_PER_MILLION := NREADS/1000000
 
@@ -610,7 +611,7 @@ void create_sig_trk( int ctl, int rep ) {
 	print( "\ncreate_sig_trk ctl:$ctl rep:$rep...\n" );
 
 	OFPREFIX := get_ofprefix( ctl, rep )
-	fastqs := get_fastqs( ctl, rep )
+	fastqs := get_fastqs( conf, ctl, rep )
 
 	FRAGLEN := get_fraglen( ctl, rep ) // get it from rep1
 	print("FRAGLEN for signal track: $FRAGLEN \n")
@@ -675,7 +676,7 @@ void xcor( int ctl, int rep ) {
 	print( "\nxcor ctl:$ctl rep:$rep...\n" );
 
 	OFPREFIX := get_ofprefix( ctl, rep )
-	fastqs := get_fastqs( ctl, rep )
+	fastqs := get_fastqs( conf, ctl, rep )
 
 	NREADS_PER_MILLION := NREADS/1000000
 	
@@ -713,7 +714,7 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 	print( "\nspr ctl:$ctl rep:$rep...\n" );
 
 	OFPREFIX := get_ofprefix( ctl, rep )
-	fastqs := get_fastqs( ctl, rep )
+	fastqs := get_fastqs( conf, ctl, rep )
 
 	if ( fastqs.size() == 2 ) { // if data is paired-end, therefore PE1 and PE2
 
@@ -794,8 +795,8 @@ void pspr( int ctl ) {
 
 	DATASET_PREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL" + ctl
 
-	fastqs_Rep1 := get_fastqs( ctl, 1 )
-	fastqs_Rep2 := get_fastqs( ctl, 2 ) // check if rep2 doesn't exist
+	fastqs_Rep1 := get_fastqs( conf, ctl, 1 )
+	fastqs_Rep2 := get_fastqs( conf, ctl, 2 ) // check if rep2 doesn't exist
 
 	suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
 	suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
@@ -888,7 +889,7 @@ string get_fraglen( int ctl, int rep ) { // get FRAGLEN (3rd column of cc score 
 	NREADS_PER_MILLION := NREADS/1000000
 
 	OFPREFIX := get_ofprefix( ctl, rep )
-	fastqs := get_fastqs( ctl, rep )
+	fastqs := get_fastqs( conf, ctl, rep )
 
 	CC_SCORE_FILE := (fastqs.size()==2) ? "$OFPREFIX.filt.nodup.sample.$NREADS_PER_MILLION.MATE1.tagAlign.gz.cc.qc" : \
 											"$OFPREFIX.filt.nodup.sample.$NREADS_PER_MILLION.SE.tagAlign.gz.cc.qc"
@@ -902,33 +903,3 @@ string get_ofprefix( int ctl, int rep ) {
 	return OUTPUT_DIR + "/" + PREFIX + ( ctl>0 ? "_Ctl" : "" ) + "_Rep" + rep 
 }
 
-string[] get_fastqs( int ctl, int rep ) { 
-	// if paired-end return [PE1, PE2], elseif single-end else return [PE1], else []
-	string[] ret
-
-	for ( int pe=1; pe<=2; pe++ ) {
-		str := get_fastq( ctl, rep, pe )
-
-		if ( str.length() > 0 ) { // if not null, append
-			ret.add( str )
-		}
-	}
-
-	return ret
-}
-
-string get_fastq( int ctl, int rep, int pe ) {
-	//key_wo_PE := ( ctl > 0 ? "INPUT_FASTQ_CTL" + ctl : "INPUT_FASTQ" ) + "_REP" + rep 
-	key_wo_PE := ( ctl > 0 ? "INPUT_FASTQ_CTL" : "INPUT_FASTQ" ) + "_REP" + rep 
-	key := key_wo_PE + "_PE" + pe
-
-	if ( (pe==1) && conf.hasKey( key_wo_PE ) ) {
-		return get_path( conf{ key_wo_PE }.trim() )
-	}
-	else if ( conf.hasKey( key ) ) {
-		return get_path( conf{ key }.trim() )
-	}
-	else {
-		return ""
-	}
-}
