@@ -178,7 +178,7 @@ $HOME/R/bin/R CMD INSTALL -l ~/RLib spp_1.10.tar.gz
 ```
 Add the following line to your $HOME/.bashrc and to your configuration file.
 ```
-export R_LIBS=$HOME/RLib
+export R_LIBS=${HOME}/RLib
 ```
 
 ### Local installation instruction for SPP (run_spp.R: Anshul's phantompeakqualtool)
@@ -193,7 +193,7 @@ chmod 755 phantompeakqualtools/*
 ```
 Add the following line to your $HOME/.bashrc and to your configuration file.
 ```
-export PATH=${PATH}:$HOME/phantompeakqualtools
+export PATH=${PATH}:${HOME}/phantompeakqualtools
 ```
 
 ### Local installation instruction for Python3 and packages
