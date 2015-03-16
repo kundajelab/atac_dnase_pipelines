@@ -5,7 +5,7 @@ set -o errexit
 
 if hash module 2>/dev/null; then
    module add bowtie/2.2.4
-   module add samtools/0.1.19
+   module add samtools/1.2
 fi
 
 # read from command line which files to align
