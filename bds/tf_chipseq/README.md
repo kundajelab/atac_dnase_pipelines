@@ -155,7 +155,7 @@ q()
 mkdir $HOME/RLib
 $HOME/R/bin/R CMD INSTALL -l ~/RLib spp_1.10.tar.gz
 ```
-Add the following line in your $HOME/.bashrc .
+Add the following line to your $HOME/.bashrc and to your configuration file.
 ```
 export R_LIBS=$HOME/RLib
 ```
@@ -204,7 +204,7 @@ wget http://www.broadinstitute.org/~anshul/softwareRepo/MCR2010b.bin
 ```
 For human genomes, download UMAP from here <a href="http://www.broadinstitute.org/~anshul/projects/umap/">http://www.broadinstitute.org/~anshul/projects/umap/</a>
 
-Add the following lines in your $HOME/.bashrc .
+Add the following lines to your $HOME/.bashrc and to your configuration file.
 
 ```
 MCRROOT=<MCR_ROOT>/v714
