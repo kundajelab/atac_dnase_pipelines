@@ -47,8 +47,11 @@ void read_conf( string conf_file ) {
 
 		// concat. module
 		if ( k.indexOf("MODULE_")>=0 ) {
-			trimmed := rm_comment( conf{k} )			
-			PRELOAD_MODULE = PRELOAD_MODULE + " module add " + trimmed + ";"
+			trimmed := rm_comment( conf{k} )
+
+			mods := trimmed.split(";")
+
+			for ( string str : mods ) PRELOAD_MODULE = PRELOAD_MODULE + " module add " + str.trim() + ";"
 		}
 		else if ( k.indexOf("EXPORT_")>=0 ) {
 			trimmed := rm_comment( conf{k} )			
