@@ -82,13 +82,6 @@ export PATH="${PATH}:/usr/bin/example"; TEST_PATH="/usr/lib/example"; export LD_
 
 IMPORTANT!! There is a bug in BDS code. YOU NEED TO WRAP ANY ENVIRONMENT VARS IN RHS WITH CURVED BRACKETS ${} !!!!!
 
-```
-EXPORT_BASH= export PATH="${PATH}:/bin:/usr/bin"
-```
-
-IMPORTANT!! Do not remove the above line in the conf. file. Common linux commands like rm will not work without it.
-
-
 
 ### Usage 
 
