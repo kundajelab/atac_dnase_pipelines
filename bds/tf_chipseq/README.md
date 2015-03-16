@@ -223,5 +223,5 @@ export XAPPLRESDIR
 
 ### Contributors
 
-Jin wook Lee - PhD Student, Mechanical Engineering Dept., Stanford University
-Anshul Kundaje - Assistant Professor, Dept. of Genetics, Stanford University
+* Jin wook Lee - PhD Student, Mechanical Engineering Dept., Stanford University
+* Anshul Kundaje - Assistant Professor, Dept. of Genetics, Stanford University
