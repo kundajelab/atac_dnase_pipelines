@@ -52,17 +52,17 @@ Modify $CONF_FILE (by default: conf_tf_chipseq.txt) to have your own settings.
 
 You can specify software versions with MODULE_* and EXPORT_* in the above configuration file. You can freely name suffix of MODULE_ or EXPORT_ then BDS will read all keys starting with MODULE_ or EXPORT_. Use ; for new line.
 
-For example, to use bwa 0.7.7 and bedtools 2.x.x and bedtools2 1.x.x.
+For example, to use bwa 0.7.7 and bedtools 2.x.x and samtools 1.2
 
 ```
 MODULE_BWA= bwa/0.7.7 
-MODULE_BEDBED_ANY_SUFFIX_SHOULD_BE_OKAY= bedtools/2.x.x; bedtools2/1.x.x
+MODULE_ANY_SUFFIX_SHOULD_BE_OKAY= bedtools/2.x.x; samtools/1.2
 ```
 
 The above lines in the configuration file will execute the following:
 
 ```
-module add bwa/0.7.7; module add bedtools/2.x.x; module add bedtools2/1.x.x
+module add bwa/0.7.7; module add bedtools/2.x.x; module add samtools/1.2
 
 ```
 
@@ -89,10 +89,27 @@ EXPORT_BASH= export PATH="${PATH}:/bin:/usr/bin"
 IMPORTANT!! Do not remove the above line in the conf. file. Common linux commands like rm will not work without it.
 
 
+
 ### Usage 
 
+Firstly, copy bds cluster settings (bds.config.scg3) in $PIPELINE_DIR (path for tf_chipseq.bds) to BDS directory. 
+```
+cp $PIPELINE_DIR/bds.config.scg3 $HOME/.bds/bds.config
+vi $HOME/.bds/bds.config
+```
 
-There are two configuration files for 1) pipeline ($CONF_FILE) and 2) sge cluster ($BDS_CONFIG). If 1) is not specified, you need to put conf_tf_chipseq.txt in your working directory ($WORK_DIR). If 2) is not specified, $HOME/.bds/bds.config will be used by default. It is recommend to separate $WORK_DIR from $PIPELINE_DIR because BDS produces a lot of intermediate dir/files on $WORK_DIR.
+Modify the following line in $HOME/.bds/bds.config. Due to BDS bug, you cannot use $HOME. Instead specify absolute path to your BDS directory (/home/your_account_name/.bds by default).
+
+```
+clusterRunAdditionalArgs = -v PATH=/home/leepc12/.bds
+```
+
+You can also specify your own cluster configuration file but I already provided one for SCG3.
+```
+bds -c your_own_bds.config any_script.bds
+```
+
+It is recommend to separate your working directory $WORK_DIR from $PIPELINE_DIR because BDS produces a lot of intermediate dir/files on $WORK_DIR. 
 
 If you want to locally run jobs on your machine with both configuration files not specifed,
 
@@ -101,25 +118,29 @@ cd $WORK_DIR
 bds $PIPELINE_DIR/tf_chipseq.bds
 ```
 
-You can specify the location of configuration file 1).
+You can specify your own configuration file (conf_tf_chipseq.txt by default) with -c.
 
 ```
 bds $PIPELINE_DIR/tf_chipseq.bds -c $CONF_FILE
 ```
 
-If you want to run your jobs on scg3 cluster, specify 2) cluster configuration file for scg3. $BDS_CONFIG for scg3 (bds.config.scg3) is provided in the git repo.
+If you want to run your jobs on scg3 cluster, use -s sge.
 ```
-$BDS_CONFIG = bds.config.scg3
-bds -c $BDS_CONFIG -s sge $PIPELINE_DIR/tf_chipseq.bds -c $CONF_FILE
+bds -s sge $PIPELINE_DIR/tf_chipseq.bds
 ```
 
-Make sure you don't change the order of arguments. If you run BDS script with -dryRun, it does not actually run the job, it compiles the script and list jobs to be executed.
+If you run BDS script with -dryRun, it does not actually run the job, it compiles the script and list jobs to be executed.
+```
+bds -dryRun -s sge $PIPELINE_DIR/tf_chipseq.bds
+```
+
+For advanced users, both $BDS_CONFIG and $CONF_FILE (chipseq configuration file) can be specified like the following. Make sure you don't change the order of arguments.
 
 ```
 bds -c $BDS_CONFIG -dryRun -s sge $PIPELINE_DIR/tf_chipseq.bds -c $CONF_FILE
 ```
 
-### BigDataScript (BDS)
+### Installation insctruction for BigDataScript (BDS)
 
 Official homepage for BDS is at <a href="http://pcingola.github.io/BigDataScript/download.html">http://pcingola.github.io/BigDataScript/download.html</a> and the git repo for BDS is at <a href="https://github.com/pcingola/BigDataScript.git">https://github.com/pcingola/BigDataScript.git</a>.
 
@@ -158,6 +179,21 @@ $HOME/R/bin/R CMD INSTALL -l ~/RLib spp_1.10.tar.gz
 Add the following line to your $HOME/.bashrc and to your configuration file.
 ```
 export R_LIBS=$HOME/RLib
+```
+
+### Local installation instruction for SPP (run_spp.R: Anshul's phantompeakqualtool)
+```
+cd $HOME
+wget https://phantompeakqualtools.googlecode.com/files/ccQualityControl.v.1.1.tar.gz
+tar zxvf ccQualityControl.v.1.1.tar.gz
+```
+Make sure that you change mod for *.R in SPP to allow linux which finds them
+```
+chmod 755 phantompeakqualtools/*
+```
+Add the following line to your $HOME/.bashrc and to your configuration file.
+```
+export PATH=${PATH}:$HOME/phantompeakqualtools
 ```
 
 ### Local installation instruction for Python3 and packages

@@ -4,7 +4,8 @@ sge.timeout = h_rt
 
 # Do not use -V (pass all env. vars to qsub jobs)
 # bds path ($HOME/.bds/ by default) should be included in PATH due to BDS bug
+# Do not use $HOME in the following line. 
+# specify absolute path of your home directory
 
 #clusterRunAdditionalArgs = -v PATH=/home/leepc12/.bds -A accountID -M user@gmail.com 
-#clusterRunAdditionalArgs = -v PATH=$HOME/.bds
 clusterRunAdditionalArgs = -v PATH=/home/leepc12/.bds

@@ -876,6 +876,8 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 		task( taskName := "make pseudo-rep.", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 			[PR1_TA_FILE, PR2_TA_FILE] <- FINAL_BEDPE_FILE ) {
 
+			sys $PRELOAD
+
 			//# ========================
 			//# Create pseudoReplicates
 			//# =======================
@@ -911,6 +913,8 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 
 		task( taskName := "make pseudo-rep.", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 			[PR1_TA_FILE, PR2_TA_FILE] <- FINAL_TA_FILE ) {
+
+			sys $PRELOAD
 
 			//# ========================
 			//# Create pseudoReplicates
@@ -983,6 +987,8 @@ void pspr( int ctl ) {
 			task( taskName := "pooled tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 				POOLED_TA_FILE <- [REP1_TA_FILE, REP2_TA_FILE] ) {
 
+				sys $PRELOAD
+
 				sys zcat $REP1_TA_FILE $REP2_TA_FILE | $GZIP -c > $POOLED_TA_FILE
 			}
 
@@ -993,11 +999,15 @@ void pspr( int ctl ) {
 			task( taskName := "ppr1 tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 				PPR1_TA_FILE <- [REP1_PR1_TA_FILE, REP2_PR1_TA_FILE] ) {
 
+				sys $PRELOAD
+
 				sys zcat $REP1_PR1_TA_FILE $REP2_PR1_TA_FILE | $GZIP -c > $PPR1_TA_FILE
 			}
 
 			task( taskName := "ppr2 tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 				PPR2_TA_FILE <- [REP1_PR2_TA_FILE, REP2_PR2_TA_FILE] ) {
+
+				sys $PRELOAD
 
 				sys zcat $REP1_PR2_TA_FILE $REP2_PR2_TA_FILE | $GZIP -c > $PPR2_TA_FILE			
 			}
@@ -1023,6 +1033,8 @@ void pspr( int ctl ) {
 			task( taskName := "pooled tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 				POOLED_TA_FILE <- REP1_TA_FILE ) {
 
+				sys $PRELOAD
+
 				sys cp $REP1_TA_FILE $POOLED_TA_FILE			
 			}
 
@@ -1032,11 +1044,15 @@ void pspr( int ctl ) {
 			task( taskName := "ppr1 tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 				PPR1_TA_FILE <- REP1_PR1_TA_FILE ) {
 
+				sys $PRELOAD
+
 				sys cp $REP1_PR1_TA_FILE $PPR1_TA_FILE			
 			}
 
 			task( taskName := "ppr2 tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 				PPR2_TA_FILE <- REP1_PR2_TA_FILE ) {
+
+				sys $PRELOAD
 
 				sys cp $REP1_PR2_TA_FILE $PPR2_TA_FILE
 			}
