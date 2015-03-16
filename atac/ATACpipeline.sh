@@ -20,10 +20,10 @@ cd ${OUTPUTDIR}
 # for cluster environment
 if hash qsub 2>/dev/null; then
    echo "Cluster mode enabled"
-   QSUB=true
+   IS_CLUSTER=true
    NEED_MEMORY=8G
    NEED_CPUS=1
-   NEED_RUNTIME=20:00:00
+   NEED_RUNTIME=5:00:00
    NEED_STACK=10M
    if hash qsig 2>/dev/null; then
       echo "PBS type cluster detected"
@@ -42,6 +42,9 @@ if hash qsub 2>/dev/null; then
       WAITFOR='-hold_jid '
       WD='-wd'
    fi
+else
+   echo "Running locally"
+   COMMAND_INTERPRETER=bash
 fi
 
 
@@ -53,11 +56,11 @@ echo "==========Trimming Adapters=========="
 CMD=trimAdapters
 export P1_IN="$READ1"
 export P2_IN="$READ2"
-if [ -n "$QSUB" ]; then
-   QSUB="qsub -V ${STACK} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
+if [ -n "$IS_CLUSTER" ]; then
+   COMMAND_INTERPRETER="qsub -V ${STACK} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-${QSUB} ${SCRIPTPATH}/${CMD}.py > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
-if [ -n "$QSUB" ]; then
+echo "${SCRIPTPATH}/${CMD}.py" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+if [ -n "$IS_CLUSTER" ]; then
    JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
 
@@ -65,24 +68,17 @@ echo "==========Aligning=========="
 # align
 export SOURCE_LOG=${CMD}.log
 CMD=alignATAC
-if [ -n "$QSUB" ]; then
-   QSUB="qsub -V -N pre-${CMD} ${WD} `pwd` ${WAITFOR}${JOB_ID} -o pre-${CMD}.log -e pre-${CMD}.error.log"
-fi
-${QSUB} ${SCRIPTPATH}/pre-${CMD}.sh > >(tee pre-${CMD}.log) 2> >(tee pre-${CMD}.error.log >&2)
-if [ -n "$QSUB" ]; then
-   JOB_ID=`head -n 1 pre-${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
-fi
-
 export BOWTIE_IDX=$BOWTIE_IDX
 export READ1=FROM_FILE
 export READ2=FROM_FILE
 export NUMTHREADS=$NUMTHREADS
-if [ -n "$QSUB" ]; then
+if [ -n "$IS_CLUSTER" ]; then
    NEED_CPUS=$NUMTHREADS
-   QSUB="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
+   NEED_MEMORY=2G
+   COMMAND_INTERPRETER="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-${QSUB} ${SCRIPTPATH}/${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
-if [ -n "$QSUB" ]; then
+echo "${SCRIPTPATH}/pre-${CMD}.sh; ${SCRIPTPATH}/${CMD}.sh" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+if [ -n "$IS_CLUSTER" ]; then
    JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
 
@@ -92,23 +88,16 @@ echo "==========Postprocessing=========="
 # the original BAM (i.e., will add some more suffixes other than just .bam)
 export SOURCE_LOG=${CMD}.log
 CMD=alignPostprocessPE
-if [ -n "$QSUB" ]; then
-   QSUB="qsub -V -N pre-${CMD} ${WD} `pwd` ${WAITFOR}${JOB_ID} -o pre-${CMD}.log -e pre-${CMD}.error.log"
-fi
-${QSUB} ${SCRIPTPATH}/pre-${CMD}.sh > >(tee pre-${CMD}.log) 2> >(tee pre-${CMD}.error.log >&2)
-if [ -n "$QSUB" ]; then
-   JOB_ID=`head -n 1 pre-${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
-fi
-
 export RAW_BAM_FILE=FROM_FILE
 export OFPREFIX=FROM_FILE
 export MAPQ_THRESH=$MAPQ_THRESH
-if [ -n "$QSUB" ]; then
+if [ -n "$IS_CLUSTER" ]; then
    NEED_CPUS=1
-   QSUB="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
+   NEED_MEMORY=8G
+   COMMAND_INTERPRETER="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-${QSUB} ${SCRIPTPATH}/${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
-if [ -n "$QSUB" ]; then
+echo "${SCRIPTPATH}/pre-${CMD}.sh; ${SCRIPTPATH}/${CMD}.sh" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+if [ -n "$IS_CLUSTER" ]; then
    JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
 
@@ -117,22 +106,13 @@ echo "==========ATAC Postprocessing=========="
 # ATAC specific postprocessing
 export SOURCE_LOG=${CMD}.log
 CMD=alignPostprocessATAC
-if [ -n "$QSUB" ]; then
-   QSUB="qsub -V -N pre-${CMD} ${WD} `pwd` ${WAITFOR}${JOB_ID} -o pre-${CMD}.log -e pre-${CMD}.error.log"
-fi
-${QSUB} ${SCRIPTPATH}/pre-${CMD}.sh > >(tee pre-${CMD}.log) 2> >(tee pre-${CMD}.error.log >&2)
-if [ -n "$QSUB" ]; then
-   JOB_ID=`head -n 1 pre-${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
-fi
-
 export input_bam=FROM_FILE
 export output_file=FROM_FILE
-if [ -n "$QSUB" ]; then
-   NEED_CPUS=1
-   QSUB="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
+if [ -n "$IS_CLUSTER" ]; then
+   COMMAND_INTERPRETER="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-${QSUB} ${SCRIPTPATH}/${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
-if [ -n "$QSUB" ]; then
+echo "${SCRIPTPATH}/pre-${CMD}.sh; ${SCRIPTPATH}/${CMD}.sh" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+if [ -n "$IS_CLUSTER" ]; then
    JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
 
@@ -140,13 +120,11 @@ fi
 echo "==========Peak Calling=========="
 # peak calling
 CMD=callATACpeaks
-
 export readBed=FROM_FILE
 export fragLen=75
 export genomeSize=$GENOMESIZE
 export chrSize=$CHROMSIZE
-if [ -n "$QSUB" ]; then
-   NEED_CPUS=1
-   QSUB="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
+if [ -n "$IS_CLUSTER" ]; then
+   COMMAND_INTERPRETER="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-${QSUB} ${SCRIPTPATH}/${CMD}.sh > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+echo "${SCRIPTPATH}/${CMD}.sh" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
