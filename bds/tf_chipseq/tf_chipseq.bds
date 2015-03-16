@@ -7,7 +7,7 @@ include "modules_tf_chipseq.bds"
 string c = "conf_tf_chipseq.txt"	help configuration file for tf_chipseq
 
 // pipeline body
-read_conf( c )
+read_conf_tf_chipseq( c )
 tasks_before_spp()
 spp_idr()
 

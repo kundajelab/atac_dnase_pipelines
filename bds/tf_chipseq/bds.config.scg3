@@ -2,14 +2,9 @@ sge.pe = shm
 sge.mem = h_vmem
 sge.timeout = h_rt
 
-# define default walltime and memory here
-clusterRunAdditionalArgs = -V -l h_vmem=9G -l h_rt=21000
-#clusterRunAdditionalArgs = -V
-#clusterRunAdditionalArgs = -V -l h_vmem=10G -l h_rt=43200 -A accountID -M user@gmail.com 
+# Do not use -V (pass all env. vars to qsub jobs)
+# bds path ($HOME/.bds/ by default) should be included in PATH due to BDS bug
 
-# the following doesn't work (BDS' bug)
-# mem in bytes (10G)
-#mem = 10000000000
-# timeout in seconds
-#timeout = 24200
-
+#clusterRunAdditionalArgs = -v PATH=/home/leepc12/.bds -A accountID -M user@gmail.com 
+#clusterRunAdditionalArgs = -v PATH=$HOME/.bds
+clusterRunAdditionalArgs = -v PATH=/home/leepc12/.bds

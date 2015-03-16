@@ -3,27 +3,31 @@ TF ChIP-Seq Pipeline
 
 TF ChIP-Seq pipeline is based on https://docs.google.com/document/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit#.
 
-Dependencies: BigDataScript
+Dependencies: BigDataScript (BDS)
 
 
 ### Configuration file
 
 Modify $CONF_FILE (by default: conf_tf_chipseq.txt) to have your own settings.
 
+```
+* PREFIX 			: Prefix for all output files
+* OUTPUT_DIR 		: Output directory (both relative and absolute paths work)
+* TMP_DIR 			: Temporary folder for intermediate files during bwa alignment
+* USE_BGZIP			: Index BED type files (for visualization in a genome browser). Make sure bgzip and tabix installed add their path to MODULE_*.
+
+* WALLTIME 			: default walltime for all jobs
+* NTHREADS 			: default # of threads for all jobs
+* MEMORY			: default max. memory for all jobs
+
 * PRE_IDR 			: Set it true if you just want to compute QC score and stop before peak calling (default: false)
 * NUM_REP			: # of replicates you want to test (default:2)
-
-* PREFIX 			: Prefix for all output files
-* OUTPUT_DIR 		: Output directory (absolute path works too)
-* TMP_DIR 			: Temporary folder for intermediate files during bwa alignment
-
-* USE_BGZIP			: Index BED type files (for visualization in a genome browser). Make sure bgzip and tabix installed.
 
 * NTHREADS_BWA 		: # of threads for bwa aligment
 * BWA_INDEX_NAME	: Prefix of bwa index files (eg. if you have bwa index files including hg19_Male.bwt, BWA_INDEX_NAME=hg19_Male)
 * BWA_PARAM			: Parameters for bwa alignment (default: -q 5 -l 32 -k 2)
 
-* MARKDUP 			: Dupe remover location
+* MARKDUP 			: Dupe remover path
 * MAPQ_THRESH		: MAPQ_THRESH
 
 * NTHREADS_R		: # of threads for peak calling (spp)
@@ -33,8 +37,6 @@ Modify $CONF_FILE (by default: conf_tf_chipseq.txt) to have your own settings.
 * NREADS 			: NREADS (default: 15000000)
 * NPEAK 			: -npeak NPEAK in run_spp.R (default: 300000)
 
-* PYTHON3 			: Specify if you have local installation of python3 (default: python3)
-* IDR 				: Location of Nathan's IDR code
 * IDR_THRESH	 	: Threshold for IDR (default=0.02)
 
 * CREATE_WIG  		: Create wig file from .tagAlign.gz
@@ -43,6 +45,37 @@ Modify $CONF_FILE (by default: conf_tf_chipseq.txt) to have your own settings.
 * CHROM_SIZES 		: Location of chrom.sizes file for your .fa
 * UMAP_DIR 			: Location of umap (for hg19, globalmap_k20tok54)
 * SEQ_DIR 			: Location of sequence .fa files (for hg19, chr?.fa)
+
+* MODULE_* 			: Freely name suffix and specify RHS, then BDS will run "module add RHS"
+* EXPORT_* 			: Freely name suffix and specify RHS, then BDS will add env. variable to bash shell
+```
+
+### How to specify bioinformatics software version?
+
+You can specify software versions with MODULE_* and EXPORT_* in the above configuration file. You can freely name suffix of MODULE_ or EXPORT_ then BDS will read all keys starting with MODULE_ or EXPORT_. Use ; for new line.
+
+For example, to use bwa 0.7.7 and bedtools 2.x.x and bedtools2 1.x.x.
+
+```
+MODULE_BWA= bwa/0.7.7
+MODULE_BEDBED_ANY_SUFFIX_SHOULD_BE_OKAY= bedtools/2.x.x; bedtools2/1.x.x
+```
+
+To use a software unmoduled, For example "sw_example" is on /usr/bin/example/, then add software path to environment variable PATH.
+
+```
+EXPORT_ETC= export PATH="${PATH}:/usr/bin/example"
+EXPORT_TEST= TEST_PATH="/usr/lib/example"; export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${TEST_PATH}"
+EXPORT_YOU_CAN_DEFINE_ANY_CUSTOM_VAR= CUST_VAR=200
+```
+
+IMPORTANT!! There is a bug in BDS code. YOU NEED TO WRAP ANY ENVIRONMENT VARS IN RHS WITH CURVED BRACKETS ${} !!!!!
+
+```
+EXPORT_BASH= export PATH="${PATH}:/bin:/usr/bin"
+```
+
+IMPORTANT!! Do not remove the above line in the conf. file. Common linux commands like rm will not work without it.
 
 
 ### Usage 

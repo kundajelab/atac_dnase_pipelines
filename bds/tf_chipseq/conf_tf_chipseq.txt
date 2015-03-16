@@ -1,52 +1,66 @@
-// pre idr
-PRE_IDR=false 		// if true, pipeline computes QC scores and stops before spp.
-NUM_REP=6 			// NUM_REP is the number of replicates you want to QC if PRE_IDR is true
-
 // general
-PREFIX=ENCSR703KWN
-OUTPUT_DIR=out
-TMP_DIR=/srv/gsfs0/scratch/leepc12
-USE_BGZIP=false 		// to index BED type files for visualization in genome browser
+PREFIX				= ENCSR703KWN
+OUTPUT_DIR			= out
+TMP_DIR				= /srv/gsfs0/scratch/leepc12
+USE_BGZIP			= false 	// to index BED type files for visualization in genome browser
+
+// cluster default 
+WALLTIME			= 21000 	// in seconds
+NTHREADS			= 1 
+MEMORY				= 10000000000 // in bytes (sorry...)
+
+// software version
+PRELOAD_BWA			= module add bwa/0.7.7
+PRELOAD_SAMTOOLS	= module add samtools/0.1.19
+PRELOAD_BEDTOOLS	= module add bedtools/2.18.0
+PRELOAD_PICARD_TOOLS= module add picard-tools/1.92
+PRELOAD_BOWTIE2 	= module add bowtie/2.0.5
+
+PRELOAD_RUN_SPP 	= export PATH="$PATH:$HOME/R/bin"; export PATH+"$PATH:$HOME/phantompeakqualtools"; export R_LIBS=$HOME/RLib; 
+PRELOAD_IDR			= export PATH="$PATH:$HOME/usr/local/bin:/srv/gsfs0/projects/kundaje/users/jinlee/work/idr/bin"; export PYTHONPATH="$HOME/local/lib/python3.4/site-packages:${PYTHONPATH}"; 
+PRELOAD_KENTUTIL	= export PATH="$PATH:/srv/gsfs0/projects/kundaje/users/akundaje/projects/encode/code/kentutils/"
+PRELOAD_WIGGLER 	= MCRROOT=<MCR_ROOT>/v714; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRROOT}/runtime/glnxa64; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRROOT}/bin/glnxa64; MCRJRE=${MCRROOT}/sys/java/jre/glnxa64/jre/lib/amd64; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}/native_threads; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}/server; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}; XAPPLRESDIR=${MCRROOT}/X11/app-defaults; export LD_LIBRARY_PATH; export XAPPLRESDIR
+
+// pre idr
+PRE_IDR				= false 	// if true, pipeline computes QC scores and stops before spp.
+NUM_REP				= 6 		// NUM_REP is the number of replicates you want to QC if PRE_IDR is true
 
 // bwa
-NTHREADS_BWA=4 		// # of procs for bwa -aln
-BWA_INDEX_NAME=/srv/gsfs0/projects/kundaje/commonRepository/indexes/bwa_indexes/encodeHg19Male/v0.7.7/encodeHg19Male_bwa-0.7.7
-BWA_PARAM=-q 5 -l 32 -k 2
+NTHREADS_BWA		= 4 		// # of procs for bwa -aln
+WALLTIME_BWA_SAMPE 	= 21000
+BWA_INDEX_NAME		= /srv/gsfs0/projects/kundaje/commonRepository/indexes/bwa_indexes/encodeHg19Male/v0.7.7/encodeHg19Male_bwa-0.7.7
+BWA_ALN_PARAM		=-q 5 -l 32 -k 2
 	
 // dupe remover
-MARKDUP=/srv/gs1/software/picard-tools/1.92/MarkDuplicates.jar
-MAPQ_THRESH=30
+MARKDUP 			=/srv/gs1/software/picard-tools/1.92/MarkDuplicates.jar
+MAPQ_THRESH 		= 30
 
 // peak calling
-NTHREADS_R=4										// # of procs for spp
-R_SCRIPT=/home/leepc12/R/bin/Rscript				// locally install Rscript and packages for multi-threading on SCG3
-RUN_SPP_DIR=/home/leepc12/phantompeakqualtools 		// location of run_spp.R
-DUPE_REMOVED=true 									// run_spp.nodups.R for dupe-removed data
-NREADS=15000000
-NPEAK=300000
+NREADS 				= 15000000
+NPEAK				= 300000
+DUPE_REMOVED		= true 							// run_spp.nodups.R for dupe-removed data
+NTHREADS_RUN_SPP	= 4								// # of procs for spp
 
 // IDR (by Nathan's code)
-PYTHON3=/home/leepc12/usr/local/bin/python3.4
-IDR=/srv/gsfs0/projects/kundaje/users/jinlee/work/idr/bin/idr
 IDR_THRESH=0.02
 
 // signal track
-CREATE_WIG=false
-CREATE_BEDGRAPH=false
-CONVERT_TO_BIGWIG=false 	// bedgraph to bigwig
-CHROM_SIZES=/srv/gsfs0/projects/kundaje/users/jinlee/data/bwa_index/male.hg19.chrom.sizes
-UMAP_DIR=/srv/gsfs0/projects/kundaje/users/jinlee/data/umap/encodeHg19Male/globalmap_k20tok54
-SEQ_DIR=/srv/gsfs0/projects/kundaje/commonRepository/genomes/encodeHg19Male
+CREATE_WIG 			= false
+CREATE_BEDGRAPH		= false
+CONVERT_TO_BIGWIG 	= false 	// bedgraph to bigwig
+CHROM_SIZES			= /srv/gsfs0/projects/kundaje/users/jinlee/data/bwa_index/male.hg19.chrom.sizes
+UMAP_DIR			= /srv/gsfs0/projects/kundaje/users/jinlee/data/umap/encodeHg19Male/globalmap_k20tok54
+SEQ_DIR				= /srv/gsfs0/projects/kundaje/commonRepository/genomes/encodeHg19Male
 
 // fastqs
-INPUT_FASTQ_REP1_PE1=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/1.1_PE/ENCFF024YEM.fastq.gz 
-INPUT_FASTQ_REP1_PE2=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/1.1_PE/ENCFF546XPY.fastq.gz 
-INPUT_FASTQ_REP2=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/2.1/ENCFF499TRH.fastq.gz 
+INPUT_FASTQ_REP1_PE1= /srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/1.1_PE/ENCFF024YEM.fastq.gz 
+INPUT_FASTQ_REP1_PE2= /srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/1.1_PE/ENCFF546XPY.fastq.gz 
+INPUT_FASTQ_REP2 	= /srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/2.1/ENCFF499TRH.fastq.gz 
 
 // control
-INPUT_FASTQ_CTL_REP1_PE1=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/Ctl/1.1_PE/ENCFF597NFC.fastq.gz 
-INPUT_FASTQ_CTL_REP1_PE2=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/Ctl/1.1_PE/ENCFF978BNV.fastq.gz 
-INPUT_FASTQ_CTL_REP2=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/Ctl/2.1/ENCFF169TIB.fastq.gz 
+INPUT_FASTQ_CTL_REP1_PE1= /srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/Ctl/1.1_PE/ENCFF597NFC.fastq.gz 
+INPUT_FASTQ_CTL_REP1_PE2= /srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/Ctl/1.1_PE/ENCFF978BNV.fastq.gz 
+INPUT_FASTQ_CTL_REP2 	= /srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR703KWN/Ctl/2.1/ENCFF169TIB.fastq.gz 
 
 
 
