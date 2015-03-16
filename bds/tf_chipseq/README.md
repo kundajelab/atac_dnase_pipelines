@@ -16,9 +16,9 @@ Modify $CONF_FILE (by default: conf_tf_chipseq.txt) to have your own settings.
 * TMP_DIR 			: Temporary folder for intermediate files during bwa alignment
 * USE_BGZIP			: Index BED type files (for visualization in a genome browser). Make sure bgzip and tabix installed add their path to MODULE_*.
 
-* WALLTIME 			: default walltime for all jobs
+* WALLTIME 			: default walltime for all jobs (in seconds)
 * NTHREADS 			: default # of threads for all jobs
-* MEMORY			: default max. memory for all jobs
+* MEMORY			: default max. memory for all jobs (in bytes)
 
 * PRE_IDR 			: Set it true if you just want to compute QC score and stop before peak calling (default: false)
 * NUM_REP			: # of replicates you want to test (default:2)
@@ -27,12 +27,10 @@ Modify $CONF_FILE (by default: conf_tf_chipseq.txt) to have your own settings.
 * BWA_INDEX_NAME	: Prefix of bwa index files (eg. if you have bwa index files including hg19_Male.bwt, BWA_INDEX_NAME=hg19_Male)
 * BWA_PARAM			: Parameters for bwa alignment (default: -q 5 -l 32 -k 2)
 
-* MARKDUP 			: Dupe remover path
+* MARKDUP 			: Dupe marker path
 * MAPQ_THRESH		: MAPQ_THRESH
 
 * NTHREADS_R		: # of threads for peak calling (spp)
-* R_SCRIPT			: Specify if you have local installation of R (default: Rscript)
-* RUN_SPP_DIR 		: Location of Anshul's pantompeakqualtools
 * DUPE_REMOVED		: If true, use run_spp.nodups.R instead of run_spp.R
 * NREADS 			: NREADS (default: 15000000)
 * NPEAK 			: -npeak NPEAK in run_spp.R (default: 300000)
@@ -57,8 +55,15 @@ You can specify software versions with MODULE_* and EXPORT_* in the above config
 For example, to use bwa 0.7.7 and bedtools 2.x.x and bedtools2 1.x.x.
 
 ```
-MODULE_BWA= bwa/0.7.7
+MODULE_BWA= bwa/0.7.7 
 MODULE_BEDBED_ANY_SUFFIX_SHOULD_BE_OKAY= bedtools/2.x.x; bedtools2/1.x.x
+```
+
+The above lines in the configuration file will execute the following:
+
+```
+module add bwa/0.7.7; module add bedtools/2.x.x; module add bedtools2/1.x.x
+
 ```
 
 To use a software unmoduled, For example "sw_example" is on /usr/bin/example/, then add software path to environment variable PATH.
@@ -67,6 +72,12 @@ To use a software unmoduled, For example "sw_example" is on /usr/bin/example/, t
 EXPORT_ETC= export PATH="${PATH}:/usr/bin/example"
 EXPORT_TEST= TEST_PATH="/usr/lib/example"; export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${TEST_PATH}"
 EXPORT_YOU_CAN_DEFINE_ANY_CUSTOM_VAR= CUST_VAR=200
+```
+
+The above lines in the configuration file will execute the following:
+
+```
+export PATH="${PATH}:/usr/bin/example"; TEST_PATH="/usr/lib/example"; export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${TEST_PATH}"; CUST_VAR=200
 ```
 
 IMPORTANT!! There is a bug in BDS code. YOU NEED TO WRAP ANY ENVIRONMENT VARS IN RHS WITH CURVED BRACKETS ${} !!!!!
