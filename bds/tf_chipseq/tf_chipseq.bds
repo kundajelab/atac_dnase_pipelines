@@ -1,11 +1,14 @@
 #!/usr/bin/env bds
+// code developed by Jin Lee (leepc12@stanford.edu) on Mar. 2015
 
 include "modules_tf_chipseq.bds"
 
-read_conf()
+// arguments
+string c = "conf_tf_chipseq.txt"	help configuration file for tf_chipseq
 
+// pipeline body
+read_conf_tf_chipseq( c )
 tasks_before_spp()
-
 spp_idr()
 
 exit(0)

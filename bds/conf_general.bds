@@ -1,0 +1,64 @@
+#!/usr/bin/env bds
+// code developed by Jin Lee (leepc12@stanford.edu) on Mar. 2015
+
+//conf_general
+string PREFIX  		// prefix for all output
+string OUTPUT_DIR 	// output dir
+string TMP_DIR 		// any temp. dir.
+bool USE_BGZIP 		// make sure bgzip and tabix installed
+string GZIP 		// gzip or bgzip
+
+// cluster default
+int WALLTIME 		// default walltime in seconds
+int NTHREADS  		// default # of procs
+int MEMORY 			// default max. mem. in bytes
+
+string PRELOAD = ""
+
+string{} conf // config. file
+
+void read_conf( string conf_file ) {
+	print( "\nReading configuration (general) ...\n" );
+
+	conf = config(conf_file)
+
+	// general
+	PREFIX 		= chk_slash( conf{ "PREFIX" } )
+	OUTPUT_DIR	= mkdir_path( conf{ "OUTPUT_DIR" } ) //.path()
+	TMP_DIR 	= mkdir_path( conf{ "TMP_DIR" } )
+	USE_BGZIP 	= parse_bool( conf{ "USE_BGZIP"} )
+	GZIP 		= USE_BGZIP ? "bgzip" : "gzip"
+
+	// cluster default
+	WALLTIME 	= parse_int( conf{ "WALLTIME" } ) // default walltime in seconds
+	NTHREADS  	= parse_int( conf{ "NTHREADS" } ) // default # of procs
+	MEMORY 		= parse_int( conf{ "MEMORY" } ) // default # of procs
+
+	string PRELOAD_MODULE = "" //". /etc/profile.d/modules.sh;"
+	string PRELOAD_EXPORT = ""
+
+	// print conf info
+	for( string k : conf.keys() ) {
+		// if key is comment ignore
+		if ( k.indexOf("//")>=0 ) \
+			continue
+
+		print( k + "\t= " + rm_comment( conf{k} ) + "\n" )
+
+		// concat. module
+		if ( k.indexOf("MODULE_")>=0 ) {
+			trimmed := rm_comment( conf{k} )			
+			PRELOAD_MODULE = PRELOAD_MODULE + " module add " + trimmed + ";"
+		}
+		else if ( k.indexOf("EXPORT_")>=0 ) {
+			trimmed := rm_comment( conf{k} )			
+			PRELOAD_EXPORT = PRELOAD_EXPORT + " " + trimmed + ";"
+		}
+	}
+
+	PRELOAD = PRELOAD_EXPORT + "; " + PRELOAD_MODULE
+	PRELOAD = PRELOAD.replace( ";;", ";" )
+
+	print("PRELOAD = $PRELOAD\n")
+}
+
