@@ -15,8 +15,6 @@ MEMORY= 10000000000 // in bytes (sorry...)
 // You can freely name suffix for keys like MODULE_* and EXPORT_*
 // IMPORTANT!!!!!!! For EXPORT_*, variable in RHS of (=) should be wrapped by curved brackets ${}
 
-EXPORT_BASH= export PATH="${PATH}:/bin:/usr/bin" // DO NOT REMOVE THIS!!!
-
 MODULE_BWA= bwa/0.7.7
 MODULE_SAMTOOLS= samtools/0.1.19
 MODULE_BEDTOOLS= bedtools/2.18.0
@@ -24,10 +22,10 @@ MODULE_PICARD= picard-tools/1.92
 MODULE_JAVA= java/latest
 
 EXPORT_JAVA= export _JAVA_OPTIONS="-Xms256M -Xmx512M -XX:ParallelGCThreads=2"; export MAX_JAVA_MEM="2G"; export MALLOC_ARENA_MAX=4
-EXPORT_RUN_SPP= export PATH="${PATH}:/home/leepc12/R/bin"; export PATH="${PATH}:/home/leepc12/phantompeakqualtools"; export R_LIBS=${HOME}/RLib
-EXPORT_IDR= export PATH="${PATH}:${HOME}/usr/local/bin"; export PYTHONPATH="${HOME}/local/lib/python3.4/site-packages:${PYTHONPATH}"; 
-EXPORT_KENT= export PATH="${PATH}:/srv/gsfs0/projects/kundaje/users/akundaje/projects/encode/code/kentutils/"
-EXPORT_WIGGLER= MCR_ROOT=/home/leepc12/devtools/MCR; MCRROOT=${MCR_ROOT}/v714; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRROOT}/runtime/glnxa64; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRROOT}/bin/glnxa64; MCRJRE=${MCRROOT}/sys/java/jre/glnxa64/jre/lib/amd64; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}/native_threads; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}/server; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}; XAPPLRESDIR=${MCRROOT}/X11/app-defaults; export LD_LIBRARY_PATH; export XAPPLRESDIR
+EXPORT_RUN_SPP= export PATH="${PATH}:${HOME}/R/bin"; export PATH="${PATH}:${HOME}/phantompeakqualtools"; export R_LIBS=${HOME}/RLib
+EXPORT_IDR= export PATH="${PATH}:${HOME}/usr/local/bin"; export PYTHONPATH="${HOME}/local/lib/python3.4/site-packages:${PYTHONPATH}"
+EXPORT_KENT= export PATH="${PATH}:/srv/gsfs0/projects/kundaje/users/akundaje/projects/encode/code/kentutils"
+EXPORT_WIGGLER= MCR_ROOT=${HOME}/devtools/MCR; MCRROOT=${MCR_ROOT}/v714; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRROOT}/runtime/glnxa64; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRROOT}/bin/glnxa64; MCRJRE=${MCRROOT}/sys/java/jre/glnxa64/jre/lib/amd64; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}/native_threads; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}/server; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}; XAPPLRESDIR=${MCRROOT}/X11/app-defaults; export LD_LIBRARY_PATH; export XAPPLRESDIR
 
 /////////// pre idr /////////////////////////////////
 PRE_IDR= false 	// if true, pipeline computes QC scores and stops before spp.
@@ -35,7 +33,7 @@ NUM_REP= 6 		// NUM_REP is the number of replicates you want to QC if PRE_IDR is
 
 ////////// bwa //////////////////////////////////
 NTHREADS_BWA= 4 		// # of procs for bwa -aln
-WALLTIME_BWA_SAMPE= 700000
+WALLTIME_BWA_SAMPE= 70000
 BWA_INDEX_NAME= /srv/gsfs0/projects/kundaje/commonRepository/indexes/bwa_indexes/encodeHg19Male/v0.7.7/encodeHg19Male_bwa-0.7.7
 BWA_ALN_PARAM= -q 5 -l 32 -k 2
 	
