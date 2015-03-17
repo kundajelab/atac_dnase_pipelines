@@ -35,7 +35,7 @@ void read_conf( string conf_file ) {
 	MEMORY 		= parse_int( conf{ "MEMORY" } ) // default # of procs
 
 	string PRELOAD_MODULE = "" //". /etc/profile.d/modules.sh;"
-	string PRELOAD_EXPORT = ""
+	string PRELOAD_EXPORT = "export PATH=\"\${PATH}:/bin:/usr/bin\";"
 
 	// print conf info
 	for( string k : conf.keys() ) {
@@ -47,8 +47,11 @@ void read_conf( string conf_file ) {
 
 		// concat. module
 		if ( k.indexOf("MODULE_")>=0 ) {
-			trimmed := rm_comment( conf{k} )			
-			PRELOAD_MODULE = PRELOAD_MODULE + " module add " + trimmed + ";"
+			trimmed := rm_comment( conf{k} )
+
+			mods := trimmed.split(";")
+
+			for ( string str : mods ) PRELOAD_MODULE = PRELOAD_MODULE + " module add " + str.trim() + ";"
 		}
 		else if ( k.indexOf("EXPORT_")>=0 ) {
 			trimmed := rm_comment( conf{k} )			
