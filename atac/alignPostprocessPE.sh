@@ -5,8 +5,13 @@ set -o errexit
 
 if hash module 2>/dev/null; then
    module add samtools/1.2
-   module add picard-tools/1.92
-   module add bedtools/2.19.1
+   if [ -n "$CLUSTER_IS_PBS" ]; then
+      module add picard-tools/1.128
+      module add bedtools/2.22.1
+   else
+      module add picard-tools/1.129
+      module add bedtools/2.21.0
+   fi
 fi
 
 if [ -n "$1" ]; then
@@ -71,16 +76,12 @@ rm "${TMP_FILT_BAM_FILE}"
 TMP_FILT_BAM_FILE="${FILT_BAM_PREFIX}.dupmark.bam"
 DUP_FILE_QC="${FILT_BAM_PREFIX}.dup.qc"
 
-if hash picard 2>/dev/null; then
-   PICARD_CMD="picard MarkDuplicates"
-else
-   insertSizeMetrics="${PICARDROOT}/MarkDuplicates.jar"
-   PICARD_CMD="java -Xmx4G -jar ${insertSizeMetrics}"
-fi
-$PICARD_CMD \
+JVM_OPTS="-Xmx4G"
+java $JVM_OPTS -jar ${PICARDROOT}/picard.jar MarkDuplicates \
    INPUT="${FILT_BAM_FILE}" OUTPUT="${TMP_FILT_BAM_FILE}" \
    METRICS_FILE="${DUP_FILE_QC}" VALIDATION_STRINGENCY=LENIENT \
    ASSUME_SORTED=true REMOVE_DUPLICATES=false
+
 mv "${TMP_FILT_BAM_FILE}" "${FILT_BAM_FILE}"
 
 # ============================

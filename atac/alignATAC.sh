@@ -4,7 +4,12 @@ set -o pipefail
 set -o errexit
 
 if hash module 2>/dev/null; then
-   module add bowtie/2.2.4
+   if [ -n "$CLUSTER_IS_PBS" ]; then
+      module add tools
+      module add bowtie2/2.2.4
+   else
+      module add bowtie/2.2.4
+   fi
    module add samtools/1.2
 fi
 

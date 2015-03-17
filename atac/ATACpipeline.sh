@@ -15,7 +15,8 @@ SCRIPTPATH=$( cd $(dirname $0) ; pwd -P ) #absolute path to directory containing
 MAPQ_THRESH=30
 
 mkdir -p ${OUTPUTDIR}
-cd ${OUTPUTDIR}
+CD="cd ${OUTPUTDIR}"
+$CD
 
 # for cluster environment
 if hash qsub 2>/dev/null; then
@@ -27,14 +28,16 @@ if hash qsub 2>/dev/null; then
    NEED_STACK=10M
    if hash qsig 2>/dev/null; then
       echo "PBS type cluster detected"
+      export CLUSTER_IS_PBS=true
       PARALLEL='-l ncpus='
       MEMORY='-l mem='
       RUNTIME='-l walltime='
       STACK=''
-      WAITFOR='-W afterany:'
+      WAITFOR='-W depend=afterany:'
       WD='-w'
    else
       echo "SGE type cluster detected"
+      export CLUSTER_IS_SGE=true
       PARALLEL='-pe shm '
       MEMORY='-l h_vmem='
       RUNTIME='-l h_rt='
@@ -59,7 +62,7 @@ export P2_IN="$READ2"
 if [ -n "$IS_CLUSTER" ]; then
    COMMAND_INTERPRETER="qsub -V ${STACK} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-echo "${SCRIPTPATH}/${CMD}.py" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+echo "$CD; ${SCRIPTPATH}/${CMD}.py" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
 if [ -n "$IS_CLUSTER" ]; then
    JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
@@ -74,10 +77,12 @@ export READ2=FROM_FILE
 export NUMTHREADS=$NUMTHREADS
 if [ -n "$IS_CLUSTER" ]; then
    NEED_CPUS=$NUMTHREADS
-   NEED_MEMORY=2G
+   if [ -n "$CLUSTER_IS_SGE" ]; then
+      NEED_MEMORY=2G
+   fi
    COMMAND_INTERPRETER="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-echo "${SCRIPTPATH}/pre-${CMD}.sh; ${SCRIPTPATH}/${CMD}.sh" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+echo "$CD; ${SCRIPTPATH}/pre-${CMD}.sh; ${SCRIPTPATH}/${CMD}.sh" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
 if [ -n "$IS_CLUSTER" ]; then
    JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
@@ -93,10 +98,12 @@ export OFPREFIX=FROM_FILE
 export MAPQ_THRESH=$MAPQ_THRESH
 if [ -n "$IS_CLUSTER" ]; then
    NEED_CPUS=1
-   NEED_MEMORY=8G
+   if [ -n "$CLUSTER_IS_SGE" ]; then
+      NEED_MEMORY=8G
+   fi
    COMMAND_INTERPRETER="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-echo "${SCRIPTPATH}/pre-${CMD}.sh; ${SCRIPTPATH}/${CMD}.sh" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+echo "$CD; ${SCRIPTPATH}/pre-${CMD}.sh; ${SCRIPTPATH}/${CMD}.sh" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
 if [ -n "$IS_CLUSTER" ]; then
    JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
@@ -111,7 +118,7 @@ export output_file=FROM_FILE
 if [ -n "$IS_CLUSTER" ]; then
    COMMAND_INTERPRETER="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-echo "${SCRIPTPATH}/pre-${CMD}.sh; ${SCRIPTPATH}/${CMD}.sh" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+echo "$CD; ${SCRIPTPATH}/pre-${CMD}.sh; ${SCRIPTPATH}/${CMD}.sh" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
 if [ -n "$IS_CLUSTER" ]; then
    JOB_ID=`head -n 1 ${CMD}.log | awk 'match($0,/[0-9]+/){print substr($0, RSTART, RLENGTH)}'`
 fi
@@ -127,4 +134,4 @@ export chrSize=$CHROMSIZE
 if [ -n "$IS_CLUSTER" ]; then
    COMMAND_INTERPRETER="qsub -V ${WAITFOR}${JOB_ID} -N ${CMD} ${WD} `pwd` ${MEMORY}${NEED_MEMORY} ${PARALLEL}${NEED_CPUS} ${RUNTIME}${NEED_RUNTIME} -o ${CMD}.log -e ${CMD}.error.log"
 fi
-echo "${SCRIPTPATH}/${CMD}.sh" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)
+echo "$CD; ${SCRIPTPATH}/${CMD}.sh" | $COMMAND_INTERPRETER > >(tee ${CMD}.log) 2> >(tee ${CMD}.error.log >&2)

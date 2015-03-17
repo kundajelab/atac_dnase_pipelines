@@ -4,9 +4,15 @@ set -o pipefail
 set -o errexit
 
 if hash module 2>/dev/null; then
-   module add bedtools/2.19.1
-   module add MACS2/2.1.0
-   module add ucsc_tools/2.7.2
+   if [ -n "$CLUSTER_IS_PBS" ]; then
+      module add bedtools/2.22.1
+      #module add MACS2/2.1.0
+      module add kentUtils/311
+   else
+      module add bedtools/2.21.0
+      module add MACS2/2.1.0
+      module add ucsc_tools/3.0.9
+   fi
 fi
 
 if [ -n "$1" ]; then
