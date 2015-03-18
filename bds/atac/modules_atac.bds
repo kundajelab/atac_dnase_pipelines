@@ -125,11 +125,6 @@ void main() {
 			-1 <(zcat -f "$READ1") -2 <(zcat -f "$READ2") \
 			2>"$outputLog" | \
 			samtools view -bS - > "$outputBAM"
-
-		//sys bowtie2 -X2000 --threads "$NTHREADS_BWT2" -x "$BOWTIE_IDX" \
-		//	-1 "$READ1" -2 "$READ2" \
-		//	2>"$outputLog" | \
-		//	samtools view -bS - > "$outputBAM"
 	}
 
 	wait
@@ -288,12 +283,6 @@ void main() {
 	readBed 	:= output_file
 	peakFile 	:= "$readBed.pf"
 
-	peakFile_treat_pileup	:= "$peakFile" + "_treat_pileup"
-	peakFile_control_lambda := "$peakFile" + "_control_lambda"
-
-	peakFile_FE 	:= "$peakFile" + "_FE"
-	peakFile_ppois 	:= "$peakFile" + "_ppois"
-
 	task( taskName := "callATACpeaks", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 		 ["$peakFile.fc.signal.bigwig", "$peakFile.pval.signal.bigwig"] <- readBed ) {
 
@@ -305,22 +294,22 @@ void main() {
 			--nomodel --shift "$fragLen" -B --SPMR --keep-dup all --call-summits
 
 		sys macs2 bdgcmp \
-			-t "$peakFile_treat_pileup.bdg" -c "$peakFile_control_lambda.bdg" \
+			-t "$peakFile"_treat_pileup.bdg -c "$peakFile"_control_lambda.bdg \
 			--o-prefix "$peakFile" -m FE
-		sys slopBed -i "$peakFile_FE.bdg" -g "$chrSize" -b 0 | \
+		sys slopBed -i "$peakFile"_FE.bdg -g "$chrSize" -b 0 | \
 			bedClip stdin "$chrSize" "$peakFile.fc.signal.bedgraph"
-		sys rm -f "$peakFile_FE.bdg"
+		sys rm -f "$peakFile"_FE.bdg
 		sys bedGraphToBigWig "$peakFile.fc.signal.bedgraph" "$chrSize" "$peakFile.fc.signal.bigwig"
 		sys rm -f "$peakFile.fc.signal.bedgraph"
 
 		//# sval counts the number of tags per million in the (compressed) BED file
 		sys sval=$(wc -l <(zcat -f "$readBed") | awk '{printf "%f", $1/1000000}')
 		sys macs2 bdgcmp \
-			-t "$peakFile_treat_pileup.bdg" -c "$peakFile_control_lambda.bdg" \
+			-t "$peakFile"_treat_pileup.bdg -c "$peakFile"_control_lambda.bdg \
 			--o-prefix "$peakFile" -m ppois -S "${sval}"
-		sys slopBed -i "$peakFile_ppois.bdg" -g "$chrSize" -b 0 | \
+		sys slopBed -i "$peakFile"_ppois.bdg -g "$chrSize" -b 0 | \
 			bedClip stdin "$chrSize" "$peakFile.pval.signal.bedgraph"
-		sys rm -f "$peakFile_ppois.bdg"
+		sys rm -f "$peakFile"_ppois.bdg
 		sys bedGraphToBigWig "$peakFile.pval.signal.bedgraph" "$chrSize" "$peakFile.pval.signal.bigwig"
 		sys rm -f "$peakFile.pval.signal.bedgraph"
 	}	
