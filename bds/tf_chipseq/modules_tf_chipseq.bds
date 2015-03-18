@@ -784,8 +784,7 @@ void create_sig_trk( int ctl, int rep ) {
 
 			sys $PRELOAD			
 
-			sys align2rawsignal -i=$FINAL_TA_FILE -o=$WIG_FILE \
-				-s=$SEQ_DIR -u=$UMAP_DIR -of=w -l=$FRAGLEN -mm=4
+			sys align2rawsignal -i=$FINAL_TA_FILE -o=$WIG_FILE -s=$SEQ_DIR -u=$UMAP_DIR -of=wig -l=$FRAGLEN -mm=4
 		}
 	}
 
@@ -795,8 +794,7 @@ void create_sig_trk( int ctl, int rep ) {
 
 			sys $PRELOAD
 			
-			sys align2rawsignal -i=$FINAL_TA_FILE -o=$BEDGRAPH_FILE \
-				-s=$SEQ_DIR -u=$UMAP_DIR -of=bg -l=$FRAGLEN -mm=4
+			sys align2rawsignal -i=$FINAL_TA_FILE -o=$BEDGRAPH_FILE -s=$SEQ_DIR -u=$UMAP_DIR -of=bg -l=$FRAGLEN -mm=4
 		}
 
 		wait

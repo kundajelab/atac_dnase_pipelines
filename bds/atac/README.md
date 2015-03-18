@@ -3,7 +3,7 @@ TF ChIP-Seq Pipeline
 
 TF ChIP-Seq pipeline is based on https://docs.google.com/document/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit#.
 
-Dependencies: BigDataScript (BDS) 
+Dependencies: BigDataScript (BDS)
 
 
 ### Configuration file
@@ -27,6 +27,7 @@ Modify $CONF_FILE (by default: conf_tf_chipseq.txt) to have your own settings.
 * BWA_INDEX_NAME	: Prefix of bwa index files (eg. if you have bwa index files including hg19_Male.bwt, BWA_INDEX_NAME=hg19_Male)
 * BWA_PARAM			: Parameters for bwa alignment (default: -q 5 -l 32 -k 2)
 
+* MARKDUP 			: Dupe marker path
 * MAPQ_THRESH		: MAPQ_THRESH
 
 * NTHREADS_R		: # of threads for peak calling (spp)
@@ -131,13 +132,6 @@ For advanced users, both $BDS_CONFIG and $CONF_FILE (chipseq configuration file)
 ```
 bds -c $BDS_CONFIG -dryRun -s sge $PIPELINE_DIR/tf_chipseq.bds -c $CONF_FILE
 ```
-
-For debugging, BDS does not remove temporary bash scripts with parameter -l, -d for debugging info.
-
-```
-bds -debug -l -s sge $PIPELINE_DIR/atac.bds
-```
-
 
 ### Installation insctruction for BigDataScript (BDS)
 

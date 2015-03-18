@@ -15,16 +15,14 @@ MEMORY= 10000000000 // in bytes (sorry...)
 // You can freely name suffix for keys like MODULE_* and EXPORT_*
 // IMPORTANT!!!!!!! For EXPORT_*, variable in RHS of (=) should be wrapped by curved brackets ${}
 
-MODULE_BWA= bwa/0.7.7
-MODULE_SAMTOOLS= samtools/0.1.19
-MODULE_BEDTOOLS= bedtools/2.18.0
-MODULE_PICARD= picard-tools/1.92
-MODULE_JAVA= java/latest
+MODULE_BIO_SW= bwa/0.7.7; samtools/0.1.19; bedtools/2.18.0; picard-tools/1.92
+MODULE_LANG= java/latest
 
 EXPORT_JAVA= export _JAVA_OPTIONS="-Xms256M -Xmx512M -XX:ParallelGCThreads=2"; export MAX_JAVA_MEM="2G"; export MALLOC_ARENA_MAX=4
 EXPORT_RUN_SPP= export PATH="${PATH}:${HOME}/R/bin"; export PATH="${PATH}:${HOME}/phantompeakqualtools"; export R_LIBS=${HOME}/RLib
 EXPORT_IDR= export PATH="${PATH}:${HOME}/usr/local/bin"; export PYTHONPATH="${HOME}/local/lib/python3.4/site-packages:${PYTHONPATH}"
 EXPORT_KENT= export PATH="${PATH}:/srv/gsfs0/projects/kundaje/users/akundaje/projects/encode/code/kentutils"
+EXPORT_ALIGN2RAWSIGNAL= export PATH="${PATH}:/srv/gsfs0/projects/kundaje/users/akundaje/projects/encode/code/signalgeneration/align2rawsignal/trunk/bin/"
 EXPORT_WIGGLER= MCR_ROOT=${HOME}/devtools/MCR; MCRROOT=${MCR_ROOT}/v714; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRROOT}/runtime/glnxa64; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRROOT}/bin/glnxa64; MCRJRE=${MCRROOT}/sys/java/jre/glnxa64/jre/lib/amd64; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}/native_threads; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}/server; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}; XAPPLRESDIR=${MCRROOT}/X11/app-defaults; export LD_LIBRARY_PATH; export XAPPLRESDIR
 
 /////////// pre idr /////////////////////////////////
@@ -38,7 +36,6 @@ BWA_INDEX_NAME= /srv/gsfs0/projects/kundaje/commonRepository/indexes/bwa_indexes
 BWA_ALN_PARAM= -q 5 -l 32 -k 2
 	
 ///////// dupe mark /////////////////////
-MARKDUP=/srv/gs1/software/picard-tools/1.92/MarkDuplicates.jar
 MAPQ_THRESH= 30
 
 ////////// peak calling /////////////////////////
@@ -51,9 +48,9 @@ DUPE_REMOVED= true 							// run_spp.nodups.R for dupe-removed data
 IDR_THRESH=0.02
 
 ///////// signal track generation //////////////////////
-CREATE_WIG= false
-CREATE_BEDGRAPH= false
-CONVERT_TO_BIGWIG= false 	// bedgraph to bigwig
+CREATE_WIG= true
+CREATE_BEDGRAPH= true
+CONVERT_TO_BIGWIG= true 	// bedgraph to bigwig
 CHROM_SIZES= /srv/gsfs0/projects/kundaje/users/jinlee/data/bwa_index/male.hg19.chrom.sizes
 UMAP_DIR= /srv/gsfs0/projects/kundaje/users/jinlee/data/umap/encodeHg19Male/globalmap_k20tok54
 SEQ_DIR= /srv/gsfs0/projects/kundaje/commonRepository/genomes/encodeHg19Male
