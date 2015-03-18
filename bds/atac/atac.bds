@@ -1,0 +1,14 @@
+#!/usr/bin/env bds
+
+include "modules_atac.bds"
+
+// arguments
+string c = "conf_atac.txt"	help configuration file for atac
+
+// pipeline body
+read_conf_atac( c )
+
+main()
+
+exit(0)
+

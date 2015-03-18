@@ -1,6 +1,8 @@
 sge.pe = shm
 sge.mem = h_vmem
 sge.timeout = h_rt
+taskShell = /bin/bash -e
+sysShell = /bin/bash -e -c
 
 # Do not use -V (pass all env. vars to qsub jobs)
 # bds path ($HOME/.bds/ by default) should be included in PATH due to BDS bug

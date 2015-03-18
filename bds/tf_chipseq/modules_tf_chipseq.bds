@@ -15,7 +15,6 @@ int WALLTIME_BWA_SAMPE
 string BWA_INDEX_NAME
 string BWA_ALN_PARAM
 
-string MARKDUP
 int MAPQ_THRESH
 
 int NREADS
@@ -52,7 +51,6 @@ void read_conf_tf_chipseq( string conf_file ) {
 	BWA_ALN_PARAM 	= rm_comment( conf{ "BWA_ALN_PARAM" } )
 
 	// dupe remover
-	MARKDUP 		= chk_file( conf{ "MARKDUP" }, "" )
 	MAPQ_THRESH 	= parse_int( conf{ "MAPQ_THRESH" } )
 
 	// peak calling (run_spp.R)
@@ -186,8 +184,8 @@ void spp_idr() {
 
 		sys $PRELOAD
 		
-
-		sys Rscript $(which $RUN_SPP) -c=$REP1_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP1_TA_FILE -npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP1_CCSCORE
+		sys Rscript $(which $RUN_SPP) -c=$REP1_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP1_TA_FILE \
+			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP1_CCSCORE
 	}
 
 	// REP2_TA_FILE vs CTL_REP2_TA_FILE
@@ -196,8 +194,8 @@ void spp_idr() {
 
 		sys $PRELOAD
 		
-
-		sys Rscript $(which $RUN_SPP) -c=$REP2_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP2_TA_FILE -npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP2_CCSCORE
+		sys Rscript $(which $RUN_SPP) -c=$REP2_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP2_TA_FILE \
+			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP2_CCSCORE
 	}
 
 	// POOLED_TA_FILE vs CTL_POOLED_TA_FILE
@@ -206,8 +204,8 @@ void spp_idr() {
 
 		sys $PRELOAD
 		
-
-		sys Rscript $(which $RUN_SPP) -c=$POOLED_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_POOLED_TA_FILE -npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_POOLED_CCSCORE
+		sys Rscript $(which $RUN_SPP) -c=$POOLED_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_POOLED_TA_FILE \
+			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_POOLED_CCSCORE
 	}
 
 	wait
@@ -230,9 +228,10 @@ void spp_idr() {
 		IDR_OUTPUT <- [REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE] ) { // --use-old-output-format 
 
 		sys $PRELOAD
-		
 
-		sys idr --samples $REP1_PEAK_FILE $REP1_PEAK_FILE --peak-list $POOLED_PEAK_FILE --input-file-type narrowPeak --output-file $IDR_OUTPUT --plot --idr-threshold $IDR_THRESH
+		sys idr --samples $REP1_PEAK_FILE $REP1_PEAK_FILE --peak-list $POOLED_PEAK_FILE --input-file-type narrowPeak \
+			--output-file $IDR_OUTPUT --plot --idr-threshold $IDR_THRESH
+
 		sys echo NPEAKS_IDR: $(cat $IDR_OUTPUT | wc -l)
 	}
 
@@ -280,8 +279,7 @@ void align_bwa( int ctl, int rep ) {
 			task( taskName := "bwa aln PE1", cpus := NTHREADS_BWA, timeout := WALLTIME, mem := MEMORY, \
 				SAI_FILE_1 <- FASTQ_FILE_1 ) {
 
-				sys $PRELOAD
-				
+				sys $PRELOAD				
 
 				sys bwa aln $BWA_ALN_PARAM -t $NTHREADS_BWA $BWA_INDEX_NAME $FASTQ_FILE_1 > $SAI_FILE_1
 			}
@@ -289,8 +287,7 @@ void align_bwa( int ctl, int rep ) {
 			task( taskName := "bwa aln PE2", cpus := NTHREADS_BWA, timeout := WALLTIME, mem := MEMORY, \
 				SAI_FILE_2 <- FASTQ_FILE_2 ) {
 
-				sys $PRELOAD
-				
+				sys $PRELOAD				
 
 				sys bwa aln $BWA_ALN_PARAM -t $NTHREADS_BWA $BWA_INDEX_NAME $FASTQ_FILE_2 > $SAI_FILE_2
 			}
@@ -300,10 +297,10 @@ void align_bwa( int ctl, int rep ) {
 			task( taskName := "bwa sampe", cpus := NTHREADS, timeout := WALLTIME_BWA_SAMPE, mem := MEMORY, \
 				RAW_SAM_FILE <- [SAI_FILE_1, SAI_FILE_2] ) {
 
-				sys $PRELOAD
-				
+				sys $PRELOAD				
 
-				sys bwa sampe $BWA_INDEX_NAME $SAI_FILE_1 $SAI_FILE_2 $FASTQ_FILE_1 $FASTQ_FILE_2 | $GZIP -c > $RAW_SAM_FILE
+				sys bwa sampe $BWA_INDEX_NAME $SAI_FILE_1 $SAI_FILE_2 $FASTQ_FILE_1 $FASTQ_FILE_2 | \
+					$GZIP -c > $RAW_SAM_FILE
 			}
 
 			wait
@@ -319,10 +316,15 @@ void align_bwa( int ctl, int rep ) {
 				
 			 
 				//# Find bad CIGAR read names                                                                                                                                                  
-				sys	zcat $RAW_SAM_FILE | awk 'BEGIN {FS="\t" ; OFS="\t"} ! /^@/ && $6!="*" { cigar=$6; gsub("[0-9]+D","",cigar); n = split(cigar,vals,"[A-Z]"); s = 0; for (i=1;i<=n;i++) s=s+vals[i]; seqlen=length($10) ; if (s!=seqlen) print $1"t"; }' | sort | uniq > $BADCIGAR_FILE
+				sys	zcat $RAW_SAM_FILE | \
+					awk 'BEGIN {FS="\t" ; OFS="\t"} ! /^@/ && $6!="*" { cigar=$6; gsub("[0-9]+D","",cigar); n = split(cigar,vals,"[A-Z]"); s = 0; for (i=1;i<=n;i++) s=s+vals[i]; seqlen=length($10) ; if (s!=seqlen) print $1"t"; }' | sort | uniq > $BADCIGAR_FILE
 
 				//# Remove bad CIGAR read pairs
-				sys if [ $(cat $BADCIGAR_FILE | wc -l) -gt 0 ]; then zcat $RAW_SAM_FILE | grep -v -F -f $BADCIGAR_FILE | samtools view -Su - | samtools sort - $RAW_BAM_PREFIX; else samtools view -Su $RAW_SAM_FILE | samtools sort - $RAW_BAM_PREFIX; fi
+				sys if [ $(cat $BADCIGAR_FILE | wc -l) -gt 0 ]; then \
+						zcat $RAW_SAM_FILE | grep -v -F -f $BADCIGAR_FILE | samtools view -Su - | samtools sort - $RAW_BAM_PREFIX; \
+					else \
+						samtools view -Su $RAW_SAM_FILE | samtools sort - $RAW_BAM_PREFIX; \
+					fi
 
 				sys samtools flagstat $RAW_BAM_FILE > $RAW_BAM_FILE_MAPSTATS
 				sys rm -f $BADCIGAR_FILE $RAW_SAM_FILE
@@ -352,8 +354,6 @@ void align_bwa( int ctl, int rep ) {
 
 				sys $PRELOAD
 				
-				//sys module add bwa/0.7.7;
-
 				sys bwa aln -q 5 -l 32 -k 2 -t $NTHREADS_BWA $BWA_INDEX_NAME $FASTQ_FILE_1 > $SAI_FILE_1
 			}
 
@@ -363,9 +363,9 @@ void align_bwa( int ctl, int rep ) {
 				RAW_BAM_FILE <- SAI_FILE_1 ) {
 
 				sys $PRELOAD
-				
 
-				sys bwa samse $BWA_INDEX_NAME $SAI_FILE_1 $FASTQ_FILE_1 | samtools view -Su - | samtools sort - $RAW_BAM_PREFIX
+				sys bwa samse $BWA_INDEX_NAME $SAI_FILE_1 $FASTQ_FILE_1 | \
+					samtools view -Su - | samtools sort - $RAW_BAM_PREFIX
 			}
 
 			wait
@@ -434,10 +434,10 @@ void post_align_filt( int ctl, int rep ) {
 			task( taskName := "rm unmapped reads", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 				TMP_FILT_BAM_FILE <- RAW_BAM_FILE ) {
 
-				sys $PRELOAD
-				
+				sys $PRELOAD				
 
-				sys samtools view -F 1804 -f 2 -q $MAPQ_THRESH -u $RAW_BAM_FILE | samtools sort -n - $TMP_FILT_BAM_PREFIX //# Will produce name sorted BAM
+				sys samtools view -F 1804 -f 2 -q $MAPQ_THRESH -u $RAW_BAM_FILE | \
+					samtools sort -n - $TMP_FILT_BAM_PREFIX       # Will produce name sorted BAM
 			}
 
 			wait 
@@ -449,13 +449,14 @@ void post_align_filt( int ctl, int rep ) {
 				//# and read pairs mapping to different chromosomes
 				//# Obtain position sorted BAM			
 
-				sys $PRELOAD
-				
+				sys $PRELOAD				
 
-				//sys samtools fixmate -r $TMP_FILT_BAM_FILE | samtools view -F 1804 -f 2 -u - | samtools sort - $FILT_BAM_PREFIX //# Will produce coordinate sorted BAM				
-				sys samtools fixmate -r $TMP_FILT_BAM_FILE $OFPREFIX.fixmate.tmp
-				sys samtools view -F 1804 -f 2 -u $OFPREFIX.fixmate.tmp | samtools sort - $FILT_BAM_PREFIX //# Will produce coordinate sorted BAM
-				sys rm $OFPREFIX.fixmate.tmp
+				sys samtools fixmate -r $TMP_FILT_BAM_FILE | \
+					samtools view -F 1804 -f 2 -u - | \
+					samtools sort - $FILT_BAM_PREFIX       # Will produce coordinate sorted BAM				
+				//sys samtools fixmate -r $TMP_FILT_BAM_FILE $OFPREFIX.fixmate.tmp
+				//sys samtools view -F 1804 -f 2 -u $OFPREFIX.fixmate.tmp | samtools sort - $FILT_BAM_PREFIX  # Will produce coordinate sorted BAM
+				//sys rm $OFPREFIX.fixmate.tmp
 			}
 
 			wait
@@ -465,12 +466,14 @@ void post_align_filt( int ctl, int rep ) {
 
 				sys $PRELOAD
 				
-
 				//# =============
 				//# Mark duplicates
 				//# =============
 
-				sys java -Xmx4G -jar $MARKDUP INPUT=$FILT_BAM_FILE OUTPUT=$TMP_FILT_BAM_FILE2 METRICS_FILE=$DUP_FILE_QC VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false
+				sys java -Xmx4G -jar ${PICARDROOT}/MarkDuplicates.jar \
+					INPUT=$FILT_BAM_FILE OUTPUT=$TMP_FILT_BAM_FILE2 \
+					METRICS_FILE=$DUP_FILE_QC VALIDATION_STRINGENCY=LENIENT \
+					ASSUME_SORTED=true REMOVE_DUPLICATES=false
 				//sys mv $TMP_FILT_BAM_FILE2 $FILT_BAM_FILE
 
 				//# ============================
@@ -491,7 +494,6 @@ void post_align_filt( int ctl, int rep ) {
 
 				sys $PRELOAD
 				
-
 				sys samtools sort -n $FINAL_BAM_FILE $FINAL_NMSRT_BAM_PREFIX
 			}
 
@@ -500,8 +502,7 @@ void post_align_filt( int ctl, int rep ) {
 
 				//# Index Final BAM file
 
-				sys $PRELOAD
-				
+				sys $PRELOAD				
 
 				sys samtools index $FINAL_BAM_FILE $FINAL_BAM_INDEX_FILE
 				sys samtools flagstat $FINAL_BAM_FILE > $FINAL_BAM_FILE_MAPSTATS
@@ -523,10 +524,15 @@ void post_align_filt( int ctl, int rep ) {
 			
 				//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
 
-				//sys samtools sort -n $FILT_BAM_FILE | bamToBed -bedpe -i stdin | awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | grep -v 'chrM' | sort | uniq -c | awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
-				sys samtools sort -n $FILT_BAM_FILE $OFPREFIX.srt.tmp
-				sys bamToBed -bedpe -i $OFPREFIX.srt.tmp.bam | awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | grep -v 'chrM' | sort | uniq -c | awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
-				sys rm $OFPREFIX.srt.tmp.bam
+				sys samtools sort -n $FILT_BAM_FILE | \
+					bamToBed -bedpe -i stdin | \
+					awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
+					grep -v 'chrM' | sort | uniq -c | \
+					awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
+				
+				//sys samtools sort -n $FILT_BAM_FILE $OFPREFIX.srt.tmp
+				//sys bamToBed -bedpe -i $OFPREFIX.srt.tmp.bam | awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | grep -v 'chrM' | sort | uniq -c | awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
+				//sys rm $OFPREFIX.srt.tmp.bam
 				
 				sys rm -f $FILT_BAM_FILE
 				sys rm -f $TMP_FILT_BAM_FILE
@@ -565,7 +571,6 @@ void post_align_filt( int ctl, int rep ) {
 
 				sys $PRELOAD
 				
-
 				sys samtools view -F 1804 -q $MAPQ_THRESH -b $RAW_BAM_FILE > $FILT_BAM_FILE
 			}
 
@@ -576,12 +581,14 @@ void post_align_filt( int ctl, int rep ) {
 
 				sys $PRELOAD
 				
-
 				//# ========================
 				//# Mark duplicates
 				//# ======================
 
-				sys java -Xmx4G -jar $MARKDUP INPUT=$FILT_BAM_FILE OUTPUT=$TMP_FILT_BAM_FILE METRICS_FILE=$DUP_FILE_QC VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false
+				sys java -Xmx4G -jar ${PICARDROOT}/MarkDuplicates.jar \
+					INPUT=$FILT_BAM_FILE OUTPUT=$TMP_FILT_BAM_FILE \
+					METRICS_FILE=$DUP_FILE_QC VALIDATION_STRINGENCY=LENIENT \
+					ASSUME_SORTED=true REMOVE_DUPLICATES=false
 				//sys mv $TMP_FILT_BAM_FILE $FILT_BAM_FILE
 
 				//# ============================
@@ -600,7 +607,6 @@ void post_align_filt( int ctl, int rep ) {
 
 				sys $PRELOAD
 				
-
 				//# Index Final BAM file
 				sys samtools index $FINAL_BAM_FILE $FINAL_BAM_INDEX_FILE
 				sys samtools flagstat $FINAL_BAM_FILE > $FINAL_BAM_FILE_MAPSTATS
@@ -609,8 +615,7 @@ void post_align_filt( int ctl, int rep ) {
 			task( taskName := "QC final bam", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 				PBC_FILE_QC <- FILT_BAM_FILE ) {
 
-				sys $PRELOAD
-				
+				sys $PRELOAD				
 
 				//# =============================
 				//# Compute library complexity
@@ -622,7 +627,10 @@ void post_align_filt( int ctl, int rep ) {
 				//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
 
 				// bedtools bamtobed -> bamToBed
-				sys bamToBed -i $FILT_BAM_FILE | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$6}' | grep -v 'chrM' | sort | uniq -c | awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
+				sys bamToBed -i $FILT_BAM_FILE | \
+					awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$6}' | \
+					grep -v 'chrM' | sort | uniq -c | \
+					awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
 				sys rm -r $FILT_BAM_FILE
 			}
 
@@ -664,7 +672,6 @@ void bam_to_tagalign( int ctl, int rep ) {
 
 			sys $PRELOAD
 			
-
 			sys bamToBed -i $FINAL_BAM_FILE | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | $GZIP -c > $FINAL_TA_FILE			
 		}
 
@@ -673,7 +680,6 @@ void bam_to_tagalign( int ctl, int rep ) {
 
 			sys $PRELOAD
 			
-
 			//# ================
 			//# Create BEDPE file
 			//# ================
@@ -685,7 +691,9 @@ void bam_to_tagalign( int ctl, int rep ) {
 			//# Restrict to one read end per pair for CC analysis
 			//# ================================
 
-			sys zcat $FINAL_BEDPE_FILE | grep -v "chrM" | shuf -n $NREADS | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | $GZIP -c > $SUBSAMPLED_TA_FILE
+			sys zcat $FINAL_BEDPE_FILE | \
+				grep -v "chrM" | shuf -n $NREADS | \
+				awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | $GZIP -c > $SUBSAMPLED_TA_FILE
 		}
 
 		wait
@@ -705,8 +713,7 @@ void bam_to_tagalign( int ctl, int rep ) {
 			[FINAL_TA_FILE, SUBSAMPLED_TA_FILE] <- FINAL_BAM_FILE ) { 
 
 			sys $PRELOAD
-			
-
+		
 			//# ===================
 			//# Create tagAlign file
 			//# ===================
@@ -714,12 +721,14 @@ void bam_to_tagalign( int ctl, int rep ) {
 			//# Create SE tagAlign file
 
 			// bedtools bamtobed -> bamToBed
-			sys bamToBed -i $FINAL_BAM_FILE | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | $GZIP -c > $FINAL_TA_FILE
+			sys bamToBed -i $FINAL_BAM_FILE | \
+				awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | $GZIP -c > $FINAL_TA_FILE
 
 			//# =================================
 			//# Subsample tagAlign file
 			//# ================================
-			sys zcat $FINAL_TA_FILE | grep -v "chrM" | shuf -n $NREADS | $GZIP -c > $SUBSAMPLED_TA_FILE
+			sys zcat $FINAL_TA_FILE | \
+				grep -v "chrM" | shuf -n $NREADS | $GZIP -c > $SUBSAMPLED_TA_FILE
 		}
 
 		wait
@@ -773,10 +782,10 @@ void create_sig_trk( int ctl, int rep ) {
 			task( taskName := "make wig", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 				WIG_FILE <- FINAL_TA_FILE ) {
 
-			sys $PRELOAD
-			
+			sys $PRELOAD			
 
-			sys align2rawsignal -i=$FINAL_TA_FILE -o=$WIG_FILE -s=$SEQ_DIR -u=$UMAP_DIR -of=w -l=$FRAGLEN -mm=4
+			sys align2rawsignal -i=$FINAL_TA_FILE -o=$WIG_FILE \
+				-s=$SEQ_DIR -u=$UMAP_DIR -of=w -l=$FRAGLEN -mm=4
 		}
 	}
 
@@ -786,8 +795,8 @@ void create_sig_trk( int ctl, int rep ) {
 
 			sys $PRELOAD
 			
-
-			sys align2rawsignal -i=$FINAL_TA_FILE -o=$BEDGRAPH_FILE -s=$SEQ_DIR -u=$UMAP_DIR -of=bg -l=$FRAGLEN -mm=4
+			sys align2rawsignal -i=$FINAL_TA_FILE -o=$BEDGRAPH_FILE \
+				-s=$SEQ_DIR -u=$UMAP_DIR -of=bg -l=$FRAGLEN -mm=4
 		}
 
 		wait
@@ -807,7 +816,6 @@ void create_sig_trk( int ctl, int rep ) {
 
 					sys $PRELOAD
 					
-
 					sys bedGraphToBigWig $SORTED_BG_FILE $CHROM_SIZES $BIGWIG_FILE
 					sys rm -f SORTED_BG_FILE
 				}
@@ -842,13 +850,13 @@ void xcor( int ctl, int rep ) {
 			[CC_SCORES_FILE, CC_PLOT_FILE] <- SUBSAMPLED_TA_FILE ) {
 
 			sys $PRELOAD
-			
 
 			//# CCSCORE FILE format
 			//# Filename <tab> numReads <tab> estFragLen <tab> correstFragLen <tab> PhantomPeak <tab> corrphantomPeak <tab> argmincorr <tab> mincorr <tab> phantomPeakCoef <tab> relPhantomPeakCoef <tab> QualityTag
-
-			//sys $R_SCRIPT $(which run_spp.R) -c=$SUBSAMPLED_TA_FILE -p=$NTHREADS_RUN_SPP -filtchr=chrM -savp=$CC_PLOT_FILE -out=$CC_SCORES_FILE
-			sys Rscript $(which $RUN_SPP) -c=$SUBSAMPLED_TA_FILE -p=$NTHREADS_RUN_SPP -filtchr=chrM -savp=$CC_PLOT_FILE -out=$CC_SCORES_FILE
+			
+			sys Rscript $(which $RUN_SPP) \
+				-c=$SUBSAMPLED_TA_FILE -p=$NTHREADS_RUN_SPP \
+				-filtchr=chrM -savp=$CC_PLOT_FILE -out=$CC_SCORES_FILE
 			sys sed -r 's/,[^\t]+//g' $CC_SCORES_FILE > $OFPREFIX.tmp2
 			sys mv $OFPREFIX.tmp2 $CC_SCORES_FILE
 		}
@@ -888,9 +896,11 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 			sys nlines=$( zcat $FINAL_BEDPE_FILE | wc -l ); nlines=$(( (nlines + 1) / 2 )); zcat $FINAL_BEDPE_FILE | shuf | split -d -l $((nlines)) - $PR_PREFIX. 
 
 			//# Convert read pairs to reads into standard tagAlign file
-			sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$PR_PREFIX.00" | $GZIP -c > $PR1_TA_FILE
+			sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$PR_PREFIX.00" | \
+				$GZIP -c > $PR1_TA_FILE
 			sys rm -f $PR_PREFIX.00
-			sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$PR_PREFIX.01" | $GZIP -c > $PR2_TA_FILE
+			sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$PR_PREFIX.01" | \
+				$GZIP -c > $PR2_TA_FILE
 			sys rm -f $PR_PREFIX.01
 		}
 

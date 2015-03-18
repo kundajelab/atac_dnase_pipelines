@@ -1,0 +1,49 @@
+///////////// general ////////////////////////////////////////////////
+PREFIX= AC49GLACXX
+OUTPUT_DIR= out
+TMP_DIR= /srv/gsfs0/scratch/leepc12
+USE_BGZIP= false 	// to index BED type files for visualization in genome browser
+
+///////////// cluster default ///////////////////////////////////////
+WALLTIME= 18000 	// in seconds
+NTHREADS= 1 
+MEMORY= 2000000000 // in bytes (sorry...)
+
+//////////// software version and environment variables /////////////////////
+// All MODULE_* and EXPORT_* will be concatenated to PRELOAD 
+// Environment variables defined here will be passed to qsub for all cluster jobs
+// You can freely name suffix for keys like MODULE_* and EXPORT_*
+// IMPORTANT!!!!!!! For EXPORT_*, variable in RHS of (=) should be wrapped by curved brackets ${}
+
+MODULE_BOWTIE= bowtie/2.2.4
+MODULE_SAMTOOLS= samtools/0.1.19      // 1.2 for align?
+MODULE_BEDTOOLS= bedtools/2.19.1
+MODULE_PICARD= picard-tools/1.92
+MODULE_JAVA= java/latest
+
+EXPORT_JAVA= export _JAVA_OPTIONS="-Xms256M -Xmx512M -XX:ParallelGCThreads=2"; export MAX_JAVA_MEM="2G"; export MALLOC_ARENA_MAX=4
+EXPORT_KENT= export PATH="${PATH}:/srv/gsfs0/projects/kundaje/users/akundaje/projects/encode/code/kentutils"
+
+//////// trimAdapters ////////
+
+//////// alignATAC ///////////
+BOWTIE_IDX= /srv/gsfs0/projects/kundaje/users/oursu/LongRangeInteractionPrediction/results/2014-11-21/HiC_iterativeCorrection/alignment/bowtie2/ENCODEHg19_male
+NTHREADS_BWT2= 4
+MEMORY_BWT2= 2000000000
+STACK_BWT2= 10000000
+MOD_ADD_SAMTOOLS_BWT2= module add samtools/1.2
+
+///////// alignPostprocessPE /////////////////////
+MARKDUP= /srv/gs1/software/picard-tools/1.92/MarkDuplicates.jar
+MAPQ_THRESH= 30
+
+//////// alignPostprocessATAC ////////////
+
+//////// callATACpeaks ////////
+GENOMESIZE= hs
+CHROMESIZE= /srv/gsfs0/projects/kundaje/users/csfoo/genomes/hg19/hg19.ucsc.genome
+FRAGLEN= 75
+
+///////// fastqs
+INPUT_FASTQ_REP1= /srv/gsfs0/projects/seq_center/Illumina/PublishedResults/2014/jun/140613_LYNLEY_0430_AC49GLACXX/L4/140613_LYNLEY_0430_AC49GLACXX_L4_GGACTCCT_1_pf.fastq.gz
+INPUT_FASTQ_REP2= /srv/gsfs0/projects/seq_center/Illumina/PublishedResults/2014/jun/140613_LYNLEY_0430_AC49GLACXX/L4/140613_LYNLEY_0430_AC49GLACXX_L4_GGACTCCT_2_pf.fastq.gz
