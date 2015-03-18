@@ -819,6 +819,8 @@ void create_sig_trk( int ctl, int rep ) {
 				task( taskName := "sort bedgraph", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 					SORTED_BG_FILE <- BEDGRAPH_FILE ) {
 
+					sys $PRELOAD
+
 					sys sort -k1,1 -k2,2n $BEDGRAPH_FILE > $SORTED_BG_FILE
 				}
 
