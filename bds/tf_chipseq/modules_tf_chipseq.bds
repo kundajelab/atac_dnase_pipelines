@@ -97,7 +97,15 @@ void read_conf_tf_chipseq( string conf_file ) {
 		for ( string s : fastqs_Rep2 ) print("\t$s\n")
 		
 		if ( fastqs_Rep1.size() == 0 ) error( "error(read_conf): " + prefix + "Rep1 fastqs missing!\n")
-		if ( fastqs_Rep2.size() == 0 ) error( "error(read_conf): " + prefix + "Rep2 fastqs missing!\n")
+
+		if ( fastqs_Rep2.size() == 0 ) {
+			if ( ctl==0 ) {
+				error( "error(read_conf): " + prefix + "Rep2 fastqs missing!\n")
+			}
+			else {
+				print( "warning(read_conf): " + prefix + "Rep2 fastqs missing for control! keep going...\n")
+			}
+		}
 	}
 
 }
@@ -747,6 +755,11 @@ void create_sig_trk( int ctl, int rep ) {
 
 	OFPREFIX := get_ofprefix( ctl, rep )
 	fastqs := get_fastqs( conf, ctl, rep )
+
+	if ( fastqs.size() == 0 ) {
+		print("warning(create_sig_trk): no input for ctl $ctl, rep $rep\n")		
+		return
+	}
 
 	FRAGLEN := get_fraglen( ctl, rep ) // get it from rep1
 	print("FRAGLEN for signal track: $FRAGLEN \n")

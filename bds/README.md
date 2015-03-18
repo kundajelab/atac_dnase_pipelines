@@ -52,14 +52,15 @@ The above lines in the configuration file will execute the following:
 export PATH="${PATH}:/usr/bin/example"; TEST_PATH="/usr/lib/example"; export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${TEST_PATH}"; CUST_VAR=200
 ```
 
+
 IMPORTANT!! There is a bug in BDS code. YOU NEED TO COVER ANY ENVIRONMENT VARS IN RHS WITH CURLY BRACKETS ${} !!!!!
 
 
 ### Usage 
 
-Firstly, copy bds cluster settings (./bds.config.scg3) in $PIPELINE_DIR to BDS directory. 
+Firstly, copy bds cluster settings (./bds.config.scg3) in $BDS_PIPELINE_DIR to BDS installation directory. 
 ```
-cp $PIPELINE_DIR/bds.config.scg3 $HOME/.bds/bds.config
+cp $BDS_PIPELINE_DIR/bds.config.scg3 $HOME/.bds/bds.config
 vi $HOME/.bds/bds.config
 ```
 

@@ -152,7 +152,7 @@ void main() {
 
 	PBC_FILE_QC := "$FINAL_BAM_PREFIX.pbc.qc"
 
-	task( taskName := "alignATAC", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
+	task( taskName := "alignPostprocessPE", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 		 FINAL_BAM_FILE <- RAW_BAM_FILE ) {
 
 		sys $PRELOAD
