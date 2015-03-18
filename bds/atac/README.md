@@ -1,8 +1,6 @@
 ATAC Seq Pipeline
 ===
 
-ATAC Seq pipeline is based on https://docs.google.com/document/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit#.
-
 Dependencies: BigDataScript (BDS)
 
 
@@ -118,7 +116,7 @@ If you run BDS script with -dryRun, it does not actually run the job, it compile
 bds -dryRun -s sge $PIPELINE_DIR/atac.bds
 ```
 
-For advanced users, both $BDS_CONFIG and $CONF_FILE (chipseq configuration file) can be specified like the following. Make sure you don't change the order of arguments.
+For advanced users, both $BDS_CONFIG and $CONF_FILE (atac seq configuration file) can be specified like the following. Make sure you don't change the order of arguments.
 
 ```
 bds -c $BDS_CONFIG -dryRun -s sge $PIPELINE_DIR/atac.bds -c $CONF_FILE
