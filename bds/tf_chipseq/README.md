@@ -228,7 +228,14 @@ $HOME/usr/local/bin/python3.4 setup.py install --prefix=$HOME/local/
 
 ### Local installation instruction for Wiggler
 
+
 <a href="https://code.google.com/p/align2rawsignal/">https://code.google.com/p/align2rawsignal/</a>
+
+```
+cd $HOME
+wget https://align2rawsignal.googlecode.com/files/align2rawsignal.2.0.tgz
+tar zxvf align2rawsignal.2.0.tgz
+```
 
 Download MCR2010b.bin and install .
 
@@ -253,6 +260,11 @@ LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}
 XAPPLRESDIR=${MCRROOT}/X11/app-defaults
 export LD_LIBRARY_PATH
 export XAPPLRESDIR
+
+```
+
+```
+export PATH=${PATH}:$HOME/align2rawsignal/bin
 
 ```
 

@@ -1,14 +1,14 @@
-TF ChIP-Seq Pipeline
+ATAC Seq Pipeline
 ===
 
-TF ChIP-Seq pipeline is based on https://docs.google.com/document/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit#.
+ATAC Seq pipeline is based on https://docs.google.com/document/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit#.
 
 Dependencies: BigDataScript (BDS)
 
 
 ### Configuration file
 
-Modify $CONF_FILE (by default: conf_tf_chipseq.txt) to have your own settings.
+Modify $CONF_FILE (by default: conf_atac.txt) to have your own settings.
 
 ```
 * PREFIX 			: Prefix for all output files
@@ -20,29 +20,20 @@ Modify $CONF_FILE (by default: conf_tf_chipseq.txt) to have your own settings.
 * NTHREADS 			: default # of threads for all jobs
 * MEMORY			: default max. memory for all jobs (in bytes)
 
-* PRE_IDR 			: Set it true if you just want to compute QC score and stop before peak calling (default: false)
-* NUM_REP			: # of replicates you want to test (default:2)
+* TRIM_ADAPTERS 	: Path for trimAdapters.py
 
-* NTHREADS_BWA 		: # of threads for bwa aligment
-* BWA_INDEX_NAME	: Prefix of bwa index files (eg. if you have bwa index files including hg19_Male.bwt, BWA_INDEX_NAME=hg19_Male)
-* BWA_PARAM			: Parameters for bwa alignment (default: -q 5 -l 32 -k 2)
+* BOWTIE_IDX		: Path (prefix) of bowtie2 index files
+* NTHREADS_BWT2		: # of threads for bwt2
+* MEMORY_BWT2		: Max. memory limit for bwt2
+* STACK_BWT2		: Stack size for bwt2
 
-* MARKDUP 			: Dupe marker path
 * MAPQ_THRESH		: MAPQ_THRESH
+* JVM_OPTS			: Java VM additional options (eg. -Xmx4G)
 
-* NTHREADS_R		: # of threads for peak calling (spp)
-* DUPE_REMOVED		: If true, use run_spp.nodups.R instead of run_spp.R
-* NREADS 			: NREADS (default: 15000000)
-* NPEAK 			: -npeak NPEAK in run_spp.R (default: 300000)
+* ADJUST_BED_TN5	: Path for adjustBedTN5.sh
 
-* IDR_THRESH	 	: Threshold for IDR (default=0.02)
-
-* CREATE_WIG  		: Create wig file from .tagAlign.gz
-* CREATE_BEDGRAPH 	: Create bedGraph file from .tagAlign.gz
-* CONVERT_TO_BIGWIG : Convert bedGraph to bigwig
-* CHROM_SIZES 		: Location of chrom.sizes file for your .fa
-* UMAP_DIR 			: Location of umap (for hg19, globalmap_k20tok54)
-* SEQ_DIR 			: Location of sequence .fa files (for hg19, chr?.fa)
+* genomeSize  		: hs by default
+* chrSize 	 		: Location of chrom.sizes file for your .fa
 
 * MODULE_* 			: Freely name suffix and specify RHS, then BDS will run "module add RHS"
 * EXPORT_* 			: Freely name suffix and specify RHS, then BDS will add env. variable to bash shell
@@ -85,7 +76,7 @@ IMPORTANT!! There is a bug in BDS code. YOU NEED TO WRAP ANY ENVIRONMENT VARS IN
 
 ### Usage 
 
-Firstly, copy bds cluster settings (bds.config.scg3) in $PIPELINE_DIR (path for tf_chipseq.bds) to BDS directory. 
+Firstly, copy bds cluster settings (bds.config.scg3) in $PIPELINE_DIR (path for atac.bds) to BDS directory. 
 ```
 cp $PIPELINE_DIR/bds.config.scg3 $HOME/.bds/bds.config
 vi $HOME/.bds/bds.config
@@ -108,30 +99,36 @@ If you want to locally run jobs on your machine with both configuration files no
 
 ```
 cd $WORK_DIR
-bds $PIPELINE_DIR/tf_chipseq.bds
+bds $PIPELINE_DIR/atac.bds
 ```
 
-You can specify your own configuration file (conf_tf_chipseq.txt by default) with -c.
+You can specify your own configuration file (conf_atac.txt by default) with -c.
 
 ```
-bds $PIPELINE_DIR/tf_chipseq.bds -c $CONF_FILE
+bds $PIPELINE_DIR/atac.bds -c $CONF_FILE
 ```
 
 If you want to run your jobs on scg3 cluster, use -s sge.
 ```
-bds -s sge $PIPELINE_DIR/tf_chipseq.bds
+bds -s sge $PIPELINE_DIR/atac.bds
 ```
 
 If you run BDS script with -dryRun, it does not actually run the job, it compiles the script and list jobs to be executed.
 ```
-bds -dryRun -s sge $PIPELINE_DIR/tf_chipseq.bds
+bds -dryRun -s sge $PIPELINE_DIR/atac.bds
 ```
 
 For advanced users, both $BDS_CONFIG and $CONF_FILE (chipseq configuration file) can be specified like the following. Make sure you don't change the order of arguments.
 
 ```
-bds -c $BDS_CONFIG -dryRun -s sge $PIPELINE_DIR/tf_chipseq.bds -c $CONF_FILE
+bds -c $BDS_CONFIG -dryRun -s sge $PIPELINE_DIR/atac.bds -c $CONF_FILE
 ```
+
+For debugging, BDS does not remove temporary bash scripts with parameter -l, -d for debugging info.
+```
+bds -l -d -s sge $PIPELINE_DIR/atac.bds
+```
+
 
 ### Installation insctruction for BigDataScript (BDS)
 
@@ -148,81 +145,15 @@ BDS is installed at $HOME/.bds/. You should add it to your PATH. Edit your $HOME
 export PATH=$PATH:$HOME/.bds/
 ```
 
-### Local installation instruction for R-2.15.1
-
-```
-cd $HOME
-wget http://cran.r-project.org/src/base/R-2/R-2.15.1.tar.gz
-tar zxvf R-2.15.1.tar.gz
-cd R-2.15.1
-./configure --prefix=$HOME/R --with-readline=no --with-x=no --enable-R-static-lib
-make
-make install
-cd ..
-wget http://compbio.med.harvard.edu/Supplements/ChIP-seq/spp_1.10.tar.gz
-$HOME/R/bin/R
-	install.packages("snow")
-	install.packages("snowfall")
-	install.packages("bitops")
-	install.packages("caTools")
-q()
-mkdir $HOME/RLib
-$HOME/R/bin/R CMD INSTALL -l ~/RLib spp_1.10.tar.gz
-```
-Add the following line to your $HOME/.bashrc and to your configuration file.
-```
-export R_LIBS=${HOME}/RLib
-```
-
-### Local installation instruction for SPP (run_spp.R: Anshul's phantompeakqualtool)
-```
-cd $HOME
-wget https://phantompeakqualtools.googlecode.com/files/ccQualityControl.v.1.1.tar.gz
-tar zxvf ccQualityControl.v.1.1.tar.gz
-```
-Make sure that you change mod for *.R in SPP to allow linux which finds them
-```
-chmod 755 phantompeakqualtools/*
-```
-Add the following line to your $HOME/.bashrc and to your configuration file.
-```
-export PATH=${PATH}:${HOME}/phantompeakqualtools
-```
-
-### Local installation instruction for Python3 and packages
-```
-cd $HOME
-
-echo Python3
-wget https://www.python.org/ftp/python/3.4.3/Python-3.4.3.tgz
-tar zxvf Python-3.4.3.tgz
-cd Python-3.4.3
-./configure --prefix=$HOME/usr/local
-make altinstall prefix=$HOME/usr/local exec-prefix=$HOME/usr/local
-
-echo Cython 
-wget http://cython.org/release/Cython-0.22.tar.gz
-cd Cython-0.22
-$HOME/usr/local/bin/python3.4 setup.py install --prefix=$HOME/local/
-
-echo Packages
-cd $HOME
-$HOME/usr/local/bin/pip3.4 install --install-option="--prefix=$HOME/local" numpy
-$HOME/usr/local/bin/pip3.4 install --install-option="--prefix=$HOME/local" matplotlib
-```
-
-### Local installation instruction for IDR
-
-```
-cd $HOME
-git clone --recursive https://github.com/nboley/idr.git
-cd idr
-$HOME/usr/local/bin/python3.4 setup.py install --prefix=$HOME/local/
-```
-
 ### Local installation instruction for Wiggler
 
 <a href="https://code.google.com/p/align2rawsignal/">https://code.google.com/p/align2rawsignal/</a>
+
+```
+cd $HOME
+wget https://align2rawsignal.googlecode.com/files/align2rawsignal.2.0.tgz
+tar zxvf align2rawsignal.2.0.tgz
+```
 
 Download MCR2010b.bin and install .
 
@@ -247,6 +178,11 @@ LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}
 XAPPLRESDIR=${MCRROOT}/X11/app-defaults
 export LD_LIBRARY_PATH
 export XAPPLRESDIR
+
+```
+
+```
+export PATH=${PATH}:$HOME/align2rawsignal/bin
 
 ```
 
