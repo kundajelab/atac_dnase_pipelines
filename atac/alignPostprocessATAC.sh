@@ -12,9 +12,15 @@ set -o pipefail
 set -o errexit
 
 if hash module 2>/dev/null; then
-   module add bedtools/2.19.1
-   module add picard-tools/1.92
-   module add samtools/0.1.19
+   module add samtools/1.2
+   if [ -n "$CLUSTER_IS_PBS" ]; then
+      module add picard-tools/1.128
+      module add bedtools/2.22.1
+      module add R/3.1.2
+   else
+      module add picard-tools/1.129
+      module add bedtools/2.21.0
+   fi
 fi
 
 if [ -n "$1" ]; then
@@ -54,12 +60,7 @@ bamToBed -i "${nonMitoBAM}" | \
     adjustBedTn5.sh | \
     gzip -c > "${output_file}"
 
-if hash picard 2>/dev/null; then
-   PICARD_CMD="picard CollectInsertSizeMetrics"
-else
-   insertSizeMetrics="${PICARDROOT}/CollectInsertSizeMetrics.jar"
-   PICARD_CMD="java -Xmx4G -jar ${insertSizeMetrics}"
-fi
-$PICARD_CMD \
+JVM_OPTS="-Xmx4G"
+java $JVM_OPTS -jar ${PICARDROOT}/picard.jar CollectInsertSizeMetrics \
    INPUT="${nonMitoBAM}" OUTPUT="${nonMitoBAM}".hist_data.log \
    H="${nonMitoBAM}".hist_graph.pdf W=1000 STOP_AFTER=5000000
