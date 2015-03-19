@@ -3,6 +3,7 @@ sge.mem = h_vmem
 sge.timeout = h_rt
 taskShell = /bin/bash -e
 sysShell = /bin/bash -e -c
+#pidRegex = "Your job (\d+)"
 pidRegex = "Your job (\\S+)"
 
 # Do not use -V (pass all env. vars to qsub jobs)

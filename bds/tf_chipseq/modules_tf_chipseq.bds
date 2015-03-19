@@ -148,7 +148,8 @@ void spp_idr() {
 	suffix_PSR_SE 	:= ".filt.nodup.SE"
 	suffix_PSR 		:= fastqs_Rep1.size()==2 ? suffix_PSR_PE : suffix_PSR_SE
 
-	DATASET_PREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL0"
+	DATASET_PREFIX := get_ofprefix( 0 )
+	
 	REP1_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix
 	REP2_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix
 	POOLED_TA_FILE :="$DATASET_PREFIX"+"_Rep0.tagAlign.gz"
@@ -168,7 +169,8 @@ void spp_idr() {
 	ctl_suffix_PSR_SE 	:= ".filt.nodup.SE"
 	ctl_suffix_PSR 		:= ctl_fastqs_Rep1.size()==2 ? ctl_suffix_PSR_PE : ctl_suffix_PSR_SE
 
-	CTL_DATASET_PREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL1"
+	CTL_DATASET_PREFIX := get_ofprefix( 1 )
+
 	CTL_REP1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix
 	CTL_REP2_TA_FILE := ctl_fastqs_Rep2.size()>0 ? "$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix : CTL_REP1_TA_FILE
 	CTL_POOLED_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep0.tagAlign.gz"
@@ -218,15 +220,26 @@ void spp_idr() {
 
 	wait
 
-
 	// IDR
 
-	REP1_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ rm_str_at_end( REP1_TA_FILE.baseName(),".gz" ) \
+
+	REP1_NPEAK_FILE_BASE	:= rm_str_at_end( REP1_TA_FILE.baseName(),".gz" ) \
 								 + "_VS_" + rm_str_at_end( CTL_REP1_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
-	REP2_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ rm_str_at_end( REP2_TA_FILE.baseName(),".gz" ) \
+	REP2_NPEAK_FILE_BASE 	:= rm_str_at_end( REP2_TA_FILE.baseName(),".gz" ) \
 								 + "_VS_" + rm_str_at_end( CTL_REP2_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
-	POOLED_PEAK_FILE:= "$PEAK_OUTPUT_DIR/"+ rm_str_at_end( POOLED_TA_FILE.baseName(),".gz" ) \
+	POOLED_NPEAK_FILE_BASE	:= rm_str_at_end( POOLED_TA_FILE.baseName(),".gz" ) \
 								 + "_VS_" + rm_str_at_end( CTL_POOLED_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
+/*
+	REP1_RPEAK_FILE_BASE 	:= rm_str_at_end( REP1_TA_FILE.baseName(),".gz" ) \
+								 + "_VS_" + rm_str_at_end( CTL_REP1_TA_FILE.baseName(),".gz" ) + ".regionPeak.gz"
+	REP2_RPEAK_FILE_BASE 	:= rm_str_at_end( REP2_TA_FILE.baseName(),".gz" ) \
+								 + "_VS_" + rm_str_at_end( CTL_REP2_TA_FILE.baseName(),".gz" ) + ".regionPeak.gz"
+	POOLED_RPEAK_FILE_BASE 	:= rm_str_at_end( POOLED_TA_FILE.baseName(),".gz" ) \
+								 + "_VS_" + rm_str_at_end( CTL_POOLED_TA_FILE.baseName(),".gz" ) + ".regionPeak.gz"
+*/
+	REP1_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP1_NPEAK_FILE_BASE
+	REP2_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP2_NPEAK_FILE_BASE
+	POOLED_PEAK_FILE:= "$PEAK_OUTPUT_DIR/"+ POOLED_NPEAK_FILE_BASE
 
 	//POOLED_COMMON_PEAKS_IDR :=  "$PEAK_OUTPUT_DIR/REP1_VS_REP2.IDR" + IDR_THRESH +".narrowPeak"
 	IDR_OUTPUT := "$PEAK_OUTPUT_DIR/REP1_VS_REP2.IDR" + IDR_THRESH +".narrowPeak"
@@ -244,7 +257,6 @@ void spp_idr() {
 	}
 
 	wait
-
 }
 
 void tasks_from_align_to_spr( int ctl, int rep ) {
@@ -972,7 +984,7 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 void pspr( int ctl ) {
 	print( "\npspr ctl:$ctl...\n" );
 
-	DATASET_PREFIX := OUTPUT_DIR + "/" + PREFIX + "_CTL" + ctl
+	DATASET_PREFIX := get_ofprefix( ctl )
 
 	fastqs_Rep1 := get_fastqs( conf, ctl, 1 )
 	fastqs_Rep2 := get_fastqs( conf, ctl, 2 ) // check if rep2 doesn't exist
@@ -1110,4 +1122,9 @@ string get_fraglen( int ctl, int rep ) { // get FRAGLEN (3rd column of cc score 
 string get_ofprefix( int ctl, int rep ) {
 	return OUTPUT_DIR + "/" + PREFIX + ( ctl>0 ? "_Ctl" : "" ) + "_Rep" + rep 
 }
+
+string get_ofprefix( int ctl ) {
+	return OUTPUT_DIR + "/" + PREFIX + ( ctl>0 ? "_Ctl" : "" )
+}
+
 

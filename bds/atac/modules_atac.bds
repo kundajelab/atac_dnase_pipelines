@@ -111,10 +111,11 @@ void main() {
 	READ1 := P1_OUT
 	READ2 := P2_OUT
 
-	OFPREFIX := OUTPUT_DIR + "/" + PREFIX
+	//OFPREFIX := OUTPUT_DIR + "/" + PREFIX
+	OFPREFIX := P1_OUT.replace(".fastq","")
 
 	outputBAM := "$OFPREFIX.bam"
-	outputLog := "$OFPREFIX.log"
+	outputLog := "$OFPREFIX.align.log"
 
 	task( taskName := "alignATAC", cpus := NTHREADS_BWT2, timeout := WALLTIME, mem := MEMORY_BWT2, \
 		 [outputBAM, outputLog] <- [READ1, READ2] ) {
@@ -167,8 +168,9 @@ void main() {
 
 		sys echo "Filter reads and sort"
 
+		//# Will produce name sorted BAM
 		sys samtools view -F 1804 -f 2 -q "$MAPQ_THRESH" -u "$RAW_BAM_FILE" | \
-			samtools sort -n - "$TMP_FILT_BAM_PREFIX" # Will produce name sorted BAM
+			samtools sort -n - "$TMP_FILT_BAM_PREFIX" 
 
 		//# Remove orphan reads (pair was removed)
 		//# and read pairs mapping to different chromosomes
@@ -176,15 +178,10 @@ void main() {
 
 		sys echo "Fix mates - orphans and cross chromosomes"
 
-		///////// REMOVED -O bam, split into two cmd lines //////////
+		//# Will produce coordinate sorted BAM
 		sys samtools fixmate -O bam -r "$TMP_FILT_BAM_FILE" - | \
 			samtools view -F 1804 -f 2 -u - | \
-			samtools sort - "$FILT_BAM_PREFIX" # Will produce coordinate sorted BAM
-
-		//sys samtools fixmate -r "$TMP_FILT_BAM_FILE" "$OFPREFIX.fixmate.tmp"
-		//sys samtools view -F 1804 -f 2 -u "$OFPREFIX.fixmate.tmp" | \
-		//	samtools sort - "$FILT_BAM_PREFIX" //# Will produce coordinate sorted BAM
-		//sys rm -f "$OFPREFIX.fixmate.tmp"
+			samtools sort - "$FILT_BAM_PREFIX" 
 
 		sys rm -f "$TMP_FILT_BAM_FILE"
 

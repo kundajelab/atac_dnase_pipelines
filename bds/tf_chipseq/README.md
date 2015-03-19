@@ -66,15 +66,8 @@ $HOME/R/bin/R
 	install.packages("bitops")
 	install.packages("caTools")
 q()
-mkdir $HOME/RLib
-$HOME/R/bin/R CMD INSTALL -l ~/RLib spp_1.10.tar.gz
 ```
-Add the following line to your $HOME/.bashrc and to your configuration file.
-```
-export R_LIBS=${HOME}/RLib
-```
-
-### Local installation instruction for SPP (run_spp.R: Anshul's phantompeakqualtool)
+Local installation for run_spp.R: Anshul's phantompeakqualtool
 ```
 cd $HOME
 wget https://phantompeakqualtools.googlecode.com/files/ccQualityControl.v.1.1.tar.gz
@@ -84,10 +77,17 @@ Make sure that you change mod for *.R in SPP to allow linux which finds them
 ```
 chmod 755 phantompeakqualtools/*
 ```
+Install spp package
+```
+mkdir $HOME/RLib
+$HOME/R/bin/R CMD INSTALL -l $HOME/RLib $HOME/phantompeakqualtools/spp_1.10.1.tar.gz
+```
 Add the following line to your $HOME/.bashrc and to your configuration file.
 ```
 export PATH=${PATH}:${HOME}/phantompeakqualtools
+export R_LIBS=${HOME}/RLib
 ```
+
 
 ### Local installation instruction for Python3 and packages
 ```
