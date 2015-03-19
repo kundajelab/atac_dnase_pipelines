@@ -1,5 +1,5 @@
 ///////////// general ////////////////////////////////////////////////
-PREFIX= ENCSR783QUL
+PREFIX= ENCSR000EEB
 OUTPUT_DIR= out
 TMP_DIR= /srv/gsfs0/scratch/leepc12
 USE_BGZIP= false 	// to index BED type files for visualization in genome browser
@@ -15,12 +15,12 @@ MEMORY= 10000000000 // in bytes (sorry...)
 // You can freely name suffix for keys like MODULE_* and EXPORT_*
 // IMPORTANT!!!!!!! For EXPORT_*, variable in RHS of (=) should be wrapped by curved brackets ${}
 
-MODULE_BIO_SW= bwa/0.7.7; samtools/0.1.19; bedtools/2.18.0; picard-tools/1.92
+MODULE_BIO_SW= bwa/0.7.7; samtools/0.1.19; bedtools/2.19.1; picard-tools/1.92
 MODULE_LANG= java/latest
 
 EXPORT_JAVA= export _JAVA_OPTIONS="-Xms256M -Xmx512M -XX:ParallelGCThreads=2"; export MAX_JAVA_MEM="2G"; export MALLOC_ARENA_MAX=4
 EXPORT_RUN_SPP= export PATH="${PATH}:${HOME}/R/bin"; export PATH="${PATH}:${HOME}/phantompeakqualtools"; export R_LIBS=${HOME}/RLib
-EXPORT_IDR= export PATH="${PATH}:${HOME}/usr/local/bin"; export PYTHONPATH="${HOME}/local/lib/python3.4/site-packages:${PYTHONPATH}"
+EXPORT_IDR= export PATH="${PATH}:${HOME}/usr/local/bin:${HOME}/local/bin"; export PYTHONPATH="${HOME}/local/lib/python3.4/site-packages:${PYTHONPATH}"
 EXPORT_KENT= export PATH="${PATH}:/srv/gsfs0/projects/kundaje/users/akundaje/projects/encode/code/kentutils"
 EXPORT_ALIGN2RAWSIGNAL= export PATH="${PATH}:/srv/gsfs0/projects/kundaje/users/akundaje/projects/encode/code/signalgeneration/align2rawsignal/trunk/bin/"
 EXPORT_WIGGLER= MCR_ROOT=${HOME}/devtools/MCR; MCRROOT=${MCR_ROOT}/v714; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRROOT}/runtime/glnxa64; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRROOT}/bin/glnxa64; MCRJRE=${MCRROOT}/sys/java/jre/glnxa64/jre/lib/amd64; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}/native_threads; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}/server; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}; XAPPLRESDIR=${MCRROOT}/X11/app-defaults; export LD_LIBRARY_PATH; export XAPPLRESDIR
@@ -56,14 +56,11 @@ UMAP_DIR= /srv/gsfs0/projects/kundaje/users/jinlee/data/umap/encodeHg19Male/glob
 SEQ_DIR= /srv/gsfs0/projects/kundaje/commonRepository/genomes/encodeHg19Male
 
 ///////// fastqs
-INPUT_FASTQ_REP1_PE1= /srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR783QUL/1.1_PE/ENCFF981KMI.fastq.gz 
-INPUT_FASTQ_REP1_PE2= /srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR783QUL/1.1_PE/ENCFF155EFV.fastq.gz 
-INPUT_FASTQ_REP2_PE1= /srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR783QUL/2.1_PE/ENCFF294OVE.fastq.gz 
-INPUT_FASTQ_REP2_PE2= /srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR783QUL/2.1_PE/ENCFF942TPW.fastq.gz 
+INPUT_FASTQ_REP1=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR000EEB/ENCFF000XUL.fastq.gz
+INPUT_FASTQ_REP2=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR000EEB/ENCFF000XUK.fastq.gz
 
-///////// control
-INPUT_FASTQ_CTL_REP1= /srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR783QUL/Ctl/1.1/ENCFF972NVS.fastq.gz 
-INPUT_FASTQ_CTL_REP2= /srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR783QUL/Ctl/2.1/ENCFF802ZSZ.fastq.gz 
+//////// control fastqs
+INPUT_FASTQ_CTL_REP1=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR000EEB/Ctl/ENCFF000XTF.fastq.gz
 
 
 

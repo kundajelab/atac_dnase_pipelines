@@ -229,19 +229,11 @@ void spp_idr() {
 								 + "_VS_" + rm_str_at_end( CTL_REP2_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
 	POOLED_NPEAK_FILE_BASE	:= rm_str_at_end( POOLED_TA_FILE.baseName(),".gz" ) \
 								 + "_VS_" + rm_str_at_end( CTL_POOLED_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
-/*
-	REP1_RPEAK_FILE_BASE 	:= rm_str_at_end( REP1_TA_FILE.baseName(),".gz" ) \
-								 + "_VS_" + rm_str_at_end( CTL_REP1_TA_FILE.baseName(),".gz" ) + ".regionPeak.gz"
-	REP2_RPEAK_FILE_BASE 	:= rm_str_at_end( REP2_TA_FILE.baseName(),".gz" ) \
-								 + "_VS_" + rm_str_at_end( CTL_REP2_TA_FILE.baseName(),".gz" ) + ".regionPeak.gz"
-	POOLED_RPEAK_FILE_BASE 	:= rm_str_at_end( POOLED_TA_FILE.baseName(),".gz" ) \
-								 + "_VS_" + rm_str_at_end( CTL_POOLED_TA_FILE.baseName(),".gz" ) + ".regionPeak.gz"
-*/
+
 	REP1_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP1_NPEAK_FILE_BASE
 	REP2_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP2_NPEAK_FILE_BASE
 	POOLED_PEAK_FILE:= "$PEAK_OUTPUT_DIR/"+ POOLED_NPEAK_FILE_BASE
 
-	//POOLED_COMMON_PEAKS_IDR :=  "$PEAK_OUTPUT_DIR/REP1_VS_REP2.IDR" + IDR_THRESH +".narrowPeak"
 	IDR_OUTPUT := "$PEAK_OUTPUT_DIR/REP1_VS_REP2.IDR" + IDR_THRESH +".narrowPeak"
 
 	// Nathan's idr code
@@ -440,8 +432,8 @@ void post_align_filt( int ctl, int rep ) {
 
 		if ( [PBC_FILE_QC, FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS, FINAL_NMSRT_BAM_FILE, FINAL_BAM_FILE] <- RAW_BAM_FILE ) {
 
-			print("samtools index $FINAL_BAM_FILE $FINAL_BAM_INDEX_FILE\n")
-			print("samtools flagstat $FINAL_BAM_FILE > $FINAL_BAM_FILE_MAPSTATS\n")
+			//print("samtools index $FINAL_BAM_FILE $FINAL_BAM_INDEX_FILE\n")
+			//print("samtools flagstat $FINAL_BAM_FILE > $FINAL_BAM_FILE_MAPSTATS\n")
 
 			//# =============================
 			//# Remove  unmapped, mate unmapped
@@ -471,12 +463,17 @@ void post_align_filt( int ctl, int rep ) {
 
 				sys $PRELOAD				
 
-				sys samtools fixmate -r $TMP_FILT_BAM_FILE | \
-					samtools view -F 1804 -f 2 -u - | \
-					samtools sort - $FILT_BAM_PREFIX       # Will produce coordinate sorted BAM				
-				//sys samtools fixmate -r $TMP_FILT_BAM_FILE $OFPREFIX.fixmate.tmp
-				//sys samtools view -F 1804 -f 2 -u $OFPREFIX.fixmate.tmp | samtools sort - $FILT_BAM_PREFIX  # Will produce coordinate sorted BAM
-				//sys rm $OFPREFIX.fixmate.tmp
+				//# Will produce coordinate sorted BAM				
+
+				// segmentation fault occurred so I split it into two cmd lines 
+
+				//sys samtools fixmate -r $TMP_FILT_BAM_FILE | \
+				//	samtools view -F 1804 -f 2 -u - | \
+				//	samtools sort - $FILT_BAM_PREFIX       
+				
+				sys samtools fixmate -r $TMP_FILT_BAM_FILE $OFPREFIX.fixmate.tmp
+				sys samtools view -F 1804 -f 2 -u $OFPREFIX.fixmate.tmp | samtools sort - $FILT_BAM_PREFIX
+				sys rm $OFPREFIX.fixmate.tmp
 			}
 
 			wait
@@ -494,14 +491,14 @@ void post_align_filt( int ctl, int rep ) {
 					INPUT=$FILT_BAM_FILE OUTPUT=$TMP_FILT_BAM_FILE2 \
 					METRICS_FILE=$DUP_FILE_QC VALIDATION_STRINGENCY=LENIENT \
 					ASSUME_SORTED=true REMOVE_DUPLICATES=false
-				//sys mv $TMP_FILT_BAM_FILE2 $FILT_BAM_FILE
-
+				
 				//# ============================
 				//# Remove duplicates
 				//# Index final position sorted BAM
 				//# Create final name sorted BAM
 				//# ============================
 
+				//sys mv $TMP_FILT_BAM_FILE2 $FILT_BAM_FILE
 				//sys samtools view -F 1804 -f 2 -b $FILT_BAM_FILE > $FINAL_BAM_FILE
 				sys samtools view -F 1804 -f 2 -b $TMP_FILT_BAM_FILE2 > $FINAL_BAM_FILE
 				sys rm -f $TMP_FILT_BAM_FILE2
@@ -544,15 +541,20 @@ void post_align_filt( int ctl, int rep ) {
 			
 				//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
 
-				sys samtools sort -n $FILT_BAM_FILE | \
-					bamToBed -bedpe -i stdin | \
+				// segmentation fault occurred so I split it into two cmd lines 
+
+				//sys samtools sort -n $FILT_BAM_FILE | \
+				//	bamToBed -bedpe -i stdin | \
+				//	awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
+				//	grep -v 'chrM' | sort | uniq -c | \
+				//	awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
+				
+				sys samtools sort -n $FILT_BAM_FILE $OFPREFIX.srt.tmp
+				sys bamToBed -bedpe -i $OFPREFIX.srt.tmp.bam | \
 					awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
 					grep -v 'chrM' | sort | uniq -c | \
 					awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
-				
-				//sys samtools sort -n $FILT_BAM_FILE $OFPREFIX.srt.tmp
-				//sys bamToBed -bedpe -i $OFPREFIX.srt.tmp.bam | awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | grep -v 'chrM' | sort | uniq -c | awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
-				//sys rm $OFPREFIX.srt.tmp.bam
+				sys rm $OFPREFIX.srt.tmp.bam
 				
 				sys rm -f $FILT_BAM_FILE
 				sys rm -f $TMP_FILT_BAM_FILE

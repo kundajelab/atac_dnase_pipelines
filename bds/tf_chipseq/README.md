@@ -110,6 +110,10 @@ cd $HOME
 $HOME/usr/local/bin/pip3.4 install --install-option="--prefix=$HOME/local" numpy
 $HOME/usr/local/bin/pip3.4 install --install-option="--prefix=$HOME/local" matplotlib
 ```
+Add the following lines to your $HOME/.bashrc and to your configuration file.
+```
+export PATH="${PATH}:${HOME}/usr/local/bin"; export PYTHONPATH="${HOME}/local/lib/python3.4/site-packages:${PYTHONPATH}"
+```
 
 ### Local installation instruction for IDR
 
@@ -118,6 +122,10 @@ cd $HOME
 git clone --recursive https://github.com/nboley/idr.git
 cd idr
 $HOME/usr/local/bin/python3.4 setup.py install --prefix=$HOME/local/
+```
+Add the following lines to your $HOME/.bashrc and to your configuration file.
+```
+export PATH="${HOME}/local/bin"
 ```
 
 ### Local installation instruction for Wiggler
@@ -129,6 +137,10 @@ $HOME/usr/local/bin/python3.4 setup.py install --prefix=$HOME/local/
 cd $HOME
 wget https://align2rawsignal.googlecode.com/files/align2rawsignal.2.0.tgz
 tar zxvf align2rawsignal.2.0.tgz
+```
+Add the following lines to your $HOME/.bashrc and to your configuration file.
+```
+export PATH="${HOME}/align2rawsignal/bin"
 ```
 
 Download MCR2010b.bin and install .
