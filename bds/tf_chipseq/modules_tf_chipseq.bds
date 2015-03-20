@@ -312,7 +312,7 @@ void align_bwa( int ctl, int rep ) {
 				sys $PRELOAD				
 
 				sys bwa sampe $BWA_INDEX_NAME $SAI_FILE_1 $SAI_FILE_2 $FASTQ_FILE_1 $FASTQ_FILE_2 | \
-					$GZIP -c > $RAW_SAM_FILE
+					gzip -c > $RAW_SAM_FILE
 			}
 
 			wait
@@ -694,7 +694,7 @@ void bam_to_tagalign( int ctl, int rep ) {
 
 			sys $PRELOAD
 			
-			sys bamToBed -i $FINAL_BAM_FILE | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | $GZIP -c > $FINAL_TA_FILE			
+			sys bamToBed -i $FINAL_BAM_FILE | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | gzip -c > $FINAL_TA_FILE			
 		}
 
 		task( taskName := "make bedpe", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
@@ -706,7 +706,7 @@ void bam_to_tagalign( int ctl, int rep ) {
 			//# Create BEDPE file
 			//# ================
 
-			sys bamToBed -bedpe -mate1 -i $FINAL_NMSRT_BAM_FILE | $GZIP -c > $FINAL_BEDPE_FILE
+			sys bamToBed -bedpe -mate1 -i $FINAL_NMSRT_BAM_FILE | gzip -c > $FINAL_BEDPE_FILE
 
 			//# =================================
 			//# Subsample tagAlign file
@@ -715,14 +715,11 @@ void bam_to_tagalign( int ctl, int rep ) {
 
 			sys zcat $FINAL_BEDPE_FILE | \
 				grep -v "chrM" | shuf -n $NREADS | \
-				awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | $GZIP -c > $SUBSAMPLED_TA_FILE
+				awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | gzip -c > $SUBSAMPLED_TA_FILE
 		}
 
 		wait
 
-		if ( USE_BGZIP ) sys tabix -f -p bed $FINAL_TA_FILE
-
-		wait
 	}
 	else if ( fastqs.size() == 1 ) { // single-end
 
@@ -744,20 +741,17 @@ void bam_to_tagalign( int ctl, int rep ) {
 
 			// bedtools bamtobed -> bamToBed
 			sys bamToBed -i $FINAL_BAM_FILE | \
-				awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | $GZIP -c > $FINAL_TA_FILE
+				awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | gzip -c > $FINAL_TA_FILE
 
 			//# =================================
 			//# Subsample tagAlign file
 			//# ================================
 			sys zcat $FINAL_TA_FILE | \
-				grep -v "chrM" | shuf -n $NREADS | $GZIP -c > $SUBSAMPLED_TA_FILE
+				grep -v "chrM" | shuf -n $NREADS | gzip -c > $SUBSAMPLED_TA_FILE
 		}
 
 		wait
 
-		if ( USE_BGZIP ) sys tabix -f -p bed $FINAL_TA_FILE
-
-		wait
 	}
 	else { // no data		
 		print("warning(bam_to_tagAlign): no input for ctl $ctl, rep $rep\n")
@@ -924,21 +918,15 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 
 			//# Convert read pairs to reads into standard tagAlign file
 			sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$PR_PREFIX.00" | \
-				$GZIP -c > $PR1_TA_FILE
+				gzip -c > $PR1_TA_FILE
 			sys rm -f $PR_PREFIX.00
 			sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$PR_PREFIX.01" | \
-				$GZIP -c > $PR2_TA_FILE
+				gzip -c > $PR2_TA_FILE
 			sys rm -f $PR_PREFIX.01
 		}
 
 		wait
 
-		if ( USE_BGZIP ) {
-			sys tabix -f -p bed $PR1_TA_FILE
-			sys tabix -f -p bed $PR2_TA_FILE
-		}
-
-		wait
 	}
 	else if ( fastqs.size() == 1 ) {
 
@@ -963,20 +951,14 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 			sys nlines=$( zcat $FINAL_TA_FILE | wc -l ); nlines=$(( (nlines + 1) / 2 )); zcat $FINAL_TA_FILE | shuf | split -d -l $((nlines)) - $PR_PREFIX.
 
 			//# Convert read pairs to reads into standard tagAlign file
-			sys $GZIP -c $PR_PREFIX.00 > $PR1_TA_FILE
+			sys gzip -c $PR_PREFIX.00 > $PR1_TA_FILE
 			sys rm -f $PR_PREFIX.00
-			sys $GZIP -c $PR_PREFIX.01 > $PR2_TA_FILE
+			sys gzip -c $PR_PREFIX.01 > $PR2_TA_FILE
 			sys rm -f $PR_PREFIX.01
 		}
 
 		wait 
 
-		if ( USE_BGZIP ) {
-			sys tabix -f -p bed $PR1_TA_FILE
-			sys tabix -f -p bed $PR2_TA_FILE
-		}
-
-		wait
 	}
 	else { // no data				
 		print("warning(spr): no input for ctl $ctl, rep $rep\n")
@@ -1026,7 +1008,7 @@ void pspr( int ctl ) {
 
 				sys $PRELOAD
 
-				sys zcat $REP1_TA_FILE $REP2_TA_FILE | $GZIP -c > $POOLED_TA_FILE
+				sys zcat $REP1_TA_FILE $REP2_TA_FILE | gzip -c > $POOLED_TA_FILE
 			}
 
 			//# ========================
@@ -1038,7 +1020,7 @@ void pspr( int ctl ) {
 
 				sys $PRELOAD
 
-				sys zcat $REP1_PR1_TA_FILE $REP2_PR1_TA_FILE | $GZIP -c > $PPR1_TA_FILE
+				sys zcat $REP1_PR1_TA_FILE $REP2_PR1_TA_FILE | gzip -c > $PPR1_TA_FILE
 			}
 
 			task( taskName := "ppr2 tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
@@ -1046,18 +1028,11 @@ void pspr( int ctl ) {
 
 				sys $PRELOAD
 
-				sys zcat $REP1_PR2_TA_FILE $REP2_PR2_TA_FILE | $GZIP -c > $PPR2_TA_FILE			
+				sys zcat $REP1_PR2_TA_FILE $REP2_PR2_TA_FILE | gzip -c > $PPR2_TA_FILE			
 			}
 
 			wait
 
-			if ( USE_BGZIP ) {
-				sys tabix -f -p bed $POOLED_TA_FILE
-				sys tabix -f -p bed $PPR1_TA_FILE
-				sys tabix -f -p bed $PPR2_TA_FILE
-			}
-
-			wait
 		}
 	}
 	else { // if no data for rep2, just duplicate rep1
@@ -1096,13 +1071,6 @@ void pspr( int ctl ) {
 
 			wait
 			
-			if ( USE_BGZIP ) {
-				sys tabix -f -p bed $POOLED_TA_FILE
-				sys tabix -f -p bed $PPR1_TA_FILE
-				sys tabix -f -p bed $PPR2_TA_FILE
-			}
-
-			wait			
 		}
 	}
 	

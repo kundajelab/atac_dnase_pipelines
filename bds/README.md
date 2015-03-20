@@ -9,7 +9,6 @@ Modify $CONF_FILE (eg. ./atac/conf_atac.txt ./tf_chipseq/conf_tf_chipseq.txt) to
 * PREFIX 			: Prefix for all output files
 * OUTPUT_DIR 		: Output directory (both relative and absolute paths work)
 * TMP_DIR 			: Temporary folder for intermediate files during bwa alignment
-* USE_BGZIP			: Index BED type files (for visualization in a genome browser). Make sure bgzip and tabix installed add their path to MODULE_*.
 
 * WALLTIME 			: default walltime for all jobs (in seconds)
 * NTHREADS 			: default # of threads for all jobs

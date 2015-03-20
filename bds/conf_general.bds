@@ -5,8 +5,6 @@
 string PREFIX  		// prefix for all output
 string OUTPUT_DIR 	// output dir
 string TMP_DIR 		// any temp. dir.
-bool USE_BGZIP 		// make sure bgzip and tabix installed
-string GZIP 		// gzip or bgzip
 
 // cluster default
 int WALLTIME 		// default walltime in seconds
@@ -26,8 +24,6 @@ void read_conf( string conf_file ) {
 	PREFIX 		= chk_slash( conf{ "PREFIX" } )
 	OUTPUT_DIR	= mkdir_path( conf{ "OUTPUT_DIR" } ) //.path()
 	TMP_DIR 	= mkdir_path( conf{ "TMP_DIR" } )
-	USE_BGZIP 	= parse_bool( conf{ "USE_BGZIP"} )
-	GZIP 		= USE_BGZIP ? "bgzip" : "gzip"
 
 	// cluster default
 	WALLTIME 	= parse_int( conf{ "WALLTIME" } ) // default walltime in seconds
