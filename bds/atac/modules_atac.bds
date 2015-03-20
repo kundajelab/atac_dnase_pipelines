@@ -196,7 +196,7 @@ void main() {
 			METRICS_FILE="$DUP_FILE_QC" VALIDATION_STRINGENCY=LENIENT \
 			ASSUME_SORTED=true REMOVE_DUPLICATES=false
 
-		//sys mv "$TMP_FILT_BAM_FILE2" "$FILT_BAM_FILE"
+		sys mv "$TMP_FILT_BAM_FILE" "$FILT_BAM_FILE"
 
 		//# ============================
 		//# Remove duplicates
