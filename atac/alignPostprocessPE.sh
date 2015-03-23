@@ -44,8 +44,8 @@ fi
 
 # generate PRESEQ plot
 >&2 echo "PRESEQ Analysis..."
-THISDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-"$THISDIR/plotPRESEQ.sh" "$RAW_BAM_FILE"
+# this script must be in PATH
+plotPRESEQ.sh "$RAW_BAM_FILE"
 
 # =============================
 # Remove  unmapped, mate unmapped
