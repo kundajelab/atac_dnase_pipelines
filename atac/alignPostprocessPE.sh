@@ -42,6 +42,11 @@ fi
 
 >&2 echo "Got inputs: $RAW_BAM_FILE $OFPREFIX $MAPQ_THRESH"
 
+# generate PRESEQ plot
+>&2 echo "PRESEQ Analysis..."
+THISDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+"$THISDIR/plotPRESEQ.sh" "$RAW_BAM_FILE"
+
 # =============================
 # Remove  unmapped, mate unmapped
 # not primary alignment, reads failing platform
