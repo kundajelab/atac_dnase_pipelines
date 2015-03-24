@@ -34,7 +34,7 @@ titleName=$(basename $infile)
 cat > preseq.gnu <<EOF
 set terminal png
 set output '$infile.preseq.png'
-set key box bottom right width -7
+set key box bottom right
 set style line 1 linewidth 5
 set style line 2 linewidth 1
 set mxtics 2
