@@ -21,8 +21,9 @@ sortedInfile="${infile/.bam/.sort.bam}"
 samtools sort -Ttmp -l0 -Obam "$infile" -o "${sortedInfile}"
 
 # run preseq
-preseq lc_extrap -B -o "${sortedInfile}.preseq.dat" "${sortedInfile}" -v 2> "${sortedInfile}.preseq.log"
-rm sortedInfile
+preseqData="${sortedInfile}.preseq.dat"
+preseq lc_extrap -B -o "${preseqData}" "${sortedInfile}" -v 2> "${sortedInfile}.preseq.log"
+rm $sortedInfile
 
 # plot the results
 # maximum number of reads on x axis in plot (in millions)
@@ -41,8 +42,8 @@ set xrange [0:${XMAX}]
 set xlabel "Number of Reads [millions]"
 set ylabel "Expected Distinct Reads [millions]"
 set title "PRESEQ Results for $titleName"
-plot '$infile.sort.bed.preseq.dat' using (\$1/1000000):(\$2/1000000) with lines linestyle 1
+plot '${preseqData}' using (\$1/1000000):(\$2/1000000) with lines linestyle 1
 EOF
 
 gnuplot preseq.gnu
-
+rm preseq.gnu
