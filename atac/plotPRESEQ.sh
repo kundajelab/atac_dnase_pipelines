@@ -32,17 +32,20 @@ XMAX=500
 titleName=$(basename $infile) 
 
 cat > preseq.gnu <<EOF
-set terminal png 
+set terminal png
 set output '$infile.preseq.png'
-set nokey
+set key box bottom right width -7
 set style line 1 linewidth 5
+set style line 2 linewidth 1
 set mxtics 2
 set grid ytics xtics mxtics
 set xrange [0:${XMAX}]
 set xlabel "Number of Reads [millions]"
 set ylabel "Expected Distinct Reads [millions]"
 set title "PRESEQ Results for $titleName"
-plot '${preseqData}' using (\$1/1000000):(\$2/1000000) with lines linestyle 1
+plot '${preseqData}' using (\$1/1000000):(\$2/1000000) with lines linestyle 1 notitle, \
+                  '' using (\$1/1000000):(\$3/1000000) with lines linestyle 2 notitle, \
+                  '' using (\$1/1000000):(\$4/1000000) with lines linestyle 2 title '+/- 95% confidence interval'
 EOF
 
 gnuplot preseq.gnu
