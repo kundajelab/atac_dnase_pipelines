@@ -23,7 +23,7 @@ samtools sort -Ttmp -l0 -Obam "$infile" -o "${sortedInfile}"
 # run preseq
 preseqData="${sortedInfile}.preseq.dat"
 preseq lc_extrap -B -o "${preseqData}" "${sortedInfile}" -v 2> "${sortedInfile}.preseq.log"
-rm $sortedInfile
+#rm $sortedInfile
 
 # plot the results
 # maximum number of reads on x axis in plot (in millions)
