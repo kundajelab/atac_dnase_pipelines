@@ -23,6 +23,10 @@ fi
 if [ -n "$3" ]; then
    MAPQ_THRESH=$3
 fi
+if [ -n "$4" ]; then
+   V_INDEX=$4 #index for vplot
+fi
+
 
 if [[ -z $MAPQ_THRESH ]]
 then
@@ -42,10 +46,21 @@ fi
 
 >&2 echo "Got inputs: $RAW_BAM_FILE $OFPREFIX $MAPQ_THRESH"
 
+# sort the raw bam file
+SORTED_BAM_FILE="${RAW_BAM_FILE/.bam/.sort.bam}"
+
+# preseq needs sorted input
+samtools sort -Ttmp -l0 -Obam "$RAW_BAM_FILE" -o "$SORTED_BAM_FILE"
+
 # generate PRESEQ plot
 >&2 echo "PRESEQ Analysis..."
 # this script must be in PATH
-plotPRESEQ.sh "$RAW_BAM_FILE"
+plotPRESEQ.sh "$SORTED_BAM_FILE"
+
+# generate V plot
+>&2 echo "Generating V Plot..."
+# this script must be in PATH
+plotV.sh "$SORTED_BAM_FILE" "$V_INDEX"
 
 # =============================
 # Remove  unmapped, mate unmapped

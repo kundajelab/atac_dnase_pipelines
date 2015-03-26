@@ -7,18 +7,12 @@ if hash module 2>/dev/null; then
    else
       module add preseq
    fi
-   module add samtools/1.2
 fi
 
-# takes unsorted bam file as input. this file should include duplicates
+# takes sorted bam file as input. this file should include duplicates
 if [ -n "$1" ]; then
-   infile=$1
+   sortedInfile=$1
 fi
-
-sortedInfile="${infile/.bam/.sort.bam}"
-
-# preseq needs sorted input
-samtools sort -Ttmp -l0 -Obam "$infile" -o "${sortedInfile}"
 
 # run preseq
 preseqData="${sortedInfile}.preseq.dat"

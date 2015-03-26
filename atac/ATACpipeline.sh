@@ -9,7 +9,8 @@ READ2=$3
 NUMTHREADS=$4
 GENOMESIZE=$5
 CHROMSIZE=$6
-OUTPUTDIR=$7
+VINDEX=$7 #index for vplot
+OUTPUTDIR=$8
 SCRIPTPATH=$( cd $(dirname $0) ; pwd -P ) #absolute path to directory containing this file
 
 MAPQ_THRESH=30
@@ -96,6 +97,7 @@ export SOURCE_LOG=${CMD}.log
 CMD=alignPostprocessPE
 export RAW_BAM_FILE=FROM_FILE
 export OFPREFIX=FROM_FILE
+export V_INDEX=$VINDEX
 export MAPQ_THRESH=$MAPQ_THRESH
 if [ -n "$IS_CLUSTER" ]; then
    NEED_CPUS=1
