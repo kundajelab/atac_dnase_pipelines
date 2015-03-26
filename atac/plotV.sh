@@ -9,11 +9,10 @@ fi
 if [ -n "$1" ]; then
    infile=$1 # sorted bam file
 fi
-
 if [ -n "$1" ]; then
-  index=$2 # gene location bed file
+   index=$2 # gene location bed file
 fi
 
 samtools index "$infile"
 
-./pyMakeVplot.py -a "$infile" -b "$index" -e 2000 -p ends -v -u
+./makeVplot.py -a "$infile" -b "$index" -e 2000 -p ends -v -u

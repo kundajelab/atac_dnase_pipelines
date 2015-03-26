@@ -23,11 +23,11 @@ preseq lc_extrap -B -o "${preseqData}" "${sortedInfile}" -v 2> "${sortedInfile}.
 # maximum number of reads on x axis in plot (in millions)
 XMAX=500
 
-titleName=$(basename $infile) 
+titleName=$(basename $sortedInfile) 
 
 cat > preseq.gnu <<EOF
 set terminal png
-set output '$infile.preseq.png'
+set output '$sortedInfile.preseq.png'
 set key box bottom right
 set style line 1 linewidth 5
 set style line 2 linewidth 1
