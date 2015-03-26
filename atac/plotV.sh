@@ -15,4 +15,4 @@ fi
 
 samtools index "$infile"
 
-./makeVplot.py -a "$infile" -b "$index" -e 2000 -p ends -v -u
+makeVPlot.py -a "$infile" -b "$index" -e 2000 -p ends -v -u
