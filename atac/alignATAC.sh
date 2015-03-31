@@ -82,6 +82,7 @@ else
     exit 1
 fi
 
+echo "Aligning to $BOWTIE_IDX"
 bowtie2 -X2000 --threads "$NUMTHREADS" -x "$BOWTIE_IDX" \
     -1 <(zcat -f "$READ1") -2 <(zcat -f "$READ2") \
     2>"$outputLog" | \
