@@ -16,7 +16,7 @@ fi
 
 # run preseq
 preseqData="${sortedInfile}.preseq.dat"
-preseq lc_extrap -B -o "${preseqData}" "${sortedInfile}" -v 2> "${sortedInfile}.preseq.log"
+preseq lc_extrap -P -B -o "${preseqData}" "${sortedInfile}" -v 2> "${sortedInfile}.preseq.log"
 #rm $sortedInfile
 
 # plot the results
