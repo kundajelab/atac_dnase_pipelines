@@ -3,10 +3,8 @@
 if hash module 2>/dev/null; then
    if [ -n "$CLUSTER_IS_PBS" ]; then
       module add gnuplot/5.0.0
-      module add preseq/1.0.2
-   else
-      module add preseq
    fi
+   module add preseq/1.0.2
 fi
 
 # takes sorted bam file as input. this file should include duplicates
