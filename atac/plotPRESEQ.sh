@@ -41,4 +41,4 @@ plot '${preseqData}' using (\$1/1000000):(\$2/1000000) with lines linestyle 1 no
                   '' using (\$1/1000000):(\$4/1000000) with lines linestyle 2 title '+/- 95% confidence interval'
 EOF
 
-guplot preseq.gnu
+gnuplot preseq.gnu
