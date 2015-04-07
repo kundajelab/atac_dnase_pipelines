@@ -25,7 +25,7 @@ if hash qsub 2>/dev/null; then
    IS_CLUSTER=true
    NEED_MEMORY=8G
    NEED_CPUS=1
-   NEED_RUNTIME=5:00:00
+   NEED_RUNTIME=20:00:00
    NEED_STACK=10M
    if hash qsig 2>/dev/null; then
       echo "PBS type cluster detected"
@@ -78,7 +78,7 @@ export READ2=FROM_FILE
 export NUMTHREADS=$NUMTHREADS
 if [ -n "$IS_CLUSTER" ]; then
    NEED_CPUS=$NUMTHREADS
-   NEED_RUNTIME=10:00:00
+   NEED_RUNTIME=20:00:00
    if [ -n "$CLUSTER_IS_SGE" ]; then
       NEED_MEMORY=2G
    fi

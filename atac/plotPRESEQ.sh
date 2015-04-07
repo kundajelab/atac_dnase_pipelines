@@ -3,6 +3,8 @@
 if hash module 2>/dev/null; then
    if [ -n "$CLUSTER_IS_PBS" ]; then
       module add gnuplot/5.0.0
+   else
+      module add gnuplot/5.0
    fi
    module add preseq/1.0.2
 fi
@@ -15,17 +17,16 @@ fi
 # run preseq
 preseqData="${sortedInfile}.preseq.dat"
 preseq lc_extrap -P -B -o "${preseqData}" "${sortedInfile}" -v 2> "${sortedInfile}.preseq.log"
-#rm $sortedInfile
 
 # plot the results
 # maximum number of reads on x axis in plot (in millions)
 XMAX=500
 
 titleName=$(basename $sortedInfile) 
-
+titleName=${titleName//_/\\_ } #escape underscores
 cat > preseq.gnu <<EOF
-set terminal png
-set output '$sortedInfile.preseq.png'
+set terminal pdfcairo
+set output '$sortedInfile.preseq.pdf'
 set key box bottom right
 set style line 1 linewidth 5
 set style line 2 linewidth 1
@@ -40,5 +41,4 @@ plot '${preseqData}' using (\$1/1000000):(\$2/1000000) with lines linestyle 1 no
                   '' using (\$1/1000000):(\$4/1000000) with lines linestyle 2 title '+/- 95% confidence interval'
 EOF
 
-gnuplot preseq.gnu
-rm preseq.gnu
+guplot preseq.gnu

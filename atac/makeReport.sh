@@ -3,7 +3,7 @@
 if hash module 2>/dev/null; then
    if [ -n "$CLUSTER_IS_PBS" ]; then
       : # texlive not installed here yet
-      #module add texlive
+      module add texlive/2014
    else
       module add texlive/2013
    fi
@@ -28,7 +28,7 @@ MODEL=$(basename $(grep "Aligning to" alignATAC.log |awk '{print $3}'))
 insertSizeHist="$(echo *.hist_graph.pdf)"
 
 # PRESEQ graph file name
-preseqGraph="$(echo *.preseq.png)"
+preseqGraph="$(echo *.preseq.pdf)"
 
 # bowtie2 alignment log file name
 alignLog="$(echo *.align.log)"
