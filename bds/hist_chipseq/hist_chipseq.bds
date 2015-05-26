@@ -13,7 +13,7 @@ string IDR_THRESH=0.02			help IDR thresh (default: 0.02)
 
 // pipeline starts here
 
-read_param_general()
+//read_param_general()
 read_param_align_map()
 read_param_tf_chipseq()
 

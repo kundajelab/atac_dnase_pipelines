@@ -1,63 +1,117 @@
 #!/usr/bin/env bds
-// code developed by Jin Lee (leepc12@stanford.edu) on Mar. 2015
 
-//conf_general
-string PREFIX  		// prefix for all output
-string OUTPUT_DIR 	// output dir
-string TMP_DIR 		// any temp. dir.
+include "modules_string.bds"
 
-// cluster default
-int WALLTIME 		// default walltime in seconds
-int NTHREADS  		// default # of procs
-int MEMORY 			// default max. mem. in bytes
+// parameters and help
+string CONF_FILE 	="" 			help Configuration file path (if not specified, define parameters in command line argument).
 
-string PRELOAD = ""
+string PREFIX 		=""				help Prefix for outputs.
+string OUTPUT_DIR 	="out" 			help Output directory. (default: out)
+string TMP_DIR 		="tmp"			help Temporary directory for intermediate files. (default: tmp)
+string MODULE 		=""				help Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+string SHELLCMD		=""				help Shell cmds separated by ;. Env vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test") 
 
+int WALLTIME 		=36000			help Default Walltime in seconds for all cluster jobs (default: 36000)
+int NTHREADS 		=1 				help Default number of threads for all cluster jobs (default: 1)
+int MEMORY 			=2000000000		help Default max. memory in bytes for all cluster jobs (default: 2000000000)
+
+
+// local vars
 string{} conf // config. file
 
-void read_conf( string conf_file ) {
-	print( "\nReading configuration (general) ...\n" );
+string PRELOAD = ""
+string PRELOAD_MODULE = ". /etc/profile.d/modules.sh;"
+string PRELOAD_SHELLCMD = "export PATH=\"\${PATH}:/bin:/usr/bin\";" // default path for basic linux utils
 
-	conf = config(conf_file)
 
-	// general
-	PREFIX 		= chk_slash( conf{ "PREFIX" } )
-	OUTPUT_DIR	= mkdir_path( conf{ "OUTPUT_DIR" } ) //.path()
-	TMP_DIR 	= mkdir_path( conf{ "TMP_DIR" } )
+void read_param_general() {
+	
+	// read parameters
+	if ( CONF_FILE=="" ) {
+		print( "Reading parameters from command line argument...\n")
 
-	// cluster default
-	WALLTIME 	= parse_int( conf{ "WALLTIME" } ) // default walltime in seconds
-	NTHREADS  	= parse_int( conf{ "NTHREADS" } ) // default # of procs
-	MEMORY 		= parse_int( conf{ "MEMORY" } ) // default # of procs
+		if ( MODULE=="" ) {
+			print( "Warning: modules are not specified.\n")
 
-	string PRELOAD_MODULE = "" //". /etc/profile.d/modules.sh;"
-	string PRELOAD_EXPORT = "export PATH=\"\${PATH}:/bin:/usr/bin\";"
-
-	// print conf info
-	for( string k : conf.keys() ) {
-		// if key is comment ignore
-		if ( k.indexOf("//")>=0 ) \
-			continue
-
-		print( k + "\t= " + rm_comment( conf{k} ) + "\n" )
-
-		// concat. module
-		if ( k.indexOf("MODULE_")>=0 ) {
-			trimmed := rm_comment( conf{k} )
-
+		}
+		else {
+			trimmed := MODULE.trim()
 			mods := trimmed.split(";")
 
-			for ( string str : mods ) PRELOAD_MODULE = PRELOAD_MODULE + " module add " + str.trim() + ";"
+			for ( string str : mods ) \
+				PRELOAD_MODULE = PRELOAD_MODULE + " module add " + str.trim() + ";"
+
 		}
-		else if ( k.indexOf("EXPORT_")>=0 ) {
-			trimmed := rm_comment( conf{k} )			
-			PRELOAD_EXPORT = PRELOAD_EXPORT + " " + trimmed + ";"
+
+		if ( SHELLCMD=="" ) {
+			print( "Warning: shell commands are not specified.\n")
+
 		}
+		else {
+			trimmed := SHELLCMD.trim()		
+			PRELOAD_SHELLCMD = PRELOAD_SHELLCMD + " " + trimmed + ";"
+
+		}
+
+	} 
+	else if ( CONF_FILE.exists() ) {
+		print( "Reading parameters from configuration file ($CONF_FILE)...\n")
+
+		conf = config(CONF_FILE)
+
+		PREFIX 		= chk_slash( conf{ "PREFIX" } )
+		OUTPUT_DIR	= mkdir_path( conf{ "OUTPUT_DIR" } ) 
+		TMP_DIR 	= mkdir_path( conf{ "TMP_DIR" } )
+
+		WALLTIME 	= parse_int( conf{ "WALLTIME" } ) 
+		NTHREADS  	= parse_int( conf{ "NTHREADS" } ) 
+		MEMORY 		= parse_int( conf{ "MEMORY" } ) 
+
+		for( string k : conf.keys() ) {
+			// if key is comment ignore
+			if ( k.indexOf("//")>=0 ) \
+				continue
+
+			// concat. module
+			if ( k.indexOf("MODULE")>=0 ) {
+				trimmed := rm_comment( conf{k} )
+				mods := trimmed.split(";")
+
+				for ( string str : mods ) \
+					PRELOAD_MODULE = PRELOAD_MODULE + " module add " + str.trim() + ";"
+			}
+			else if ( k.indexOf("SHELLCMD")>=0 ) {
+				trimmed := rm_comment( conf{k} )			
+				PRELOAD_SHELLCMD = PRELOAD_SHELLCMD + " " + trimmed + ";"
+			}
+		}
+
+	}
+	else {
+		error( "Configuration file ($CONF_FILE) does not exists.\n")
+
 	}
 
-	PRELOAD = PRELOAD_EXPORT + "; " + PRELOAD_MODULE
+	// check params
+	if ( PREFIX=="") {
+		error( "PREFIX is null, specify it.\n" )
+	}
+
+	// print params
+	print("CONF_FILE = $CONF_FILE\n");
+
+	print("PREFIX = $PREFIX\n");
+	print("OUTPUT_DIR = $OUTPUT_DIR\n");
+	print("TMP_DIR = $TMP_DIR\n");
+
+	print("WALLTIME = $WALLTIME (seconds)\n");
+	print("NTHREADS = $NTHREADS\n");
+	print("MEMORY = $MEMORY (bytes)\n");
+
+	//print("MODULE = $MODULE\n");
+	//print("SHELLCMD = $SHELLCMD\n");\
+
+	// additional initialization
+	PRELOAD = PRELOAD_SHELLCMD + "; " + PRELOAD_MODULE
 	PRELOAD = PRELOAD.replace( ";;", ";" )
-
-	print("PRELOAD = $PRELOAD\n")
 }
-

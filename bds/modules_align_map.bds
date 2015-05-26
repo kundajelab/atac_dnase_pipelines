@@ -1,126 +1,139 @@
 #!/usr/bin/env bds
-// code developed by Jin Lee (leepc12@stanford.edu) on Mar. 2015
-// modules for tf_chipseq
 
-include "../modules_string.bds"
-include "../modules_fastq.bds"
-include "../conf_general.bds"
+include "modules_fastq.bds"
 
-bool PRE_IDR
-	int NUM_CTL
-	int NUM_REP
+// parameters and help
+bool QC_ONLY=false 				help true: Stop before peak calling, false: Keep going through IDR (default: false)
 
-int NTHREADS_BWA
-int WALLTIME_BWA_SAMPE
-string BWA_INDEX_NAME
-string BWA_ALN_PARAM
+int NTHREADS_BWA=4 				help Number of threads for bwa align (default: 4)
+//int WALLTIME_BWA_SAMPE=36000 	help Walltile in seconds for bwa sampe (default: 36000)
+string BWA_INDEX_NAME			help Path for bwa index
+string BWA_ALN_PARAM="-q 5 -l 32 -k 2" 			help Parameters for bwa align (default: "-q 5 -l 32 -k 2" )
 
-int MAPQ_THRESH
+int MAPQ_THRESH=30 				help MAPQ_THRESH (default: 30)
+int NREADS=15000000				help Parameter for NREADS (default. 15000000)
+int NTHREADS_RUN_SPP=4			help Number of threads for run_spp.R (default: 4)
 
-int NREADS
-int NPEAK
-bool DUPE_REMOVED
-	string RUN_SPP
-int NTHREADS_RUN_SPP
+bool CREATE_WIG=false			help Set it true to create wig (default: false)
+bool CREATE_BEDGRAPH=false		help Set it true to create bedgraph (default: false)
+bool CONVERT_TO_BIGWIG=false	help Set it true to convert bedgraph to bigwig signal track (default: false)
 
-string IDR_THRESH
+string UMAP_DIR 				help Path for umap (for hg19, it is globalmap_k20tok54)
+string SEQ_DIR 					help Path for sequence .fa files (for hg19, it is chr?.fa)
+string CHROM_SIZES 				help Path for chrom.sizes file for your .fa
 
-bool CREATE_WIG
-bool CREATE_BEDGRAPH
-bool CONVERT_TO_BIGWIG
-string CHROM_SIZES
-string UMAP_DIR
-string SEQ_DIR
+// local vars
+int NUM_CTL
+int NUM_REP
+string RUN_SPP
 
 
-void read_conf_tf_chipseq( string conf_file ) {
 
-	read_conf( conf_file )
+void read_param_align_map() {
 
-	print( "\nReading configuration (tf_chipseq)...\n" );
+	// read parameters
+	if ( CONF_FILE=="" ) {
+	} 
+	else ( CONF_FILE.exists() ) {
 
-	// pre IDR simulation
-	PRE_IDR 		= parse_bool( conf{ "PRE_IDR"} )
-		NUM_CTL 	= PRE_IDR ? 0 : 1
-		NUM_REP 	= PRE_IDR ? parse_int( conf{ "NUM_REP"} ) : 2
+		// QC only?
+		QC_ONLY 		= parse_bool( conf{ "QC_ONLY"} )
+			NUM_CTL 	= QC_ONLY ? 0 : 1
+			NUM_REP 	= QC_ONLY ? parse_int( conf{ "NUM_REP"} ) : 2
 
-	// bwa alignment
-	NTHREADS_BWA 	= parse_int( conf{ "NTHREADS_BWA" } )
-	WALLTIME_BWA_SAMPE = parse_int( conf{ "WALLTIME_BWA_SAMPE" } )
-	BWA_INDEX_NAME 	= chk_file( conf{ "BWA_INDEX_NAME" }, ".bwt" ) // check if filename+".bwt" exists
-	BWA_ALN_PARAM 	= rm_comment( conf{ "BWA_ALN_PARAM" } )
+		// bwa alignment
+		NTHREADS_BWA 	= parse_int( conf{ "NTHREADS_BWA" } )
+		//WALLTIME_BWA_SAMPE = parse_int( conf{ "WALLTIME_BWA_SAMPE" } )
+		BWA_INDEX_NAME 	= chk_file( conf{ "BWA_INDEX_NAME" }, ".bwt" ) // check if filename+".bwt" exists
+		BWA_ALN_PARAM 	= rm_comment( conf{ "BWA_ALN_PARAM" } )
 
-	// dupe remover
-	MAPQ_THRESH 	= parse_int( conf{ "MAPQ_THRESH" } )
+		// dupe remover
+		MAPQ_THRESH 	= parse_int( conf{ "MAPQ_THRESH" } )
 
-	// peak calling (run_spp.R)
-	NREADS 			= parse_int( conf{ "NREADS" } )
-	NPEAK 			= parse_int( conf{ "NPEAK" } )
-	DUPE_REMOVED	= parse_bool( conf{ "DUPE_REMOVED"} )
-		RUN_SPP 	= DUPE_REMOVED ? "run_spp_nodups.R" : "run_spp.R"
-	NTHREADS_RUN_SPP= parse_int( conf{ "NTHREADS_RUN_SPP" } )
+		// QC
+		NREADS 			= parse_int( conf{ "NREADS" } )
+		NTHREADS_RUN_SPP= parse_int( conf{ "NTHREADS_RUN_SPP" } )
 
-	// IDR
-	IDR_THRESH		= parse_real( conf{ "IDR_THRESH"} )
+		// signal track
+		CREATE_WIG			= parse_bool( conf{ "CREATE_WIG"} )
+		CREATE_BEDGRAPH		= parse_bool( conf{ "CREATE_BEDGRAPH"} )
+		CONVERT_TO_BIGWIG	= parse_bool( conf{ "CONVERT_TO_BIGWIG"} )
+		CHROM_SIZES 		= chk_file( conf{"CHROM_SIZES"}, "" )
+		UMAP_DIR 			= get_path( conf{"UMAP_DIR"} )
+		SEQ_DIR 			= get_path( conf{"SEQ_DIR"} )
 
-	// signal track
-	CREATE_WIG			= parse_bool( conf{ "CREATE_WIG"} )
-	CREATE_BEDGRAPH		= parse_bool( conf{ "CREATE_BEDGRAPH"} )
-	CONVERT_TO_BIGWIG	= parse_bool( conf{ "CONVERT_TO_BIGWIG"} )
-	CHROM_SIZES 		= chk_file( conf{"CHROM_SIZES"}, "" )
-	UMAP_DIR 			= get_path( conf{"UMAP_DIR"} )
-	SEQ_DIR 			= get_path( conf{"SEQ_DIR"} )
+/*
+		// print conf info
+		for( string k : conf.keys() ) {
+			// if key is comment ignore
+			if ( k.indexOf("//")>=0 ) \
+				continue
 
-	// print conf info
-	for( string k : conf.keys() ) {
-		// if key is comment ignore
-		if ( k.indexOf("//")>=0 ) \
-			continue
+			print( k + "\t= " + rm_comment( conf{k} ) + "\n" )
+		}
+*/
+		if ( QC_ONLY ) return
 
-		print( k + "\t= " + rm_comment( conf{k} ) + "\n" )
-	}
+		print( "\nChecking fastqs...\n" );
 
-	if ( PRE_IDR ) return
+		for ( int ctl=0; ctl <= NUM_CTL; ctl++) { // iterate through fastqs (0: not control, 1~: controls)
 
-	print( "\nChecking fastqs...\n" );
+			prefix := (ctl==0)? "":"Control "
+			fastqs_Rep1 := get_fastqs( conf, ctl, 1 )
+			fastqs_Rep2 := get_fastqs( conf, ctl, 2 )
 
-	for ( int ctl=0; ctl <= NUM_CTL; ctl++) { // iterate through fastqs (0: not control, 1~: controls)
+			print( prefix + "Rep1: \n")
+			for ( string s : fastqs_Rep1 ) print("\t$s\n")
 
-		prefix := (ctl==0)? "":"Control "
-		fastqs_Rep1 := get_fastqs( conf, ctl, 1 )
-		fastqs_Rep2 := get_fastqs( conf, ctl, 2 )
+			print( prefix + "Rep2: \n")
+			for ( string s : fastqs_Rep2 ) print("\t$s\n")
+			
+			if ( fastqs_Rep1.size() == 0 ) error( "error(read_conf): " + prefix + "Rep1 fastqs missing!\n")
 
-		print( prefix + "Rep1: \n")
-		for ( string s : fastqs_Rep1 ) print("\t$s\n")
-
-		print( prefix + "Rep2: \n")
-		for ( string s : fastqs_Rep2 ) print("\t$s\n")
-		
-		if ( fastqs_Rep1.size() == 0 ) error( "error(read_conf): " + prefix + "Rep1 fastqs missing!\n")
-
-		if ( fastqs_Rep2.size() == 0 ) {
-			if ( ctl==0 ) {
-				error( "error(read_conf): " + prefix + "Rep2 fastqs missing!\n")
-			}
-			else {
-				print( "warning(read_conf): " + prefix + "Rep2 fastqs missing for control! keep going...\n")
+			if ( fastqs_Rep2.size() == 0 ) {
+				if ( ctl==0 ) {
+					error( "error(read_conf): " + prefix + "Rep2 fastqs missing!\n")
+				}
+				else {
+					print( "warning(read_conf): " + prefix + "Rep2 fastqs missing for control! keep going...\n")
+				}
 			}
 		}
+
 	}
+
+	// check params
+	if ( BWA_INDEX_NAME == "" ) error("BWA_INDEX_NAME is not specifed.")
+
+	if ( (CREATE_WIG || CREATE_BEDGRAPH) && (UMAP_DIR == "") ) error("UMAP_DIR is not specifed.")
+	if ( (CREATE_WIG || CREATE_BEDGRAPH) && (SEQ_DIR == "") ) error("SEQ_DIR is not specifed.")
+
+	if ( CONVERT_TO_BIGWIG && (CHROM_SIZES == "") ) error("CHROM_SIZES is not specifed.")
+
+	print("QC_ONLY = $QC_ONLY\n");
+	print("NTHREADS_BWA = $NTHREADS_BWA\n");
+	//print("WALLTIME_BWA_SAMPE = $WALLTIME_BWA_SAMPE\n");
+	print("BWA_INDEX_NAME = $BWA_INDEX_NAME\n");
+	print("BWA_ALN_PARAM = $BWA_ALN_PARAM\n");
+	print("MAPQ_THRESH = $MAPQ_THRESH\n");
+	print("CREATE_WIG = $CREATE_WIG\n");
+	print("CREATE_BEDGRAPH = $CREATE_BEDGRAPH\n");
+	print("CONVERT_TO_BIGWIG = $CONVERT_TO_BIGWIG\n");
+	print("CHROM_SIZES = $CHROM_SIZES\n");
+	print("UMAP_DIR = $UMAP_DIR\n");
+	print("SEQ_DIR = $SEQ_DIR\n");
 
 }
 
-void tasks_before_spp() { // align -> post_align -> xcor -> self-pseudo-replicate -> pooled psr
+void align_map_xcor_spr_pspr() { // align -> post_align -> xcor -> self-pseudo-replicate -> pooled psr
 	
 	for ( int ctl=0; ctl <= NUM_CTL; ctl++) { // iterate through fastqs (0: not control, 1~: controls)
 		for ( int rep=1; rep <= NUM_REP; rep++) {
-			par tasks_from_align_to_spr( ctl, rep ) // parallel jobs for each control and each replicate
+			par align_map_xcor_spr( ctl, rep ) // parallel jobs for each control and each replicate
 		}
 	}
 
 	wait
-
-	if ( PRE_IDR ) return
 
 	for ( int ctl=0; ctl <= NUM_CTL; ctl++) \
 		par pspr( ctl )
@@ -128,143 +141,19 @@ void tasks_before_spp() { // align -> post_align -> xcor -> self-pseudo-replicat
 	wait
 }
 
-void spp_idr() {
-	print( "\nSPP and IDR...\n" );
-
-	if ( PRE_IDR ) return
-
-	// SPP
-
-	FRAGLEN := get_fraglen( 0, 1 ) // get it from rep1
-	print("FRAGLEN for spp: $FRAGLEN \n")
-	
-	// prepare for tagAlign files
-	fastqs_Rep1 	:= get_fastqs( conf, 0, 1 )
-	fastqs_Rep2 	:= get_fastqs( conf, 0, 2 ) // check if rep2 doesn't exist
-	suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
-	suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
-	suffix 			:= fastqs_Rep1.size()==2 ? suffix_PE : suffix_SE
-	suffix_PSR_PE 	:= ".filt.nodup.PE2SE"
-	suffix_PSR_SE 	:= ".filt.nodup.SE"
-	suffix_PSR 		:= fastqs_Rep1.size()==2 ? suffix_PSR_PE : suffix_PSR_SE
-
-	DATASET_PREFIX := get_ofprefix( 0 )
-	
-	REP1_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix
-	REP2_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix
-	POOLED_TA_FILE :="$DATASET_PREFIX"+"_Rep0.tagAlign.gz"
-	REP1_PR1_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix_PSR + ".pr1.tagAlign.gz"
-	REP1_PR2_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix_PSR + ".pr2.tagAlign.gz"
-	REP2_PR1_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix_PSR + ".pr1.tagAlign.gz"
-	REP2_PR2_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix_PSR + ".pr2.tagAlign.gz"
-	PPR1_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
-	PPR2_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
-
-	ctl_fastqs_Rep1 	:= get_fastqs( conf, 1, 1 )
-	ctl_fastqs_Rep2 	:= get_fastqs( conf, 1, 2 ) // check if rep2 doesn't exist
-	ctl_suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
-	ctl_suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
-	ctl_suffix 			:= ctl_fastqs_Rep1.size()==2 ? ctl_suffix_PE : ctl_suffix_SE
-	ctl_suffix_PSR_PE 	:= ".filt.nodup.PE2SE"
-	ctl_suffix_PSR_SE 	:= ".filt.nodup.SE"
-	ctl_suffix_PSR 		:= ctl_fastqs_Rep1.size()==2 ? ctl_suffix_PSR_PE : ctl_suffix_PSR_SE
-
-	CTL_DATASET_PREFIX := get_ofprefix( 1 )
-
-	CTL_REP1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix
-	CTL_REP2_TA_FILE := ctl_fastqs_Rep2.size()>0 ? "$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix : CTL_REP1_TA_FILE
-	CTL_POOLED_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep0.tagAlign.gz"
-	CTL_REP1_PR1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix_PSR + ".pr1.tagAlign.gz"
-	CTL_REP1_PR2_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix_PSR + ".pr2.tagAlign.gz"
-	CTL_REP2_PR1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix_PSR + ".pr1.tagAlign.gz"
-	CTL_REP2_PR2_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix_PSR + ".pr2.tagAlign.gz"
-	CTL_PPR1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
-	CTL_PPR2_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
-
-	PEAK_OUTPUT_DIR := OUTPUT_DIR + "/peaks"
-	PEAK_OUTPUT_DIR.mkdir() 
-
-	PEAK_REP1_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP1_TA_FILE.baseName() + ".ccscores"
-	PEAK_REP2_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP2_TA_FILE.baseName() + ".ccscores"
-	PEAK_POOLED_CCSCORE := PEAK_OUTPUT_DIR + "/" + POOLED_TA_FILE.baseName() + ".ccscores"
-
-	// REP1_TA_FILE vs CTL_REP1_TA_FILE
-	task( taskName := "spp rep1", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY, \
-		PEAK_REP1_CCSCORE <- [REP1_TA_FILE, CTL_REP1_TA_FILE] ) {
-
-		sys $PRELOAD
-		
-		sys Rscript $(which $RUN_SPP) -c=$REP1_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP1_TA_FILE \
-			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP1_CCSCORE
-	}
-
-	// REP2_TA_FILE vs CTL_REP2_TA_FILE
-	task( taskName := "spp rep2", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY, \
-		PEAK_REP2_CCSCORE <- [REP2_TA_FILE, CTL_REP2_TA_FILE]  ) {
-
-		sys $PRELOAD
-		
-		sys Rscript $(which $RUN_SPP) -c=$REP2_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP2_TA_FILE \
-			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP2_CCSCORE
-	}
-
-	// POOLED_TA_FILE vs CTL_POOLED_TA_FILE
-	task( taskName := "spp pooled", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY, \
-		PEAK_POOLED_CCSCORE <- [POOLED_TA_FILE, CTL_POOLED_TA_FILE] ) {
-
-		sys $PRELOAD
-		
-		sys Rscript $(which $RUN_SPP) -c=$POOLED_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_POOLED_TA_FILE \
-			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_POOLED_CCSCORE
-	}
-
-	wait
-
-	// IDR
-
-
-	REP1_NPEAK_FILE_BASE	:= rm_str_at_end( REP1_TA_FILE.baseName(),".gz" ) \
-								 + "_VS_" + rm_str_at_end( CTL_REP1_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
-	REP2_NPEAK_FILE_BASE 	:= rm_str_at_end( REP2_TA_FILE.baseName(),".gz" ) \
-								 + "_VS_" + rm_str_at_end( CTL_REP2_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
-	POOLED_NPEAK_FILE_BASE	:= rm_str_at_end( POOLED_TA_FILE.baseName(),".gz" ) \
-								 + "_VS_" + rm_str_at_end( CTL_POOLED_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
-
-	REP1_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP1_NPEAK_FILE_BASE
-	REP2_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP2_NPEAK_FILE_BASE
-	POOLED_PEAK_FILE:= "$PEAK_OUTPUT_DIR/"+ POOLED_NPEAK_FILE_BASE
-
-	IDR_OUTPUT := "$PEAK_OUTPUT_DIR/REP1_VS_REP2.IDR" + IDR_THRESH +".narrowPeak"
-
-	// Nathan's idr code
-	task( taskName := "IDR", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
-		IDR_OUTPUT <- [REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE] ) { // --use-old-output-format 
-
-		sys $PRELOAD
-
-		sys idr --samples $REP1_PEAK_FILE $REP1_PEAK_FILE --peak-list $POOLED_PEAK_FILE --input-file-type narrowPeak \
-			--output-file $IDR_OUTPUT --plot --idr-threshold $IDR_THRESH
-
-		sys echo NPEAKS_IDR: $(cat $IDR_OUTPUT | wc -l)
-	}
-
-	wait
-}
-
-void tasks_from_align_to_spr( int ctl, int rep ) {
+void align_map_xcor_spr( int ctl, int rep ) {
 
 	align_bwa( ctl, rep )
 	post_align_filt( ctl, rep )
  	bam_to_tagalign( ctl, rep )
  	xcor( ctl, rep )
 
-	if ( PRE_IDR ) return
-
  	create_sig_trk( ctl, rep )
  	spr( ctl, rep )
 }
 
 void align_bwa( int ctl, int rep ) {
+
 	print( "\nalign_bwa ctl:$ctl rep:$rep...\n" );
 
 	OFPREFIX := get_ofprefix( ctl, rep )
@@ -306,7 +195,8 @@ void align_bwa( int ctl, int rep ) {
 
 			wait
 
-			task( taskName := "bwa sampe", cpus := NTHREADS, timeout := WALLTIME_BWA_SAMPE, mem := MEMORY, \
+			//task( taskName := "bwa sampe", cpus := NTHREADS, timeout := WALLTIME_BWA_SAMPE, mem := MEMORY, \
+			task( taskName := "bwa sampe", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
 				RAW_SAM_FILE <- [SAI_FILE_1, SAI_FILE_2] ) {
 
 				sys $PRELOAD				
@@ -402,6 +292,7 @@ void align_bwa( int ctl, int rep ) {
 }
 
 void post_align_filt( int ctl, int rep ) {
+
 	print( "\npost_align_filt ctl:$ctl rep:$rep...\n" );
 
 	OFPREFIX := get_ofprefix( ctl, rep )
@@ -667,6 +558,7 @@ void post_align_filt( int ctl, int rep ) {
 }
 
 void bam_to_tagalign( int ctl, int rep ) {
+
 	print( "\nbam_to_tagalign ctl:$ctl rep:$rep...\n" );
 
 	OFPREFIX := get_ofprefix( ctl, rep )
@@ -759,6 +651,7 @@ void bam_to_tagalign( int ctl, int rep ) {
 }
 
 void create_sig_trk( int ctl, int rep ) {
+
 	print( "\ncreate_sig_trk ctl:$ctl rep:$rep...\n" );
 
 	OFPREFIX := get_ofprefix( ctl, rep )
@@ -847,6 +740,7 @@ void create_sig_trk( int ctl, int rep ) {
 }
 
 void xcor( int ctl, int rep ) {
+
 	print( "\nxcor ctl:$ctl rep:$rep...\n" );
 
 	OFPREFIX := get_ofprefix( ctl, rep )
@@ -966,6 +860,7 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 }
 
 void pspr( int ctl ) {
+
 	print( "\npspr ctl:$ctl...\n" );
 
 	DATASET_PREFIX := get_ofprefix( ctl )
@@ -1076,7 +971,7 @@ void pspr( int ctl ) {
 	
 }
 
-string get_fraglen( int ctl, int rep ) { // get FRAGLEN (3rd column of cc score file) for spp(-speak=$FRAGLEN)
+string get_fraglen( int ctl, int rep ) {  // get FRAGLEN (3rd column of cc score file) for spp(-speak=$FRAGLEN)
 	
 	NREADS_PER_MILLION := NREADS/1000000
 
