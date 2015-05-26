@@ -1,100 +1,47 @@
-///////////// general ////////////////////////////////////////////////
-PREFIX= ENCSR000EEB
-OUTPUT_DIR= out
-TMP_DIR= /srv/gsfs0/scratch/leepc12
-USE_BGZIP= false 	// to index BED type files for visualization in genome browser
+// general
+QC_ONLY=false
+PREFIX=ENCSR703KWN_SE
+OUTPUT_DIR=out
+TMP_DIR=tmp
 
-///////////// cluster default ///////////////////////////////////////
-WALLTIME= 21000 	// in seconds
-NTHREADS= 1 
-MEMORY= 10000000000 // in bytes (sorry...)
+// cluster general
+WALLTIME=72000		// in seconds
+NTHREADS=1
+MEMORY=8000000000 	// in bytes
 
-//////////// software version and environment variables /////////////////////
-// All MODULE_* and EXPORT_* will be concatenated to PRELOAD 
-// Environment variables defined here will be passed to qsub for all cluster jobs
-// You can freely name suffix for keys like MODULE_* and EXPORT_*
-// IMPORTANT!!!!!!! For EXPORT_*, variable in RHS of (=) should be wrapped by curved brackets ${}
+// environemt module definition
+MODULE_BIO=bwa/0.7.7; samtools/0.1.19; bedtools/2.19.1; ucsc_tools/3.0.9; picard-tools/1.92
+MODULE_LANG=java/latest; r/2.15.1
 
-MODULE_BIO_SW= bwa/0.7.7; samtools/0.1.19; bedtools/2.19.1; picard-tools/1.92
-MODULE_LANG= java/latest
-
-EXPORT_JAVA= export _JAVA_OPTIONS="-Xms256M -Xmx512M -XX:ParallelGCThreads=2"; export MAX_JAVA_MEM="2G"; export MALLOC_ARENA_MAX=4
-EXPORT_RUN_SPP= export PATH="${PATH}:${HOME}/R/bin"; export PATH="${PATH}:${HOME}/phantompeakqualtools"; export R_LIBS=${HOME}/RLib
-EXPORT_IDR= export PATH="${PATH}:${HOME}/usr/local/bin:${HOME}/local/bin"; export PYTHONPATH="${HOME}/local/lib/python3.4/site-packages:${PYTHONPATH}"
-EXPORT_KENT= export PATH="${PATH}:/srv/gsfs0/projects/kundaje/users/akundaje/projects/encode/code/kentutils"
-EXPORT_ALIGN2RAWSIGNAL= export PATH="${PATH}:/srv/gsfs0/projects/kundaje/users/akundaje/projects/encode/code/signalgeneration/align2rawsignal/trunk/bin/"
-EXPORT_WIGGLER= MCR_ROOT=${HOME}/devtools/MCR; MCRROOT=${MCR_ROOT}/v714; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRROOT}/runtime/glnxa64; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRROOT}/bin/glnxa64; MCRJRE=${MCRROOT}/sys/java/jre/glnxa64/jre/lib/amd64; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}/native_threads; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}/server; LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${MCRJRE}; XAPPLRESDIR=${MCRROOT}/X11/app-defaults; export LD_LIBRARY_PATH; export XAPPLRESDIR
-
-/////////// pre idr /////////////////////////////////
-PRE_IDR= false 	// if true, pipeline computes QC scores and stops before spp.
-NUM_REP= 6 		// NUM_REP is the number of replicates you want to QC if PRE_IDR is true
-
-////////// bwa //////////////////////////////////
-NTHREADS_BWA= 4 		// # of procs for bwa -aln
-WALLTIME_BWA_SAMPE= 70000
-BWA_INDEX_NAME= /srv/gsfs0/projects/kundaje/commonRepository/indexes/bwa_indexes/encodeHg19Male/v0.7.7/encodeHg19Male_bwa-0.7.7
-BWA_ALN_PARAM= -q 5 -l 32 -k 2
+// bwa
+NTHREADS_BWA=4
+BWA_INDEX_NAME=/mnt/data/annotations/indexes/bwa_indexes/encodeHg19Male/v0.7.7/encodeHg19Male_bwa-0.7.7
+BWA_ALN_PARAM=-q 5 -l 32 -k 2
 	
-///////// dupe mark /////////////////////
-MAPQ_THRESH= 30
+// dupe remover
+MAPQ_THRESH=30
 
-////////// peak calling /////////////////////////
-NTHREADS_RUN_SPP= 4								// # of procs for spp
-NREADS= 15000000
-NPEAK= 300000
-DUPE_REMOVED= true 							// run_spp.nodups.R for dupe-removed data
+// peak calling
+NTHREADS_RUN_SPP=4
+DUPE_REMOVED=true // run_spp.nodups.R for dupe-removed
+NREADS=15000000
+NPEAK=300000
 
-///////// IDR (by Nathan's code) /////////////////////////
+// IDR
 IDR_THRESH=0.02
 
-///////// signal track generation //////////////////////
-CREATE_WIG= true
-CREATE_BEDGRAPH= true
-CONVERT_TO_BIGWIG= true 	// bedgraph to bigwig
-CHROM_SIZES= /srv/gsfs0/projects/kundaje/users/jinlee/data/bwa_index/male.hg19.chrom.sizes
-UMAP_DIR= /srv/gsfs0/projects/kundaje/users/jinlee/data/umap/encodeHg19Male/globalmap_k20tok54
-SEQ_DIR= /srv/gsfs0/projects/kundaje/commonRepository/genomes/encodeHg19Male
+// signal track
+CREATE_WIG=false
+CREATE_BEDGRAPH=true
+CONVERT_TO_BIGWIG=true
+CHROM_SIZES=/srv/scratch/leepc12/data/bwa_index/male.hg19.chrom.sizes
+UMAP_DIR=/mnt/data/ENCODE/byDataType/umap/encodeHg19Male/globalmap_k20tok54
+SEQ_DIR=/mnt/data/ENCODE/byDataType/sequence/encodeHg19Male
 
-///////// fastqs
-INPUT_FASTQ_REP1=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR000EEB/ENCFF000XUL.fastq.gz
-INPUT_FASTQ_REP2=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR000EEB/ENCFF000XUK.fastq.gz
+// fastqs
+INPUT_FASTQ_REP1_PE1=/srv/scratch/leepc12/data/tf_chipseq_test/ENCSR703KWN/2.1/ENCFF499TRH.fastq.gz
+INPUT_FASTQ_REP2_PE1=/srv/scratch/leepc12/data/tf_chipseq_test/ENCSR703KWN/2.2/ENCFF702LEK.fastq.gz
 
-//////// control fastqs
-INPUT_FASTQ_CTL_REP1=/srv/gsfs0/projects/kundaje/users/jinlee/data/tf_chipseq_test/ENCSR000EEB/Ctl/ENCFF000XTF.fastq.gz
-
-
-
-//////// fastqs example /////////
-// paired end data
-// INPUT_FASTQ_REP1_PE1={Rep1 paired 1 fastq file}
-// INPUT_FASTQ_REP1_PE2={Rep1 paired 2 fastq file}
-// INPUT_FASTQ_REP2_PE1={Rep2 paired 1 fastq file}
-// INPUT_FASTQ_REP2_PE2={Rep2 paired 2 fastq file}
-// INPUT_FASTQ_CTL_REP1_PE1={Rep1 paired 1 control fastq file}
-// INPUT_FASTQ_CTL_REP1_PE2={Rep1 paired 2 control fastq file}
-// INPUT_FASTQ_CTL_REP2_PE1={Rep2 paired 1 control fastq file}
-// INPUT_FASTQ_CTL_REP2_PE2={Rep2 paired 2 control fastq file}
-//
-// single ended data
-// INPUT_FASTQ_REP1={Rep1 fastq file}
-// INPUT_FASTQ_REP2={Rep2 fastq file}
-// INPUT_FASTQ_CTL_REP1={Rep1 control fastq file}
-// INPUT_FASTQ_CTL_REP2={Rep2 control fastq file}
-//
-// mixed data
-// INPUT_FASTQ_REP1_PE1={Rep1 paired 1 fastq file}
-// INPUT_FASTQ_REP1_PE2={Rep1 paired 2 fastq file}
-// INPUT_FASTQ_REP2={Rep2 fastq file}
-// INPUT_FASTQ_CTL_REP1_PE1={Rep1 paired 1 control fastq file}
-// INPUT_FASTQ_CTL_REP1_PE2={Rep1 paired 2 control fastq file}
-// INPUT_FASTQ_CTL_REP2={Rep2 control fastq file}
-
-//////////// PRE_IDR QC example ///////////////
-// PRE_IDR=true
-// NUM_REP=5
-// INPUT_FASTQ_REP1={Rep1 fastq file}
-// INPUT_FASTQ_REP2={Rep2 fastq file}
-// INPUT_FASTQ_REP3_PE1={Rep3 paired 1 fastq file}
-// INPUT_FASTQ_REP3_PE2={Rep3 paired 2 fastq file}
-// INPUT_FASTQ_REP4={Rep4 fastq file}
-// INPUT_FASTQ_REP5={Rep5 fastq file}
+// control fastqs
+INPUT_FASTQ_CTL_REP1_PE1=/srv/scratch/leepc12/data/tf_chipseq_test/ENCSR703KWN/Ctl/2.1/ENCFF169TIB.fastq.gz
+INPUT_FASTQ_CTL_REP2_PE1=/srv/scratch/leepc12/data/tf_chipseq_test/ENCSR703KWN/Ctl/2.2/ENCFF630PTQ.fastq.gz
