@@ -2,80 +2,90 @@
 // modules for atac
 
 include "../modules_string.bds"
-include "../modules_fastq.bds"
 include "../conf_general.bds"
 
 ///////// trimAdapters /////////////////////
-string TRIM_ADAPTERS
+string TRIM_ADAPTERS="trimAdapters.py"			help Path for trimAdapters.py
 
 ///////// alignATAC /////////////////////
-string BOWTIE_IDX
-int NTHREADS_BWT2
-int MEMORY_BWT2
-int STACK_BWT2
+string BOWTIE_IDX								help Path for bowtie index
+int NUMTHREADS=1								help # of threads for bwt2
+int MEMORY_BWT2=8000000000						help Max. memory limit for bwt2
 
 ///////// alignPostprocessPE /////////////////////
-int MAPQ_THRESH
-string JVM_OPTS
+int MAPQ_THRESH=30								help MAPQ_THRESH
+string JVM_OPTS="-Xmx4G"						help Java VM additional options (eg. -Xmx4G)
 
 //////// alignPostprocessATAC ////////////
-string ADJUST_BED_TN5
+string ADJUST_BED_TN5="adjustBedTN5.sh"			help Path for adjustBedTN5.sh
 
 //////// callATACpeaks ////////
-string genomeSize
-string chrSize
-int fragLen
+string GENOMESIZE="hs"							help 'hs' by default
+string CHROMSIZE								help Path for chrom.sizes file for your .fa
+int fragLen=75									help fragLen
 
-void read_conf_atac( string conf_file ) {
+// input reads
+string READ1 									help Read1 fastq
+string READ2									help Read2 fastq
 
-	read_conf( conf_file )
 
-	print( "\nReading configuration (atac)...\n" );
+read_param_atac()
+main()
 
-	///////// trimAdapters /////////////////////
-	TRIM_ADAPTERS	= chk_file( conf{ "TRIM_ADAPTERS" }, "" )
 
-	///////// alignATAC /////////////////////
-	BOWTIE_IDX		= chk_file( conf{ "BOWTIE_IDX" }, ".1.bt2" )
-	NTHREADS_BWT2	= parse_int( conf{ "NTHREADS_BWT2" } )
-	MEMORY_BWT2		= parse_int( conf{ "MEMORY_BWT2" } )
-	STACK_BWT2		= parse_int( conf{ "STACK_BWT2" } )
-	
-	///////// alignPostprocessPE /////////////////////
-	MAPQ_THRESH 	= parse_int( conf{ "MAPQ_THRESH" } )
-	JVM_OPTS 		= rm_comment( conf{ "JVM_OPTS"} )
+void read_param_atac() {
 
-	//////// alignPostprocessATAC ////////////
-	ADJUST_BED_TN5 	= chk_file( conf{ "ADJUST_BED_TN5" }, "" )
+	if ( CONF_FILE=="" ) {
 
-	//////// callATACpeaks ////////
-	genomeSize		= rm_comment( conf{"genomeSize"} )	
-	chrSize			= chk_file( conf{"chrSize"}, "" )
-	fragLen 		= parse_int( conf{ "fragLen" } )
+		if ( cmd_line_arg_is_empty() ) {
+			error("need cmd. line args or conf_file")			
+		}
+		else {
+			if ( cmd_line_arg_has_dash() ) { // read params. from cmd line args.
 
-	// print conf info
-	for( string k : conf.keys() ) {
-		// if key is comment ignore
-		if ( k.indexOf("//")>=0 ) \
-			continue
+			}
+			else {
+				
+			}
+		}
 
-		print( k + "\t= " + rm_comment( conf{k} ) + "\n" )
 	}
+	else ( CONF_FILE.exists() ) {
 
+		///////// trimAdapters /////////////////////
+		TRIM_ADAPTERS	= chk_file( conf{ "TRIM_ADAPTERS" }, "" )
 
-	print( "\nChecking fastqs...\n" );
+		///////// alignATAC /////////////////////
+		BOWTIE_IDX		= chk_file( conf{ "BOWTIE_IDX" }, ".1.bt2" )
+		NUMTHREADS		= parse_int( conf{ "NUMTHREADS" } )
+		MEMORY_BWT2		= parse_int( conf{ "MEMORY_BWT2" } )
+		
+		///////// alignPostprocessPE /////////////////////
+		MAPQ_THRESH 	= parse_int( conf{ "MAPQ_THRESH" } )
+		JVM_OPTS 		= rm_comment( conf{ "JVM_OPTS"} )
 
-	fastqs_Rep1 := get_fastqs( conf, 0, 1 )
-	fastqs_Rep2 := get_fastqs( conf, 0, 2 )
+		//////// alignPostprocessATAC ////////////
+		ADJUST_BED_TN5 	= chk_file( conf{ "ADJUST_BED_TN5" }, "" )
 
-	print( "Rep1: \n")
-		for ( string s : fastqs_Rep1 ) print("\t$s\n")
+		//////// callATACpeaks ////////
+		GENOMESIZE		= rm_comment( conf{"GENOMESIZE"} )	
+		CHROMSIZE		= chk_file( conf{"CHROMSIZE"}, "" )
+		fragLen 		= parse_int( conf{ "fragLen" } )
 
-	print( "Rep2: \n")
-		for ( string s : fastqs_Rep2 ) print("\t$s\n")
-	
-	if ( fastqs_Rep1.size() == 0 ) error( "error(read_conf_atac): " + "Rep1 fastq missing!\n")
-	if ( fastqs_Rep2.size() == 0 ) error( "error(read_conf_atac): " + "Rep2 fastq missing!\n")
+		print( "\nChecking reads (fastqs)...\n" );
+
+		fastqs_Rep1 := get_fastqs( conf, 0, 1 )
+		fastqs_Rep2 := get_fastqs( conf, 0, 2 )
+
+		print( "Rep1: \n")
+			for ( string s : fastqs_Rep1 ) print("\t$s\n")
+
+		print( "Rep2: \n")
+			for ( string s : fastqs_Rep2 ) print("\t$s\n")
+		
+		if ( fastqs_Rep1.size() == 0 ) error( "error(read_conf_atac): " + "Rep1 fastq missing!\n")
+		if ( fastqs_Rep2.size() == 0 ) error( "error(read_conf_atac): " + "Rep2 fastq missing!\n")
+	}
 }
 
 void main() {
@@ -117,12 +127,12 @@ void main() {
 	outputBAM := "$OFPREFIX.bam"
 	outputLog := "$OFPREFIX.align.log"
 
-	task( taskName := "alignATAC", cpus := NTHREADS_BWT2, timeout := WALLTIME, mem := MEMORY_BWT2, \
+	task( taskName := "alignATAC", cpus := NUMTHREADS, timeout := WALLTIME, mem := MEMORY_BWT2, \
 		 [outputBAM, outputLog] <- [READ1, READ2] ) {
 
 		sys $PRELOAD
 
-		sys bowtie2 -X2000 --threads "$NTHREADS_BWT2" -x "$BOWTIE_IDX" \
+		sys bowtie2 -X2000 --threads "$NUMTHREADS" -x "$BOWTIE_IDX" \
 			-1 <(zcat -f "$READ1") -2 <(zcat -f "$READ2") \
 			2>"$outputLog" | \
 			samtools view -bS - > "$outputBAM"
@@ -285,18 +295,18 @@ void main() {
 
 		sys $PRELOAD
 
-		sys adjustedBed="slopBed -i $readBed -g $chrSize -l 75 -r -75 -s"
+		sys adjustedBed="slopBed -i $readBed -g $CHROMSIZE -l 75 -r -75 -s"
 		sys macs2 callpeak \
-			-t <(${adjustedBed}) -f BED -n "$peakFile" -g "$genomeSize" -p 1e-2 \
+			-t <(${adjustedBed}) -f BED -n "$peakFile" -g "$GENOMESIZE" -p 1e-2 \
 			--nomodel --shift "$fragLen" -B --SPMR --keep-dup all --call-summits
 
 		sys macs2 bdgcmp \
 			-t "$peakFile"_treat_pileup.bdg -c "$peakFile"_control_lambda.bdg \
 			--o-prefix "$peakFile" -m FE
-		sys slopBed -i "$peakFile"_FE.bdg -g "$chrSize" -b 0 | \
-			bedClip stdin "$chrSize" "$peakFile.fc.signal.bedgraph"
+		sys slopBed -i "$peakFile"_FE.bdg -g "$CHROMSIZE" -b 0 | \
+			bedClip stdin "$CHROMSIZE" "$peakFile.fc.signal.bedgraph"
 		sys rm -f "$peakFile"_FE.bdg
-		sys bedGraphToBigWig "$peakFile.fc.signal.bedgraph" "$chrSize" "$peakFile.fc.signal.bigwig"
+		sys bedGraphToBigWig "$peakFile.fc.signal.bedgraph" "$CHROMSIZE" "$peakFile.fc.signal.bigwig"
 		sys rm -f "$peakFile.fc.signal.bedgraph"
 
 		//# sval counts the number of tags per million in the (compressed) BED file
@@ -304,10 +314,10 @@ void main() {
 		sys macs2 bdgcmp \
 			-t "$peakFile"_treat_pileup.bdg -c "$peakFile"_control_lambda.bdg \
 			--o-prefix "$peakFile" -m ppois -S "${sval}"
-		sys slopBed -i "$peakFile"_ppois.bdg -g "$chrSize" -b 0 | \
-			bedClip stdin "$chrSize" "$peakFile.pval.signal.bedgraph"
+		sys slopBed -i "$peakFile"_ppois.bdg -g "$CHROMSIZE" -b 0 | \
+			bedClip stdin "$CHROMSIZE" "$peakFile.pval.signal.bedgraph"
 		sys rm -f "$peakFile"_ppois.bdg
-		sys bedGraphToBigWig "$peakFile.pval.signal.bedgraph" "$chrSize" "$peakFile.pval.signal.bigwig"
+		sys bedGraphToBigWig "$peakFile.pval.signal.bedgraph" "$CHROMSIZE" "$peakFile.pval.signal.bigwig"
 		sys rm -f "$peakFile.pval.signal.bedgraph"
 	}	
 

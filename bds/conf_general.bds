@@ -2,70 +2,58 @@
 
 include "modules_string.bds"
 
-// parameters and help
-string CONF_FILE 	="" 			help Configuration file path (if not specified, define parameters in command line argument).
 
-string PREFIX 		=""				help Prefix for outputs.
-string OUTPUT_DIR 	="out" 			help Output directory. (default: out)
-string TMP_DIR 		="tmp"			help Temporary directory for intermediate files. (default: tmp)
-string MODULE 		=""				help Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
-string SHELLCMD		=""				help Shell cmds separated by ;. Env vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test") 
+// cmd line arg. wrapper
+string c 			= "" 			help Configuration file path (if not specified, define parameters in command line argument).
 
-int WALLTIME 		=36000			help Default Walltime in seconds for all cluster jobs (default: 36000)
-int NTHREADS 		=1 				help Default number of threads for all cluster jobs (default: 1)
-int MEMORY 			=2000000000		help Default max. memory in bytes for all cluster jobs (default: 2000000000)
+string prefix		= ""			help Prefix for all outputs.
+string o 			= "out" 		help Output directory. (default: out)
+string tmp 			= "tmp"			help Temporary directory for intermediate files. (default: tmp).
+string mod 			= ""			help Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+string shcmd 		= ""			help Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test"). 
+
+int wt 				= 36000			help Default walltime in seconds for all cluster jobs (default: 36000).
+int nth				= 1 			help Default number of threads for all cluster jobs (default: 1).
+int mem 			= 4000			help Default max. memory in MB for all cluster jobs (default: 4G).
 
 
-// local vars
+// parameters
+string CONF_FILE 	= c
+string PREFIX 		= prefix
+string OUTPUT_DIR 	= o
+string TMP_DIR 		= tmp
+string MODULE 		= mod
+string SHELLCMD		= shcmd
+int WALLTIME 		= wt
+int NTHREADS 		= nth
+int MEMORY 			= mem
+
+// system parameters
+string PRELOAD 			= ""
+string PRELOAD_MODULE 	= ". /etc/profile.d/modules.sh;"
+string PRELOAD_SHELLCMD = "export PATH=\"\${PATH}:/bin:/usr/bin\";" // default path for basic linux utils
+
 string{} conf // config. file
 
-string PRELOAD = ""
-string PRELOAD_MODULE = ". /etc/profile.d/modules.sh;"
-string PRELOAD_SHELLCMD = "export PATH=\"\${PATH}:/bin:/usr/bin\";" // default path for basic linux utils
 
 
 void read_param_general() {
-	
-	// read parameters
-	if ( CONF_FILE=="" ) {
-		print( "Reading parameters from command line argument...\n")
 
-		if ( MODULE=="" ) {
-			print( "Warning: modules are not specified.\n")
-
-		}
-		else {
-			trimmed := MODULE.trim()
-			mods := trimmed.split(";")
-
-			for ( string str : mods ) \
-				PRELOAD_MODULE = PRELOAD_MODULE + " module add " + str.trim() + ";"
-
-		}
-
-		if ( SHELLCMD=="" ) {
-			print( "Warning: shell commands are not specified.\n")
-
-		}
-		else {
-			trimmed := SHELLCMD.trim()		
-			PRELOAD_SHELLCMD = PRELOAD_SHELLCMD + " " + trimmed + ";"
-
-		}
-
-	} 
-	else if ( CONF_FILE.exists() ) {
-		print( "Reading parameters from configuration file ($CONF_FILE)...\n")
+	if ( conf_file_exists() ) { // parameters in conf_file overrides those on cmd line args.
 
 		conf = config(CONF_FILE)
 
-		PREFIX 		= chk_slash( conf{ "PREFIX" } )
-		OUTPUT_DIR	= mkdir_path( conf{ "OUTPUT_DIR" } ) 
-		TMP_DIR 	= mkdir_path( conf{ "TMP_DIR" } )
+		if ( conf.hasKey("PREFIX") ) 		PREFIX 		= chk_slash( conf{ "PREFIX" } )
 
-		WALLTIME 	= parse_int( conf{ "WALLTIME" } ) 
-		NTHREADS  	= parse_int( conf{ "NTHREADS" } ) 
-		MEMORY 		= parse_int( conf{ "MEMORY" } ) 
+		if ( conf.hasKey("OUTPUT_DIR") ) 	OUTPUT_DIR	= rm_comment( conf{ "OUTPUT_DIR" } ) 
+											OUTPUT_DIR 	= mkdir_path( OUTPUT_DIR )
+
+		if ( conf.hasKey("TMP_DIR") ) 		TMP_DIR 	= rm_comment( conf{ "TMP_DIR" } )
+											TMP_DIR 	= mkdir_path( TMP_DIR )
+
+		if ( conf.hasKey("WALLTIME") ) 		WALLTIME 	= parse_int( conf{ "WALLTIME" } ) 
+		if ( conf.hasKey("NTHREADS") ) 		NTHREADS  	= parse_int( conf{ "NTHREADS" } ) 
+		if ( conf.hasKey("MEMORY") ) 		MEMORY 		= parse_int( conf{ "MEMORY" } ) 
 
 		for( string k : conf.keys() ) {
 			// if key is comment ignore
@@ -87,8 +75,30 @@ void read_param_general() {
 		}
 
 	}
+	else if ( cmd_line_arg_is_empty() ) {
+		error( "No parameters are given (cmd. line argument or configuration file ($CONF_FILE)).\n")
+
+	} 
 	else {
-		error( "Configuration file ($CONF_FILE) does not exists.\n")
+
+		if ( MODULE=="" ) {
+			print( "Warning: MODULE is not specified.\n")
+		}
+		else {
+			trimmed := MODULE.trim()
+			mods := trimmed.split(";")
+
+			for ( string str : mods ) \
+				PRELOAD_MODULE = PRELOAD_MODULE + " module add " + str.trim() + ";"
+		}
+
+		if ( SHELLCMD=="" ) {
+			print( "Warning: SHELLCMD is not specified.\n")
+		}
+		else {
+			trimmed := SHELLCMD.trim()		
+			PRELOAD_SHELLCMD = PRELOAD_SHELLCMD + " " + trimmed + ";"
+		}
 
 	}
 
@@ -106,12 +116,39 @@ void read_param_general() {
 
 	print("WALLTIME = $WALLTIME (seconds)\n");
 	print("NTHREADS = $NTHREADS\n");
-	print("MEMORY = $MEMORY (bytes)\n");
-
-	//print("MODULE = $MODULE\n");
-	//print("SHELLCMD = $SHELLCMD\n");\
+	print("MEMORY = $MEMORY (megabytes)\n");
 
 	// additional initialization
 	PRELOAD = PRELOAD_SHELLCMD + "; " + PRELOAD_MODULE
 	PRELOAD = PRELOAD.replace( ";;", ";" )
+
+	print("PRELOAD = $PRELOAD\n");
+}
+
+
+bool conf_file_exists() {
+
+	if ( CONF_FILE=="" ) {
+		return false
+	}
+	else {
+		return CONF_FILE.exists()
+	}
+}
+
+
+bool cmd_line_arg_is_empty() {
+
+	return args.size()==0
+}
+
+
+bool cmd_line_arg_has_dash() {
+
+	if ( !cmd_line_arg_is_empty() ) {
+		if ( args[0].substr(0,1) == '-' ) {
+			return true
+		}
+	}
+	return false
 }

@@ -1,35 +1,4 @@
 #!/usr/bin/env bds
-// code developed by Jin Lee (leepc12@stanford.edu) on Mar. 2015
-
-string[] get_fastqs( string{} conf, int ctl, int rep ) { 
-	// if paired-end return [PE1, PE2], elseif single-end else return [PE1], else []
-	string[] ret
-
-	for ( int pe=1; pe<=2; pe++ ) {
-		str := get_fastq( conf, ctl, rep, pe )
-
-		if ( str.length() > 0 ) { // if not null, append
-			ret.add( str )
-		}
-	}
-
-	return ret
-}
-
-string get_fastq( string{} conf,  int ctl, int rep, int pe ) {
-	//key_wo_PE := ( ctl > 0 ? "INPUT_FASTQ_CTL" + ctl : "INPUT_FASTQ" ) + "_REP" + rep 
-	key_wo_PE := ( ctl > 0 ? "INPUT_FASTQ_CTL" : "INPUT_FASTQ" ) + "_REP" + rep 
-	key := key_wo_PE + "_PE" + pe
-
-	if ( (pe==1) && conf.hasKey( key_wo_PE ) ) {
-		return get_path( conf{ key_wo_PE }.trim() )
-	}
-	else if ( conf.hasKey( key ) ) {
-		return get_path( conf{ key }.trim() )
-	}
-	else {
-		return ""
-	}
-}
 
 
+// cmd. line arg. wrapper

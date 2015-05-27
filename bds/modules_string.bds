@@ -1,6 +1,5 @@
 #!/usr/bin/env bds
-// code developed by Jin Lee (leepc12@stanford.edu) on Mar. 2015
-// string functions for commenting (//) in configuration file, (/*,*/) doesn't work
+
 
 string chk_slash( string str ) { // if slash found, error
 	trimmed := rm_comment( str )

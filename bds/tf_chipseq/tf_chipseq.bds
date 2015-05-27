@@ -1,36 +1,36 @@
 #!/usr/bin/env bds
 
-include "../conf_general.bds"
 include "../modules_align_map.bds"
 
-// parameters and help
-int NPEAK=300000 				help Parameter for -npeak in run_spp.R (default: 300000)
-bool DUPE_REMOVED=true	 		help Set it true if dupes are removed when aligning (default: true)
+// cmd line arg wrapper and help
+int npeak 			= 300000 	help Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
+bool dup_rm 		= true	 	help Set it true if dupes are removed when aligning (default: true).
+string idr_thresh 	= 0.02		help IDR thresh (default: 0.02).
 
-string IDR_THRESH=0.02			help IDR thresh (default: 0.02)
+
+// parameters
+int NPEAK 			= npeak	
+bool DUPE_REMOVED 	= dup_rm
+string IDR_THRESH 	= idr_thresh
 
 
 
 // pipeline starts here
-
 read_param_general()
 read_param_align_map()
 read_param_tf_chipseq()
 
 align_map_xcor_spr_pspr()
+
 spp_idr()
 
-exit(0)
 
 
 // functions
 void read_param_tf_chipseq() {
 
 	// read parameters
-	if ( CONF_FILE=="" ) {
-
-	} 
-	else if ( CONF_FILE.exists() ) {
+	if ( conf_file_exists() ) {
 		// peak calling (run_spp.R)
 		NPEAK 			= parse_int( conf{ "NPEAK" } )
 		DUPE_REMOVED	= parse_bool( conf{ "DUPE_REMOVED"} )
@@ -59,8 +59,8 @@ void spp_idr() {
 	print("FRAGLEN for spp: $FRAGLEN \n")
 	
 	// prepare for tagAlign files
-	fastqs_Rep1 	:= get_fastqs( conf, 0, 1 )
-	fastqs_Rep2 	:= get_fastqs( conf, 0, 2 ) // check if rep2 doesn't exist
+	fastqs_Rep1 	:= get_fastqs( 0, 1 )
+	fastqs_Rep2 	:= get_fastqs( 0, 2 ) // check if rep2 doesn't exist
 	suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
 	suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
 	suffix 			:= fastqs_Rep1.size()==2 ? suffix_PE : suffix_SE
@@ -80,8 +80,8 @@ void spp_idr() {
 	PPR1_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
 	PPR2_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
 
-	ctl_fastqs_Rep1 	:= get_fastqs( conf, 1, 1 )
-	ctl_fastqs_Rep2 	:= get_fastqs( conf, 1, 2 ) // check if rep2 doesn't exist
+	ctl_fastqs_Rep1 	:= get_fastqs( 1, 1 )
+	ctl_fastqs_Rep2 	:= get_fastqs( 1, 2 ) // check if rep2 doesn't exist
 	ctl_suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
 	ctl_suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
 	ctl_suffix 			:= ctl_fastqs_Rep1.size()==2 ? ctl_suffix_PE : ctl_suffix_SE
@@ -109,7 +109,7 @@ void spp_idr() {
 	PEAK_POOLED_CCSCORE := PEAK_OUTPUT_DIR + "/" + POOLED_TA_FILE.baseName() + ".ccscores"
 
 	// REP1_TA_FILE vs CTL_REP1_TA_FILE
-	task( taskName := "spp rep1", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY, \
+	task( taskName := "spp rep1", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY * M, \
 		PEAK_REP1_CCSCORE <- [REP1_TA_FILE, CTL_REP1_TA_FILE] ) {
 
 		sys $PRELOAD
@@ -119,7 +119,7 @@ void spp_idr() {
 	}
 
 	// REP2_TA_FILE vs CTL_REP2_TA_FILE
-	task( taskName := "spp rep2", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY, \
+	task( taskName := "spp rep2", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY * M, \
 		PEAK_REP2_CCSCORE <- [REP2_TA_FILE, CTL_REP2_TA_FILE]  ) {
 
 		sys $PRELOAD
@@ -129,7 +129,7 @@ void spp_idr() {
 	}
 
 	// POOLED_TA_FILE vs CTL_POOLED_TA_FILE
-	task( taskName := "spp pooled", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY, \
+	task( taskName := "spp pooled", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY * M, \
 		PEAK_POOLED_CCSCORE <- [POOLED_TA_FILE, CTL_POOLED_TA_FILE] ) {
 
 		sys $PRELOAD
@@ -157,7 +157,7 @@ void spp_idr() {
 	IDR_OUTPUT := "$PEAK_OUTPUT_DIR/REP1_VS_REP2.IDR" + IDR_THRESH +".narrowPeak"
 
 	// Nathan's idr code
-	task( taskName := "IDR", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
+	task( taskName := "IDR", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 		IDR_OUTPUT <- [REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE] ) { // --use-old-output-format 
 
 		sys $PRELOAD
