@@ -1,14 +1,324 @@
 #!/usr/bin/env bds
 
-include "modules_atac.bds"
+include "../conf_general.bds"
 
-// arguments
-string c = "conf_atac.txt"	help configuration file for atac
+// input reads
+string READ1 									help Read1 fastq
+string READ2									help Read2 fastq
 
-// pipeline body
-read_conf_atac( c )
+///////// trimAdapters /////////////////////
+string TRIM_ADAPTERS 	= "trimAdapters.py"
 
-main()
+///////// alignATAC /////////////////////
+string BOWTIE_IDX								help Path for bowtie index
+int NUMTHREADS 			= 1						help Number of threads for bowtie2
+int MEMORY_BWT2 		= 8000					
 
-exit(0)
+///////// alignPostprocessPE /////////////////////
+int MAPQ_THRESH 		= 30					
+string JVM_OPTS 		= "-Xmx4G"				
 
+//////// alignPostprocessATAC ////////////
+string ADJUST_BED_TN5 	= "adjustBedTN5.sh"
+
+//////// callATACpeaks ////////
+string GENOMESIZE 		= "hs"					help 'hs' by default
+string CHROMSIZE								help Path for chrom.sizes file for your .fa
+int fragLen=75									//help fragLen
+
+
+
+// program body
+
+PREFIX = 'atac' // redundant
+
+read_param_general()
+read_param_atac()
+main_atac()
+
+
+
+void read_param_atac() {
+
+	if ( conf_file_exists() ) {
+
+		///////// trimAdapters /////////////////////
+		if ( conf.hasKey("READ1") )				READ1			= chk_file( conf{ "READ1" }, "" )
+		if ( conf.hasKey("READ2") )				READ2			= chk_file( conf{ "READ2" }, "" )
+
+		if ( conf.hasKey("TRIM_ADAPTERS") )		TRIM_ADAPTERS	= chk_file( conf{ "TRIM_ADAPTERS" }, "" )
+
+		///////// alignATAC /////////////////////
+		if ( conf.hasKey("BOWTIE_IDX") )		BOWTIE_IDX		= chk_file( conf{ "BOWTIE_IDX" }, ".1.bt2" )
+		if ( conf.hasKey("NUMTHREADS") )		NUMTHREADS		= parse_int( conf{ "NUMTHREADS" } )
+		if ( conf.hasKey("MEMORY_BWT2") )		MEMORY_BWT2		= parse_int( conf{ "MEMORY_BWT2" } )
+		
+		///////// alignPostprocessPE /////////////////////
+		if ( conf.hasKey("MAPQ_THRESH") )		MAPQ_THRESH 	= parse_int( conf{ "MAPQ_THRESH" } )
+		if ( conf.hasKey("JVM_OPTS") )			JVM_OPTS 		= rm_comment( conf{ "JVM_OPTS"} )
+
+		//////// alignPostprocessATAC ////////////
+		if ( conf.hasKey("ADJUST_BED_TN5") )	ADJUST_BED_TN5 	= chk_file( conf{ "ADJUST_BED_TN5" }, "" )
+
+		//////// callATACpeaks ////////
+		if ( conf.hasKey("GENOMESIZE") )		GENOMESIZE		= rm_comment( conf{"GENOMESIZE"} )	
+		if ( conf.hasKey("CHROMSIZE") )			CHROMSIZE		= chk_file( conf{"CHROMSIZE"}, "" )
+		if ( conf.hasKey("fragLen") )			fragLen 		= parse_int( conf{ "fragLen" } )
+
+	}
+	else { // if there is no conf. file take first five arguments as input
+		BOWTIE_IDX 	= args[0]
+		READ1 		= args[1]
+		READ2 		= args[2]
+		NUMTHREADS	= args[3].parseInt()
+		GENOMESIZE	= args[4]
+		CHROMSIZE	= args[5]
+		OUTPUT_DIR 	= args[6]
+	}
+
+	print("READ1 = $READ1\n");
+	print("READ2 = $READ2\n");
+	print("TRIM_ADAPTERS = $TRIM_ADAPTERS\n");
+	print("BOWTIE_IDX = $BOWTIE_IDX\n");
+	print("NUMTHREADS = $NUMTHREADS (for bowtie2)\n");
+	print("MEMORY_BWT2 = $MEMORY_BWT2 (megabytes)\n");
+	print("MAPQ_THRESH = $MAPQ_THRESH\n");
+	print("JVM_OPTS = $JVM_OPTS\n");
+	print("ADJUST_BED_TN5 = $ADJUST_BED_TN5\n");
+	print("GENOMESIZE = $GENOMESIZE\n");
+	print("CHROMSIZE = $CHROMSIZE\n");
+	print("fragLen = $fragLen\n");
+}
+
+void main_atac() {
+
+	print( "\ntrimAdapters...\n" )
+
+	// inputs
+	P1_IN := READ1
+	P2_IN := READ2
+
+	// outputs (on OUTPUT_DIR)
+	P1_OUT := OUTPUT_DIR + "/" + P1_IN.baseName().replace(".fastq.gz",".trim.fastq")
+	P2_OUT := OUTPUT_DIR + "/" + P2_IN.baseName().replace(".fastq.gz",".trim.fastq")
+
+	task( taskName := "trimAdapters", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		 [P1_OUT, P2_OUT] <- [P1_IN, P2_IN] ) {
+
+		sys $PRELOAD
+
+		sys cd $OUTPUT_DIR
+		sys python $(which $TRIM_ADAPTERS) -a $P1_IN -b $P2_IN
+	}
+
+	wait
+
+
+
+	print( "\nalignATAC...\n" )
+
+	READ1 = P1_OUT
+	READ2 = P2_OUT
+
+	//OFPREFIX := OUTPUT_DIR + "/" + PREFIX
+	OFPREFIX := P1_OUT.replace(".fastq","")
+
+	outputBAM := "$OFPREFIX.bam"
+	outputLog := "$OFPREFIX.align.log"
+
+	task( taskName := "alignATAC", cpus := NUMTHREADS, timeout := WALLTIME, mem := MEMORY_BWT2 * M, \
+		 [outputBAM, outputLog] <- [READ1, READ2] ) {
+
+		sys $PRELOAD
+
+		sys bowtie2 -X2000 --threads "$NUMTHREADS" -x "$BOWTIE_IDX" \
+			-1 <(zcat -f "$READ1") -2 <(zcat -f "$READ2") \
+			2>"$outputLog" | \
+			samtools view -bS - > "$outputBAM"
+	}
+
+	wait
+
+
+
+	print( "\nalignPostprocessPE...\n" )
+
+	RAW_BAM_FILE	:= outputBAM	
+
+	FILT_BAM_PREFIX := "$OFPREFIX.filt.srt"
+	FILT_BAM_FILE 	:= "$FILT_BAM_PREFIX.bam"
+
+	TMP_FILT_BAM_PREFIX := "$FILT_BAM_PREFIX.nmsrt.tmp"
+	TMP_FILT_BAM_FILE 	:= "$TMP_FILT_BAM_PREFIX.bam"
+		
+	DUP_FILE_QC 		:= "$FILT_BAM_PREFIX.dup.qc"
+
+	FINAL_BAM_PREFIX 		:= "$OFPREFIX.filt.srt.nodup"
+	FINAL_BAM_FILE 			:= "$FINAL_BAM_PREFIX.bam" //# To be stored
+	FINAL_BAM_INDEX_FILE 	:= "$FINAL_BAM_PREFIX.bai"
+	FINAL_BAM_FILE_MAPSTATS := "$FINAL_BAM_PREFIX.flagstat.qc" //# QC file
+	FINAL_NMSRT_BAM_PREFIX 	:= "$OFPREFIX.filt.nmsrt.nodup"
+	FINAL_NMSRT_BAM_FILE 	:= "$FINAL_NMSRT_BAM_PREFIX.bam" //# To be stored
+
+	PBC_FILE_QC := "$FINAL_BAM_PREFIX.pbc.qc"
+
+	task( taskName := "alignPostprocessPE", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		 FINAL_BAM_FILE <- RAW_BAM_FILE ) {
+
+		sys $PRELOAD
+
+		//# =============================
+		//# Remove unmapped, mate unmapped
+		//# not primary alignment, reads failing platform
+		//# Remove low MAPQ reads
+		//# Only keep properly paired reads
+		//# Obtain name sorted BAM file
+		//# ==================
+
+		sys echo "Filter reads and sort"
+
+		//# Will produce name sorted BAM
+		sys samtools view -F 1804 -f 2 -q "$MAPQ_THRESH" -u "$RAW_BAM_FILE" | \
+			samtools sort -n - "$TMP_FILT_BAM_PREFIX" 
+
+		//# Remove orphan reads (pair was removed)
+		//# and read pairs mapping to different chromosomes
+		//# Obtain position sorted BAM
+
+		sys echo "Fix mates - orphans and cross chromosomes"
+
+		//# Will produce coordinate sorted BAM
+		sys samtools fixmate -O bam -r "$TMP_FILT_BAM_FILE" - | \
+			samtools view -F 1804 -f 2 -u - | \
+			samtools sort - "$FILT_BAM_PREFIX" 
+
+		sys rm -f "$TMP_FILT_BAM_FILE"
+
+		//# =============
+		//# Mark duplicates
+		//# =============
+
+		sys echo "Mark duplicates"
+
+		sys java $JVM_OPTS -jar ${PICARDROOT}/picard.jar MarkDuplicates \
+			INPUT="$FILT_BAM_FILE" OUTPUT="$TMP_FILT_BAM_FILE" \
+			METRICS_FILE="$DUP_FILE_QC" VALIDATION_STRINGENCY=LENIENT \
+			ASSUME_SORTED=true REMOVE_DUPLICATES=false
+
+		sys mv "$TMP_FILT_BAM_FILE" "$FILT_BAM_FILE"
+
+		//# ============================
+		//# Remove duplicates
+		//# Index final position sorted BAM
+		//# Create final name sorted BAM
+		//# ============================
+
+		sys echo "Remove duplicates"
+
+		sys samtools view -F 1804 -f 2 -b "$FILT_BAM_FILE" > "$FINAL_BAM_FILE"
+		sys samtools sort -n "$FINAL_BAM_FILE" "$FINAL_NMSRT_BAM_PREFIX"
+
+		//# Index Final BAM file
+
+		sys samtools index "$FINAL_BAM_FILE"
+
+		sys mv -f "$FINAL_BAM_FILE".bai "$FINAL_BAM_INDEX_FILE"
+		sys samtools flagstat "$FINAL_BAM_FILE" > "$FINAL_BAM_FILE_MAPSTATS"
+
+		//# =============================
+		//# Compute library complexity
+		//# =============================
+		//# Sort by name
+		//# convert to bedPE and obtain fragment coordinates
+		//# sort by position and strand
+		//# Obtain unique count statistics
+
+		sys echo "Compute library complexity"
+
+		//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
+		sys samtools sort -n -o "$FILT_BAM_FILE" "$FILT_BAM_FILE.tmp" | \
+			bedtools bamtobed -bedpe -i stdin | \
+			awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
+			grep -v 'chrM' | \
+			sort | \
+			uniq -c | \
+			awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > "$PBC_FILE_QC"
+
+		sys rm -f "$FILT_BAM_FILE"
+	}
+
+	wait
+
+
+	print( "\nalignPostprocessATAC...\n" )
+
+	input_bam 	:= FINAL_BAM_FILE
+	mitoBAM 	:= input_bam.replace(".bam",".chrM.bam")
+	nonMitoBAM 	:= input_bam.replace(".bam",".nonchrM.bam")
+	nonMitoBAM_hist_graph := "$nonMitoBAM.hist_graph.pdf"
+
+	output_file := nonMitoBAM.replace(".bam",".bed")
+
+	task( taskName := "alignPostprocessATAC", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		 [mitoBAM, nonMitoBAM, nonMitoBAM_hist_graph] <- input_bam ) {
+
+		sys $PRELOAD
+
+		sys nonMitoChromosomes=$(samtools view -H "$input_bam" | \
+								grep chr | cut -f2 | sed 's/SN://g' | grep -v chrM)
+
+		sys samtools view -b "$input_bam" ${nonMitoChromosomes} > "$nonMitoBAM"
+		
+		sys samtools view -b "$input_bam" chrM > "$mitoBAM"
+
+		//# Process only non chrM reads
+		sys bamToBed -i "$nonMitoBAM" | \
+			$(which $ADJUST_BED_TN5) | \
+			gzip -c > "$output_file"
+
+		sys java $JVM_OPTS -jar ${PICARDROOT}/picard.jar CollectInsertSizeMetrics \
+			INPUT="$nonMitoBAM" OUTPUT="$nonMitoBAM.hist_data.log" \
+			H="$nonMitoBAM_hist_graph" W=1000 STOP_AFTER=5000000
+	}
+
+	wait
+
+
+	print( "\ncallATACpeaks...\n" )
+
+	readBed 	:= output_file
+	peakFile 	:= "$readBed.pf"
+
+	task( taskName := "callATACpeaks", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		 ["$peakFile.fc.signal.bigwig", "$peakFile.pval.signal.bigwig"] <- readBed ) {
+
+		sys $PRELOAD
+
+		sys adjustedBed="slopBed -i $readBed -g $CHROMSIZE -l 75 -r -75 -s"
+		sys macs2 callpeak \
+			-t <(${adjustedBed}) -f BED -n "$peakFile" -g "$GENOMESIZE" -p 1e-2 \
+			--nomodel --shift "$fragLen" -B --SPMR --keep-dup all --call-summits
+
+		sys macs2 bdgcmp \
+			-t "$peakFile"_treat_pileup.bdg -c "$peakFile"_control_lambda.bdg \
+			--o-prefix "$peakFile" -m FE
+		sys slopBed -i "$peakFile"_FE.bdg -g "$CHROMSIZE" -b 0 | \
+			bedClip stdin "$CHROMSIZE" "$peakFile.fc.signal.bedgraph"
+		sys rm -f "$peakFile"_FE.bdg
+		sys bedGraphToBigWig "$peakFile.fc.signal.bedgraph" "$CHROMSIZE" "$peakFile.fc.signal.bigwig"
+		sys rm -f "$peakFile.fc.signal.bedgraph"
+
+		//# sval counts the number of tags per million in the (compressed) BED file
+		sys sval=$(wc -l <(zcat -f "$readBed") | awk '{printf "%f", $1/1000000}')
+		sys macs2 bdgcmp \
+			-t "$peakFile"_treat_pileup.bdg -c "$peakFile"_control_lambda.bdg \
+			--o-prefix "$peakFile" -m ppois -S "${sval}"
+		sys slopBed -i "$peakFile"_ppois.bdg -g "$CHROMSIZE" -b 0 | \
+			bedClip stdin "$CHROMSIZE" "$peakFile.pval.signal.bedgraph"
+		sys rm -f "$peakFile"_ppois.bdg
+		sys bedGraphToBigWig "$peakFile.pval.signal.bedgraph" "$CHROMSIZE" "$peakFile.pval.signal.bigwig"
+		sys rm -f "$peakFile.pval.signal.bedgraph"
+	}	
+
+	wait
+}

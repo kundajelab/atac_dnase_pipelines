@@ -1,26 +1,131 @@
-BigDataScript pipelines
-===
+BigDataScript (BDS) pipelines
+===================================================================
 
-### Configuration file
+### Installation instruction for BDS
 
-Modify $CONF_FILE (eg. ./atac/conf_atac.txt ./tf_chipseq/conf_tf_chipseq.txt) to have your own settings.
+Check if BDS is already installed on a cluster.
 
 ```
-* PREFIX 			: Prefix for all output files
-* OUTPUT_DIR 		: Output directory (both relative and absolute paths work)
-* TMP_DIR 			: Temporary folder for intermediate files during bwa alignment
+which bds
+```
+If not, install it locally on your home.
 
-* WALLTIME 			: default walltime for all jobs (in seconds)
-* NTHREADS 			: default # of threads for all jobs
-* MEMORY			: default max. memory for all jobs (in bytes)
-
-* MODULE_* 			: Freely name suffix and specify RHS, then BDS will run "module add RHS"
-* EXPORT_* 			: Freely name suffix and specify RHS, then BDS will add env. variable to bash shell
+```
+cd $HOME
+wget -O bds_Linux.tgz https://github.com/pcingola/BigDataScript/releases/download/v0.999k/bds_Linux.tgz
+tar zxvf bds_Linux.tgz
+rm bds_Linux.tgz
 ```
 
-### How to specify bioinformatics software version?
+Download bds.config.SERVERNAME on the git repo. Move it to your $HOME/.bds/bds.config. In bds.config, you can specify your information like email address to get job status notification from clusters.
 
-You can specify software versions with MODULE_* and EXPORT_* in the above configuration file. You can freely name suffix of MODULE_ or EXPORT_ then BDS will read all keys starting with MODULE_ or EXPORT_. Use ; for new line.
+```
+clusterRunAdditionalArgs = -A accountID -M user@gmail.com
+```
+
+If you want to pass all of environment variables on your current login shell to cluster job nodes, add -V to clusterRunAdditionalArgs
+
+```
+clusterRunAdditionalArgs = -V -A accountID -M user@gmail.com
+```
+
+<b> Skip steps below if BDS is already installed on /bin or /usr/bin </b>
+
+Add the following to $HOME/.bds/bds.config. 
+
+```
+# This is example, Do not use $HOME in bds.config. Write absolute path for your $HOME/.bds.
+clusterRunAdditionalArgs = -v PATH=/users/leepc12/.bds
+```
+
+Also, modify your $HOME/.bashrc to add the following:
+
+```
+export PATH=$PATH:$HOME/.bds/
+```
+
+Official homepage for BDS is at <a href="http://pcingola.github.io/BigDataScript/download.html">http://pcingola.github.io/BigDataScript/download.html</a> and the git repo for BDS is at <a href="https://github.com/pcingola/BigDataScript.git">https://github.com/pcingola/BigDataScript.git</a>.
+
+
+### Running BDS Script
+
+Running locally,
+
+```
+bds $BDS_SCRIPT 
+```
+
+Running on a cluster with grid engine.
+
+```
+bds -s sge $BDS_SCRIPT 
+```
+
+Debugging
+
+```
+bds -d $BDS_SCRIPT
+```
+
+<b> IMPORTANT </b>
+
+You can give cmd. line argument to $BDS_SCRIPT (not BDS itself)
+
+```
+bds $BDS_SCRIPT arg0 arg1 arg2 arg3 ...
+```
+
+For example, if you want to run tf_chipseq BDS script on a grid engine.
+
+```
+bds -s sge $BDS_SCRIPT tf_chipse_SE_XXXX.conf
+```
+
+### Parameters from configuration file
+
+For any parameters not defined in configuration file, default value will be used. Parameters defined in configuration file overrides those defined in cmd. line arguments.
+
+```
+	CONF_FILE 	: Configuration file path (if not specified, define parameters in command line argument).
+
+	PREFIX 		: Prefix for all outputs.
+	OUTPUT_DIR 	: Output directory. (default: out)
+	TMP_DIR 	: Temporary directory for intermediate files. (default: tmp).
+
+	WALLTIME 	: Default walltime in seconds for all cluster jobs (default: 36000).
+	NTHREADS 	: Default number of threads for all cluster jobs (default: 1).
+	MEMORY 		: Default max. memory in MB for all cluster jobs (default: 4000).
+
+	MODULE 		: Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+	SHELLCMD	: Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
+
+```
+
+### Parameters from command line arguments
+
+For any parameters not defined in cmd. line arguments, default value will be used.
+
+'bds $BDS_SCRIPT -h' shows help for all command line arguments.
+
+```
+	-c <string>       : Configuration file path (if not specified, define parameters in command line argument).
+
+	-prefix <string>  : Prefix for all outputs.
+	-o <string>       : Output directory. (default: out)
+	-tmp <string>     : Temporary directory for intermediate files. (default: tmp).
+
+	-wt <int>         : Default walltime in seconds for all cluster jobs (default: 36000).
+	-nth <int>        : Default number of threads for all cluster jobs (default: 1).
+	-mem <int>        : Default max. memory in MB for all cluster jobs (default: 4000).
+
+	-mod <string>     : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+	-shcmd <string>   : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
+```
+
+
+### How to specify softwares for the pipeline?
+
+With a configuration file, you can specify softwares with MODULE* and SHELLCMD*. Any suffix is allowed like MODULE_BIO, MODULE_LANG, SHELLCMD_TOOL, SHELLCMD_TEST.
 
 For example, to use bwa 0.7.7 and bedtools 2.x.x and samtools 1.2
 
@@ -29,129 +134,35 @@ MODULE_BWA= bwa/0.7.7
 MODULE_ANY_SUFFIX_SHOULD_BE_OKAY= bedtools/2.x.x; samtools/1.2
 ```
 
-The above lines in the configuration file will execute the following:
+Additional environment variables can be defined with SHELLCMD*
 
 ```
-module add bwa/0.7.7; module add bedtools/2.x.x; module add samtools/1.2
-
+# There is a bug in BDS code.
+# YOU NEED TO COVER ANY ENVIRONMENT VARS WITH CURLY BRACKETS ${} !!
+SHELLCMD_ETC= export PATH="${PATH}:/usr/bin/example"
+SHELLCMD_TEST= TEST_PATH="/usr/lib/example"; export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${TEST_PATH}"
+SHELLCMD_YOU_CAN_DEFINE_ANY_CUSTOM_VAR= CUST_VAR=200
 ```
 
-To use a software unmoduled, For example "sw_example" is on /usr/bin/example/, then add software path to environment variable PATH.
+With cmd. line arguments, use -mod [] and -shcmd []. Use semicolon as a delimiter.
 
 ```
-EXPORT_ETC= export PATH="${PATH}:/usr/bin/example"
-EXPORT_TEST= TEST_PATH="/usr/lib/example"; export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${TEST_PATH}"
-EXPORT_YOU_CAN_DEFINE_ANY_CUSTOM_VAR= CUST_VAR=200
+bds $BDS_SCRIPT -mod 'bwa/0.7.7; bedtools/2.x.x; samtools/1.2' -shcmd 'export PATH="${PATH}:/usr/bin/example"; ...'
 ```
 
-
-The above lines in the configuration file will execute the following:
-
-```
-export PATH="${PATH}:/usr/bin/example"; TEST_PATH="/usr/lib/example"; export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${TEST_PATH}"; CUST_VAR=200
-```
-
-
-IMPORTANT!! There is a bug in BDS code. YOU NEED TO COVER ANY ENVIRONMENT VARS IN RHS WITH CURLY BRACKETS ${} !!!!!
-
-
-### Usage 
-
-Firstly, copy bds cluster settings (./bds.config.scg3) in $BDS_PIPELINE_DIR to BDS installation directory. 
-```
-cp $BDS_PIPELINE_DIR/bds.config.scg3 $HOME/.bds/bds.config
-vi $HOME/.bds/bds.config
-```
-
-Modify the following line in $HOME/.bds/bds.config. Due to BDS bug, you cannot use $HOME. Instead specify absolute path to your BDS directory (/home/your_account_name/.bds by default).
+Running BDS script with the above configuration file or cmd. line arguments will actually execute the following:
 
 ```
-clusterRunAdditionalArgs = -v PATH=/home/leepc12/.bds
+module add bwa/0.7.7
+module add bedtools/2.x.x
+module add samtools/1.2
+
+export PATH="${PATH}:/usr/bin/example"
+TEST_PATH="/usr/lib/example"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${TEST_PATH}"
+CUST_VAR=200
 ```
 
-You can also specify your own cluster configuration file but I already provided one for SCG3.
-```
-bds -c your_own_bds.config script.bds
-```
-
-It is recommend to separate your working directory $WORK_DIR from $PATH_TO_SCRIPT because BDS produces a lot of intermediate dir/files on $WORK_DIR. 
-
-If you want to run a BDS script locally on your machine with both configuration files not specifed,
-
-```
-cd $WORK_DIR
-bds $PATH_TO_SCRIPT/script.bds
-```
-
-You can specify your own pipeline configuration file (eg. conf_tf_chipseq.txt) with -c.
-
-```
-bds script.bds -c $CONF_FILE
-```
-
-If you want to run your jobs on scg3 cluster, use -s sge.
-```
-bds -s sge script.bds
-```
-
-If you run BDS script with -dryRun, it does not actually run the job, it compiles the script and list jobs to be executed.
-```
-bds -dryRun -s sge script.bds
-```
-
-For advanced users, both $BDS_CONFIG (cluster configuration file; eg. bds.config.scg3) and $CONF_FILE (chipseq/atac configuration file) can be specified like the following. Make sure you don't change the order of arguments.
-
-```
-bds -c $BDS_CONFIG -s sge script.bds -c $CONF_FILE
-```
-
-For debugging, BDS does not remove temporary bash scripts with parameter -l, -v for verbose.
-
-```
-bds -v -l -s sge script.bds
-```
-
-
-### Installation instruction for BigDataScript (BDS)
-
-Official homepage for BDS is at <a href="http://pcingola.github.io/BigDataScript/download.html">http://pcingola.github.io/BigDataScript/download.html</a> and the git repo for BDS is at <a href="https://github.com/pcingola/BigDataScript.git">https://github.com/pcingola/BigDataScript.git</a>.
-
-```
-cd $HOME
-wget -O bds_Linux.tgz https://github.com/pcingola/BigDataScript/releases/download/v0.999h/bds_Linux.tgz
-tar zxvf bds_Linux.tgz
-```
-
-BDS is installed at $HOME/.bds/. You should add it to your PATH. Edit your $HOME/.bashrc and add the following:
-```
-export PATH=$PATH:$HOME/.bds/
-```
-
-
-### Scripting pipeline with BDS
-
-There are two types of variables in BDS; 1) var. defined by BDS and 2) var. defined by bash. For 1) $VARNAME should work in both "" and bash script (in task{}). For 2) ${VARNAME} should be covered by curly brackets {}. This is how BDS checks if var. is defined by BDS or BASH shell.
-
-```
-string var_BDS = "BDS" // or var_BDS := "BDS"
-
-task {
-	sys var_BASH = "BASH"
-	sys echo "$var_BDS" or $var_BDS
-	sys echo "${var_BASH}" or ${var_BASH}
-}
-```
-
-Be careful about underscore "_". If you want to have suffix starting with "_" after var. name, don't forget to quote variable name.
-
-```
-test := "BDS"
-
-task {
-	sys echo $test_suffix // <--- error, BDS thinks variable var_BDS_suffix should be defined
-	sys echo "$test"_suffix // <--- no error
-}
-```
 
 ### Contributors
 

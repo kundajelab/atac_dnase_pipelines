@@ -14,7 +14,7 @@ string shcmd 		= ""			help Shell cmds separated by ;. Env. vars should be writte
 
 int wt 				= 36000			help Default walltime in seconds for all cluster jobs (default: 36000).
 int nth				= 1 			help Default number of threads for all cluster jobs (default: 1).
-int mem 			= 4000			help Default max. memory in MB for all cluster jobs (default: 4G).
+int mem 			= 4000			help Default max. memory in MB for all cluster jobs (default: 4000).
 
 
 // parameters
@@ -39,6 +39,15 @@ string{} conf // config. file
 
 void read_param_general() {
 
+	// if only one argument, it should be configuration file
+	if ( args.size()==1  ) {
+		CONF_FILE=args[0]
+	}
+
+	if ( cmd_line_arg_is_empty() ) {
+		error( "No parameters are given (cmd. line arguments or configuration file (-c $CONF_FILE).\n")
+
+	}
 	if ( conf_file_exists() ) { // parameters in conf_file overrides those on cmd line args.
 
 		conf = config(CONF_FILE)
@@ -73,11 +82,6 @@ void read_param_general() {
 				PRELOAD_SHELLCMD = PRELOAD_SHELLCMD + " " + trimmed + ";"
 			}
 		}
-
-	}
-	else if ( cmd_line_arg_is_empty() ) {
-		error( "No parameters are given (cmd. line argument or configuration file ($CONF_FILE)).\n")
-
 	} 
 	else {
 
@@ -101,11 +105,11 @@ void read_param_general() {
 		}
 
 	}
-
+	
 	// check params
 	if ( PREFIX=="") {
 		error( "PREFIX is null, specify it.\n" )
-	}
+	}	
 
 	// print params
 	print("CONF_FILE = $CONF_FILE\n");
@@ -142,7 +146,6 @@ bool cmd_line_arg_is_empty() {
 	return args.size()==0
 }
 
-
 bool cmd_line_arg_has_dash() {
 
 	if ( !cmd_line_arg_is_empty() ) {
@@ -152,3 +155,16 @@ bool cmd_line_arg_has_dash() {
 	}
 	return false
 }
+
+/*
+bool cmd_line_arg_has_dash() {
+
+	if ( !cmd_line_arg_is_empty() ) {
+		if ( args[0].substr(0,1) == '-' ) {
+			return true
+		}
+	}
+	return false
+}
+*/
+

@@ -4,15 +4,16 @@ include "../modules_align_map.bds"
 
 // cmd line arg wrapper and help
 int npeak 			= 300000 	help Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
+//string fdr 			= 0.9		help False discovery rate threshold for peak calling (spp)
 bool dup_rm 		= true	 	help Set it true if dupes are removed when aligning (default: true).
 string idr_thresh 	= 0.02		help IDR thresh (default: 0.02).
 
 
 // parameters
 int NPEAK 			= npeak	
+//string FDR 			= fdr
 bool DUPE_REMOVED 	= dup_rm
 string IDR_THRESH 	= idr_thresh
-
 
 
 // pipeline starts here
@@ -31,19 +32,20 @@ void read_param_tf_chipseq() {
 
 	// read parameters
 	if ( conf_file_exists() ) {
-		// peak calling (run_spp.R)
-		NPEAK 			= parse_int( conf{ "NPEAK" } )
-		DUPE_REMOVED	= parse_bool( conf{ "DUPE_REMOVED"} )
-			RUN_SPP 	= DUPE_REMOVED ? "run_spp_nodups.R" : "run_spp.R"
+
+		// peak calling (phantompeakqualtools: run_spp.R)
+		if ( conf.hasKey("NPEAK") ) 		NPEAK 		= parse_int( conf{ "NPEAK" } )
+		//if ( conf.hasKey("FDR") ) 		FDR		= rm_comment( conf{ "FDR" } )
+		if ( conf.hasKey("DUPE_REMOVED") ) 	DUPE_REMOVED	= parse_bool( conf{ "DUPE_REMOVED"} )
+			RUN_SPP 		= DUPE_REMOVED ? "run_spp_nodups.R" : "run_spp.R"
 
 		// IDR
-		IDR_THRESH		= parse_real( conf{ "IDR_THRESH"} )
+		if ( conf.hasKey("IDR_THRESH") ) 	IDR_THRESH	= parse_real( conf{ "IDR_THRESH"} )
 	}
 
-	print("NREADS = $NREADS\n");
 	print("NPEAK = $NPEAK\n");
+	//print("FDR = $FDR\n");
 	print("DUPE_REMOVED = $DUPE_REMOVED\n");
-	print("NTHREADS_RUN_SPP = $NTHREADS_RUN_SPP\n");
 	print("IDR_THRESH = $IDR_THRESH\n");
 }
 
@@ -116,6 +118,7 @@ void spp_idr() {
 		
 		sys Rscript $(which $RUN_SPP) -c=$REP1_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP1_TA_FILE \
 			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP1_CCSCORE
+//			-fdr=$FDR -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP1_CCSCORE
 	}
 
 	// REP2_TA_FILE vs CTL_REP2_TA_FILE
@@ -126,6 +129,7 @@ void spp_idr() {
 		
 		sys Rscript $(which $RUN_SPP) -c=$REP2_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP2_TA_FILE \
 			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP2_CCSCORE
+//			-fdr=$FDR -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP2_CCSCORE
 	}
 
 	// POOLED_TA_FILE vs CTL_POOLED_TA_FILE
@@ -136,6 +140,7 @@ void spp_idr() {
 		
 		sys Rscript $(which $RUN_SPP) -c=$POOLED_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_POOLED_TA_FILE \
 			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_POOLED_CCSCORE
+//			-fdr=$FDR -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_POOLED_CCSCORE
 	}
 
 	wait

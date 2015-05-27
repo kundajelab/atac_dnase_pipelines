@@ -141,6 +141,8 @@ void read_param_align_map() {
 	print("CREATE_WIG = $CREATE_WIG\n");
 	print("CREATE_BEDGRAPH = $CREATE_BEDGRAPH\n");
 	print("CONVERT_TO_BIGWIG = $CONVERT_TO_BIGWIG\n");
+	print("NREADS = $NREADS\n");
+	print("NTHREADS_RUN_SPP = $NTHREADS_RUN_SPP\n");
 	print("CHROM_SIZES = $CHROM_SIZES\n");
 	print("UMAP_DIR = $UMAP_DIR\n");
 	print("SEQ_DIR = $SEQ_DIR\n");
