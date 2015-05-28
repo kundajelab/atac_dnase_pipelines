@@ -1,38 +1,61 @@
 ATAC Seq Pipeline
-===
+===================================================
 
-Please take a look at ../README.md .
+Please take a look at ../README.md first.
 
-### Configuration file
 
-Modify $CONF_FILE (by default: conf_atac.txt) to have your own settings.
+### Parameters from command line arguments 1
 
 ```
-* PREFIX 			: Prefix for all output files
-* OUTPUT_DIR 		: Output directory (both relative and absolute paths work)
-* TMP_DIR 			: Temporary folder for intermediate files during bwa alignment
+bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] [OUTPUTDIR]
+```
 
-* WALLTIME 			: default walltime for all jobs (in seconds)
-* NTHREADS 			: default # of threads for all jobs
-* MEMORY			: default max. memory for all jobs (in bytes)
+### Parameters from command line arguments 2
 
-* TRIM_ADAPTERS 	: Path for trimAdapters.py
+```
+	-c <string>           : Configuration file path (if not specified, define parameters in command line argument).
 
-* BOWTIE_IDX		: Path (prefix) of bowtie2 index files
-* NTHREADS_BWT2		: # of threads for bwt2
-* MEMORY_BWT2		: Max. memory limit for bwt2
-* STACK_BWT2		: Stack size for bwt2
+	-prefix <string>      : Prefix for all outputs.
+	-o <string>           : Output directory. (default: out)
+	-tmp <string>         : Temporary directory for intermediate files. (default: tmp).
 
-* MAPQ_THRESH		: MAPQ_THRESH
-* JVM_OPTS			: Java VM additional options (eg. -Xmx4G)
+	-wt <int>             : Default walltime in seconds for all cluster jobs (default: 36000).
+	-nth <int>            : Default number of threads for all cluster jobs (default: 1).
+	-mem <int>            : Default max. memory in MB for all cluster jobs (default: 4000).
 
-* ADJUST_BED_TN5	: Path for adjustBedTN5.sh
+	-mod <string>         : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+	-shcmd <string>       : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test").
 
-* genomeSize  		: hs by default
-* chrSize 	 		: Location of chrom.sizes file for your .fa
+	-BOWTIE_IDX <string>  : Path for bowtie index
+	-READ1 <string>       : Read1 fastq
+	-READ2 <string>       : Read2 fastq
+	-NUMTHREADS <int>     : Number of threads for bowtie2
+	-GENOMESIZE <string>  : 'hs' by default
+	-CHROMSIZE <string>   : Path for chrom.sizes file for your .fa
+```
 
-* MODULE_* 			: Freely name suffix and specify RHS, then BDS will run "module add RHS"
-* EXPORT_* 			: Freely name suffix and specify RHS, then BDS will add env. variable to bash shell
+### Parameters from configuration file
+
+```
+    CONF_FILE   : Configuration file path (if not specified, define parameters in command line argument).
+
+    PREFIX      : Prefix for all outputs.
+    OUTPUT_DIR  : Output directory. (default: out)
+    TMP_DIR     : Temporary directory for intermediate files. (default: tmp).
+
+    WALLTIME    : Default walltime in seconds for all cluster jobs (default: 36000).
+    NTHREADS    : Default number of threads for all cluster jobs (default: 1).
+    MEMORY      : Default max. memory in MB for all cluster jobs (default: 4000).
+
+    MODULE      : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+    SHELLCMD    : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
+
+	BOWTIE_IDX  : Path for bowtie index
+	READ1       : Read1 fastq
+	READ2       : Read2 fastq
+	NUMTHREADS  : Number of threads for bowtie2
+	GENOMESIZE  : 'hs' by default
+	CHROMSIZE   : Path for chrom.sizes file for your .fa
 ```
 
 

@@ -9,12 +9,13 @@ string c 			= "" 			help Configuration file path (if not specified, define param
 string prefix		= ""			help Prefix for all outputs.
 string o 			= "out" 		help Output directory. (default: out)
 string tmp 			= "tmp"			help Temporary directory for intermediate files. (default: tmp).
-string mod 			= ""			help Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
-string shcmd 		= ""			help Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test"). 
 
 int wt 				= 36000			help Default walltime in seconds for all cluster jobs (default: 36000).
 int nth				= 1 			help Default number of threads for all cluster jobs (default: 1).
 int mem 			= 4000			help Default max. memory in MB for all cluster jobs (default: 4000).
+
+string mod 			= ""			help Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+string shcmd 		= ""			help Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test"). 
 
 
 // parameters
@@ -22,11 +23,11 @@ string CONF_FILE 	= c
 string PREFIX 		= prefix
 string OUTPUT_DIR 	= o
 string TMP_DIR 		= tmp
-string MODULE 		= mod
-string SHELLCMD		= shcmd
 int WALLTIME 		= wt
 int NTHREADS 		= nth
 int MEMORY 			= mem
+string MODULE 		= mod
+string SHELLCMD		= shcmd
 
 // system parameters
 string PRELOAD 			= ""

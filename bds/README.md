@@ -49,13 +49,19 @@ Official homepage for BDS is at <a href="http://pcingola.github.io/BigDataScript
 
 ### Running BDS Script
 
+Go to your working directory where BDS will produce ouputs.
+
+```
+cd $WORK_DIR
+```
+
 Running locally,
 
 ```
 bds $BDS_SCRIPT 
 ```
 
-Running on a cluster with grid engine.
+Running on a cluster with sun grid engine.
 
 ```
 bds -s sge $BDS_SCRIPT 
@@ -72,13 +78,17 @@ bds -d $BDS_SCRIPT
 You can give cmd. line argument to $BDS_SCRIPT (not BDS itself)
 
 ```
-bds $BDS_SCRIPT arg0 arg1 arg2 arg3 ...
+bds $BDS_SCRIPT [arg0] [arg1] [arg2] [arg3] ...
 ```
 
-For example, if you want to run tf_chipseq BDS script on a grid engine.
+For example, if you want to run tf_chipseq BDS script on a sge cluster.
 
 ```
+#example 1 with configruation file
 bds -s sge $BDS_SCRIPT tf_chipse_SE_XXXX.conf
+
+#example 2 with cmd. line arguments
+bds -s sge $BDS_SCRIPT -prefix TEST -o ./out -tmp ./tmp -wt 36000 ....
 ```
 
 ### Parameters from configuration file

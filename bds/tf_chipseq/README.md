@@ -1,49 +1,122 @@
 TF ChIP-Seq Pipeline
-===
+===============================================
 
 TF ChIP-Seq pipeline is based on https://docs.google.com/document/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit#.
+Please take a look first at ../README.md.
 
-Please take a look at ../README.md .
-
-
-### Configuration file
-
-Modify $CONF_FILE (by default: conf_tf_chipseq.txt) to have your own settings.
+### Parameters from configuration file
 
 ```
-* PREFIX 			: Prefix for all output files
-* OUTPUT_DIR 		: Output directory (both relative and absolute paths work)
-* TMP_DIR 			: Temporary folder for intermediate files during bwa alignment
+	-c <string>             : Configuration file path (if not specified, define parameters in command line argument).
 
-* WALLTIME 			: default walltime for all jobs (in seconds)
-* NTHREADS 			: default # of threads for all jobs
-* MEMORY			: default max. memory for all jobs (in bytes)
+	-prefix <string>        : Prefix for all outputs.
+	-o <string>             : Output directory. (default: out)
+	-tmp <string>           : Temporary directory for intermediate files. (default: tmp).
 
-* PRE_IDR 			: Set it true if you just want to compute QC score and stop before peak calling (default: false)
-* NUM_REP			: # of replicates you want to test (default:2)
+	-wt <int>               : Default walltime in seconds for all cluster jobs (default: 36000).
+	-nth <int>              : Default number of threads for all cluster jobs (default: 1).
+	-mem <int>              : Default max. memory in MB for all cluster jobs (default: 4000).
 
-* NTHREADS_BWA 		: # of threads for bwa aligment
-* BWA_INDEX_NAME	: Prefix of bwa index files (eg. if you have bwa index files including hg19_Male.bwt, BWA_INDEX_NAME=hg19_Male)
-* BWA_PARAM			: Parameters for bwa alignment (default: -q 5 -l 32 -k 2)
+	-mod <string>           : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+	-shcmd <string>         : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test").
 
-* MAPQ_THRESH		: MAPQ_THRESH
+	QC_ONLY                 : Set it true to test-run and stop before peak calling, false: keep going through IDR (default: false).
+    NUM_REP                 : # of replicates, set it only for qc = true. (default: 1).
 
-* NTHREADS_R		: # of threads for peak calling (spp)
-* DUPE_REMOVED		: If true, use run_spp.nodups.R instead of run_spp.R
-* NREADS 			: NREADS (default: 15000000)
-* NPEAK 			: -npeak NPEAK in run_spp.R (default: 300000)
+	NTHREADS_BWA            : Number of threads for bwa aln (default: 4).
+	BWA_INDEX_NAME          : Path for bwa index.
+	BWA_ALN_PARAM           : Parameters for bwa align (default: "-q 5 -l 32 -k 2" ).
 
-* IDR_THRESH	 	: Threshold for IDR (default=0.02)
+	MAPQ_THRESH             : MAPQ_THRESH (default: 30).
+	NREADS                  : Parameter for NREADS (default. 15000000).
+	NTHREADS_RUN_SPP        : Number of threads for run_spp.R (default: 4).
 
-* CREATE_WIG  		: Create wig file from .tagAlign.gz
-* CREATE_BEDGRAPH 	: Create bedGraph file from .tagAlign.gz
-* CONVERT_TO_BIGWIG : Convert bedGraph to bigwig
-* CHROM_SIZES 		: Location of chrom.sizes file for your .fa
-* UMAP_DIR 			: Location of umap (for hg19, globalmap_k20tok54)
-* SEQ_DIR 			: Location of sequence .fa files (for hg19, chr?.fa)
+	CREATE_WIG              : Set it true to create wig (default: false).
+	CREATE_BEDGRAPH         : Set it true to create bedgraph (default: false).
+	CONVERT_TO_BIGWIG       : Set it true to convert bedgraph to bigwig signal track (default: false).
 
-* MODULE_* 			: Freely name suffix and specify RHS, then BDS will run "module add RHS"
-* EXPORT_* 			: Freely name suffix and specify RHS, then BDS will add env. variable to bash shell
+	UMAP_DIR                : Path for umap (for hg19, path for globalmap_k20tok54).
+	SEQ_DIR                 : Dir. for sequence files (for hg19, dir where chr*.fa exist).
+	CHROM_SIZES             : Path for chrom.sizes file for your sequence files.
+
+	INPUT_FASTQ_REP1        : Path for input fastq for replicate 1 (single ended).
+	INPUT_FASTQ_REP2        : Path for input fastq for replicate 2 (single ended).
+
+	INPUT_FASTQ_REP1_PE1    : Path for input fastq for replicate 1 pair 1 (paired-end).
+	INPUT_FASTQ_REP1_PE2    : Path for input fastq for replicate 1 pair 2 (paired-end).
+	INPUT_FASTQ_REP2_PE1    : Path for input fastq for replicate 2 pair 1 (paired-end).
+	INPUT_FASTQ_REP2_PE2    : Path for input fastq for replicate 2 pair 2 (paired-end).
+
+	INPUT_FASTQ_CTL_REP1    : Path for control fastq for replicate 1 (single ended).
+	INPUT_FASTQ_CTL_REP2    : Path for control fastq for replicate 2 (single ended).
+	
+	INPUT_FASTQ_CTL_REP1_PE1: Path for control fastq for replicate 1 pair 1 (paired-end).
+	INPUT_FASTQ_CTL_REP1_PE2: Path for control fastq for replicate 1 pair 2 (paired-end).
+	INPUT_FASTQ_CTL_REP2_PE1: Path for control fastq for replicate 2 pair 1 (paired-end).
+	INPUT_FASTQ_CTL_REP2_PE2: Path for control fastq for replicate 2 pair 2 (paired-end).
+
+	NPEAK                   : Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
+	DUPE_REMOVED            : Set it true if dupes are removed when aligning (default: true).
+	IDR_THRESH              : IDR thresh (default: 0.02).
+
+```
+
+
+### Parameters from command line arguments
+
+```
+	-c <string>             : Configuration file path (if not specified, define parameters in command line argument).
+
+	-prefix <string>        : Prefix for all outputs.
+	-o <string>             : Output directory. (default: out)
+	-tmp <string>           : Temporary directory for intermediate files. (default: tmp).
+
+	-wt <int>               : Default walltime in seconds for all cluster jobs (default: 36000).
+	-nth <int>              : Default number of threads for all cluster jobs (default: 1).
+	-mem <int>              : Default max. memory in MB for all cluster jobs (default: 4000).
+
+	-mod <string>           : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+	-shcmd <string>         : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test").
+
+	-qc                     : Set it true to test-run and stop before peak calling, false: keep going through IDR (default: false).
+	-num_rep <int>          : # of replicates, set it only for qc = true. (default: 1).
+
+	-nth_bwa <int>          : Number of threads for bwa aln (default: 4).
+	-idx_bwa <string>       : Path for bwa index.
+	-param_bwa <string>     : Parameters for bwa align (default: "-q 5 -l 32 -k 2" ).
+
+	-mapq_thresh <int>      : MAPQ_THRESH (default: 30).
+	-nreads <int>           : Parameter for NREADS (default. 15000000).
+	-nth_spp <int>          : Number of threads for run_spp.R (default: 4).
+
+	-wig                    : Set it true to create wig (default: false).
+	-bedgraph               : Set it true to create bedgraph (default: false).
+	-bigwig                 : Set it true to convert bedgraph to bigwig signal track (default: false).
+
+	-umap <string>          : Path for umap (for hg19, path for globalmap_k20tok54).
+	-seq <string>           : Dir. for sequence files (for hg19, dir where chr*.fa exist).
+	-chrsz <string>         : Path for chrom.sizes file for your sequence files.
+
+	-fastq1 <string>        : Path for input fastq for replicate 1 (single ended).
+	-fastq2 <string>        : Path for input fastq for replicate 2 (single ended).
+
+	-ctl_fastq1 <string>    : Path for control fastq for replicate 1 (single ended).
+	-ctl_fastq2 <string>    : Path for control fastq for replicate 2 (single ended).
+
+	-fastq1_1 <string>      : Path for input fastq for replicate 1 pair 1 (paired-end).
+	-fastq1_2 <string>      : Path for input fastq for replicate 1 pair 2 (paired-end).
+	-fastq2_1 <string>      : Path for input fastq for replicate 2 pair 1 (paired-end).
+	-fastq2_2 <string>      : Path for input fastq for replicate 2 pair 2 (paired-end).
+
+	-ctl_fastq1_1 <string>  : Path for control fastq for replicate 1 pair 1 (paired-end).
+	-ctl_fastq1_2 <string>  : Path for control fastq for replicate 1 pair 2 (paired-end).
+	-ctl_fastq2_1 <string>  : Path for control fastq for replicate 2 pair 1 (paired-end).
+	-ctl_fastq2_2 <string>  : Path for control fastq for replicate 2 pair 2 (paired-end).
+
+	-npeak <int>            : Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
+	-dup_rm                 : Set it true if dupes are removed when aligning (default: true).
+	-idr_thresh <string>    : IDR thresh (default: 0.02).
+
 ```
 
 
@@ -87,7 +160,6 @@ export PATH=${PATH}:${HOME}/phantompeakqualtools
 export R_LIBS=${HOME}/RLib
 ```
 
-
 ### Local installation instruction for Python3 and packages
 ```
 cd $HOME
@@ -128,7 +200,6 @@ export PATH="${HOME}/local/bin"
 ```
 
 ### Local installation instruction for Wiggler
-
 
 <a href="https://code.google.com/p/align2rawsignal/">https://code.google.com/p/align2rawsignal/</a>
 
