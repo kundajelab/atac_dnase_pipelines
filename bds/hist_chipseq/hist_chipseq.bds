@@ -1,66 +1,56 @@
 #!/usr/bin/env bds
 
-include "../conf_general.bds"
 include "../modules_align_map.bds"
 
-// parameters and help
-int NPEAK=300000 				help Parameter for -npeak in run_spp.R (default: 300000)
-bool DUPE_REMOVED=true	 		help Set it true if dupes are removed when aligning (default: true)
 
-string IDR_THRESH=0.02			help IDR thresh (default: 0.02)
+// cmd line arg wrapper and help
+string gensz 		= ""				help Genome size; hs for human, mm for mouse (default: hs)
+int nth_macs2		= 2 				help Number of threads for MACS2 (default: 2)
+
+// parameters
+string GENOMESIZE 	= gensz
+int NTHREADS_MACS2 	= nth_macs2
 
 
 
 // pipeline starts here
-
-//read_param_general()
+read_param_general()
 read_param_align_map()
-read_param_tf_chipseq()
+read_param_hist_chipseq()
 
 align_map_xcor_spr_pspr()
-spp_idr()
 
-exit(0)
+macs2()
 
 
 // functions
-void read_param_tf_chipseq() {
+void read_param_hist_chipseq() {
 
 	// read parameters
-	if ( CONF_FILE=="" ) {
-
-	} 
-	else if ( CONF_FILE.exists() ) {
-		// peak calling (run_spp.R)
-		NPEAK 			= parse_int( conf{ "NPEAK" } )
-		DUPE_REMOVED	= parse_bool( conf{ "DUPE_REMOVED"} )
-			RUN_SPP 	= DUPE_REMOVED ? "run_spp_nodups.R" : "run_spp.R"
-
-		// IDR
-		IDR_THRESH		= parse_real( conf{ "IDR_THRESH"} )
+	if ( conf_file_exists() ) {
+		
+		if ( conf.hasKey("GENOMESIZE") ) 		GENOMESIZE 		= rm_comment( conf{ "GENOMESIZE" } )
+		if ( conf.hasKey("NTHREADS_MACS2") )	NTHREADS_MACS2	= parse_int( conf{ "NTHREADS_MACS2" } )
 	}
 
-	print("NREADS = $NREADS\n");
-	print("NPEAK = $NPEAK\n");
-	print("DUPE_REMOVED = $DUPE_REMOVED\n");
-	print("NTHREADS_RUN_SPP = $NTHREADS_RUN_SPP\n");
-	print("IDR_THRESH = $IDR_THRESH\n");
+	print("GENOMESIZE = $GENOMESIZE\n");
+	//print("FDR = $FDR\n");
+	print("NTHREADS_MACS2 = $NTHREADS_MACS2\n");
+
 }
 
-void spp_idr() {
-	
+void macs2() {
+
 	if ( QC_ONLY ) return
 
-	print( "\nSPP and IDR...\n" );
-
-	// SPP
+	print( "\nMACS2...\n" );
 
 	FRAGLEN := get_fraglen( 0, 1 ) // get it from rep1
-	print("FRAGLEN for spp: $FRAGLEN \n")
+	print("FRAGLEN for MACS2: $FRAGLEN \n")
 	
 	// prepare for tagAlign files
-	fastqs_Rep1 	:= get_fastqs( conf, 0, 1 )
-	fastqs_Rep2 	:= get_fastqs( conf, 0, 2 ) // check if rep2 doesn't exist
+	fastqs_Rep1 	:= get_fastqs( 0, 1 )
+	fastqs_Rep2 	:= get_fastqs( 0, 2 ) // check if rep2 doesn't exist
 	suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
 	suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
 	suffix 			:= fastqs_Rep1.size()==2 ? suffix_PE : suffix_SE
@@ -80,8 +70,8 @@ void spp_idr() {
 	PPR1_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
 	PPR2_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
 
-	ctl_fastqs_Rep1 	:= get_fastqs( conf, 1, 1 )
-	ctl_fastqs_Rep2 	:= get_fastqs( conf, 1, 2 ) // check if rep2 doesn't exist
+	ctl_fastqs_Rep1 	:= get_fastqs( 1, 1 )
+	ctl_fastqs_Rep2 	:= get_fastqs( 1, 2 ) // check if rep2 doesn't exist
 	ctl_suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
 	ctl_suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
 	ctl_suffix 			:= ctl_fastqs_Rep1.size()==2 ? ctl_suffix_PE : ctl_suffix_SE
@@ -104,69 +94,150 @@ void spp_idr() {
 	PEAK_OUTPUT_DIR := OUTPUT_DIR + "/peaks"
 	PEAK_OUTPUT_DIR.mkdir() 
 
-	PEAK_REP1_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP1_TA_FILE.baseName() + ".ccscores"
-	PEAK_REP2_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP2_TA_FILE.baseName() + ".ccscores"
-	PEAK_POOLED_CCSCORE := PEAK_OUTPUT_DIR + "/" + POOLED_TA_FILE.baseName() + ".ccscores"
+	///////////////////////////////// MACS2
 
-	// REP1_TA_FILE vs CTL_REP1_TA_FILE
-	task( taskName := "spp rep1", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY, \
-		PEAK_REP1_CCSCORE <- [REP1_TA_FILE, CTL_REP1_TA_FILE] ) {
+	// narrow peak
+ 	REP1_PEAK_FILE		:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP1_TA_FILE, CTL_REP1_TA_FILE, "narrowPeak" )
+ 	REP2_PEAK_FILE 		:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP2_TA_FILE, CTL_REP2_TA_FILE, "narrowPeak" )
+ 	POOLED_PEAK_FILE 	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, POOLED_TA_FILE, CTL_POOLED_TA_FILE, "narrowPeak" )
+ 	REP1_PR1_PEAK_FILE	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP1_PR1_TA_FILE, CTL_REP1_PR1_TA_FILE, "narrowPeak" )
+ 	REP1_PR2_PEAK_FILE	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP1_PR2_TA_FILE, CTL_REP1_PR2_TA_FILE, "narrowPeak" )
+	REP2_PR1_PEAK_FILE	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP2_PR1_TA_FILE, CTL_REP2_PR1_TA_FILE, "narrowPeak" )
+	REP2_PR2_PEAK_FILE	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP2_PR2_TA_FILE, CTL_REP2_PR2_TA_FILE, "narrowPeak" )
+	PPR1_PEAK_FILE		:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, PPR1_TA_FILE, CTL_PPR1_TA_FILE, "narrowPeak" )
+	PPR2_PEAK_FILE		:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, PPR2_TA_FILE, CTL_PPR2_TA_FILE, "narrowPeak" )
 
-		sys $PRELOAD
-		
-		sys Rscript $(which $RUN_SPP) -c=$REP1_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP1_TA_FILE \
-			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP1_CCSCORE
-	}
+	// broad peak
+ 	REP1_BPEAK_FILE 	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP1_TA_FILE, CTL_REP1_TA_FILE, "broadPeak" )
+ 	REP2_BPEAK_FILE 	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP2_TA_FILE, CTL_REP2_TA_FILE, "broadPeak" )
+ 	POOLED_BPEAK_FILE 	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, POOLED_TA_FILE, CTL_POOLED_TA_FILE, "broadPeak" )
+ 	REP1_PR1_BPEAK_FILE	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP1_PR1_TA_FILE, CTL_REP1_PR1_TA_FILE, "broadPeak" )
+ 	REP1_PR2_BPEAK_FILE	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP1_PR2_TA_FILE, CTL_REP1_PR2_TA_FILE, "broadPeak" )
+	REP2_PR1_BPEAK_FILE	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP2_PR1_TA_FILE, CTL_REP2_PR1_TA_FILE, "broadPeak" )
+	REP2_PR2_BPEAK_FILE	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP2_PR2_TA_FILE, CTL_REP2_PR2_TA_FILE, "broadPeak" )
+	PPR1_BPEAK_FILE		:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, PPR1_TA_FILE, CTL_PPR1_TA_FILE, "broadPeak" )
+	PPR2_BPEAK_FILE		:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, PPR2_TA_FILE, CTL_PPR2_TA_FILE, "broadPeak" )
 
-	// REP2_TA_FILE vs CTL_REP2_TA_FILE
-	task( taskName := "spp rep2", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY, \
-		PEAK_REP2_CCSCORE <- [REP2_TA_FILE, CTL_REP2_TA_FILE]  ) {
+	// gapped peak
+ 	REP1_GPEAK_FILE 	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP1_TA_FILE, CTL_REP1_TA_FILE, "gappedPeak" )
+ 	REP2_GPEAK_FILE 	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP2_TA_FILE, CTL_REP2_TA_FILE, "gappedPeak" )
+ 	POOLED_GPEAK_FILE 	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, POOLED_TA_FILE, CTL_POOLED_TA_FILE, "gappedPeak" )
+ 	REP1_PR1_GPEAK_FILE	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP1_PR1_TA_FILE, CTL_REP1_PR1_TA_FILE, "gappedPeak" )
+ 	REP1_PR2_GPEAK_FILE	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP1_PR2_TA_FILE, CTL_REP1_PR2_TA_FILE, "gappedPeak" )
+	REP2_PR1_GPEAK_FILE	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP2_PR1_TA_FILE, CTL_REP2_PR1_TA_FILE, "gappedPeak" )
+	REP2_PR2_GPEAK_FILE	:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, REP2_PR2_TA_FILE, CTL_REP2_PR2_TA_FILE, "gappedPeak" )
+	PPR1_GPEAK_FILE		:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, PPR1_TA_FILE, CTL_PPR1_TA_FILE, "gappedPeak" )
+	PPR2_GPEAK_FILE		:= get_macs2_out_peak_filename( PEAK_OUTPUT_DIR, PPR2_TA_FILE, CTL_PPR2_TA_FILE, "gappedPeak" )
 
-		sys $PRELOAD
-		
-		sys Rscript $(which $RUN_SPP) -c=$REP2_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP2_TA_FILE \
-			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP2_CCSCORE
-	}
-
-	// POOLED_TA_FILE vs CTL_POOLED_TA_FILE
-	task( taskName := "spp pooled", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY, \
-		PEAK_POOLED_CCSCORE <- [POOLED_TA_FILE, CTL_POOLED_TA_FILE] ) {
-
-		sys $PRELOAD
-		
-		sys Rscript $(which $RUN_SPP) -c=$POOLED_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_POOLED_TA_FILE \
-			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_POOLED_CCSCORE
-	}
-
-	wait
-
-	// IDR
-
-
-	REP1_NPEAK_FILE_BASE	:= rm_str_at_end( REP1_TA_FILE.baseName(),".gz" ) \
-								 + "_VS_" + rm_str_at_end( CTL_REP1_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
-	REP2_NPEAK_FILE_BASE 	:= rm_str_at_end( REP2_TA_FILE.baseName(),".gz" ) \
-								 + "_VS_" + rm_str_at_end( CTL_REP2_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
-	POOLED_NPEAK_FILE_BASE	:= rm_str_at_end( POOLED_TA_FILE.baseName(),".gz" ) \
-								 + "_VS_" + rm_str_at_end( CTL_POOLED_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
-
-	REP1_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP1_NPEAK_FILE_BASE
-	REP2_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP2_NPEAK_FILE_BASE
-	POOLED_PEAK_FILE:= "$PEAK_OUTPUT_DIR/"+ POOLED_NPEAK_FILE_BASE
-
-	IDR_OUTPUT := "$PEAK_OUTPUT_DIR/REP1_VS_REP2.IDR" + IDR_THRESH +".narrowPeak"
-
-	// Nathan's idr code
-	task( taskName := "IDR", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY, \
-		IDR_OUTPUT <- [REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE] ) { // --use-old-output-format 
-
-		sys $PRELOAD
-
-		sys idr --samples $REP1_PEAK_FILE $REP1_PEAK_FILE --peak-list $POOLED_PEAK_FILE --input-file-type narrowPeak \
-			--output-file $IDR_OUTPUT --plot --idr-threshold $IDR_THRESH
-
-		sys echo NPEAKS_IDR: $(cat $IDR_OUTPUT | wc -l)
-	}
+	run_macs2( "Rep1", PEAK_OUTPUT_DIR, 		REP1_TA_FILE, CTL_REP1_TA_FILE, REP1_PEAK_FILE, REP1_RPEAK_FILE, PEAK_REP1_CCSCORE, FRAGLEN )
+	run_macs2( "Rep2", PEAK_OUTPUT_DIR, 		REP2_TA_FILE, CTL_REP2_TA_FILE, REP2_PEAK_FILE, REP2_RPEAK_FILE, PEAK_REP2_CCSCORE, FRAGLEN )
+	run_macs2( "Pooled", PEAK_OUTPUT_DIR, 	POOLED_TA_FILE, CTL_POOLED_TA_FILE, POOLED_PEAK_FILE, POOLED_RPEAK_FILE, PEAK_POOLED_CCSCORE, FRAGLEN )
+	run_macs2( "Rep1_PR1", PEAK_OUTPUT_DIR, 	REP1_PR1_TA_FILE, CTL_REP1_PR1_TA_FILE, REP1_PR1_PEAK_FILE, REP1_PR1_RPEAK_FILE, PEAK_REP1_PR1_CCSCORE, FRAGLEN )
+	run_macs2( "Rep1_PR2", PEAK_OUTPUT_DIR, 	REP1_PR2_TA_FILE, CTL_REP1_PR2_TA_FILE, REP1_PR2_PEAK_FILE, REP1_PR2_RPEAK_FILE, PEAK_REP1_PR2_CCSCORE, FRAGLEN )
+	run_macs2( "Rep2_PR1", PEAK_OUTPUT_DIR, 	REP2_PR1_TA_FILE, CTL_REP2_PR1_TA_FILE, REP2_PR1_PEAK_FILE, REP2_PR1_RPEAK_FILE, PEAK_REP2_PR1_CCSCORE, FRAGLEN )
+	run_macs2( "Rep2_PR2", PEAK_OUTPUT_DIR, 	REP2_PR2_TA_FILE, CTL_REP2_PR2_TA_FILE, REP2_PR2_PEAK_FILE, REP2_PR2_RPEAK_FILE, PEAK_REP2_PR2_CCSCORE, FRAGLEN )
+	run_macs2( "PPR1", PEAK_OUTPUT_DIR, 		PPR1_TA_FILE, CTL_PPR1_TA_FILE, PPR1_PEAK_FILE, PPR1_RPEAK_FILE, PEAK_PPR1_CCSCORE, FRAGLEN )
+	run_macs2( "PPR2", PEAK_OUTPUT_DIR, 		PPR2_TA_FILE, CTL_PPR2_TA_FILE, PPR2_PEAK_FILE, PPR2_RPEAK_FILE, PEAK_PPR2_CCSCORE, FRAGLEN )
 
 	wait
+
+}
+
+string get_macs2_out_peak_filename( string dir, string ta1, string ta2, string type ) {
+
+	return dir + "/" \
+ 			+ rm_str_at_end( ta1.baseName(),".gz" ) \
+ 			+ "_VS_" + rm_str_at_end( ta2.baseName(),".gz" ) + "." + type + ".gz" \
+ 			
+}
+
+void run_macs2( string taskname, string out_dir, string ta, string ctl_ta, string npeak, string rpeak, string ccscore, string fraglen ) {
+	
+
+//	task( taskName := "macs2 " + taskname, cpus := NTHREADS_MACS2, timeout := WALLTIME, mem := MEMORY * M, \
+//		[npeak, rpeak, ccscore] <- [ta, ctl_ta] ) {
+	task( taskName := "macs2 " + taskname, cpus := NTHREADS_MACS2, timeout := WALLTIME, mem := MEMORY * M) {
+
+		sys $PRELOAD
+
+		//==========================================
+		//# Generate narrow peaks and preliminary signal tracks
+		//============================================
+
+		sys macs2 callpeak -t $ta -c $ctl_ta -f BED -n $out_dir/$taskname -g $GENOMESIZE -p 1e-2 --nomodel --shift 0 --extsize $fraglen --keep-dup all -B --SPMR
+
+		//# Sort by Col8 in descending order and replace long peak names in Column 4 with Peak_<peakRank>
+		sys sort -k 8gr,8gr $out_dir/$taskname_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $out_dir/$taskname.narrowPeak.gz
+
+		//# remove additional files
+		//#rm -f $out_dir/$taskname_peaks.xls #$out_dir/$taskname_peaks.bed ${peakFile}_summits.bed
+		sys rm -f $out_dir/$taskname_peaks.xls $out_dir/$taskname_peaks.narrowPeak $out_dir/$taskname_summits.bed
+
+		//===========================================
+		//# Generate Broad and Gapped Peaks
+		//============================================
+		sys macs2 callpeak -t $ta -c $ctl_ta -f BED -n $out_dir/$taskname -g $GENOMESIZE -p 1e-2 --broad --nomodel --shift 0 --extsize $fraglen --keep-dup all
+
+
+		//# Sort by Col8 (for broadPeak) or Col 14(for gappedPeak)  in descending order and replace long peak names in Column 4 with Peak_<peakRank>
+		sys sort -k 8gr,8gr $out_dir/$taskname_peaks.broadPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $out_dir/$taskname.broadPeak.gz
+
+		sys sort -k 14gr,14gr $out_dir/$taskname_peaks.gappedPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $out_dir/$taskname.gappedPeak.gz
+
+		//# remove additional files
+		//#rm -f $out_dir/$taskname_peaks.xls #$out_dir/$taskname_peaks.bed ${peakFile}_summits.bed
+		sys rm -f $out_dir/$taskname_peaks.xls \
+		  $out_dir/$taskname_peaks.broadPeak \
+		  $out_dir/$taskname_peaks.gappedPeak \
+		  $out_dir/$taskname_summits.bed
+
+		//===========================================
+		//# For Fold enrichment signal tracks
+		//============================================
+		//sys CHRSIZEFILE=<path_of_file_containing_chromosome_sizes>
+		//# This file is a tab delimited file with 2 columns Col1 (chromosome name), Col2 (chromosome size in bp).
+
+		sys macs2 bdgcmp -t $out_dir/$taskname_treat_pileup.bdg -c $out_dir/$taskname_control_lambda.bdg --outdir $out_dir -o $taskname_FE.bdg -m FE
+
+		//# Remove coordinates outside chromosome sizes (stupid MACS2 bug)
+		sys slopBed -i $out_dir/$taskname_FE.bdg -g $CHROM_SIZES -b 0 |   awk '{if ($3 != -1) print $0}' |  bedClip stdin $CHROM_SIZES $out_dir/$taskname.fc.signal.bedgraph
+
+		sys rm -f $out_dir/$taskname_FE.bdg
+
+		//# Convert bedgraph to bigwig
+		sys bedGraphToBigWig $out_dir/$taskname.fc.signal.bedgraph $CHROM_SIZES $out_dir/$taskname.fc.signal.bwigwig
+
+		sys rm -f $out_dir/$taskname.fc.signal.bedgraph
+
+		//===========================================
+		//# For -log10(p-value) signal tracks
+		//============================================
+
+		//# Compute sval = min(no. of reads in ChIP, no. of reads in control) / 1,000,000
+
+		//#chipReads=$(wc -l $ta | awk '"'"'{printf "%f", $1/1000000}'"')"
+		sys chipReads=$(zcat $ta | wc -l | awk '{printf "%f", $1/1000000}');
+
+
+
+		//#controlReads=$(wc -l $ctl_ta | awk '"'"'{printf "%f", $1/1000000}'"')
+		sys controlReads=$(zcat $ctl_ta | wc -l | awk '{printf "%f", $1/1000000}');
+
+		//#sval=$(echo "${chipReads} ${controlReads}" | awk '"'"'$1>$2{printf "%f",$2} $1<=$2{printf "%f",$1}'"')
+		sys sval=$(echo "${chipReads} ${controlReads}" | awk '$1>$2{printf "%f",$2} $1<=$2{printf "%f",$1}');
+
+		sys macs2 bdgcmp -t $out_dir/$taskname_treat_pileup.bdg -c $out_dir/$taskname_control_lambda.bdg --outdir $out_dir -o $taskname_ppois.bdg -m ppois -S "${sval}"
+
+		//# Remove coordinates outside chromosome sizes (stupid MACS2 bug)
+		sys slopBed -i $out_dir/$taskname_ppois.bdg -g $CHROM_SIZES -b 0 |   awk '{if ($3 != -1) print $0}' |  bedClip stdin $CHROM_SIZES $out_dir/$taskname.pval.signal.bedgraph
+
+		sys rm -rf $out_dir/$taskname_ppois.bdg
+
+		//# Convert bedgraph to bigwig
+		sys bedGraphToBigWig $out_dir/$taskname.pval.signal.bedgraph $CHROM_SIZES $out_dir/$taskname.pval.signal.bwigwig
+
+		sys rm -f $out_dir/$taskname.pval.signal.bedgraph
+		sys rm -f $out_dir/$taskname_treat_pileup.bdg ${peakFile}_control_lambda.bdg
+
+	}
 }

@@ -3,34 +3,40 @@
 include "../conf_general.bds"
 
 // input reads
-string READ1 									help Read1 fastq
-string READ2									help Read2 fastq
+string READ1 			= ""					help Read1 fastq
+string READ2			= ""					help Read2 fastq
 
 ///////// trimAdapters /////////////////////
 string TRIM_ADAPTERS 	= "trimAdapters.py"
 
 ///////// alignATAC /////////////////////
-string BOWTIE_IDX								help Path for bowtie index
+string BOWTIE_IDX	  	= ""					help Path for bowtie index
 int NUMTHREADS 			= 1						help Number of threads for bowtie2
 int MEMORY_BWT2 		= 8000					
 
 ///////// alignPostprocessPE /////////////////////
 int MAPQ_THRESH 		= 30					
-string JVM_OPTS 		= "-Xmx4G"				
+string JVM_OPTS 		= "-Xmx4G -Xms256M"
+string MAKE_VPLOT 		= "makeVPlot.py"
+string PLOT_PRESEQ 		= "plotPRESEQ.sh"
+string PLOT_V 			= "plotV.sh" 
+string V_INDEX 									help Index for v-plot
 
 //////// alignPostprocessATAC ////////////
-string ADJUST_BED_TN5 	= "adjustBedTN5.sh"
+string ADJUST_BED_TN5	= "adjustBedTN5.sh"
 
 //////// callATACpeaks ////////
 string GENOMESIZE 		= "hs"					help 'hs' by default
-string CHROMSIZE								help Path for chrom.sizes file for your .fa
-int fragLen=75									//help fragLen
-
+string CHROMSIZE		= ""					help Path for chrom.sizes file for your .fa
+int fragLen 			=75						
 
 
 // program body
 
 PREFIX = 'atac' // redundant
+
+print("IMPORTANT! ADD ATAC SCRIPT (*.sh; *.py) DIRECTORY TO YOUR PATH LIKE THE FOLLOWING!")
+print("bds atac.bds [PARAM1] ... [PARAM8] -addpath /your/atac/script/path")
 
 read_param_general()
 read_param_atac()
@@ -56,6 +62,9 @@ void read_param_atac() {
 		///////// alignPostprocessPE /////////////////////
 		if ( conf.hasKey("MAPQ_THRESH") )		MAPQ_THRESH 	= parse_int( conf{ "MAPQ_THRESH" } )
 		if ( conf.hasKey("JVM_OPTS") )			JVM_OPTS 		= rm_comment( conf{ "JVM_OPTS"} )
+		if ( conf.hasKey("PLOT_PRESEQ") )		PLOT_PRESEQ 	= rm_comment( conf{ "PLOT_PRESEQ"} )
+		if ( conf.hasKey("MAKE_VPLOT") )		MAKE_VPLOT 		= rm_comment( conf{ "MAKE_VPLOT"} )
+		if ( conf.hasKey("V_INDEX") )			V_INDEX 		= rm_comment( conf{ "V_INDEX"} )
 
 		//////// alignPostprocessATAC ////////////
 		if ( conf.hasKey("ADJUST_BED_TN5") )	ADJUST_BED_TN5 	= chk_file( conf{ "ADJUST_BED_TN5" }, "" )
@@ -67,13 +76,14 @@ void read_param_atac() {
 
 	}
 	else { // if there is no conf. file take first five arguments as input
-		BOWTIE_IDX 	= args[0]
-		READ1 		= args[1]
-		READ2 		= args[2]
+		BOWTIE_IDX 	= chk_file( args[0], ".1.bt2" )
+		READ1 		= chk_file( args[1], "" )
+		READ2 		= chk_file( args[2], "" )
 		NUMTHREADS	= args[3].parseInt()
 		GENOMESIZE	= args[4]
-		CHROMSIZE	= args[5]
-		OUTPUT_DIR 	= args[6]
+		CHROMSIZE	= chk_file( args[5], "" )
+		V_INDEX 	= chk_file( args[6], "" )
+		OUTPUT_DIR 	= mkdir_path( args[7] )
 	}
 
 	print("READ1 = $READ1\n");
@@ -140,7 +150,6 @@ void main_atac() {
 	wait
 
 
-
 	print( "\nalignPostprocessPE...\n" )
 
 	RAW_BAM_FILE	:= outputBAM	
@@ -161,6 +170,50 @@ void main_atac() {
 	FINAL_NMSRT_BAM_FILE 	:= "$FINAL_NMSRT_BAM_PREFIX.bam" //# To be stored
 
 	PBC_FILE_QC := "$FINAL_BAM_PREFIX.pbc.qc"
+
+	//# sort the raw bam file
+	SORTED_BAM_FILE := RAW_BAM_FILE.replace(".bam",".sort.bam")
+
+	task( taskName := "sort bam (V-plot)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		 [SORTED_BAM_FILE] <- RAW_BAM_FILE ) {
+
+		sys $PRELOAD
+
+		sys cd $OUTPUT_DIR
+
+		//# preseq needs sorted input
+		sys samtools sort -Ttmp -l0 -Obam "$RAW_BAM_FILE" -o "$SORTED_BAM_FILE"
+	}
+
+	wait
+
+	VPLOT_FILE := SORTED_BAM_FILE + ".preseq.pdf"
+
+	task( taskName := "makeVPlot.py (V-plot)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		 VPLOT_FILE <- SORTED_BAM_FILE ) {
+
+		sys $PRELOAD
+
+		sys cd $OUTPUT_DIR
+
+		//# generate PRESEQ plot
+		sys echo "PRESEQ Analysis..."
+
+		//# this script must be in PATH
+		sys $(which $PLOT_PRESEQ) "$SORTED_BAM_FILE"
+
+		//# generate V plot
+		sys echo "Generating V Plot..."
+
+		//# this script must be in PATH
+		//sys $(which $PLOT_V) "$SORTED_BAM_FILE" "$V_INDEX"
+		
+		sys samtools index "$SORTED_BAM_FILE"
+
+		sys python $(which $MAKE_VPLOT) -a "$SORTED_BAM_FILE" -b "$V_INDEX" -e 2000 -p ends -v -u
+	}
+
+	wait
 
 	task( taskName := "alignPostprocessPE", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 		 FINAL_BAM_FILE <- RAW_BAM_FILE ) {

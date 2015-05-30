@@ -34,7 +34,7 @@ clusterRunAdditionalArgs = -V -A accountID -M user@gmail.com
 Add the following to $HOME/.bds/bds.config. 
 
 ```
-# This is example, Do not use $HOME in bds.config. Write absolute path for your $HOME/.bds.
+# This is an example, Do not use $HOME in bds.config. Write absolute path for your $HOME/.bds.
 clusterRunAdditionalArgs = -v PATH=/users/leepc12/.bds
 ```
 
@@ -91,13 +91,26 @@ bds -s sge $BDS_SCRIPT tf_chipse_SE_XXXX.conf
 bds -s sge $BDS_SCRIPT -prefix TEST -o ./out -tmp ./tmp -wt 36000 ....
 ```
 
-### Parameters from configuration file
+### Bug Fix for BDS
+
+The original BDS has some bugs. I fixed them and upgraded BDS for better use for Kundaje lab. Its binary is in ./_bds_bin/. Refer to bds help message for details.
+
+If you have sudo privilege, move it to /usr/bin or /bin
+```
+sudo cp ./_bds_bin/bds /usr/bin/
+```
+
+Otherwise, add it to your local directory, don't forget to add it to your PATH
+```
+cp ./_bds_bin/bds $HOME/.bds/
+```
+
+
+### Parameters from configuration file (for all BDS pipelines)
 
 For any parameters not defined in configuration file, default value will be used. Parameters defined in configuration file overrides those defined in cmd. line arguments.
 
 ```
-	CONF_FILE 	: Configuration file path (if not specified, define parameters in command line argument).
-
 	PREFIX 		: Prefix for all outputs.
 	OUTPUT_DIR 	: Output directory. (default: out)
 	TMP_DIR 	: Temporary directory for intermediate files. (default: tmp).
@@ -111,9 +124,9 @@ For any parameters not defined in configuration file, default value will be used
 
 ```
 
-### Parameters from command line arguments
+### Parameters from command line arguments (for all BDS pipelines)
 
-For any parameters not defined in cmd. line arguments, default value will be used.
+For any parameters not defined in cmd. line arguments, default value will be used. 
 
 'bds $BDS_SCRIPT -h' shows help for all command line arguments.
 

@@ -2,26 +2,24 @@ TF ChIP-Seq Pipeline
 ===============================================
 
 TF ChIP-Seq pipeline is based on https://docs.google.com/document/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit#.
-Please take a look first at ../README.md.
+Please take a look at ../README.md first.
 
 ### Parameters from configuration file
 
 ```
-	-c <string>             : Configuration file path (if not specified, define parameters in command line argument).
+	PREFIX          		: Prefix for all outputs.
+	OUTPUT_DIR      		: Output directory. (default: out)
+	TMP_DIR         		: Temporary directory for intermediate files. (default: tmp).
 
-	-prefix <string>        : Prefix for all outputs.
-	-o <string>             : Output directory. (default: out)
-	-tmp <string>           : Temporary directory for intermediate files. (default: tmp).
+	WALLTIME        		: Default walltime in seconds for all cluster jobs (default: 36000).
+	NTHREADS        		: Default number of threads for all cluster jobs (default: 1).
+	MEMORY          		: Default max. memory in MB for all cluster jobs (default: 4000).
 
-	-wt <int>               : Default walltime in seconds for all cluster jobs (default: 36000).
-	-nth <int>              : Default number of threads for all cluster jobs (default: 1).
-	-mem <int>              : Default max. memory in MB for all cluster jobs (default: 4000).
-
-	-mod <string>           : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
-	-shcmd <string>         : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test").
+	MODULE          		: Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+	SHELLCMD        		: Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
 
 	QC_ONLY                 : Set it true to test-run and stop before peak calling, false: keep going through IDR (default: false).
-    NUM_REP                 : # of replicates, set it only for qc = true. (default: 1).
+	NUM_REP                 : # of replicates, set it only for qc = true. (default: 1).
 
 	NTHREADS_BWA            : Number of threads for bwa aln (default: 4).
 	BWA_INDEX_NAME          : Path for bwa index.
@@ -119,8 +117,11 @@ Please take a look first at ../README.md.
 
 ```
 
+### IGNORE STEPS BELOW IF YOU ARE WORKING ON OUR LAB CLUSTER!
 
-### Local installation instruction for R-2.15.1
+
+
+### Local installation instruction for R-2.15.1 (for spp)
 
 ```
 cd $HOME
@@ -139,7 +140,9 @@ $HOME/R/bin/R
 	install.packages("caTools")
 q()
 ```
-Local installation for run_spp.R: Anshul's phantompeakqualtool
+
+### Local installation for run_spp.R: Anshul's phantompeakqualtool (for spp)
+
 ```
 cd $HOME
 wget https://phantompeakqualtools.googlecode.com/files/ccQualityControl.v.1.1.tar.gz
@@ -160,7 +163,7 @@ export PATH=${PATH}:${HOME}/phantompeakqualtools
 export R_LIBS=${HOME}/RLib
 ```
 
-### Local installation instruction for Python3 and packages
+### Local installation instruction for Python3 and packages (for Nathan's IDR)
 ```
 cd $HOME
 
@@ -199,7 +202,7 @@ Add the following lines to your $HOME/.bashrc and to your configuration file.
 export PATH="${HOME}/local/bin"
 ```
 
-### Local installation instruction for Wiggler
+### Local installation instruction for Wiggler (for generating signal tracks from alignments)
 
 <a href="https://code.google.com/p/align2rawsignal/">https://code.google.com/p/align2rawsignal/</a>
 

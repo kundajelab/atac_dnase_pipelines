@@ -16,7 +16,7 @@ int mem 			= 4000			help Default max. memory in MB for all cluster jobs (default
 
 string mod 			= ""			help Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
 string shcmd 		= ""			help Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test"). 
-
+string addpath 		= "" 			help Path to be appended to env. var. PATH. Multiple paths should be separated by ; (example: "/bin/test:/bin/test2")
 
 // parameters
 string CONF_FILE 	= c
@@ -28,6 +28,7 @@ int NTHREADS 		= nth
 int MEMORY 			= mem
 string MODULE 		= mod
 string SHELLCMD		= shcmd
+string ADDPATH 		= addpath
 
 // system parameters
 string PRELOAD 			= ""
@@ -72,6 +73,7 @@ void read_param_general() {
 
 			// concat. module
 			if ( k.indexOf("MODULE")>=0 ) {
+
 				trimmed := rm_comment( conf{k} )
 				mods := trimmed.split(";")
 
@@ -79,34 +81,62 @@ void read_param_general() {
 					PRELOAD_MODULE = PRELOAD_MODULE + " module add " + str.trim() + ";"
 			}
 			else if ( k.indexOf("SHELLCMD")>=0 ) {
+
 				trimmed := rm_comment( conf{k} )			
 				PRELOAD_SHELLCMD = PRELOAD_SHELLCMD + " " + trimmed + ";"
+			}
+			else if ( k.indexOf("ADDPATH")>=0 ) {
+
+				trimmed := rm_comment( conf{k} )
+							
+				trimmed = trimmed.replace(":",";")
+				paths := trimmed.split(";")
+
+				PATH := " export PATH=\${PATH}"
+
+				for ( string str : paths ) \
+					PATH = PATH + ":" + str.trim()
+
+				PRELOAD_SHELLCMD = PRELOAD_SHELLCMD + PATH + ";"
 			}
 		}
 	} 
 	else {
 
-		if ( MODULE=="" ) {
+		if ( MODULE=="" ) \
 			print( "Warning: MODULE is not specified.\n")
-		}
-		else {
-			trimmed := MODULE.trim()
-			mods := trimmed.split(";")
-
-			for ( string str : mods ) \
-				PRELOAD_MODULE = PRELOAD_MODULE + " module add " + str.trim() + ";"
-		}
-
-		if ( SHELLCMD=="" ) {
+		if ( SHELLCMD=="" ) \
 			print( "Warning: SHELLCMD is not specified.\n")
-		}
-		else {
-			trimmed := SHELLCMD.trim()		
-			PRELOAD_SHELLCMD = PRELOAD_SHELLCMD + " " + trimmed + ";"
-		}
-
+		//if ( ADDPATH=="" ) \
+		//	print( "Warning: ADDPATH is not specified.\n")
 	}
-	
+
+	if ( MODULE!="" ) {
+		trimmed := MODULE.trim()
+		mods := trimmed.split(";")
+
+		for ( string str : mods ) \
+			PRELOAD_MODULE = PRELOAD_MODULE + " module add " + str.trim() + ";"
+	}
+
+	if ( SHELLCMD!="" ) {
+		trimmed := SHELLCMD.trim()		
+		PRELOAD_SHELLCMD = PRELOAD_SHELLCMD + " " + trimmed + ";"
+	}
+
+	if ( ADDPATH!="" ) {
+		trimmed := ADDPATH.trim()
+
+		trimmed = trimmed.replace(":",";")
+		paths := trimmed.split(";")
+		PATH := " export PATH=\${PATH}"
+
+		for ( string str : paths ) \
+			PATH = PATH + ":" + str.trim()
+
+		PRELOAD_SHELLCMD = PRELOAD_SHELLCMD + PATH + ";"
+	}
+
 	// check params
 	if ( PREFIX=="") {
 		error( "PREFIX is null, specify it.\n" )

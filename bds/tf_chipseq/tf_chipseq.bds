@@ -4,14 +4,12 @@ include "../modules_align_map.bds"
 
 // cmd line arg wrapper and help
 int npeak 			= 300000 	help Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
-//string fdr 			= 0.9		help False discovery rate threshold for peak calling (spp)
 bool dup_rm 		= true	 	help Set it true if dupes are removed when aligning (default: true).
 string idr_thresh 	= 0.02		help IDR thresh (default: 0.02).
 
 
 // parameters
 int NPEAK 			= npeak	
-//string FDR 			= fdr
 bool DUPE_REMOVED 	= dup_rm
 string IDR_THRESH 	= idr_thresh
 
@@ -35,16 +33,14 @@ void read_param_tf_chipseq() {
 
 		// peak calling (phantompeakqualtools: run_spp.R)
 		if ( conf.hasKey("NPEAK") ) 		NPEAK 		= parse_int( conf{ "NPEAK" } )
-		//if ( conf.hasKey("FDR") ) 		FDR		= rm_comment( conf{ "FDR" } )
 		if ( conf.hasKey("DUPE_REMOVED") ) 	DUPE_REMOVED	= parse_bool( conf{ "DUPE_REMOVED"} )
-			RUN_SPP 		= DUPE_REMOVED ? "run_spp_nodups.R" : "run_spp.R"
+				RUN_SPP 		= DUPE_REMOVED ? "run_spp_nodups.R" : "run_spp.R"
 
 		// IDR
 		if ( conf.hasKey("IDR_THRESH") ) 	IDR_THRESH	= parse_real( conf{ "IDR_THRESH"} )
 	}
 
 	print("NPEAK = $NPEAK\n");
-	//print("FDR = $FDR\n");
 	print("DUPE_REMOVED = $DUPE_REMOVED\n");
 	print("IDR_THRESH = $IDR_THRESH\n");
 }
@@ -106,48 +102,116 @@ void spp_idr() {
 	PEAK_OUTPUT_DIR := OUTPUT_DIR + "/peaks"
 	PEAK_OUTPUT_DIR.mkdir() 
 
+	///////////////////////////////// SPP
+
+	// cc score
 	PEAK_REP1_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP1_TA_FILE.baseName() + ".ccscores"
 	PEAK_REP2_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP2_TA_FILE.baseName() + ".ccscores"
 	PEAK_POOLED_CCSCORE := PEAK_OUTPUT_DIR + "/" + POOLED_TA_FILE.baseName() + ".ccscores"
+	PEAK_REP1_PR1_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP1_PR1_TA_FILE.baseName() + ".ccscores"
+	PEAK_REP1_PR2_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP1_PR2_TA_FILE.baseName() + ".ccscores"
+	PEAK_REP2_PR1_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP2_PR1_TA_FILE.baseName() + ".ccscores"
+	PEAK_REP2_PR2_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP2_PR2_TA_FILE.baseName() + ".ccscores"
+	PEAK_PPR1_CCSCORE := PEAK_OUTPUT_DIR + "/" + PPR1_TA_FILE.baseName() + ".ccscores"
+	PEAK_PPR2_CCSCORE := PEAK_OUTPUT_DIR + "/" + PPR2_TA_FILE.baseName() + ".ccscores"
 
-	// REP1_TA_FILE vs CTL_REP1_TA_FILE
-	task( taskName := "spp rep1", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY * M, \
-		PEAK_REP1_CCSCORE <- [REP1_TA_FILE, CTL_REP1_TA_FILE] ) {
+	// narrow peak
+ 	REP1_PEAK_FILE		:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, REP1_TA_FILE, CTL_REP1_TA_FILE, "narrowPeak" )
+ 	REP2_PEAK_FILE 		:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, REP2_TA_FILE, CTL_REP2_TA_FILE, "narrowPeak" )
+ 	POOLED_PEAK_FILE 	:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, POOLED_TA_FILE, CTL_POOLED_TA_FILE, "narrowPeak" )
+ 	REP1_PR1_PEAK_FILE	:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, REP1_PR1_TA_FILE, CTL_REP1_PR1_TA_FILE, "narrowPeak" )
+ 	REP1_PR2_PEAK_FILE	:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, REP1_PR2_TA_FILE, CTL_REP1_PR2_TA_FILE, "narrowPeak" )
+	REP2_PR1_PEAK_FILE	:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, REP2_PR1_TA_FILE, CTL_REP2_PR1_TA_FILE, "narrowPeak" )
+	REP2_PR2_PEAK_FILE	:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, REP2_PR2_TA_FILE, CTL_REP2_PR2_TA_FILE, "narrowPeak" )
+	PPR1_PEAK_FILE		:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, PPR1_TA_FILE, CTL_PPR1_TA_FILE, "narrowPeak" )
+	PPR2_PEAK_FILE		:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, PPR2_TA_FILE, CTL_PPR2_TA_FILE, "narrowPeak" )
 
-		sys $PRELOAD
-		
-		sys Rscript $(which $RUN_SPP) -c=$REP1_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP1_TA_FILE \
-			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP1_CCSCORE
-//			-fdr=$FDR -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP1_CCSCORE
-	}
+	// region peak
+ 	REP1_RPEAK_FILE 	:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, REP1_TA_FILE, CTL_REP1_TA_FILE, "regionPeak" )
+ 	REP2_RPEAK_FILE 	:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, REP2_TA_FILE, CTL_REP2_TA_FILE, "regionPeak" )
+ 	POOLED_RPEAK_FILE 	:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, POOLED_TA_FILE, CTL_POOLED_TA_FILE, "regionPeak" )
+ 	REP1_PR1_RPEAK_FILE	:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, REP1_PR1_TA_FILE, CTL_REP1_PR1_TA_FILE, "regionPeak" )
+ 	REP1_PR2_RPEAK_FILE	:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, REP1_PR2_TA_FILE, CTL_REP1_PR2_TA_FILE, "regionPeak" )
+	REP2_PR1_RPEAK_FILE	:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, REP2_PR1_TA_FILE, CTL_REP2_PR1_TA_FILE, "regionPeak" )
+	REP2_PR2_RPEAK_FILE	:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, REP2_PR2_TA_FILE, CTL_REP2_PR2_TA_FILE, "regionPeak" )
+	PPR1_RPEAK_FILE		:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, PPR1_TA_FILE, CTL_PPR1_TA_FILE, "regionPeak" )
+	PPR2_RPEAK_FILE		:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, PPR2_TA_FILE, CTL_PPR2_TA_FILE, "regionPeak" )
 
-	// REP2_TA_FILE vs CTL_REP2_TA_FILE
-	task( taskName := "spp rep2", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY * M, \
-		PEAK_REP2_CCSCORE <- [REP2_TA_FILE, CTL_REP2_TA_FILE]  ) {
-
-		sys $PRELOAD
-		
-		sys Rscript $(which $RUN_SPP) -c=$REP2_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP2_TA_FILE \
-			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP2_CCSCORE
-//			-fdr=$FDR -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP2_CCSCORE
-	}
-
-	// POOLED_TA_FILE vs CTL_POOLED_TA_FILE
-	task( taskName := "spp pooled", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY * M, \
-		PEAK_POOLED_CCSCORE <- [POOLED_TA_FILE, CTL_POOLED_TA_FILE] ) {
-
-		sys $PRELOAD
-		
-		sys Rscript $(which $RUN_SPP) -c=$POOLED_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_POOLED_TA_FILE \
-			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_POOLED_CCSCORE
-//			-fdr=$FDR -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_POOLED_CCSCORE
-	}
+	run_spp( "Rep1", PEAK_OUTPUT_DIR, 		REP1_TA_FILE, CTL_REP1_TA_FILE, REP1_PEAK_FILE, REP1_RPEAK_FILE, PEAK_REP1_CCSCORE, FRAGLEN )
+	run_spp( "Rep2", PEAK_OUTPUT_DIR, 		REP2_TA_FILE, CTL_REP2_TA_FILE, REP2_PEAK_FILE, REP2_RPEAK_FILE, PEAK_REP2_CCSCORE, FRAGLEN )
+	run_spp( "Pooled", PEAK_OUTPUT_DIR, 	POOLED_TA_FILE, CTL_POOLED_TA_FILE, POOLED_PEAK_FILE, POOLED_RPEAK_FILE, PEAK_POOLED_CCSCORE, FRAGLEN )
+	run_spp( "Rep1_PR1", PEAK_OUTPUT_DIR, 	REP1_PR1_TA_FILE, CTL_REP1_PR1_TA_FILE, REP1_PR1_PEAK_FILE, REP1_PR1_RPEAK_FILE, PEAK_REP1_PR1_CCSCORE, FRAGLEN )
+	run_spp( "Rep1_PR2", PEAK_OUTPUT_DIR, 	REP1_PR2_TA_FILE, CTL_REP1_PR2_TA_FILE, REP1_PR2_PEAK_FILE, REP1_PR2_RPEAK_FILE, PEAK_REP1_PR2_CCSCORE, FRAGLEN )
+	run_spp( "Rep2_PR1", PEAK_OUTPUT_DIR, 	REP2_PR1_TA_FILE, CTL_REP2_PR1_TA_FILE, REP2_PR1_PEAK_FILE, REP2_PR1_RPEAK_FILE, PEAK_REP2_PR1_CCSCORE, FRAGLEN )
+	run_spp( "Rep2_PR2", PEAK_OUTPUT_DIR, 	REP2_PR2_TA_FILE, CTL_REP2_PR2_TA_FILE, REP2_PR2_PEAK_FILE, REP2_PR2_RPEAK_FILE, PEAK_REP2_PR2_CCSCORE, FRAGLEN )
+	run_spp( "PPR1", PEAK_OUTPUT_DIR, 		PPR1_TA_FILE, CTL_PPR1_TA_FILE, PPR1_PEAK_FILE, PPR1_RPEAK_FILE, PEAK_PPR1_CCSCORE, FRAGLEN )
+	run_spp( "PPR2", PEAK_OUTPUT_DIR, 		PPR2_TA_FILE, CTL_PPR2_TA_FILE, PPR2_PEAK_FILE, PPR2_RPEAK_FILE, PEAK_PPR2_CCSCORE, FRAGLEN )
 
 	wait
 
-	// IDR
+	///////////////////////////////// IDR
+
+	run_idr( "Rep1_vs_Rep2", PEAK_OUTPUT_DIR, 			REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE ) // (1) or 4a
+	run_idr( "PPR1_vs_PPR2", PEAK_OUTPUT_DIR, 			PPR1_PEAK_FILE, PPR2_PEAK_FILE, POOLED_PEAK_FILE ) // (2) or 4c
+	run_idr( "Rep1_PR1_vs_Rep1_PR2", PEAK_OUTPUT_DIR, 	REP1_PR1_PEAK_FILE, REP1_PR2_PEAK_FILE, REP1_PEAK_FILE ) // (3) or 4b-1
+	run_idr( "Rep2_PR1_vs_Rep2_PR2", PEAK_OUTPUT_DIR, 	REP2_PR1_PEAK_FILE, REP2_PR2_PEAK_FILE, REP2_PEAK_FILE ) // (4) or 4b-2
+
+	wait
+}
+
+string get_spp_out_peak_filename( string dir, string ta1, string ta2, string type ) {
+
+	return dir + "/" \
+ 			+ rm_str_at_end( ta1.baseName(),".gz" ) \
+ 			+ "_VS_" + rm_str_at_end( ta2.baseName(),".gz" ) + "." + type + ".gz" \
+ 			
+}
+
+void run_spp( string taskname, string out_dir, string ta, string ctl_ta, string npeak, string rpeak, string ccscore, string fraglen ) {
+
+	task( taskName := "spp " + taskname, cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY * M, \
+		[npeak, rpeak, ccscore] <- [ta, ctl_ta] ) {
+
+		sys $PRELOAD
+
+		sys Rscript $(which $RUN_SPP) -c=$ta -p=$NTHREADS_RUN_SPP -i=$ctl_ta \
+			-npeak=300000 -odir=$out_dir -speak=$fraglen -savn -savr -savp -rf -out=$ccscore
+	}
+}
+
+void run_idr( string taskname, string out_dir, string peak1, string peak2, string pooled ) {
+
+	IDR_OUTPUT := "$PEAK_OUTPUT_DIR"+"/"+taskname+".IDR"
+	task( taskName := "IDR " + taskname, cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		IDR_OUTPUT <- [peak1, peak2, pooled] ) { // --use-old-output-format 
+
+		sys $PRELOAD
+
+		sys idr --samples $peak1 $peak2 --peak-list $pooled --input-file-type narrowPeak \
+			--output-file $IDR_OUTPUT --plot --idr-threshold $IDR_THRESH
+
+		sys echo "Number of peaks ($taskname): $(cat $IDR_OUTPUT | wc -l)"
+	}
+}
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+	// prepare output file names
 	REP1_NPEAK_FILE_BASE	:= rm_str_at_end( REP1_TA_FILE.baseName(),".gz" ) \
 								 + "_VS_" + rm_str_at_end( CTL_REP1_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
 	REP2_NPEAK_FILE_BASE 	:= rm_str_at_end( REP2_TA_FILE.baseName(),".gz" ) \
@@ -155,9 +219,63 @@ void spp_idr() {
 	POOLED_NPEAK_FILE_BASE	:= rm_str_at_end( POOLED_TA_FILE.baseName(),".gz" ) \
 								 + "_VS_" + rm_str_at_end( CTL_POOLED_TA_FILE.baseName(),".gz" ) + ".narrowPeak.gz"
 
-	REP1_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP1_NPEAK_FILE_BASE
-	REP2_PEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP2_NPEAK_FILE_BASE
-	POOLED_PEAK_FILE:= "$PEAK_OUTPUT_DIR/"+ POOLED_NPEAK_FILE_BASE
+	REP1_RPEAK_FILE_BASE	:= rm_str_at_end( REP1_TA_FILE.baseName(),".gz" ) \
+								 + "_VS_" + rm_str_at_end( CTL_REP1_TA_FILE.baseName(),".gz" ) + ".regionPeak.gz"
+	REP2_RPEAK_FILE_BASE 	:= rm_str_at_end( REP2_TA_FILE.baseName(),".gz" ) \
+								 + "_VS_" + rm_str_at_end( CTL_REP2_TA_FILE.baseName(),".gz" ) + ".regionPeak.gz"
+	POOLED_RPEAK_FILE_BASE	:= rm_str_at_end( POOLED_TA_FILE.baseName(),".gz" ) \
+								 + "_VS_" + rm_str_at_end( CTL_POOLED_TA_FILE.baseName(),".gz" ) + ".regionPeak.gz"
+
+	REP1_NPEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP1_NPEAK_FILE_BASE
+	REP2_NPEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP2_NPEAK_FILE_BASE
+	POOLED_NPEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ POOLED_NPEAK_FILE_BASE
+
+	REP1_RPEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP1_RPEAK_FILE_BASE
+	REP2_RPEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ REP2_RPEAK_FILE_BASE
+	POOLED_RPEAK_FILE 	:= "$PEAK_OUTPUT_DIR/"+ POOLED_RPEAK_FILE_BASE
+
+	task( taskName := "spp rep1", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY * M, \
+		[REP1_NPEAK_FILE, REP1_RPEAK_FILE, PEAK_REP1_CCSCORE] <- [REP1_TA_FILE, CTL_REP1_TA_FILE] ) {
+ 
+		sys $PRELOAD
+	
+		sys Rscript $(which $RUN_SPP) -c=$REP1_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP1_TA_FILE \
+			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP1_CCSCORE
+	}
+
+	task( taskName := "spp rep2", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY * M, \
+		[REP2_NPEAK_FILE, REP2_RPEAK_FILE, PEAK_REP2_CCSCORE] <- [REP2_TA_FILE, CTL_REP2_TA_FILE]  ) {
+
+		sys $PRELOAD
+		
+		sys Rscript $(which $RUN_SPP) -c=$REP2_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_REP2_TA_FILE \
+			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_REP2_CCSCORE
+	}
+
+	task( taskName := "spp pooled", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY * M, \
+		[POOLED_NPEAK_FILE, POOLED_RPEAK_FILE, PEAK_POOLED_CCSCORE] <- [POOLED_TA_FILE, CTL_POOLED_TA_FILE] ) {
+
+		sys $PRELOAD
+		
+		sys Rscript $(which $RUN_SPP) -c=$POOLED_TA_FILE -p=$NTHREADS_RUN_SPP -i=$CTL_POOLED_TA_FILE \
+			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$PEAK_POOLED_CCSCORE
+	}
+
+	task( taskName := "spp ", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY * M, \
+		[, , ] <- [, ] ) {
+ 
+		sys $PRELOAD
+	
+		sys Rscript $(which $RUN_SPP) -c=$ -p=$NTHREADS_RUN_SPP -i=$ \
+			-npeak=300000 -odir=$PEAK_OUTPUT_DIR -speak=$FRAGLEN -savn -savr -savp -rf -out=$
+	}
+*/
+
+	
+/*
+	REP1_PEAK_FILE 	:= REP1_NPEAK_FILE
+	REP2_PEAK_FILE 	:= REP2_NPEAK_FILE
+	POOLED_PEAK_FILE:= POOLED_NPEAK_FILE
 
 	IDR_OUTPUT := "$PEAK_OUTPUT_DIR/REP1_VS_REP2.IDR" + IDR_THRESH +".narrowPeak"
 
@@ -167,11 +285,9 @@ void spp_idr() {
 
 		sys $PRELOAD
 
-		sys idr --samples $REP1_PEAK_FILE $REP1_PEAK_FILE --peak-list $POOLED_PEAK_FILE --input-file-type narrowPeak \
+		sys idr --samples $REP1_PEAK_FILE $REP2_PEAK_FILE --peak-list $POOLED_PEAK_FILE --input-file-type narrowPeak \
 			--output-file $IDR_OUTPUT --plot --idr-threshold $IDR_THRESH
 
 		sys echo NPEAKS_IDR: $(cat $IDR_OUTPUT | wc -l)
 	}
-
-	wait
-}
+*/

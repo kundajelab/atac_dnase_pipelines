@@ -37,18 +37,16 @@ bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] 
 ### Parameters from configuration file
 
 ```
-    CONF_FILE   : Configuration file path (if not specified, define parameters in command line argument).
+	PREFIX      : Prefix for all outputs.
+	OUTPUT_DIR  : Output directory. (default: out)
+	TMP_DIR     : Temporary directory for intermediate files. (default: tmp).
 
-    PREFIX      : Prefix for all outputs.
-    OUTPUT_DIR  : Output directory. (default: out)
-    TMP_DIR     : Temporary directory for intermediate files. (default: tmp).
+	WALLTIME    : Default walltime in seconds for all cluster jobs (default: 36000).
+	NTHREADS    : Default number of threads for all cluster jobs (default: 1).
+	MEMORY      : Default max. memory in MB for all cluster jobs (default: 4000).
 
-    WALLTIME    : Default walltime in seconds for all cluster jobs (default: 36000).
-    NTHREADS    : Default number of threads for all cluster jobs (default: 1).
-    MEMORY      : Default max. memory in MB for all cluster jobs (default: 4000).
-
-    MODULE      : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
-    SHELLCMD    : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
+	MODULE      : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+	SHELLCMD    : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
 
 	BOWTIE_IDX  : Path for bowtie index
 	READ1       : Read1 fastq
