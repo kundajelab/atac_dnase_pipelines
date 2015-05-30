@@ -147,10 +147,29 @@ For any parameters not defined in cmd. line arguments, default value will be use
 	-addpath <string> : Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
 ```
 
+### Check BDS job status (HTML progress report) on WEB
+
+If you have a NFS mounted web folder like (/srv/www/kundaje/leepc12/job_status/) connected to the cluster, you can automatically make symlink of BDS job status report (HTML) to web folders with the following command.
+
+```
+./_tools/recursive_ln.sh [SRC] [DEST] [EXT]
+
+```
+
+You can automatically and recursively sync your working folder to web folder by adding the following to crontab -e.
+
+```
+# This is an example. Updates symlinks every 5 minutes.
+
+*/5 * * * * /users/leepc12/code/pipelines/bds/_tools/recursive_ln.sh /srv/scratch/leepc12/run /srv/www/kundaje/leepc12/bds_monitor/mitra html
+```
+
+recursive_ln.sh recursively loops through all files with extension [EXT] and make the same directory structure on [DEST] and make symlinks of files with extension [EXT] to [DEST].
+
 
 ### How to specify softwares for the pipeline?
 
-With a configuration file, you can specify softwares with MODULE* and SHELLCMD*. Any suffix is allowed like MODULE_BIO, MODULE_LANG, SHELLCMD_TOOL, SHELLCMD_TEST.
+With a configuration file, you can specify softwares with MODULE*, SHELLCMD* and ADDPATH*. Any suffix is allowed like MODULE_BIO, MODULE_LANG, SHELLCMD_TOOL, SHELLCMD_TEST and ADDPATH_MATHLIB.
 
 For example, to use bwa 0.7.7 and bedtools 2.x.x and samtools 1.2
 
@@ -169,7 +188,7 @@ SHELLCMD_TEST= TEST_PATH="/usr/lib/example"; export LD_LIBRARY_PATH="${LD_LIBRAR
 SHELLCMD_YOU_CAN_DEFINE_ANY_CUSTOM_VAR= CUST_VAR=200
 ```
 
-With cmd. line arguments, use -mod [] and -shcmd []. Use semicolon as a delimiter.
+With cmd. line arguments, use -mod [], -shcmd [] and -addpath []. Use semicolon as a delimiter.
 
 ```
 bds $BDS_SCRIPT -mod 'bwa/0.7.7; bedtools/2.x.x; samtools/1.2' -shcmd 'export PATH="${PATH}:/usr/bin/example"; ...'
