@@ -121,6 +121,7 @@ For any parameters not defined in configuration file, default value will be used
 
 	MODULE 		: Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
 	SHELLCMD	: Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
+	ADDPATH		: Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
 
 ```
 
@@ -143,6 +144,7 @@ For any parameters not defined in cmd. line arguments, default value will be use
 
 	-mod <string>     : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
 	-shcmd <string>   : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
+	-addpath <string> : Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
 ```
 
 

@@ -7,7 +7,7 @@ Please take a look at ../README.md first.
 ### Parameters from command line arguments 1
 
 ```
-bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] [OUTPUTDIR]
+bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] [V_INDEX] [OUTPUTDIR]
 ```
 
 ### Parameters from command line arguments 2
@@ -25,6 +25,7 @@ bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] 
 
 	-mod <string>         : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
 	-shcmd <string>       : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test").
+        -addpath <string>     : Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
 
 	-BOWTIE_IDX <string>  : Path for bowtie index
 	-READ1 <string>       : Read1 fastq
@@ -32,6 +33,7 @@ bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] 
 	-NUMTHREADS <int>     : Number of threads for bowtie2
 	-GENOMESIZE <string>  : 'hs' by default
 	-CHROMSIZE <string>   : Path for chrom.sizes file for your .fa
+        -V_INDEX <string>     : Index for v-plot
 ```
 
 ### Parameters from configuration file
@@ -47,6 +49,7 @@ bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] 
 
 	MODULE      : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
 	SHELLCMD    : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
+        ADDPATH     : Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
 
 	BOWTIE_IDX  : Path for bowtie index
 	READ1       : Read1 fastq
@@ -54,6 +57,7 @@ bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] 
 	NUMTHREADS  : Number of threads for bowtie2
 	GENOMESIZE  : 'hs' by default
 	CHROMSIZE   : Path for chrom.sizes file for your .fa
+        V_INDEX     : Index for v-plot
 ```
 
 
