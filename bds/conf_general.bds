@@ -10,9 +10,9 @@ string prefix		= ""			help Prefix for all outputs.
 string o 			= "out" 		help Output directory. (default: out)
 string tmp 			= "tmp"			help Temporary directory for intermediate files. (default: tmp).
 
-int wt 				= 36000			help Default walltime in seconds for all cluster jobs (default: 36000).
+int wt 				= 20000			help Default walltime in seconds for all cluster jobs (default: 20000).
 int nth				= 1 			help Default number of threads for all cluster jobs (default: 1).
-int mem 			= 4000			help Default max. memory in MB for all cluster jobs (default: 4000).
+int mem 			= 8000			help Default max. memory in MB for all cluster jobs (default: 8000).
 
 string mod 			= ""			help Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
 string shcmd 		= ""			help Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test"). 
@@ -41,7 +41,7 @@ string{} conf // config. file
 
 void read_param_general() {
 
-	// if only one argument, it should be configuration file
+	// if only one argument, it must be configuration file
 	if ( args.size()==1  ) {
 		CONF_FILE=args[0]
 	}
@@ -88,7 +88,7 @@ void read_param_general() {
 			else if ( k.indexOf("ADDPATH")>=0 ) {
 
 				trimmed := rm_comment( conf{k} )
-							
+
 				trimmed = trimmed.replace(":",";")
 				paths := trimmed.split(";")
 

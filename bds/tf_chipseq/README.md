@@ -17,7 +17,7 @@ Please take a look at ../README.md first.
 
 	MODULE          	: Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
 	SHELLCMD        	: Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
-        ADDPATH                 : Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
+	ADDPATH                 : Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
 
 
 	QC_ONLY                 : Set it true to test-run and stop before peak calling, false: keep going through IDR (default: false).

@@ -23,7 +23,7 @@ string PLOT_V 			= "plotV.sh"
 string V_INDEX 									help Index for v-plot
 
 //////// alignPostprocessATAC ////////////
-string ADJUST_BED_TN5	= "adjustBedTN5.sh"
+string ADJUST_BED_TN5	= "adjustBedTn5.sh"
 
 //////// callATACpeaks ////////
 string GENOMESIZE 		= "hs"					help 'hs' by default
@@ -159,7 +159,8 @@ void main_atac() {
 
 	TMP_FILT_BAM_PREFIX := "$FILT_BAM_PREFIX.nmsrt.tmp"
 	TMP_FILT_BAM_FILE 	:= "$TMP_FILT_BAM_PREFIX.bam"
-		
+
+	TMP_FILT_BAM_FILE2	:= "$FILT_BAM_PREFIX.dupmark.bam"
 	DUP_FILE_QC 		:= "$FILT_BAM_PREFIX.dup.qc"
 
 	FINAL_BAM_PREFIX 		:= "$OFPREFIX.filt.srt.nodup"
@@ -209,99 +210,131 @@ void main_atac() {
 		//sys $(which $PLOT_V) "$SORTED_BAM_FILE" "$V_INDEX"
 		
 		sys samtools index "$SORTED_BAM_FILE"
-
 		sys python $(which $MAKE_VPLOT) -a "$SORTED_BAM_FILE" -b "$V_INDEX" -e 2000 -p ends -v -u
 	}
 
 	wait
 
-	task( taskName := "alignPostprocessPE", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		 FINAL_BAM_FILE <- RAW_BAM_FILE ) {
+	// 
+	if ( [PBC_FILE_QC, FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS, FINAL_NMSRT_BAM_FILE, FINAL_BAM_FILE] <- RAW_BAM_FILE ) {
 
-		sys $PRELOAD
+		task( taskName := "alignPostprocessPE (filt & sort)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			 FILT_BAM_FILE <- RAW_BAM_FILE ) {
 
-		//# =============================
-		//# Remove unmapped, mate unmapped
-		//# not primary alignment, reads failing platform
-		//# Remove low MAPQ reads
-		//# Only keep properly paired reads
-		//# Obtain name sorted BAM file
-		//# ==================
+			sys $PRELOAD
 
-		sys echo "Filter reads and sort"
+			//# =============================
+			//# Remove unmapped, mate unmapped
+			//# not primary alignment, reads failing platform
+			//# Remove low MAPQ reads
+			//# Only keep properly paired reads
+			//# Obtain name sorted BAM file
+			//# ==================
 
-		//# Will produce name sorted BAM
-		sys samtools view -F 1804 -f 2 -q "$MAPQ_THRESH" -u "$RAW_BAM_FILE" | \
-			samtools sort -n - "$TMP_FILT_BAM_PREFIX" 
+			sys echo "Filter reads and sort"
 
-		//# Remove orphan reads (pair was removed)
-		//# and read pairs mapping to different chromosomes
-		//# Obtain position sorted BAM
+			//# Will produce name sorted BAM
+			sys samtools view -F 1804 -f 2 -q "$MAPQ_THRESH" -u "$RAW_BAM_FILE" | \
+				samtools sort -n - "$TMP_FILT_BAM_PREFIX" 
 
-		sys echo "Fix mates - orphans and cross chromosomes"
+			//# Remove orphan reads (pair was removed)
+			//# and read pairs mapping to different chromosomes
+			//# Obtain position sorted BAM
 
-		//# Will produce coordinate sorted BAM
-		sys samtools fixmate -O bam -r "$TMP_FILT_BAM_FILE" - | \
-			samtools view -F 1804 -f 2 -u - | \
-			samtools sort - "$FILT_BAM_PREFIX" 
+			sys echo "Fix mates - orphans and cross chromosomes"
 
-		sys rm -f "$TMP_FILT_BAM_FILE"
+			//# Will produce coordinate sorted BAM
+			sys samtools fixmate -O bam -r "$TMP_FILT_BAM_FILE" - | \
+				samtools view -F 1804 -f 2 -u - | \
+				samtools sort - "$FILT_BAM_PREFIX" 
 
-		//# =============
-		//# Mark duplicates
-		//# =============
+			sys rm -f "$TMP_FILT_BAM_FILE"
+		}
 
-		sys echo "Mark duplicates"
+		wait
 
-		sys java $JVM_OPTS -jar ${PICARDROOT}/picard.jar MarkDuplicates \
-			INPUT="$FILT_BAM_FILE" OUTPUT="$TMP_FILT_BAM_FILE" \
-			METRICS_FILE="$DUP_FILE_QC" VALIDATION_STRINGENCY=LENIENT \
-			ASSUME_SORTED=true REMOVE_DUPLICATES=false
+		task( taskName := "alignPostprocessPE (rm dup)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			 FINAL_BAM_FILE <- FILT_BAM_FILE ) {
 
-		sys mv "$TMP_FILT_BAM_FILE" "$FILT_BAM_FILE"
+			sys $PRELOAD
 
-		//# ============================
-		//# Remove duplicates
-		//# Index final position sorted BAM
-		//# Create final name sorted BAM
-		//# ============================
+			//# =============
+			//# Mark duplicates
+			//# =============
 
-		sys echo "Remove duplicates"
+			sys echo "Mark duplicates"
 
-		sys samtools view -F 1804 -f 2 -b "$FILT_BAM_FILE" > "$FINAL_BAM_FILE"
-		sys samtools sort -n "$FINAL_BAM_FILE" "$FINAL_NMSRT_BAM_PREFIX"
+			sys java $JVM_OPTS -jar ${PICARDROOT}/picard.jar MarkDuplicates \
+				INPUT="$FILT_BAM_FILE" OUTPUT="$TMP_FILT_BAM_FILE2" \
+				METRICS_FILE="$DUP_FILE_QC" VALIDATION_STRINGENCY=LENIENT \
+				ASSUME_SORTED=true REMOVE_DUPLICATES=false
 
-		//# Index Final BAM file
+			//sys mv "$TMP_FILT_BAM_FILE2" "$FILT_BAM_FILE"
 
-		sys samtools index "$FINAL_BAM_FILE"
+			//# ============================
+			//# Remove duplicates
+			//# Index final position sorted BAM
+			//# Create final name sorted BAM
+			//# ============================
 
-		sys mv -f "$FINAL_BAM_FILE".bai "$FINAL_BAM_INDEX_FILE"
-		sys samtools flagstat "$FINAL_BAM_FILE" > "$FINAL_BAM_FILE_MAPSTATS"
+			sys echo "Remove duplicates"
 
-		//# =============================
-		//# Compute library complexity
-		//# =============================
-		//# Sort by name
-		//# convert to bedPE and obtain fragment coordinates
-		//# sort by position and strand
-		//# Obtain unique count statistics
+			//sys samtools view -F 1804 -f 2 -b "$FILT_BAM_FILE" > "$FINAL_BAM_FILE"
+			sys samtools view -F 1804 -f 2 -b "$TMP_FILT_BAM_FILE2" > "$FINAL_BAM_FILE"
+		}
 
-		sys echo "Compute library complexity"
+		wait
 
-		//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
-		sys samtools sort -n -o "$FILT_BAM_FILE" "$FILT_BAM_FILE.tmp" | \
-			bedtools bamtobed -bedpe -i stdin | \
-			awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
-			grep -v 'chrM' | \
-			sort | \
-			uniq -c | \
-			awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > "$PBC_FILE_QC"
+		task( taskName := "alignPostprocessPE (sort final bam)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			FINAL_NMSRT_BAM_FILE <- FINAL_BAM_FILE ) {
 
-		sys rm -f "$FILT_BAM_FILE"
+			sys $PRELOAD
+
+			sys samtools sort -n "$FINAL_BAM_FILE" "$FINAL_NMSRT_BAM_PREFIX"
+		}
+
+		task( taskName := "alignPostprocessPE (index final bam)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			[FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS]  <- FINAL_BAM_FILE ) {
+
+			sys $PRELOAD
+
+			//# Index Final BAM file
+
+			sys samtools index "$FINAL_BAM_FILE"
+
+			sys mv -f "$FINAL_BAM_FILE".bai "$FINAL_BAM_INDEX_FILE"
+			sys samtools flagstat "$FINAL_BAM_FILE" > "$FINAL_BAM_FILE_MAPSTATS"
+		}
+
+		task( taskName := "alignPostprocessPE (QC final bam)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			PBC_FILE_QC <- TMP_FILT_BAM_FILE2 ) {
+
+			sys $PRELOAD
+
+			//# =============================
+			//# Compute library complexity
+			//# =============================
+			//# Sort by name
+			//# convert to bedPE and obtain fragment coordinates
+			//# sort by position and strand
+			//# Obtain unique count statistics
+
+			sys echo "Compute library complexity"
+
+			//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
+			//sys samtools sort -n -o "$FILE_BAM_FILE" "$FILT_BAM_FILE.tmp" | \
+			sys samtools sort -n -o "$TMP_FILT_BAM_FILE2" "$TMP_FILT_BAM_FILE2.tmp" | \
+				bedtools bamtobed -bedpe -i stdin | \
+				awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
+				grep -v 'chrM' | sort | uniq -c | \
+				awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > "$PBC_FILE_QC"
+
+			sys rm -f $FILT_BAM_FILE
+			sys rm -f $TMP_FILT_BAM_FILE2
+		}
 	}
 
 	wait
-
 
 	print( "\nalignPostprocessATAC...\n" )
 
@@ -310,10 +343,11 @@ void main_atac() {
 	nonMitoBAM 	:= input_bam.replace(".bam",".nonchrM.bam")
 	nonMitoBAM_hist_graph := "$nonMitoBAM.hist_graph.pdf"
 
-	output_file := nonMitoBAM.replace(".bam",".bed")
+	//output_file := nonMitoBAM.replace(".bam",".bed")
+	output_file := nonMitoBAM.replace(".bam",".tn5.bed.gz")
 
 	task( taskName := "alignPostprocessATAC", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		 [mitoBAM, nonMitoBAM, nonMitoBAM_hist_graph] <- input_bam ) {
+		 [output_file, mitoBAM, nonMitoBAM, nonMitoBAM_hist_graph] <- input_bam ) {
 
 		sys $PRELOAD
 
@@ -340,7 +374,7 @@ void main_atac() {
 	print( "\ncallATACpeaks...\n" )
 
 	readBed 	:= output_file
-	peakFile 	:= "$readBed.pf"
+	peakFile 	:= readBed.replace(".bed.gz",".pf"); //"$readBed.pf"
 
 	task( taskName := "callATACpeaks", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 		 ["$peakFile.fc.signal.bigwig", "$peakFile.pval.signal.bigwig"] <- readBed ) {
