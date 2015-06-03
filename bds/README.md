@@ -163,18 +163,30 @@ If you have a NFS mounted web folder like (/srv/www/kundaje/leepc12/job_status/)
 ```
 ./_tools/sync_bds_report.sh [SRC] [DEST]
 
+# or
+
+./_tools/recursive_ln.sh [SRC] [DEST]
+
 ```
 
 You can automatically and recursively sync important status files (html,js,pdf,log,qc) on your working folder to web folder by adding the following to crontab -e.
 
 ```
-# This is an example. Updates symlinks every 5 minutes.
-# Modify path for recursive_ln.sh, SRC (top of your working directory) and DEST (web directory)
+# This is an example for nandi cluster. Updates important files every 5 minutes.
+# Modify path for sync_bds_report.sh, SRC (top of your working directory) and DEST (web directory)
 
 */5 * * * * /users/leepc12/code/pipelines/bds/_tools/sync_bds_report.sh /srv/scratch/leepc12/run /srv/www/kundaje/leepc12/bds_monitor/nandi
 ```
 
-sync_bds_report.sh recursively loops through all status, make the same directory structure on [DEST].
+Or, you can automatically and recursively make symlinks for ALL files on your working folder to web folder by adding the following to crontab -e.
+
+```
+# This is an example for nandi cluster. Updates symlinks every 3 minutes.
+*/3 * * * * /users/leepc12/code/pipelines/bds/_tools/recursive_ln.sh /srv/scratch/leepc12/run /srv/www/kundaje/leepc12/bds_monitor/nandi
+```
+
+sync_bds_report.sh recursively loops through all important status files, make the same directory structure on [DEST] and then copy files to [DEST].
+recursive_ln.sh recursively loops through all files,make the same directory structure on [DEST] and then make symlinks on [DEST].
 
 ### How to specify softwares for the pipeline?
 
