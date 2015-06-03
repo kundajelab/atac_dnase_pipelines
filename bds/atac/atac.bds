@@ -3,16 +3,16 @@
 include "../conf_general.bds"
 
 // input reads
-string READ1 			= ""					help Read1 fastq
-string READ2			= ""					help Read2 fastq
+string READ1 			= ""					help Read1 fastq.gz
+string READ2			= ""					help Read2 fastq.gz
 
 ///////// trimAdapters /////////////////////
 string TRIM_ADAPTERS 	= "trimAdapters.py"
 
 ///////// alignATAC /////////////////////
 string BOWTIE_IDX	  	= ""					help Path for bowtie index
-int NUMTHREADS 			= 1						help Number of threads for bowtie2
-int MEMORY_BWT2 		= 8000					
+int NUMTHREADS 			= 1					help Number of threads for bowtie2 (Default: 1)
+int MEMORY_BWT2 		= 8000					// 2G was not enough
 
 ///////// alignPostprocessPE /////////////////////
 int MAPQ_THRESH 		= 30					
@@ -20,15 +20,15 @@ string JVM_OPTS 		= "-Xmx4G -Xms256M"
 string MAKE_VPLOT 		= "makeVPlot.py"
 string PLOT_PRESEQ 		= "plotPRESEQ.sh"
 string PLOT_V 			= "plotV.sh" 
-string V_INDEX 									help Index for v-plot
+string V_INDEX 								help Index for v-plot
 
 //////// alignPostprocessATAC ////////////
 string ADJUST_BED_TN5	= "adjustBedTn5.sh"
 
 //////// callATACpeaks ////////
-string GENOMESIZE 		= "hs"					help 'hs' by default
-string CHROMSIZE		= ""					help Path for chrom.sizes file for your .fa
-int fragLen 			=75						
+string GENOMESIZE 		= "hs"					help 'hs' for human, 'mm' for mouse (Default: 'hs')
+string CHROMSIZE		= ""					help Path for chrom.sizes file for your reference genome
+int fragLen 			= 75						
 
 
 // program body
