@@ -3,11 +3,17 @@ BigDataScript (BDS) pipelines
 
 ## BigDataScript
 
-Take a look at <a href="./README_BDS.md">./README_BDS.md</a> for installation, configuration and tips for BigDataScript.
+Take a look at <a href="./README_BDS.md">./README_BDS.md</a> for installation, configuration and tips (logging/debugging and reporting) for BigDataScript.
+
+There are three bioinformatics pipelines available on this repository.
+
+1) <a href="./atac/README.md">ATAC-seq</a>
+2) <a href="./tf_chipseq/README.md">TF ChIP-seq</a>
+3) <a href="./hist_chipseq/README.md">Histone ChIP-seq</a>
 
 ### Baseline pipeline (./conf_general.bds)
 
-All BDS pipelines on this repository are based on the general baseline pipeline (./conf_general.bds). The baseline pipeline does not involve any bioinformatics analysis. It just parses parameters from cmd. line argument or from configuration files. Important parameters like cpu, mem and walltime and initialization settings (env. module init. and exporting env. vars) should be defined here. There are two ways to define such parameters.
+All BDS pipelines on this repository are based on the general baseline pipeline (./conf_general.bds). The baseline pipeline does not involve any bioinformatics analysis. It just parses parameters from cmd. line argument or from a configuration file. Important parameters like cpu, mem and walltime and initialization settings (env. module init. and exporting env. vars) should be defined here. There are two ways to define such parameters.
 
 1) From command line arguments 
 ```
@@ -19,7 +25,7 @@ $bds pipeline.bds -prefix TEST -o out -tmp tmp -wt 7200 ...
 
 ```
 
-2) From configuration file
+2) From a configuration file
 ```
 $bds pipeline.bds -c [CONF_FILE]
 
@@ -37,9 +43,9 @@ WALLTIME= 7200
 ...
 ```
 
-### Parameters from configuration file
+### Parameters from a configuration file
 
-For any parameters not defined in configuration file, default value will be used. Parameters defined in configuration file overrides those defined in cmd. line arguments.
+For any parameters not defined in a configuration file, default value will be used. Parameters defined in a configuration file overrides those defined in command line arguments.
 
 ```
 	PREFIX 		: Prefix for all outputs.
@@ -58,10 +64,10 @@ For any parameters not defined in configuration file, default value will be used
 
 ### Parameters from command line arguments
 
-For any parameters not defined in cmd. line arguments, default value will be used. The following command will show help for all command line arguments.
+For any parameters not defined in command line arguments, default value will be used. The following command will show help for all command line arguments.
 
 ```
-$bds pipeline.bds -h
+$bds ./conf_general.bds -h
 
 	-c <string>       : Configuration file path (if not specified, define parameters in command line argument).
 
@@ -80,11 +86,11 @@ $bds pipeline.bds -h
 
 ## What are MODULE, SHELLCMD and ADDPATH?
 
-It is important to define to enviroment variables (like $PATH) make bioinformatics softwares in the pipeline work properly. MODULE, SHELLCMD and ADDPATH are three convenient ways to define environment variables. Environment variables defined with MODULE, SHELLCMD and ADDPATH are preloaded for all tasks on the pipeline. For example, if you define environment variables for bwa/0.7.10 with MODULE. They will be shared on all jobs on the pipeline.
+It is important to define enviroment variables (like $PATH) to make bioinformatics softwares in the pipeline work properly. MODULE, SHELLCMD and ADDPATH are three convenient ways to define environment variables. Environment variables defined with MODULE, SHELLCMD and ADDPATH are preloaded for all tasks on the pipeline. For example, if you define environment variables for bwa/0.7.10 with MODULE. bwa of version 0.7.10 will be used throughout the whole pipeline (including bwa aln, bwa same and bwa sampe).
 
 1) MODULE
 
-There are different versions of bioinformatics softwares (eg. samtools, bedtools and bwa) and <a href="http://modules.sourceforge.net/">Enviroment Modules</a> is the best way to manage them. For example, if you want to add environment variables for bwa 0.7.10 by using Environment Modules. You can simply type the following:
+There are different versions of bioinformatics softwares (eg. samtools, bedtools and bwa) and <a href="http://modules.sourceforge.net/">Enviroment Modules</a> is the best way to manage environemt variables for them. For example, if you want to add environment variables for bwa 0.7.10 by using Environment Modules. You can simply type the following:
 
 ```
 $module add bwa/0.7.10;

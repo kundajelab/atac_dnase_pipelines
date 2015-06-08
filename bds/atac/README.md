@@ -1,17 +1,19 @@
 ATAC Seq Pipeline
 ===================================================
 
-Please take a look at ../README.md first.
+Please take a look at <a href="../README.md">../README.md</a> first.
 
 
 ### Parameters from command line arguments 1
 
 ```
-bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] [V_INDEX] [OUTPUTDIR] -mod [MOD_DEF] -addpath [PATH_FOR_SOFTWARES] -shcmd [ADDITIONAL_INIT]
+$bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] [V_INDEX] [OUTPUTDIR] -mod [MOD_DEF] -addpath [PATH_FOR_SOFTWARES] -shcmd [ADDITIONAL_INIT]
 
 # Take a look at ../README.md for more details about arguments like -addpath, -mod and -shcmd
 # If you already have -V option (pass all env. vars to qsub) in your ~/.bds/bds.config and defined all env. vars on your current shell, you can skip these additional parameters.
+# Otherwise you need to define enviromnet variables with -mod, -shcmd and -addpath.
 
+# For example
 # [MOD_DEF] = 'bowtie/2.2.4; samtools/1.2; bedtools/2.21.0; picard-tools/1.129; ucsc_tools/3.0.9; MACS2/2.1.0; java/latest; preseq/1.0.2'
 # [PATH_FOR_SOFTWARES] = '/users/leepc12/code/pipelines/atac'
 # [ADDITIONAL_INIT] = 'export _JAVA_OPTIONS="-Xms256M -Xmx512M -XX:ParallelGCThreads=1"; export MAX_JAVA_MEM="4G"; export MALLOC_ARENA_MAX=4'
@@ -20,6 +22,10 @@ bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] 
 ### Parameters from command line arguments 2
 
 ```
+$bds atac.bds [OPTS_FOR_ATAC]
+
+#[OPTS_FOR_ATAC] are like the following:
+
 	-c <string>           : Configuration file path (if not specified, define parameters in command line argument).
 
 	-prefix <string>      : Prefix for all outputs.
@@ -46,6 +52,10 @@ bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] 
 ### Parameters from configuration file
 
 ```
+$bds atac.bds [CONF_FILE]
+
+$cat [CONF_FILE]
+
 	PREFIX      : Prefix for all outputs.
 	OUTPUT_DIR  : Output directory. (default: out)
 	TMP_DIR     : Temporary directory for intermediate files. (default: tmp).
