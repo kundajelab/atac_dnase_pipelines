@@ -2,21 +2,25 @@
 
 include "modules_string.bds"
 
+helpUnsorted := true // help will not be sorted
+
 
 // cmd line arg. wrapper
-string c 			= "" 			help Configuration file path (if not specified, define parameters in command line argument).
+string c 		= "" 			help Configuration file path (if not specified, define parameters in command line argument).
 
 string prefix		= ""			help Prefix for all outputs.
-string o 			= "out" 		help Output directory. (default: out)
-string tmp 			= "tmp"			help Temporary directory for intermediate files. (default: tmp).
+string o 		= "out" 		help Output directory. (default: out)
+string tmp 		= "tmp"			help Temporary directory for intermediate files. (default: tmp).
 
-int wt 				= 20000			help Default walltime in seconds for all cluster jobs (default: 20000).
-int nth				= 1 			help Default number of threads for all cluster jobs (default: 1).
-int mem 			= 8000			help Default max. memory in MB for all cluster jobs (default: 8000).
+int wt 			= 22000			help Default walltime in seconds for all cluster jobs (default: 22000).
+int nth			= 1 			help Default number of threads for all cluster jobs (default: 1).
+int mem 		= 8000			help Default max. memory in MB for all cluster jobs (default: 8000).
 
-string mod 			= ""			help Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+string mod 		= ""			help Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
 string shcmd 		= ""			help Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test"). 
 string addpath 		= "" 			help Path to be appended to env. var. PATH. Multiple paths should be separated by ; (example: "/bin/test:/bin/test2")
+
+
 
 // parameters
 string CONF_FILE 	= c
@@ -25,13 +29,13 @@ string OUTPUT_DIR 	= o
 string TMP_DIR 		= tmp
 int WALLTIME 		= wt
 int NTHREADS 		= nth
-int MEMORY 			= mem
+int MEMORY 		= mem
 string MODULE 		= mod
 string SHELLCMD		= shcmd
 string ADDPATH 		= addpath
 
 // system parameters
-string PRELOAD 			= ""
+string PRELOAD 		= ""
 string PRELOAD_MODULE 	= ". /etc/profile.d/modules.sh;"
 string PRELOAD_SHELLCMD = "export PATH=\"\${PATH}:/bin:/usr/bin\";" // default path for basic linux utils
 
@@ -57,10 +61,10 @@ void read_param_general() {
 		if ( conf.hasKey("PREFIX") ) 		PREFIX 		= chk_slash( conf{ "PREFIX" } )
 
 		if ( conf.hasKey("OUTPUT_DIR") ) 	OUTPUT_DIR	= rm_comment( conf{ "OUTPUT_DIR" } ) 
-											OUTPUT_DIR 	= mkdir_path( OUTPUT_DIR )
+							OUTPUT_DIR 	= mkdir_path( OUTPUT_DIR )
 
 		if ( conf.hasKey("TMP_DIR") ) 		TMP_DIR 	= rm_comment( conf{ "TMP_DIR" } )
-											TMP_DIR 	= mkdir_path( TMP_DIR )
+							TMP_DIR 	= mkdir_path( TMP_DIR )
 
 		if ( conf.hasKey("WALLTIME") ) 		WALLTIME 	= parse_int( conf{ "WALLTIME" } ) 
 		if ( conf.hasKey("NTHREADS") ) 		NTHREADS  	= parse_int( conf{ "NTHREADS" } ) 
@@ -75,6 +79,7 @@ void read_param_general() {
 			if ( k.indexOf("MODULE")>=0 ) {
 
 				trimmed := rm_comment( conf{k} )
+				trimmed = trimmed.replace("module add ","")
 				mods := trimmed.split(";")
 
 				for ( string str : mods ) \

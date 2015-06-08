@@ -11,7 +11,7 @@ string TRIM_ADAPTERS 	= "trimAdapters.py"
 
 ///////// alignATAC /////////////////////
 string BOWTIE_IDX	  	= ""					help Path for bowtie index
-int NUMTHREADS 			= 1					help Number of threads for bowtie2 (Default: 1)
+int NUMTHREADS 			= 1						help Number of threads for bowtie2 (Default: 1)
 int MEMORY_BWT2 		= 8000					// 2G was not enough
 
 ///////// alignPostprocessPE /////////////////////
@@ -20,7 +20,7 @@ string JVM_OPTS 		= "-Xmx4G -Xms256M"
 string MAKE_VPLOT 		= "makeVPlot.py"
 string PLOT_PRESEQ 		= "plotPRESEQ.sh"
 string PLOT_V 			= "plotV.sh" 
-string V_INDEX 								help Index for v-plot
+string V_INDEX 									help Index for v-plot
 
 //////// alignPostprocessATAC ////////////
 string ADJUST_BED_TN5	= "adjustBedTn5.sh"
@@ -29,6 +29,9 @@ string ADJUST_BED_TN5	= "adjustBedTn5.sh"
 string GENOMESIZE 		= "hs"					help 'hs' for human, 'mm' for mouse (Default: 'hs')
 string CHROMSIZE		= ""					help Path for chrom.sizes file for your reference genome
 int fragLen 			= 75						
+
+//////// makeReport ///////
+string MAKE_REPORT 		= "makeReport.sh"
 
 
 // program body
@@ -172,48 +175,6 @@ void main_atac() {
 
 	PBC_FILE_QC := "$FINAL_BAM_PREFIX.pbc.qc"
 
-	//# sort the raw bam file
-	SORTED_BAM_FILE := RAW_BAM_FILE.replace(".bam",".sort.bam")
-
-	task( taskName := "sort bam (V-plot)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		 [SORTED_BAM_FILE] <- RAW_BAM_FILE ) {
-
-		sys $PRELOAD
-
-		sys cd $OUTPUT_DIR
-
-		//# preseq needs sorted input
-		sys samtools sort -Ttmp -l0 -Obam "$RAW_BAM_FILE" -o "$SORTED_BAM_FILE"
-	}
-
-	wait
-
-	VPLOT_FILE := SORTED_BAM_FILE + ".preseq.pdf"
-
-	task( taskName := "makeVPlot.py (V-plot)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		 VPLOT_FILE <- SORTED_BAM_FILE ) {
-
-		sys $PRELOAD
-
-		sys cd $OUTPUT_DIR
-
-		//# generate PRESEQ plot
-		sys echo "PRESEQ Analysis..."
-
-		//# this script must be in PATH
-		sys $(which $PLOT_PRESEQ) "$SORTED_BAM_FILE"
-
-		//# generate V plot
-		sys echo "Generating V Plot..."
-
-		//# this script must be in PATH
-		//sys $(which $PLOT_V) "$SORTED_BAM_FILE" "$V_INDEX"
-		
-		sys samtools index "$SORTED_BAM_FILE"
-		sys python $(which $MAKE_VPLOT) -a "$SORTED_BAM_FILE" -b "$V_INDEX" -e 2000 -p ends -v -u
-	}
-
-	wait
 
 	// 
 	if ( [PBC_FILE_QC, FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS, FINAL_NMSRT_BAM_FILE, FINAL_BAM_FILE] <- RAW_BAM_FILE ) {
@@ -334,7 +295,40 @@ void main_atac() {
 		}
 	}
 
+	//# sort the raw bam file
+	SORTED_BAM_FILE := RAW_BAM_FILE.replace(".bam",".sort.bam")
+	SORTED_BAM_IDX_FILE := SORTED_BAM_FILE + ".bai"
+
+	task( taskName := "sort bam (V-plot)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		 [SORTED_BAM_FILE, SORTED_BAM_IDX_FILE] <- RAW_BAM_FILE ) {
+
+		sys $PRELOAD
+
+		sys cd $OUTPUT_DIR
+
+		//# preseq needs sorted input
+		sys samtools sort -Ttmp -l0 -Obam "$RAW_BAM_FILE" -o "$SORTED_BAM_FILE"
+
+		sys samtools index "$SORTED_BAM_FILE"
+	}
+
 	wait
+
+	PRESEQ_FILE := SORTED_BAM_FILE + ".preseq.pdf"
+
+	task( taskName := "PRESEQ", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		 PRESEQ_FILE <- SORTED_BAM_FILE ) {
+
+		sys $PRELOAD
+		sys cd $OUTPUT_DIR
+
+		sys echo "PRESEQ Analysis..."
+
+		//# this script must be in PATH
+		sys $(which $PLOT_PRESEQ) "$SORTED_BAM_FILE"
+	}
+
+	//wait
 
 	print( "\nalignPostprocessATAC...\n" )
 
@@ -343,7 +337,6 @@ void main_atac() {
 	nonMitoBAM 	:= input_bam.replace(".bam",".nonchrM.bam")
 	nonMitoBAM_hist_graph := "$nonMitoBAM.hist_graph.pdf"
 
-	//output_file := nonMitoBAM.replace(".bam",".bed")
 	output_file := nonMitoBAM.replace(".bam",".tn5.bed.gz")
 
 	task( taskName := "alignPostprocessATAC", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
@@ -408,4 +401,162 @@ void main_atac() {
 	}	
 
 	wait
+
+	VPLOT_FILE := SORTED_BAM_FILE + "." + V_INDEX.baseName() + ".vect.png"
+
+	task( taskName := "makeVPlot", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		 VPLOT_FILE <- SORTED_BAM_FILE ) {
+
+		sys $PRELOAD
+		sys cd $OUTPUT_DIR
+
+		//# generate V plot
+		sys echo "Generating V Plot..."
+
+		//# this script must be in PATH (didn't work with 20 thread, so reduce it to 4)
+		//sys python $(which $MAKE_VPLOT) -a "$SORTED_BAM_FILE" -b "$V_INDEX" -e 2000 -p ends -v -u
+		sys python $(which $MAKE_VPLOT) -a "$SORTED_BAM_FILE" -b "$V_INDEX" -e 2000 -p ends -c 4 -v -u
+	}
+
+	wait
+
+/*	 
+	print( "\nMake Report...\n" )
+
+	task( taskName := "make Report", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M ) {
+		sys $PRELOAD
+		sys makeReport.sh
+
+		sys thisFolder=$OUTPUT_DIR
+
+		//# figure out what we've aligned to
+		sys MODEL=$(basename $(grep "Aligning to" $OUTPUT_DIR/alignATAC.log |awk '{print $3}'))
+
+		//# insert size histogram graph file name
+		sys insertSizeHist="$(echo *.hist_graph.pdf)"
+
+		//# PRESEQ graph file name
+		sys preseqGraph="$(echo *.preseq.pdf)"
+
+		//# bowtie2 alignment log file name
+		sys alignLog="$(echo *.align.log)"
+		sys alignLogLastLine=$(tail -n 1 ${alignLog})
+
+		//# preseq log file name
+		sys preseqLog="$(echo *.preseq.log)"
+
+		//# V-Plot graph file name
+		sys vPlot="$(echo *.vect.png)"
+
+		//# Picard duplicate log file name
+		sys dupQCFile=$(echo *.dup.qc)
+		sys dupQCHeadings=$(sed -n 7p ${dupQCFile})
+		sys dupQCHeadings=${dupQCHeadings//_/\\\\_} #moar reformatting
+		sys IFS=$'\t' read -a dupQCHeadings <<< "${dupQCHeadings}"
+
+		sys dupQCData=$(sed -n 8p ${dupQCFile})
+		sys IFS=$'\t' read -a dupQCData <<< "${dupQCData}"
+
+		sys START=0
+		sys END=${#dupQCHeadings[@]}
+		sys DUPTABLE=""
+
+		//## here we build up the tex styled table contents
+		sys for (( c=${START}; c<${END}; c++ )) \
+			do \
+				if [ "${c}" = "$((END-1))" ]; then \
+					DUPTABLE="${DUPTABLE}${dupQCHeadings[${c}]}& ${dupQCData[${c}]} \\\\ \bottomrule" \
+				else \
+					DUPTABLE="${DUPTABLE}${dupQCHeadings[${c}]}& ${dupQCData[${c}]} \\\\ \midrule" \
+				fi \
+			done
+
+		//# library complexity data file name
+		sys bpcQCFile=$(echo *.pbc.qc)
+
+		//# library complexity data file contents
+		sys declare -a bpcLabels=("TotalReadPairs" "DistinctReadPairs" "OneReadPair" "TwoReadPairs" "NRF=Distinct/Total" "PBC1=OnePair/Distinct" "PBC2=OnePair/TwoPair")
+		sys bpcQC=$(cat ${bpcQCFile})
+		sys IFS=$'\t' read -a bpcData <<< "${bpcQC}"
+
+		sys START=0
+		sys END=${#bpcLabels[@]}
+		sys BPCTABLE=""
+
+		//## here we build up the tex styled table contents
+		sys for (( c=${START}; c<${END}; c++ )) \
+			do \
+				if [ "${c}" = "$((END-1))" ]; then \
+					BPCTABLE="${BPCTABLE}${bpcLabels[${c}]}& ${bpcData[${c}]} \\\\ \bottomrule" \
+				else \
+					BPCTABLE="${BPCTABLE}${bpcLabels[${c}]}& ${bpcData[${c}]} \\\\ \midrule" \
+				fi \
+			done
+
+		//# Now we generate the tex language file that defines the report
+		//# warning! two layers of command interpretaion in here (bash&tex),
+		//# not for the faint of heart!
+		sys cat > "${thisFolder}.report.tex" <<EOF \
+			\documentclass{article} \
+			\usepackage{graphicx} \
+			\usepackage{multicol} \
+			\usepackage{listings} \
+			\usepackage{grffile} \
+			\usepackage[margin=0.5in]{geometry} \
+			\usepackage{booktabs} \
+			\usepackage{hyphenat} \
+			\usepackage{fancyhdr} \
+			\pagestyle{fancy} \
+			\fancyhf{} \
+			\renewcommand{\headrulewidth}{0pt} \
+			\fancyfoot[RO, LE] {Generated on $(date)} \
+			\begin{document} \
+			\setlength{\columnseprule}{0.1pt} \
+			\section{Summary for ${thisFolder//_/\\_}} \
+			\begin{multicols}{2} \
+			\subsection{Genome Model} \
+			${MODEL} \
+			\subsection{V-Plot} \
+			From ${vPlot//_/\\_}:\\\\ \
+			\includegraphics[width=0.5\textwidth]{${vPlot}} \
+			\subsection{preseq lc\_extrap Yield Predicion} \
+			From ${preseqGraph//_/\\_}:\\\\ \
+			\includegraphics[width=0.5\textwidth]{${preseqGraph}} \
+			\subsection{Library Complexity} \
+			From ${bpcQCFile//_/\\_}:\\\\ \
+			\centerline{ \
+			\begin{tabular}{l|c} \
+			\toprule \
+			${BPCTABLE} \
+			\end{tabular} \
+			} \
+			\subsection{Insert size histogram} \
+			From ${insertSizeHist//_/\\_}:\\\\ \
+			\includegraphics[width=0.5\textwidth]{${insertSizeHist}} \
+			\subsection{Picard Duplication Metrics} \
+			From ${dupQCFile//_/\\_}:\\\\ \
+			\begin{tabular}{l|c} \
+			\toprule \
+			${DUPTABLE} \
+			\end{tabular} \
+			\subsection{bowtie2 Alignment Log} \
+			\textbf{${alignLogLastLine//'%'/'\%'}}\\\\ \
+			From ${alignLog//_/\\_}:\\\\ \
+			\scalebox{.6}{ \
+			\lstinputlisting{${alignLog}} \
+			} \
+			\end{multicols}   \
+			%\pagebreak \
+			\end{document} \
+		EOF
+
+		//# now generate the pdf report (appears as *.report.pdf)
+		sys pdflatex "${thisFolder}.report.tex"
+	}
+		*/
+
 }
+
+
+
+

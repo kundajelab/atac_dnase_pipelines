@@ -29,7 +29,6 @@ Please take a look at ../README.md first.
 
 	MAPQ_THRESH             : MAPQ_THRESH (default: 30).
 	NREADS                  : Parameter for NREADS (default. 15000000).
-	NTHREADS_RUN_SPP        : Number of threads for run_spp.R (default: 4).
 
 	CREATE_WIG              : Set it true to create wig (default: false).
 	CREATE_BEDGRAPH         : Set it true to create bedgraph (default: false).
@@ -55,6 +54,7 @@ Please take a look at ../README.md first.
 	INPUT_FASTQ_CTL_REP2_PE1: Path for control fastq for replicate 2 pair 1 (paired-end).
 	INPUT_FASTQ_CTL_REP2_PE2: Path for control fastq for replicate 2 pair 2 (paired-end).
 
+	NTHREADS_RUN_SPP        : Number of threads for spp (run_spp.R) (default: 4).
 	NPEAK                   : Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
 	DUPE_REMOVED            : Set it true if dupes are removed when aligning (default: true).
 	IDR_THRESH              : IDR thresh (default: 0.02).
@@ -89,7 +89,6 @@ Please take a look at ../README.md first.
 
 	-mapq_thresh <int>      : MAPQ_THRESH (default: 30).
 	-nreads <int>           : Parameter for NREADS (default. 15000000).
-	-nth_spp <int>          : Number of threads for run_spp.R (default: 4).
 
 	-wig                    : Set it true to create wig (default: false).
 	-bedgraph               : Set it true to create bedgraph (default: false).
@@ -115,6 +114,7 @@ Please take a look at ../README.md first.
 	-ctl_fastq2_1 <string>  : Path for control fastq for replicate 2 pair 1 (paired-end).
 	-ctl_fastq2_2 <string>  : Path for control fastq for replicate 2 pair 2 (paired-end).
 
+	-nth_spp <int>          : Number of threads for spp (run_spp.R) (default: 4).
 	-npeak <int>            : Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
 	-dup_rm                 : Set it true if dupes are removed when aligning (default: true).
 	-idr_thresh <string>    : IDR thresh (default: 0.02).

@@ -3,7 +3,7 @@
 include "conf_general.bds"
 
 // cmd. line arg. wrapper
-bool qc 			= false 			help Set it true to test-run and stop before peak calling, false: keep going through IDR (default: false).
+bool qc 		= false 			help Set it true to test-run and stop before peak calling, false: keep going through IDR (default: false).
 int num_rep 		= 1 				help # of replicates, set it only for qc = true. (default: 1).
 
 int nth_bwa 		= 4 				help Number of threads for bwa aln (default: 4).
@@ -13,15 +13,14 @@ int wt_bwa_sampe	= 70000				help Walltime in seconds for bwa sampe/samse. actual
 int mem_bwa_sampe	= 16000 			help Max. memory in MB for bwa sampe/samse (default: 16000).
 
 int mapq_thresh 	= 30 				help MAPQ_THRESH (default: 30).
-int nreads 			= 15000000			help Parameter for NREADS (default. 15000000).
-int nth_spp 		= 4					help Number of threads for run_spp.R (default: 4).
+int nreads 		= 15000000			help Parameter for NREADS (default. 15000000).
 
-bool wig 			= false				help Set it true to create wig (default: false).
+bool wig 		= false				help Set it true to create wig (default: false).
 bool bedgraph 		= false				help Set it true to create bedgraph (default: false).
 bool bigwig 		= false				help Set it true to convert bedgraph to bigwig signal track (default: false).
 
 string umap 		= "" 				help Path for umap (for hg19, path for globalmap_k20tok54).
-string seq 			= "" 				help Dir. for sequence files (for hg19, dir where chr*.fa exist).
+string seq 		= "" 				help Dir. for sequence files (for hg19, dir where chr*.fa exist).
 string chrsz 		= "" 				help Path for chrom.sizes file for your sequence files.
 
 // for single end data set
@@ -37,33 +36,33 @@ string fastq2_1 	= "" 				help Path for input fastq for replicate 2 pair 1 (pair
 string fastq2_2 	= "" 				help Path for input fastq for replicate 2 pair 2 (paired-end).
 string ctl_fastq1_1	= "" 				help Path for control fastq for replicate 1 pair 1 (paired-end).
 string ctl_fastq1_2	= "" 				help Path for control fastq for replicate 1 pair 2 (paired-end).
-string ctl_fastq2_1 = "" 				help Path for control fastq for replicate 2 pair 1 (paired-end).
-string ctl_fastq2_2 = "" 				help Path for control fastq for replicate 2 pair 2 (paired-end).
+string ctl_fastq2_1 	= "" 				help Path for control fastq for replicate 2 pair 1 (paired-end).
+string ctl_fastq2_2 	= "" 				help Path for control fastq for replicate 2 pair 2 (paired-end).
 
 
 
 // parameters
-bool QC_ONLY			= qc
-int NTHREADS_BWA 		= nth_bwa
+bool QC_ONLY		= qc
+int NTHREADS_BWA 	= nth_bwa
 string BWA_INDEX_NAME	= idx_bwa		
 string BWA_ALN_PARAM 	= param_bwa
 int WALLTIME_BWA_SAMPE 	= wt_bwa_sampe
 int MEMORY_BWA_SAMPE	= mem_bwa_sampe
-int MAPQ_THRESH 		= mapq_thresh
-int NREADS 				= nreads
-int NTHREADS_RUN_SPP 	= nth_spp
-bool CREATE_WIG 		= wig
+int MAPQ_THRESH 	= mapq_thresh
+int NREADS 		= nreads
+bool CREATE_WIG 	= wig
 bool CREATE_BEDGRAPH 	= bedgraph
 bool CONVERT_TO_BIGWIG 	= bigwig
-string UMAP_DIR 		= umap
-string SEQ_DIR 			= seq	
-string CHROM_SIZES 	 	= chrsz
+string UMAP_DIR 	= umap
+string SEQ_DIR 		= seq	
+string CHROM_SIZES 	= chrsz
 
 
 // system vars
 int NUM_CTL
 int NUM_REP
-string RUN_SPP
+//string RUN_SPP = "run_spp.R"
+string RUN_SPP = "run_spp_nodups.R"
 
 
 // program body
@@ -75,14 +74,14 @@ void read_param_align_map() {
 	if ( conf_file_exists() ) { // parameters in conf_file overrides those on cmd line args.
 
 		// QC only?
-		if ( conf.hasKey("QC_ONLY") )			QC_ONLY 			= parse_bool( conf{ "QC_ONLY"} )
+		if ( conf.hasKey("QC_ONLY") )			QC_ONLY 		= parse_bool( conf{ "QC_ONLY"} )
 			NUM_CTL 	= QC_ONLY ? 0 : 1
 			NUM_REP 	= QC_ONLY ? parse_int( conf{ "NUM_REP"} ) : 2
 
 		// bwa alignment
-		if ( conf.hasKey("NTHREADS_BWA") )			NTHREADS_BWA 		= parse_int( conf{ "NTHREADS_BWA" } )
+		if ( conf.hasKey("NTHREADS_BWA") )		NTHREADS_BWA 		= parse_int( conf{ "NTHREADS_BWA" } )
 		if ( conf.hasKey("BWA_INDEX_NAME") )		BWA_INDEX_NAME 		= chk_file( conf{ "BWA_INDEX_NAME" }, ".bwt" ) // check if filename+".bwt" exists
-		if ( conf.hasKey("BWA_ALN_PARAM") )			BWA_ALN_PARAM 		= rm_comment( conf{ "BWA_ALN_PARAM" } )
+		if ( conf.hasKey("BWA_ALN_PARAM") )		BWA_ALN_PARAM 		= rm_comment( conf{ "BWA_ALN_PARAM" } )
 		if ( conf.hasKey("WALLTIME_BWA_SAMPE") )	WALLTIME_BWA_SAMPE 	= parse_int( conf{ "WALLTIME_BWA_SAMPE" } )
 		if ( conf.hasKey("MEMORY_BWA_SAM") )		MEMORY_BWA_SAMPE 	= parse_int( conf{ "MEMORY_BWA_SAMPE" } )
 
@@ -90,16 +89,15 @@ void read_param_align_map() {
 		if ( conf.hasKey("MAPQ_THRESH") )		MAPQ_THRESH 		= parse_int( conf{ "MAPQ_THRESH" } )
 
 		// QC
-		if ( conf.hasKey("NREADS") )			NREADS 				= parse_int( conf{ "NREADS" } )
-		if ( conf.hasKey("NTHREADS_RUN_SPP") )	NTHREADS_RUN_SPP	= parse_int( conf{ "NTHREADS_RUN_SPP" } )
+		if ( conf.hasKey("NREADS") )			NREADS 			= parse_int( conf{ "NREADS" } )
 
 		// signal track
-		if ( conf.hasKey("CREATE_WIG") )		CREATE_WIG			= parse_bool( conf{ "CREATE_WIG"} )
-		if ( conf.hasKey("CREATE_BEDGRAPH") )	CREATE_BEDGRAPH		= parse_bool( conf{ "CREATE_BEDGRAPH"} )
-		if ( conf.hasKey("CONVERT_TO_BIGWIG") )	CONVERT_TO_BIGWIG	= parse_bool( conf{ "CONVERT_TO_BIGWIG"} )
+		if ( conf.hasKey("CREATE_WIG") )		CREATE_WIG		= parse_bool( conf{ "CREATE_WIG"} )
+		if ( conf.hasKey("CREATE_BEDGRAPH") )		CREATE_BEDGRAPH		= parse_bool( conf{ "CREATE_BEDGRAPH"} )
+		if ( conf.hasKey("CONVERT_TO_BIGWIG") )		CONVERT_TO_BIGWIG	= parse_bool( conf{ "CONVERT_TO_BIGWIG"} )
 		if ( conf.hasKey("CHROM_SIZES") )		CHROM_SIZES 		= chk_file( conf{"CHROM_SIZES"}, "" )
-		if ( conf.hasKey("UMAP_DIR") )			UMAP_DIR 			= get_path( conf{"UMAP_DIR"} )
-		if ( conf.hasKey("SEQ_DIR") )			SEQ_DIR 			= get_path( conf{"SEQ_DIR"} )
+		if ( conf.hasKey("UMAP_DIR") )			UMAP_DIR 		= get_path( conf{"UMAP_DIR"} )
+		if ( conf.hasKey("SEQ_DIR") )			SEQ_DIR 		= get_path( conf{"SEQ_DIR"} )
 
 	}
 
@@ -150,7 +148,6 @@ void read_param_align_map() {
 	print("CREATE_BEDGRAPH = $CREATE_BEDGRAPH\n");
 	print("CONVERT_TO_BIGWIG = $CONVERT_TO_BIGWIG\n");
 	print("NREADS = $NREADS\n");
-	print("NTHREADS_RUN_SPP = $NTHREADS_RUN_SPP\n");
 	print("CHROM_SIZES = $CHROM_SIZES\n");
 	print("UMAP_DIR = $UMAP_DIR\n");
 	print("SEQ_DIR = $SEQ_DIR\n");
@@ -209,7 +206,8 @@ void align_bwa( int ctl, int rep ) {
 		// run for outputs
 		if( [RAW_BAM_FILE, RAW_BAM_FILE_MAPSTATS] <- [FASTQ_FILE_1, FASTQ_FILE_2]  ) {
 
-			task( taskName := "bwa aln PE1", cpus := NTHREADS_BWA, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "bwa aln PE1 " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS_BWA, timeout := WALLTIME, mem := MEMORY * M, \
 				SAI_FILE_1 <- FASTQ_FILE_1 ) {
 
 				sys $PRELOAD				
@@ -217,7 +215,8 @@ void align_bwa( int ctl, int rep ) {
 				sys bwa aln $BWA_ALN_PARAM -t $NTHREADS_BWA $BWA_INDEX_NAME $FASTQ_FILE_1 > $SAI_FILE_1
 			}
 
-			task( taskName := "bwa aln PE2", cpus := NTHREADS_BWA, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "bwa aln PE2 " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS_BWA, timeout := WALLTIME, mem := MEMORY * M, \
 				SAI_FILE_2 <- FASTQ_FILE_2 ) {
 
 				sys $PRELOAD				
@@ -227,7 +226,8 @@ void align_bwa( int ctl, int rep ) {
 
 			wait
 
-			task( taskName := "bwa sampe", cpus := NTHREADS, timeout := WALLTIME_BWA_SAMPE, mem := MEMORY_BWA_SAMPE * M, \
+			task( taskName := "bwa sampe " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME_BWA_SAMPE, mem := MEMORY_BWA_SAMPE * M, \
 				RAW_SAM_FILE <- [SAI_FILE_1, SAI_FILE_2] ) {
 
 				sys $PRELOAD				
@@ -242,7 +242,8 @@ void align_bwa( int ctl, int rep ) {
 
 			wait
 
-			task( taskName := "raw bam mapstats", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "raw bam mapstats " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				[RAW_BAM_FILE, RAW_BAM_FILE_MAPSTATS] <- RAW_SAM_FILE ) {
 
 				//# ==============================================================                                         
@@ -286,7 +287,8 @@ void align_bwa( int ctl, int rep ) {
 
 		if ( [RAW_BAM_FILE, RAW_BAM_FILE_MAPSTATS] <- FASTQ_FILE_1 ) {
 			
-			task( taskName := "bwa aln", cpus := NTHREADS_BWA, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "bwa aln " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS_BWA, timeout := WALLTIME, mem := MEMORY * M, \
 				SAI_FILE_1 <- FASTQ_FILE_1 ) {
 
 				sys $PRELOAD
@@ -296,7 +298,8 @@ void align_bwa( int ctl, int rep ) {
 
 			wait
 
-			task( taskName := "bwa samse", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "bwa samse " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				RAW_BAM_FILE <- SAI_FILE_1 ) {
 
 				sys $PRELOAD
@@ -307,7 +310,8 @@ void align_bwa( int ctl, int rep ) {
 
 			wait
 
-			task( taskName := "raw bam mapstats", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "raw bam mapstats " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				RAW_BAM_FILE_MAPSTATS <- RAW_BAM_FILE ) {
 
 				sys $PRELOAD
@@ -369,7 +373,8 @@ void post_align_filt( int ctl, int rep ) {
 			//# Obtain name sorted BAM file
 			//# ==================
 
-			task( taskName := "rm unmapped reads", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "rm unmapped reads " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				TMP_FILT_BAM_FILE <- RAW_BAM_FILE ) {
 
 				sys $PRELOAD				
@@ -380,7 +385,8 @@ void post_align_filt( int ctl, int rep ) {
 
 			wait 
 
-			task( taskName := "rm orphan reads", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "rm orphan reads " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				FILT_BAM_FILE <- TMP_FILT_BAM_FILE ) {
 
 				//# Remove orphan reads (pair was removed)
@@ -404,7 +410,8 @@ void post_align_filt( int ctl, int rep ) {
 
 			wait
 
-			task( taskName := "mark dup", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "mark dup " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				[FINAL_BAM_FILE, TMP_FILT_BAM_FILE2] <- FILT_BAM_FILE ) {
 
 				sys $PRELOAD
@@ -432,7 +439,8 @@ void post_align_filt( int ctl, int rep ) {
 
 			wait
 
-			task( taskName := "sort final bam", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "sort final bam " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				FINAL_NMSRT_BAM_FILE <- FINAL_BAM_FILE ) { 
 
 				sys $PRELOAD
@@ -440,7 +448,8 @@ void post_align_filt( int ctl, int rep ) {
 				sys samtools sort -n $FINAL_BAM_FILE $FINAL_NMSRT_BAM_PREFIX
 			}
 
-			task( taskName := "index final bam", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "index final bam " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				[FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS] <- FINAL_BAM_FILE ) {
 
 				//# Index Final BAM file
@@ -451,7 +460,8 @@ void post_align_filt( int ctl, int rep ) {
 				sys samtools flagstat $FINAL_BAM_FILE > $FINAL_BAM_FILE_MAPSTATS
 			}
 
-			task( taskName := "QC final bam", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "QC final bam " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				PBC_FILE_QC <- TMP_FILT_BAM_FILE2 ) {
 
 				sys $PRELOAD				
@@ -515,7 +525,8 @@ void post_align_filt( int ctl, int rep ) {
 			//# Remove low MAPQ reads
 			//# ==================  
 
-			task( taskName := "rm unmapped reads", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "rm unmapped reads " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				FILT_BAM_FILE <- RAW_BAM_FILE ) {
 
 				sys $PRELOAD
@@ -525,7 +536,8 @@ void post_align_filt( int ctl, int rep ) {
 
 			wait
 
-			task( taskName := "mark dup", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "mark dup " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				FINAL_BAM_FILE <- FILT_BAM_FILE ) {
 
 				sys $PRELOAD
@@ -551,7 +563,8 @@ void post_align_filt( int ctl, int rep ) {
 
 			wait
 
-			task( taskName := "index final bam", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "index final bam " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				[FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS] <- FINAL_BAM_FILE ) {
 
 				sys $PRELOAD
@@ -561,7 +574,8 @@ void post_align_filt( int ctl, int rep ) {
 				sys samtools flagstat $FINAL_BAM_FILE > $FINAL_BAM_FILE_MAPSTATS
 			}
 
-			task( taskName := "QC final bam", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "QC final bam " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				PBC_FILE_QC <- TMP_FILT_BAM_FILE ) {
 
 				sys $PRELOAD				
@@ -620,7 +634,8 @@ void bam_to_tagalign( int ctl, int rep ) {
 		//# Create tagAlign file
 		//# ===================
 
-		task( taskName := "make tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		task( taskName := "make tagAlign " + concat_ctl_rep(ctl, rep), \
+			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 			FINAL_TA_FILE <- FINAL_BAM_FILE ) {
 
 			sys $PRELOAD
@@ -628,7 +643,8 @@ void bam_to_tagalign( int ctl, int rep ) {
 			sys bamToBed -i $FINAL_BAM_FILE | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | gzip -c > $FINAL_TA_FILE			
 		}
 
-		task( taskName := "make bedpe", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		task( taskName := "make bedpe " + concat_ctl_rep(ctl, rep), \
+			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 			[FINAL_BEDPE_FILE, SUBSAMPLED_TA_FILE] <- FINAL_NMSRT_BAM_FILE ) {
 
 			sys $PRELOAD
@@ -659,7 +675,8 @@ void bam_to_tagalign( int ctl, int rep ) {
 		FINAL_TA_FILE :="$FINAL_BAM_PREFIX.SE.tagAlign.gz"
 		SUBSAMPLED_TA_FILE :="$OFPREFIX.filt.nodup.sample.$NREADS_PER_MILLION.SE.tagAlign.gz"
 
-		task( taskName := "make tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		task( taskName := "make tagAlign " + concat_ctl_rep(ctl, rep), \
+			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 			[FINAL_TA_FILE, SUBSAMPLED_TA_FILE] <- FINAL_BAM_FILE ) { 
 
 			sys $PRELOAD
@@ -702,7 +719,7 @@ void create_sig_trk( int ctl, int rep ) {
 	}
 
 	FRAGLEN := get_fraglen( ctl, rep ) // get it from rep1
-	print("FRAGLEN for signal track: $FRAGLEN \n")
+	print("\tFRAGLEN for signal track: $FRAGLEN \n")
 
  	string FINAL_BAM_PREFIX
 	string FINAL_BAM_FILE
@@ -732,7 +749,8 @@ void create_sig_trk( int ctl, int rep ) {
 	}
 
 	if ( CREATE_WIG ) {
-			task( taskName := "make wig", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "make wig " + concat_ctl_rep(ctl, rep), \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				WIG_FILE <- FINAL_TA_FILE ) {
 
 			sys $PRELOAD			
@@ -742,7 +760,8 @@ void create_sig_trk( int ctl, int rep ) {
 	}
 
 	if ( CREATE_BEDGRAPH ) {
-		task( taskName := "make bedgraph", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		task( taskName := "make bedgraph " + concat_ctl_rep(ctl, rep), \
+			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 			BEDGRAPH_FILE <- FINAL_TA_FILE ) {
 
 			sys $PRELOAD
@@ -756,7 +775,8 @@ void create_sig_trk( int ctl, int rep ) {
 
 			if ( BIGWIG_FILE <- BEDGRAPH_FILE ) {
 
-				task( taskName := "sort bedgraph", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+				task( taskName := "sort bedgraph " + concat_ctl_rep(ctl, rep), \
+					cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 					SORTED_BG_FILE <- BEDGRAPH_FILE ) {
 
 					sys $PRELOAD
@@ -764,7 +784,8 @@ void create_sig_trk( int ctl, int rep ) {
 					sys sort -k1,1 -k2,2n $BEDGRAPH_FILE > $SORTED_BG_FILE
 				}
 
-				task( taskName := "make bigwig", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+				task( taskName := "make bigwig " + concat_ctl_rep(ctl, rep), \
+					cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 					BIGWIG_FILE <- SORTED_BG_FILE ) {
 
 					sys $PRELOAD
@@ -800,7 +821,8 @@ void xcor( int ctl, int rep ) {
 		CC_SCORES_FILE :="$SUBSAMPLED_TA_FILE.cc.qc"
 		CC_PLOT_FILE :="$SUBSAMPLED_TA_FILE.cc.plot.pdf"
 
-		task( taskName := "xcor score", cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY * M, \
+		task( taskName := "xcor score " + concat_ctl_rep(ctl, rep), \
+			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 			[CC_SCORES_FILE, CC_PLOT_FILE] <- SUBSAMPLED_TA_FILE ) {
 
 			sys $PRELOAD
@@ -809,7 +831,7 @@ void xcor( int ctl, int rep ) {
 			//# Filename <tab> numReads <tab> estFragLen <tab> correstFragLen <tab> PhantomPeak <tab> corrphantomPeak <tab> argmincorr <tab> mincorr <tab> phantomPeakCoef <tab> relPhantomPeakCoef <tab> QualityTag
 			
 			sys Rscript $(which $RUN_SPP) \
-				-c=$SUBSAMPLED_TA_FILE -p=$NTHREADS_RUN_SPP \
+				-c=$SUBSAMPLED_TA_FILE -p=$NTHREADS \
 				-filtchr=chrM -savp=$CC_PLOT_FILE -out=$CC_SCORES_FILE
 			sys sed -r 's/,[^\t]+//g' $CC_SCORES_FILE > $OFPREFIX.tmp2
 			sys mv $OFPREFIX.tmp2 $CC_SCORES_FILE
@@ -835,7 +857,8 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 		PR1_TA_FILE :="$PR_PREFIX.PE2SE.pr1.tagAlign.gz"
 		PR2_TA_FILE :="$PR_PREFIX.PE2SE.pr2.tagAlign.gz"
 
-		task( taskName := "make pseudo-rep.", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		task( taskName := "make pseudo-rep. " + concat_ctl_rep(ctl, rep), \
+			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 			[PR1_TA_FILE, PR2_TA_FILE] <- FINAL_BEDPE_FILE ) {
 
 			sys $PRELOAD
@@ -869,7 +892,8 @@ void spr( int ctl, int rep ) { // self-pseudo-replicate
 		PR1_TA_FILE :="$PR_PREFIX.SE.pr1.tagAlign.gz"
 		PR2_TA_FILE :="$PR_PREFIX.SE.pr2.tagAlign.gz"
 
-		task( taskName := "make pseudo-rep.", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		task( taskName := "make pseudo-rep. " + concat_ctl_rep(ctl, rep), \
+			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 			[PR1_TA_FILE, PR2_TA_FILE] <- FINAL_TA_FILE ) {
 
 			sys $PRELOAD
@@ -937,7 +961,8 @@ void pspr( int ctl ) {
 			//# Create pooled datasets
 			//# =======================
 
-			task( taskName := "pooled tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "pooled tagAlign (ctl:"+ctl+")", \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				POOLED_TA_FILE <- [REP1_TA_FILE, REP2_TA_FILE] ) {
 
 				sys $PRELOAD
@@ -949,7 +974,8 @@ void pspr( int ctl ) {
 			//# Create pooled pseudoreplicates
 			//# =======================
 
-			task( taskName := "ppr1 tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "ppr1 tagAlign (ctl:"+ctl+")", \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				PPR1_TA_FILE <- [REP1_PR1_TA_FILE, REP2_PR1_TA_FILE] ) {
 
 				sys $PRELOAD
@@ -957,7 +983,8 @@ void pspr( int ctl ) {
 				sys zcat $REP1_PR1_TA_FILE $REP2_PR1_TA_FILE | gzip -c > $PPR1_TA_FILE
 			}
 
-			task( taskName := "ppr2 tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "ppr2 tagAlign (ctl:"+ctl+")", \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				PPR2_TA_FILE <- [REP1_PR2_TA_FILE, REP2_PR2_TA_FILE] ) {
 
 				sys $PRELOAD
@@ -976,7 +1003,8 @@ void pspr( int ctl ) {
 			//# ======================== 
 			//# Create pooled datasets
 			//# =======================
-			task( taskName := "pooled tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "pooled tagAlign (ctl:"+ctl+")", \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				POOLED_TA_FILE <- REP1_TA_FILE ) {
 
 				sys $PRELOAD
@@ -987,7 +1015,8 @@ void pspr( int ctl ) {
 			//# ========================
 			//# Create pooled pseudoreplicates
 			//# =======================
-			task( taskName := "ppr1 tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "ppr1 tagAlign (ctl:"+ctl+")", \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				PPR1_TA_FILE <- REP1_PR1_TA_FILE ) {
 
 				sys $PRELOAD
@@ -995,7 +1024,8 @@ void pspr( int ctl ) {
 				sys cp $REP1_PR1_TA_FILE $PPR1_TA_FILE			
 			}
 
-			task( taskName := "ppr2 tagAlign", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			task( taskName := "ppr2 tagAlign (ctl:"+ctl+")", \
+				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 				PPR2_TA_FILE <- REP1_PR2_TA_FILE ) {
 
 				sys $PRELOAD
@@ -1030,10 +1060,6 @@ string get_ofprefix( int ctl, int rep ) {
 string get_ofprefix( int ctl ) {
 	return OUTPUT_DIR + "/" + PREFIX + ( ctl>0 ? "_Ctl" : "" )
 }
-
-
-
-
 
 void init_cmd_line_arg_fastqs() {
 
@@ -1096,4 +1122,8 @@ string get_fastq( int ctl, int rep, int pe ) {
 	else {
 		return ""
 	}
+}
+
+string concat_ctl_rep( int ctl, int rep ) {
+	return "(ctl: " + ctl + ", rep: " + rep + ")";
 }

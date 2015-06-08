@@ -21,9 +21,14 @@ then
   exit 3
 fi
 
+cd $DEST
+find $DEST -type l -xtype l -delete
+find $DEST -mindepth 1 -type d -empty -delete
+
 cd $SRC
 
-for f in $(find . -type f )
+#for f in $(find . -type f ! -name "*.js" ! -path "*.bds.*" )
+for f in $(find . -type f ! -name "*.js" ! -name "*.sh" ! -name "*.cluster" ! -name "*.stderr" ! -name "*.stdout" ! -name "*bds.pid*" )
 do
   BASENAME=$(basename $f)
   DIRNAME=$(dirname $f)
@@ -31,6 +36,9 @@ do
 
   FULLPATH=$(readlink -f $f)
   TARGET="$DEST/$DIRNAME/$BASENAME"
-  ln -s $FULLPATH $TARGET
+  if [ ! -f $TARGET ];
+  then
+    ln -s $FULLPATH $TARGET
+  fi
 done
 

@@ -3,15 +3,17 @@
 include "../modules_align_map.bds"
 
 // cmd line arg wrapper and help
-int npeak 			= 300000 	help Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
-bool dup_rm 		= true	 	help Set it true if dupes are removed when aligning (default: true).
-string idr_thresh 	= 0.02		help IDR thresh (default: 0.02).
+int nth_spp 			= 4				help Number of threads for spp (run_spp.R) (default: 4).
+int npeak 				= 300000 	help Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
+bool dup_rm 			= true	 	help Set it true if dupes are removed when aligning (default: true).
+string idr_thresh 		= 0.02		help IDR thresh (default: 0.02).
 
 
 // parameters
-int NPEAK 			= npeak	
-bool DUPE_REMOVED 	= dup_rm
-string IDR_THRESH 	= idr_thresh
+int NTHREADS_RUN_SPP	= nth_spp
+int NPEAK 				= npeak	
+bool DUPE_REMOVED 		= dup_rm
+string IDR_THRESH 		= idr_thresh
 
 
 // pipeline starts here
@@ -32,14 +34,16 @@ void read_param_tf_chipseq() {
 	if ( conf_file_exists() ) {
 
 		// peak calling (phantompeakqualtools: run_spp.R)
-		if ( conf.hasKey("NPEAK") ) 		NPEAK 		= parse_int( conf{ "NPEAK" } )
-		if ( conf.hasKey("DUPE_REMOVED") ) 	DUPE_REMOVED	= parse_bool( conf{ "DUPE_REMOVED"} )
+		if ( conf.hasKey("NTHREADS_RUN_SPP") )	NTHREADS_RUN_SPP	= parse_int( conf{ "NTHREADS_RUN_SPP" } )
+		if ( conf.hasKey("NPEAK") ) 			NPEAK 				= parse_int( conf{ "NPEAK" } )
+		if ( conf.hasKey("DUPE_REMOVED") ) 		DUPE_REMOVED		= parse_bool( conf{ "DUPE_REMOVED"} )
 				RUN_SPP 		= DUPE_REMOVED ? "run_spp_nodups.R" : "run_spp.R"
 
 		// IDR
-		if ( conf.hasKey("IDR_THRESH") ) 	IDR_THRESH	= parse_real( conf{ "IDR_THRESH"} )
+		if ( conf.hasKey("IDR_THRESH") ) 		IDR_THRESH			= parse_real( conf{ "IDR_THRESH"} )
 	}
 
+	print("NTHREADS_RUN_SPP = $NTHREADS_RUN_SPP\n");
 	print("NPEAK = $NPEAK\n");
 	print("DUPE_REMOVED = $DUPE_REMOVED\n");
 	print("IDR_THRESH = $IDR_THRESH\n");
