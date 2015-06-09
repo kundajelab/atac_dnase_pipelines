@@ -13,25 +13,25 @@ There are three bioinformatics pipelines available on this repository.
 
 ### Baseline pipeline (./conf_general.bds)
 
-All BDS pipelines on this repository are based on the general baseline pipeline (./conf_general.bds). The baseline pipeline does not involve any bioinformatics analysis. It just parses parameters from cmd. line argument or from a configuration file. Important parameters like cpu, mem and walltime and initialization settings (env. module init. and exporting env. vars) should be defined here. There are two ways to define such parameters.
+All BDS pipelines on this repository are based on the general baseline pipeline (./conf_general.bds). The baseline pipeline does not involve any bioinformatics analysis. It just parses parameters from command line argument or from a configuration file. Important parameters like cpu, mem and walltime and initialization settings (env. module init. and exporting env. vars) should be defined here. There are two ways to define such parameters.
 
 1) From command line arguments 
 ```
-$bds pipeline.bds [OPTS_FOR_PIPELINE]
+$bds ./conf_general.bds [OPTS_FOR_PIPELINE]
 
 # example cmd. line args
 
-$bds pipeline.bds -prefix TEST -o out -tmp tmp -wt 7200 ...
+$bds ./conf_general.bds -prefix TEST -o out -tmp tmp -wt 7200 ...
 
 ```
 
 2) From a configuration file
 ```
-$bds pipeline.bds -c [CONF_FILE]
+$bds ./conf_general.bds -c [CONF_FILE]
 
 # or
 
-$bds pipeline.bds [CONF_FILE]
+$bds ./conf_general.bds [CONF_FILE]
 
 # example configuration file
 $cat [CONF_FILE]
@@ -116,7 +116,7 @@ MODULE_LANG= r/2.15.1; java/latest
 
 2) SHELLCMD
 
-If you have softwares locally installed on your home, you may need to add to them environment variables like $PATH, $LD_LIBRARY_PATH and so on. <b>IMPORTANT!</b> Note that any pre-defined enviroment variables (like $PATH) should be referred in a curly bracket like ${PATH}. This is because BDS distinguishes environment variables from BDS variables with a curly bracket ${}.
+If you have softwares locally installed on your home, you may need to add to them environment variables like $PATH, $LD_LIBRARY_PATH and so on. <b>IMPORTANT!</b> Note that any pre-defined enviroment variables (like $PATH) should be referred in a curly bracket like ${PATH}. This is because BDS distinguishes environment variables from BDS variables by a curly bracket ${}.
 ```
 SHELLCMD= export PATH=${PATH}:path_to_your_program
 ```
@@ -145,7 +145,7 @@ ADDPATH= ${HOME}/program1/bin:${HOME}/program1/bin:${HOME}/program2/bin:/usr/bin
 They are command line argument versions of MODULE, SHELLCMD and ADDPATH. For example,
 
 ```
-$bds pipeline.bds -mod 'bwa/0.7.10; samtools/1.2' -shcmd 'export PATH=${PATH}:/home/userid/R-2.15.1' -addpath '${HOME}/program1/bin'
+$bds ./conf_general.bds -mod 'bwa/0.7.10; samtools/1.2' -shcmd 'export PATH=${PATH}:/home/userid/R-2.15.1' -addpath '${HOME}/program1/bin'
 ```
 
 ### Contributors
