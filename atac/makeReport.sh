@@ -92,8 +92,8 @@ done
 # not for the faint of heart!
 cat > "${thisFolder}.report.tex" <<EOF
 
-\documentclass{article}
 \pdfminorversion=4
+\documentclass{article}
 \usepackage{graphicx}
 \usepackage{multicol}
 \usepackage{listings}
