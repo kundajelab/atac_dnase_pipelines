@@ -89,7 +89,14 @@ execd_params                 ENABLE_ADDGRP_KILL=true
 
 ### Modified version of BDS
 
-The author of BDS is very responsive and supportive but more features like HTML progress report is needed. The BDS binary for that is in <a href="./_bds_bin/">./_bds_bin/</a>. The git repo for modified version of BDS is at <a href="https://github.com/kundajelab/BigDataScript">https://github.com/kundajelab/BigDataScript</a>. Try to clone from a git branch named "jin" to get the latest modification of BDS code. If you have a sudo privilege, I would recommend to move BDS binary to /usr/bin or /bin. 
+The author of BDS is very responsive and supportive but more features like HTML progress report is needed. The BDS binary for that is in <a href="./_bds_bin/">./_bds_bin/</a>. The git repo for modified version of BDS is at <a href="https://github.com/kundajelab/BigDataScript">https://github.com/kundajelab/BigDataScript</a>. Try to clone from a git branch named "jin" to get the latest modification of BDS code. 
+```
+$git clone https://github.com/kundajelab/BigDataScript
+$cd BigDataScript
+$git pull jin
+```
+
+If you have a sudo privilege, I would recommend to move BDS binary to /usr/bin or /bin.
 ```
 $sudo cp ./_bds_bin/bds /usr/bin/
 ```

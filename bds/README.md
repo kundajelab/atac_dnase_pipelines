@@ -7,9 +7,9 @@ Take a look at <a href="./README_BDS.md">./README_BDS.md</a> for installation, c
 
 There are three bioinformatics pipelines available on this repository.
 
-1) <a href="./atac/README.md">ATAC-seq</a>
-2) <a href="./tf_chipseq/README.md">TF ChIP-seq</a>
-3) <a href="./hist_chipseq/README.md">Histone ChIP-seq</a>
+1) <a href="./atac/">ATAC-seq</a>
+2) <a href="./tf_chipseq/">TF ChIP-seq</a>
+3) <a href="./hist_chipseq/">Histone ChIP-seq</a>
 
 ### Baseline pipeline (./conf_general.bds)
 
@@ -43,6 +43,7 @@ WALLTIME= 7200
 ...
 ```
 
+
 ### Parameters from a configuration file
 
 For any parameters not defined in a configuration file, default value will be used. Parameters defined in a configuration file overrides those defined in command line arguments.
@@ -51,6 +52,8 @@ For any parameters not defined in a configuration file, default value will be us
 	PREFIX 		: Prefix for all outputs.
 	OUTPUT_DIR 	: Output directory. (default: out)
 	TMP_DIR 	: Temporary directory for intermediate files. (default: tmp).
+
+	REF_GENOME	: Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
 
 	WALLTIME 	: Default walltime in seconds for all cluster jobs (default: 36000).
 	NTHREADS 	: Default number of threads for all cluster jobs (default: 1).
@@ -61,6 +64,7 @@ For any parameters not defined in a configuration file, default value will be us
 	ADDPATH		: Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
 
 ```
+
 
 ### Parameters from command line arguments
 
@@ -75,6 +79,8 @@ $bds ./conf_general.bds -h
 	-o <string>       : Output directory. (default: out)
 	-tmp <string>     : Temporary directory for intermediate files. (default: tmp).
 
+	-gen              : Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
+
 	-wt <int>         : Default walltime in seconds for all cluster jobs (default: 36000).
 	-nth <int>        : Default number of threads for all cluster jobs (default: 1).
 	-mem <int>        : Default max. memory in MB for all cluster jobs (default: 4000).
@@ -83,6 +89,7 @@ $bds ./conf_general.bds -h
 	-shcmd <string>   : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
 	-addpath <string> : Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
 ```
+
 
 ## What are MODULE, SHELLCMD and ADDPATH?
 

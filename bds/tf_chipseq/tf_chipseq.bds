@@ -3,17 +3,18 @@
 include "../modules_align_map.bds"
 
 // cmd line arg wrapper and help
-int nth_spp 			= 4				help Number of threads for spp (run_spp.R) (default: 4).
-int npeak 				= 300000 	help Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
-bool dup_rm 			= true	 	help Set it true if dupes are removed when aligning (default: true).
-string idr_thresh 		= 0.02		help IDR thresh (default: 0.02).
-
+int nth_spp 		= 4		help Number of threads for spp (run_spp.R) (default: 4).
+int npeak 		= 300000 	help Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
+bool dup_rm 		= true	 	help Set it true if dupes are removed when aligning (default: true).
+string idr_thresh 	= 0.02		help IDR thresh (default: 0.02).
+bool idr_nboley 	= true	 	help Use Nathan Boley's code for IDR, otherwise Anshul's code (default: true)
 
 // parameters
 int NTHREADS_RUN_SPP	= nth_spp
-int NPEAK 				= npeak	
-bool DUPE_REMOVED 		= dup_rm
-string IDR_THRESH 		= idr_thresh
+int NPEAK 		= npeak	
+bool DUPE_REMOVED 	= dup_rm
+string IDR_THRESH 	= idr_thresh
+bool USE_IDR_NBOLEY 	= idr_nboley
 
 
 // pipeline starts here
@@ -25,6 +26,7 @@ align_map_xcor_spr_pspr()
 
 spp_idr()
 
+create_sig_trk();
 
 
 // functions
@@ -35,12 +37,12 @@ void read_param_tf_chipseq() {
 
 		// peak calling (phantompeakqualtools: run_spp.R)
 		if ( conf.hasKey("NTHREADS_RUN_SPP") )	NTHREADS_RUN_SPP	= parse_int( conf{ "NTHREADS_RUN_SPP" } )
-		if ( conf.hasKey("NPEAK") ) 			NPEAK 				= parse_int( conf{ "NPEAK" } )
-		if ( conf.hasKey("DUPE_REMOVED") ) 		DUPE_REMOVED		= parse_bool( conf{ "DUPE_REMOVED"} )
-				RUN_SPP 		= DUPE_REMOVED ? "run_spp_nodups.R" : "run_spp.R"
-
+		if ( conf.hasKey("NPEAK") ) 		NPEAK 			= parse_int( conf{ "NPEAK" } )
+		if ( conf.hasKey("DUPE_REMOVED") ) 	DUPE_REMOVED		= parse_bool( conf{ "DUPE_REMOVED"} )
+				RUN_SPP = DUPE_REMOVED ? "run_spp_nodups.R" : "run_spp.R"
 		// IDR
-		if ( conf.hasKey("IDR_THRESH") ) 		IDR_THRESH			= parse_real( conf{ "IDR_THRESH"} )
+		if ( conf.hasKey("IDR_THRESH") ) 	IDR_THRESH		= parse_real( conf{ "IDR_THRESH"} )
+		if ( conf.hasKey("USE_IDR_NBOLEY") ) 	USE_IDR_NBOLEY		= parse_bool( conf{ "USE_IDR_NBOLEY"} )
 	}
 
 	print("NTHREADS_RUN_SPP = $NTHREADS_RUN_SPP\n");
@@ -63,12 +65,12 @@ void spp_idr() {
 	// prepare for tagAlign files
 	fastqs_Rep1 	:= get_fastqs( 0, 1 )
 	fastqs_Rep2 	:= get_fastqs( 0, 2 ) // check if rep2 doesn't exist
-	suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
-	suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
-	suffix 			:= fastqs_Rep1.size()==2 ? suffix_PE : suffix_SE
+	suffix_PE 	:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
+	suffix_SE 	:= ".filt.nodup.srt.SE.tagAlign.gz"
+	suffix 		:= fastqs_Rep1.size()==2 ? suffix_PE : suffix_SE
 	suffix_PSR_PE 	:= ".filt.nodup.PE2SE"
 	suffix_PSR_SE 	:= ".filt.nodup.SE"
-	suffix_PSR 		:= fastqs_Rep1.size()==2 ? suffix_PSR_PE : suffix_PSR_SE
+	suffix_PSR 	:= fastqs_Rep1.size()==2 ? suffix_PSR_PE : suffix_PSR_SE
 
 	DATASET_PREFIX := get_ofprefix( 0 )
 	
@@ -153,12 +155,16 @@ void spp_idr() {
 
 	wait
 
+	// create null NPEAKS_IDR file
+	//task ( taskName := "Prepare NPEAKS_IDR.txt" , cpu := 1 ) {
+	sys echo "Sample type\tNumber of peaks" > "$PEAK_OUTPUT_DIR/NPEAKS_IDR.txt"
+	//}
+	
 	///////////////////////////////// IDR
-
 	run_idr( "Rep1_vs_Rep2", PEAK_OUTPUT_DIR, 			REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE ) // (1) or 4a
-	run_idr( "PPR1_vs_PPR2", PEAK_OUTPUT_DIR, 			PPR1_PEAK_FILE, PPR2_PEAK_FILE, POOLED_PEAK_FILE ) // (2) or 4c
-	run_idr( "Rep1_PR1_vs_Rep1_PR2", PEAK_OUTPUT_DIR, 	REP1_PR1_PEAK_FILE, REP1_PR2_PEAK_FILE, REP1_PEAK_FILE ) // (3) or 4b-1
-	run_idr( "Rep2_PR1_vs_Rep2_PR2", PEAK_OUTPUT_DIR, 	REP2_PR1_PEAK_FILE, REP2_PR2_PEAK_FILE, REP2_PEAK_FILE ) // (4) or 4b-2
+//	run_idr( "PPR1_vs_PPR2", PEAK_OUTPUT_DIR, 			PPR1_PEAK_FILE, PPR2_PEAK_FILE, POOLED_PEAK_FILE ) // (2) or 4c
+//	run_idr( "Rep1_PR1_vs_Rep1_PR2", PEAK_OUTPUT_DIR, 	REP1_PR1_PEAK_FILE, REP1_PR2_PEAK_FILE, REP1_PEAK_FILE ) // (3) or 4b-1
+//	run_idr( "Rep2_PR1_vs_Rep2_PR2", PEAK_OUTPUT_DIR, 	REP2_PR1_PEAK_FILE, REP2_PR2_PEAK_FILE, REP2_PEAK_FILE ) // (4) or 4b-2
 
 	wait
 }
@@ -179,14 +185,26 @@ void run_spp( string taskname, string out_dir, string ta, string ctl_ta, string 
 		sys $PRELOAD
 
 		sys Rscript $(which $RUN_SPP) -c=$ta -p=$NTHREADS_RUN_SPP -i=$ctl_ta \
-			-npeak=300000 -odir=$out_dir -speak=$fraglen -savn -savr -savp -rf -out=$ccscore
+			-npeak=$NPEAK -odir=$out_dir -speak=$fraglen -savn -savr -savp -rf -out=$ccscore
 	}
 }
 
 void run_idr( string taskname, string out_dir, string peak1, string peak2, string pooled ) {
 
-	IDR_OUTPUT := "$PEAK_OUTPUT_DIR"+"/"+taskname+".IDR"
-	task( taskName := "IDR " + taskname, cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+	if ( USE_IDR_NBOLEY ) {
+		run_idr_nboley( taskname, out_dir, peak1, peak2, pooled )
+	}
+	else {
+		run_idr_anshul( taskname, out_dir, peak1, peak2, pooled )
+	}
+}
+
+void run_idr_nboley( string taskname, string out_dir, string peak1, string peak2, string pooled ) {
+
+	prefix := "$out_dir/$taskname"
+	IDR_OUTPUT := "$prefix.IDR"
+
+	task( taskName := "IDR (nboley)" + taskname, cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 		IDR_OUTPUT <- [peak1, peak2, pooled] ) { // --use-old-output-format 
 
 		sys $PRELOAD
@@ -194,9 +212,112 @@ void run_idr( string taskname, string out_dir, string peak1, string peak2, strin
 		sys idr --samples $peak1 $peak2 --peak-list $pooled --input-file-type narrowPeak \
 			--output-file $IDR_OUTPUT --plot --idr-threshold $IDR_THRESH
 
-		sys echo "Number of peaks ($taskname): $(cat $IDR_OUTPUT | wc -l)"
+		sys echo "$taskname\t$(cat $IDR_OUTPUT | wc -l)" >> "$out_dir/NPEAKS_IDR.txt"
 	}
 }
 
+void run_idr_anshul( string taskname, string out_dir, string peak1, string peak2, string pooled ) {
 
+	prefix := "$out_dir/$taskname"
+	IDR_OUTPUT := "$prefix.IDR"
+	POOLED_COMMON_PEAKS := "$prefix.POOLED_COMMON_PEAKS.gz"
+	COMMON_REP1_MATCH := "$prefix.COMMON_REP1_MATCH.gz"
+	COMMON_REP2_MATCH := "$prefix.COMMON_REP2_MATCH.gz"
+	REP1_VS_REP2 := "$prefix.REP1_VS_REP2.gz"
+	RECAL_POOLED_COMMON_PEAKS := "$prefix.RECAL_POOLED_COMMON_PEAKS.gz"
+	POOLED_COMMON_PEAKS_IDR := "$prefix.POOLED_COMMON_PEAKS_IDR.gz"
+
+	OUTPUT_PREFIX := taskname
+
+	// temp files to replace floating point number with integer
+	peak1_ 	:= "$out_dir/_"+peak1.baseName()
+	peak2_ 	:= "$out_dir/_"+peak2.baseName()
+	pooled_ := "$out_dir/_"+pooled.baseName()
+
+	task( taskName := "IDR (anshul)" + taskname, cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		IDR_OUTPUT <- [peak1, peak2, pooled] ) { // --use-old-output-format 
+
+		sys $PRELOAD
+
+		// bug fix (we have floating point representation of chr location, bug in run_spp.R?)
+		// chr3    153999636       1.54e+08        .       0       .       4.47152214284156        -1      -0.0118951365772202     18
+		sys zcat $peak1 | awk 'BEGIN{OFS="\t"}{print $1,int($2),int($3),$4,$5,$6,$7,$8,$9,$10;}' | gzip -c > $peak1_
+		sys zcat $peak2 | awk 'BEGIN{OFS="\t"}{print $1,int($2),int($3),$4,$5,$6,$7,$8,$9,$10;}' | gzip -c > $peak2_
+		sys zcat $pooled | awk 'BEGIN{OFS="\t"}{print $1,int($2),int($3),$4,$5,$6,$7,$8,$9,$10;}' | gzip -c > $pooled_
+
+		//# =============================
+		//# Find peaks in pooled set common to both replicates
+		//# =============================
+		sys bedtools intersect -u -a $pooled_ -b $peak1_ | bedtools intersect -u -a stdin -b $peak2_ \
+			| sort -k7n,7n -k1,1 -k2n,2n -k3n,3n -k10n,10n | gzip -c > $POOLED_COMMON_PEAKS
+
+		//# =============================
+		//# Create 2 new peak file per replicate with coordinates from common pooled set but scores from replicates by first computing overlaps, then then matching to closest summit, then recalibration coordinates to be +/- 2 bp from pooled set summit
+		//# =============================
+		sys bedtools intersect -wa -wb -a $POOLED_COMMON_PEAKS -b $peak1_ \
+			| awk 'BEGIN{OFS="\t"}{d=$2+$10-$12-$20;$21=sqrt(d^2);print $0}' \
+			| bedtools groupby -i stdin -g 1,2,3,10 -c 21 -o min -full | sort -k7n,7n -k1,1 -k2n,2n -k3n,3n -k10n,10n \
+			| awk 'BEGIN{OFS="\t"}{print $1,$2+$10-2,$2+$10+2,$3,$4,$5,$6,$17,$18,$19,2}' | gzip -c > $COMMON_REP1_MATCH
+		sys bedtools intersect -wa -wb -a $POOLED_COMMON_PEAKS -b $peak2_ \
+			| awk 'BEGIN{OFS="\t"}{d=$2+$10-$12-$20;$21=sqrt(d^2);print $0}' \
+			| bedtools groupby -i stdin -g 1,2,3,10 -c 21 -o min -full | sort -k7n,7n -k1,1 -k2n,2n -k3n,3n -k10n,10n \
+			| awk 'BEGIN{OFS="\t"}{print $1,$2+$10-2,$2+$10+2,$3,$4,$5,$6,$17,$18,$19,2}' | gzip -c > $COMMON_REP2_MATCH
+
+		//# =============================
+		//# Pass recalibrated peak files to IDR
+		//# Rscript batch-consistency-analysis.r [peakfile1] [peakfile2] [peak.half.width] [outfile.prefix] [min.overlap.ratio] [is.broadpeak] [ranking.measure]
+		//# For SPP & GEM use [ranking.measure] as signal.value. For PeakSeq use q.value
+		//# make sure the genome_table.txt file is set to the correct version of the genome
+		//# =============================
+		sys cd $(dirname $(which batch-consistency-analysis.r))
+		sys Rscript batch-consistency-analysis.r $COMMON_REP1_MATCH $COMMON_REP2_MATCH -1 $REP1_VS_REP2 0 F signal.value
+		sys cd $out_dir
+
+		//# =============================
+		//# Convert IDR overlap file to narrowPeak format 
+		//# =============================
+		sys sed 1d $REP1_VS_REP2-overlapped-peaks.txt | sed -r 's/"//g' | sort -k11g,11g \
+			| awk '{if ($3 <=$7) st=$3 ; else st=$7 ; if ($4 >= $8) sto=$4 ; else sto=$8 ; printf "%s\t%d\t%d\t%d\t%s\t.\t%s\t%f\t%f\n",$2,st,sto,NR,$5,$9,$10,$11}' \
+			| gzip -c > $REP1_VS_REP2.npk.gz
+
+		//# =============================
+		//# Create a recalibrated vesion of $POOLED_COMMON_PEAKS where coordinates are to be +/- 2 bp from pooled set summit. This is so we can match it with IDR output and retranslate back to original pooled set coordinates
+		//# =============================
+		sys zcat $POOLED_COMMON_PEAKS | awk 'BEGIN{OFS="\t"}{$11=$2;$12=$3;$2=$2+$10-2;$3=$2+$10+2; print $0}' \
+			| gzip -c > $RECAL_POOLED_COMMON_PEAKS
+
+		//# =============================
+		//# Overlap IDR output with $RECAL_POOLED_COMMON_PEAKS to add in IDR scores and switch back to original common pooled set coordinates
+		//# Columns 1-10 are same as pooled common peaks columns
+		//# Col 11: ranking measure from Rep1
+		//# Col 12: ranking measure from Rep2
+		//# Col 13: local IDR score
+		//# Col 14: global IDR score
+		//# IMPORTANT: DCC should store this file! All other files are temporary
+		//# =============================
+		sys bedtools intersect -wa -wb -a $RECAL_POOLED_COMMON_PEAKS -b  $REP1_VS_REP2.npk.gz \
+			| awk 'BEGIN{OFS="\t"}{print $1,$11,$12,$4,$5,$6,$7,$8,$9,$10,$17,$19,$20,$21}' | gzip -c > $POOLED_COMMON_PEAKS_IDR
+
+		//# =============================
+		//# Get peaks passing IDR threshold of 2%
+		//# =============================
+		//sys IDR_THRESH=0.02
+
+		sys zcat $POOLED_COMMON_PEAKS_IDR | awk 'BEGIN{OFS="\t"} $14<='"$IDR_THRESH"' {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' \
+			| sort -k7n,7n | gzip -c > $REP1_VS_REP2.IDR$IDR_THRESH.narrowPeak.gz
+
+		sys NPEAKS_IDR=$(zcat $REP1_VS_REP2.IDR$IDR_THRESH.narrowPeak.gz | wc -l)
+
+		//# =============================
+		//# Format: Rscript batch-consistency-plot.r [npairs] [output.prefix] [input.file.prefix1] [input.file.prefix2] [input.file.prefix3] ....
+		//# =============================
+		sys cd $(dirname $(which batch-consistency-analysis.r))
+		sys Rscript batch-consistency-plot.r 2 $OUTPUT_PREFIX $REP1_VS_REP2
+		sys cd $out_dir
+		
+		sys rm -rf $peak1_ $peak2_ $pooled_
+
+		sys echo "$taskname\t${NPEAKS_IDR}" >> "$out_dir/NPEAKS_IDR.txt"
+	}
+}
 

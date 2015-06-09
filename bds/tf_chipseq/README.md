@@ -15,6 +15,8 @@ $cat [CONF_FILE]
 	OUTPUT_DIR     		: Output directory. (default: out)
 	TMP_DIR        		: Temporary directory for intermediate files. (default: tmp).
 
+	REF_GENOME		: Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
+
 	WALLTIME       		: Default walltime in seconds for all cluster jobs (default: 36000).
 	NTHREADS       		: Default number of threads for all cluster jobs (default: 1).
 	MEMORY         		: Default max. memory in MB for all cluster jobs (default: 4000).
@@ -78,6 +80,8 @@ $bds tf_chipseq.bds [OPTS_FOR_TF_CHIPSEQ]
 	-prefix <string>        : Prefix for all outputs.
 	-o <string>             : Output directory. (default: out)
 	-tmp <string>           : Temporary directory for intermediate files. (default: tmp).
+
+	-gen                    : Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
 
 	-wt <int>               : Default walltime in seconds for all cluster jobs (default: 36000).
 	-nth <int>              : Default number of threads for all cluster jobs (default: 1).

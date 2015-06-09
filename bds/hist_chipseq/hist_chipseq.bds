@@ -23,6 +23,8 @@ align_map_xcor_spr_pspr()
 
 macs2()
 
+create_sig_trk();
+
 
 // functions
 void read_param_hist_chipseq() {

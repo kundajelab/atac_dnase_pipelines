@@ -11,6 +11,7 @@ string c 		= "" 			help Configuration file path (if not specified, define parame
 string prefix		= ""			help Prefix for all outputs.
 string o 		= "out" 		help Output directory. (default: out)
 string tmp 		= "tmp"			help Temporary directory for intermediate files. (default: tmp).
+string gen		= "" 			help Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
 
 int wt 			= 22000			help Default walltime in seconds for all cluster jobs (default: 22000).
 int nth			= 1 			help Default number of threads for all cluster jobs (default: 1).
@@ -21,18 +22,20 @@ string shcmd 		= ""			help Shell cmds separated by ;. Env. vars should be writte
 string addpath 		= "" 			help Path to be appended to env. var. PATH. Multiple paths should be separated by ; (example: "/bin/test:/bin/test2")
 
 
-
 // parameters
 string CONF_FILE 	= c
 string PREFIX 		= prefix
 string OUTPUT_DIR 	= o
 string TMP_DIR 		= tmp
+string REF_GENOME	= gen
+
 int WALLTIME 		= wt
 int NTHREADS 		= nth
 int MEMORY 		= mem
 string MODULE 		= mod
 string SHELLCMD		= shcmd
 string ADDPATH 		= addpath
+
 
 // system parameters
 string PRELOAD 		= ""
@@ -69,6 +72,9 @@ void read_param_general() {
 		if ( conf.hasKey("WALLTIME") ) 		WALLTIME 	= parse_int( conf{ "WALLTIME" } ) 
 		if ( conf.hasKey("NTHREADS") ) 		NTHREADS  	= parse_int( conf{ "NTHREADS" } ) 
 		if ( conf.hasKey("MEMORY") ) 		MEMORY 		= parse_int( conf{ "MEMORY" } ) 
+
+		if ( conf.hasKey("REF_GENOME") )	REF_GENOME	= rm_comment( conf{ "REF_GENOME" } ) 
+
 
 		for( string k : conf.keys() ) {
 			// if key is comment ignore
@@ -154,6 +160,7 @@ void read_param_general() {
 	print("OUTPUT_DIR = $OUTPUT_DIR\n");
 	print("TMP_DIR = $TMP_DIR\n");
 
+	print("REF_GENOME = $REF_GENOME (for genome browser track generation)\n" );
 	print("WALLTIME = $WALLTIME (seconds)\n");
 	print("NTHREADS = $NTHREADS\n");
 	print("MEMORY = $MEMORY (megabytes)\n");
@@ -162,7 +169,10 @@ void read_param_general() {
 	PRELOAD = PRELOAD_SHELLCMD + "; " + PRELOAD_MODULE
 	PRELOAD = PRELOAD.replace( ";;", ";" )
 
-	print("PRELOAD = $PRELOAD\n");
+	print("PRELOAD = $PRELOAD (shell commands to be executed at the beginning of every tasks\n");
+
+	// generate reference genome file
+	sys echo $REF_GENOME > "$OUTPUT_DIR/ref_genome.txt"
 }
 
 
@@ -191,16 +201,3 @@ bool cmd_line_arg_has_dash() {
 	}
 	return false
 }
-
-/*
-bool cmd_line_arg_has_dash() {
-
-	if ( !cmd_line_arg_is_empty() ) {
-		if ( args[0].substr(0,1) == '-' ) {
-			return true
-		}
-	}
-	return false
-}
-*/
-

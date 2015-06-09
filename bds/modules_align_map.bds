@@ -8,7 +8,7 @@ int num_rep 		= 1 				help # of replicates, set it only for qc = true. (default:
 
 int nth_bwa 		= 4 				help Number of threads for bwa aln (default: 4).
 string idx_bwa 		= ""				help Path for bwa index.
-string param_bwa	= "-q 5 -l 32 -k 2" help Parameters for bwa align (default: "-q 5 -l 32 -k 2" ).
+string param_bwa	= "-q 5 -l 32 -k 2" 		help Parameters for bwa align (default: "-q 5 -l 32 -k 2" ).
 int wt_bwa_sampe	= 70000				help Walltime in seconds for bwa sampe/samse. actual bottle neck for alignment (default: 70000).
 int mem_bwa_sampe	= 16000 			help Max. memory in MB for bwa sampe/samse (default: 16000).
 
@@ -61,9 +61,7 @@ string CHROM_SIZES 	= chrsz
 // system vars
 int NUM_CTL
 int NUM_REP
-//string RUN_SPP = "run_spp.R"
 string RUN_SPP = "run_spp_nodups.R"
-
 
 // program body
 init_cmd_line_arg_fastqs()
@@ -176,9 +174,11 @@ void align_map_xcor_spr( int ctl, int rep ) {
  	bam_to_tagalign( ctl, rep )
  	xcor( ctl, rep )
 
- 	create_sig_trk( ctl, rep )
+ 	//create_sig_trk( ctl, rep )
  	spr( ctl, rep )
 }
+
+
 
 void align_bwa( int ctl, int rep ) {
 
@@ -277,21 +277,22 @@ void align_bwa( int ctl, int rep ) {
 
 		FASTQ_FILE_1 := fastqs[0]
 
-		//# ========================================
-		//# Map reads to create raw SAM file
-		//# ========================================
 		SAI_FILE_1 :="$OFPREFIX.sai"
 		RAW_BAM_PREFIX :="$OFPREFIX.raw.srt"
 		RAW_BAM_FILE :="$RAW_BAM_PREFIX.bam" //# To be stored
 		RAW_BAM_FILE_MAPSTATS :="$RAW_BAM_PREFIX.flagstat.qc" //# QC File
 
 		if ( [RAW_BAM_FILE, RAW_BAM_FILE_MAPSTATS] <- FASTQ_FILE_1 ) {
-			
+
 			task( taskName := "bwa aln " + concat_ctl_rep(ctl, rep), \
 				cpus := NTHREADS_BWA, timeout := WALLTIME, mem := MEMORY * M, \
 				SAI_FILE_1 <- FASTQ_FILE_1 ) {
 
 				sys $PRELOAD
+
+				//# ========================================
+				//# Map reads to create raw SAM file
+				//# ========================================			
 				
 				sys bwa aln -q 5 -l 32 -k 2 -t $NTHREADS_BWA $BWA_INDEX_NAME $FASTQ_FILE_1 > $SAI_FILE_1
 			}
@@ -360,7 +361,11 @@ void post_align_filt( int ctl, int rep ) {
 
 		PBC_FILE_QC :="$FINAL_BAM_PREFIX.pbc.qc"
 
-		if ( [PBC_FILE_QC, FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS, FINAL_NMSRT_BAM_FILE, FINAL_BAM_FILE] <- RAW_BAM_FILE ) {
+		task( taskName := "post_alignt_filt " + concat_ctl_rep(ctl, rep), \
+			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			[PBC_FILE_QC, FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS, FINAL_NMSRT_BAM_FILE, FINAL_BAM_FILE] <- RAW_BAM_FILE ) {
+
+			sys $PRELOAD				
 
 			//print("samtools index $FINAL_BAM_FILE $FINAL_BAM_INDEX_FILE\n")
 			//print("samtools flagstat $FINAL_BAM_FILE > $FINAL_BAM_FILE_MAPSTATS\n")
@@ -373,133 +378,81 @@ void post_align_filt( int ctl, int rep ) {
 			//# Obtain name sorted BAM file
 			//# ==================
 
-			task( taskName := "rm unmapped reads " + concat_ctl_rep(ctl, rep), \
-				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-				TMP_FILT_BAM_FILE <- RAW_BAM_FILE ) {
+			sys samtools view -F 1804 -f 2 -q $MAPQ_THRESH -u $RAW_BAM_FILE | \
+				samtools sort -n - $TMP_FILT_BAM_PREFIX       # Will produce name sorted BAM
 
-				sys $PRELOAD				
+			//# Remove orphan reads (pair was removed)
+			//# and read pairs mapping to different chromosomes
+			//# Obtain position sorted BAM			
 
-				sys samtools view -F 1804 -f 2 -q $MAPQ_THRESH -u $RAW_BAM_FILE | \
-					samtools sort -n - $TMP_FILT_BAM_PREFIX       # Will produce name sorted BAM
-			}
+			//# Will produce coordinate sorted BAM				
 
-			wait 
+			// segmentation fault occurred so I split it into two cmd lines 
 
-			task( taskName := "rm orphan reads " + concat_ctl_rep(ctl, rep), \
-				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-				FILT_BAM_FILE <- TMP_FILT_BAM_FILE ) {
-
-				//# Remove orphan reads (pair was removed)
-				//# and read pairs mapping to different chromosomes
-				//# Obtain position sorted BAM			
-
-				sys $PRELOAD				
-
-				//# Will produce coordinate sorted BAM				
-
-				// segmentation fault occurred so I split it into two cmd lines 
-
-				//sys samtools fixmate -r $TMP_FILT_BAM_FILE | \
-				//	samtools view -F 1804 -f 2 -u - | \
-				//	samtools sort - $FILT_BAM_PREFIX       
-				
-				sys samtools fixmate -r $TMP_FILT_BAM_FILE $OFPREFIX.fixmate.tmp
-				sys samtools view -F 1804 -f 2 -u $OFPREFIX.fixmate.tmp | samtools sort - $FILT_BAM_PREFIX
-				sys rm $OFPREFIX.fixmate.tmp
-			}
-
-			wait
-
-			task( taskName := "mark dup " + concat_ctl_rep(ctl, rep), \
-				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-				[FINAL_BAM_FILE, TMP_FILT_BAM_FILE2] <- FILT_BAM_FILE ) {
-
-				sys $PRELOAD
-				
-				//# =============
-				//# Mark duplicates
-				//# =============
-
-				sys java -Xmx4G -jar ${PICARDROOT}/MarkDuplicates.jar \
-					INPUT=$FILT_BAM_FILE OUTPUT=$TMP_FILT_BAM_FILE2 \
-					METRICS_FILE=$DUP_FILE_QC VALIDATION_STRINGENCY=LENIENT \
-					ASSUME_SORTED=true REMOVE_DUPLICATES=false
-				
-				//# ============================
-				//# Remove duplicates
-				//# Index final position sorted BAM
-				//# Create final name sorted BAM
-				//# ============================
-
-				//sys mv $TMP_FILT_BAM_FILE2 $FILT_BAM_FILE
-				//sys samtools view -F 1804 -f 2 -b $FILT_BAM_FILE > $FINAL_BAM_FILE
-				sys samtools view -F 1804 -f 2 -b $TMP_FILT_BAM_FILE2 > $FINAL_BAM_FILE
-				//sys rm -f $TMP_FILT_BAM_FILE2
-			}
-
-			wait
-
-			task( taskName := "sort final bam " + concat_ctl_rep(ctl, rep), \
-				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-				FINAL_NMSRT_BAM_FILE <- FINAL_BAM_FILE ) { 
-
-				sys $PRELOAD
-				
-				sys samtools sort -n $FINAL_BAM_FILE $FINAL_NMSRT_BAM_PREFIX
-			}
-
-			task( taskName := "index final bam " + concat_ctl_rep(ctl, rep), \
-				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-				[FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS] <- FINAL_BAM_FILE ) {
-
-				//# Index Final BAM file
-
-				sys $PRELOAD				
-
-				sys samtools index $FINAL_BAM_FILE $FINAL_BAM_INDEX_FILE
-				sys samtools flagstat $FINAL_BAM_FILE > $FINAL_BAM_FILE_MAPSTATS
-			}
-
-			task( taskName := "QC final bam " + concat_ctl_rep(ctl, rep), \
-				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-				PBC_FILE_QC <- TMP_FILT_BAM_FILE2 ) {
-
-				sys $PRELOAD				
-
-				//# =============================
-				//# Compute library complexity
-				//# =============================
-				//# Sort by name
-				//# convert to bedPE and obtain fragment coordinates
-				//# sort by position and strand
-				//# Obtain unique count statistics
+			//sys samtools fixmate -r $TMP_FILT_BAM_FILE | \
+			//	samtools view -F 1804 -f 2 -u - | \
+			//	samtools sort - $FILT_BAM_PREFIX       
 			
-				//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
+			sys samtools fixmate -r $TMP_FILT_BAM_FILE $OFPREFIX.fixmate.tmp
+			sys samtools view -F 1804 -f 2 -u $OFPREFIX.fixmate.tmp | samtools sort - $FILT_BAM_PREFIX
+			sys rm $OFPREFIX.fixmate.tmp
 
-				// segmentation fault occurred so I split it into two cmd lines 
+			//# =============
+			//# Mark duplicates
+			//# =============
 
-				//sys samtools sort -n $FILT_BAM_FILE | \
-				//	bamToBed -bedpe -i stdin | \
-				//	awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
-				//	grep -v 'chrM' | sort | uniq -c | \
-				//	awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
+			sys java -Xmx4G -jar ${PICARDROOT}/MarkDuplicates.jar \
+				INPUT=$FILT_BAM_FILE OUTPUT=$TMP_FILT_BAM_FILE2 \
+				METRICS_FILE=$DUP_FILE_QC VALIDATION_STRINGENCY=LENIENT \
+				ASSUME_SORTED=true REMOVE_DUPLICATES=false
+			
+			//# ============================
+			//# Remove duplicates
+			//# Index final position sorted BAM
+			//# Create final name sorted BAM
+			//# ============================
+
+			//sys mv $TMP_FILT_BAM_FILE2 $FILT_BAM_FILE
+			//sys samtools view -F 1804 -f 2 -b $FILT_BAM_FILE > $FINAL_BAM_FILE
+			sys samtools view -F 1804 -f 2 -b $TMP_FILT_BAM_FILE2 > $FINAL_BAM_FILE
+			//sys rm -f $TMP_FILT_BAM_FILE2
 				
-				sys samtools sort -n $TMP_FILT_BAM_FILE2 $OFPREFIX.srt.tmp
-				sys bamToBed -bedpe -i $OFPREFIX.srt.tmp.bam | \
-					awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
-					grep -v 'chrM' | sort | uniq -c | \
-					awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
-				sys rm $OFPREFIX.srt.tmp.bam
-				
-				sys rm -f $FILT_BAM_FILE
-				sys rm -f $TMP_FILT_BAM_FILE
+			sys samtools sort -n $FINAL_BAM_FILE $FINAL_NMSRT_BAM_PREFIX
 
-				sys rm -f $TMP_FILT_BAM_FILE2
-			}
+			sys samtools index $FINAL_BAM_FILE $FINAL_BAM_INDEX_FILE
+			sys samtools flagstat $FINAL_BAM_FILE > $FINAL_BAM_FILE_MAPSTATS
 
-			wait
+			//# =============================
+			//# Compute library complexity
+			//# =============================
+			//# Sort by name
+			//# convert to bedPE and obtain fragment coordinates
+			//# sort by position and strand
+			//# Obtain unique count statistics
+		
+			//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
+
+			// segmentation fault occurred so I split it into two cmd lines 
+
+			//sys samtools sort -n $FILT_BAM_FILE | \
+			//	bamToBed -bedpe -i stdin | \
+			//	awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
+			//	grep -v 'chrM' | sort | uniq -c | \
+			//	awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
+			
+			sys samtools sort -n $TMP_FILT_BAM_FILE2 $OFPREFIX.srt.tmp
+			sys bamToBed -bedpe -i $OFPREFIX.srt.tmp.bam | \
+				awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
+				grep -v 'chrM' | sort | uniq -c | \
+				awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
+			sys rm $OFPREFIX.srt.tmp.bam
+			
+			sys rm -f $FILT_BAM_FILE
+			sys rm -f $TMP_FILT_BAM_FILE
+			sys rm -f $TMP_FILT_BAM_FILE2
 		}
 
+		wait
 	}
 	else if ( fastqs.size() == 1 ) { // single-end
 
@@ -518,91 +471,62 @@ void post_align_filt( int ctl, int rep ) {
 		FINAL_BAM_FILE_MAPSTATS :="$FINAL_BAM_PREFIX.flagstat.qc" //# QC file
 		PBC_FILE_QC :="$FINAL_BAM_PREFIX.pbc.qc"
 
-		if ( [PBC_FILE_QC, FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS, FINAL_BAM_FILE] <- RAW_BAM_FILE ) {
+		task( taskName := "post_alignt_filt " + concat_ctl_rep(ctl, rep), \
+			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+			[PBC_FILE_QC, FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS, FINAL_BAM_FILE] <- RAW_BAM_FILE ) {
+
+			sys $PRELOAD
+
 			//# =============================
 			//# Remove  unmapped, mate unmapped
 			//# not primary alignment, reads failing platform
 			//# Remove low MAPQ reads
 			//# ==================  
 
-			task( taskName := "rm unmapped reads " + concat_ctl_rep(ctl, rep), \
-				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-				FILT_BAM_FILE <- RAW_BAM_FILE ) {
+			sys samtools view -F 1804 -q $MAPQ_THRESH -b $RAW_BAM_FILE > $FILT_BAM_FILE
 
-				sys $PRELOAD
-				
-				sys samtools view -F 1804 -q $MAPQ_THRESH -b $RAW_BAM_FILE > $FILT_BAM_FILE
-			}
+			//# ========================
+			//# Mark duplicates
+			//# ======================
 
-			wait
+			sys java -Xmx4G -jar ${PICARDROOT}/MarkDuplicates.jar \
+				INPUT=$FILT_BAM_FILE OUTPUT=$TMP_FILT_BAM_FILE \
+				METRICS_FILE=$DUP_FILE_QC VALIDATION_STRINGENCY=LENIENT \
+				ASSUME_SORTED=true REMOVE_DUPLICATES=false
+			//sys mv $TMP_FILT_BAM_FILE $FILT_BAM_FILE
 
-			task( taskName := "mark dup " + concat_ctl_rep(ctl, rep), \
-				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-				FINAL_BAM_FILE <- FILT_BAM_FILE ) {
+			//# ============================
+			//# Remove duplicates
+			//# Index final position sorted BAM
+			//# ============================
 
-				sys $PRELOAD
-				
-				//# ========================
-				//# Mark duplicates
-				//# ======================
+			//sys samtools view -F 1804 -b $FILT_BAM_FILE > $FINAL_BAM_FILE
+			sys samtools view -F 1804 -b $TMP_FILT_BAM_FILE > $FINAL_BAM_FILE
+			
+			//# Index Final BAM file
+			sys samtools index $FINAL_BAM_FILE $FINAL_BAM_INDEX_FILE
+			sys samtools flagstat $FINAL_BAM_FILE > $FINAL_BAM_FILE_MAPSTATS
 
-				sys java -Xmx4G -jar ${PICARDROOT}/MarkDuplicates.jar \
-					INPUT=$FILT_BAM_FILE OUTPUT=$TMP_FILT_BAM_FILE \
-					METRICS_FILE=$DUP_FILE_QC VALIDATION_STRINGENCY=LENIENT \
-					ASSUME_SORTED=true REMOVE_DUPLICATES=false
-				//sys mv $TMP_FILT_BAM_FILE $FILT_BAM_FILE
+			//# =============================
+			//# Compute library complexity
+			//# =============================
+			//# sort by position and strand
+			//# Obtain unique count statistics
 
-				//# ============================
-				//# Remove duplicates
-				//# Index final position sorted BAM
-				//# ============================
+			//# PBC File output
+			//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
 
-				//sys samtools view -F 1804 -b $FILT_BAM_FILE > $FINAL_BAM_FILE
-				sys samtools view -F 1804 -b $TMP_FILT_BAM_FILE > $FINAL_BAM_FILE
-			}
+			// bedtools bamtobed -> bamToBed
+			//sys bamToBed -i $FILT_BAM_FILE | \
+			sys bamToBed -i $TMP_FILT_BAM_FILE | \
+				awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$6}' | \
+				grep -v 'chrM' | sort | uniq -c | \
+				awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
 
-			wait
-
-			task( taskName := "index final bam " + concat_ctl_rep(ctl, rep), \
-				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-				[FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS] <- FINAL_BAM_FILE ) {
-
-				sys $PRELOAD
-				
-				//# Index Final BAM file
-				sys samtools index $FINAL_BAM_FILE $FINAL_BAM_INDEX_FILE
-				sys samtools flagstat $FINAL_BAM_FILE > $FINAL_BAM_FILE_MAPSTATS
-			}
-
-			task( taskName := "QC final bam " + concat_ctl_rep(ctl, rep), \
-				cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-				PBC_FILE_QC <- TMP_FILT_BAM_FILE ) {
-
-				sys $PRELOAD				
-
-				//# =============================
-				//# Compute library complexity
-				//# =============================
-				//# sort by position and strand
-				//# Obtain unique count statistics
-
-				//# PBC File output
-				//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
-
-				// bedtools bamtobed -> bamToBed
-				//sys bamToBed -i $FILT_BAM_FILE | \
-				sys bamToBed -i $TMP_FILT_BAM_FILE | \
-					awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$6}' | \
-					grep -v 'chrM' | sort | uniq -c | \
-					awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $PBC_FILE_QC
-
-				sys rm -r $FILT_BAM_FILE
-				sys rm -r $TMP_FILT_BAM_FILE
-			}
-
-			wait
+			sys rm -r $FILT_BAM_FILE
+			sys rm -r $TMP_FILT_BAM_FILE
 		}
-
+		wait
 	}
 	else { // no data		
 		print("warning(post_align_filt): no input for ctl $ctl, rep $rep\n")
@@ -634,20 +558,13 @@ void bam_to_tagalign( int ctl, int rep ) {
 		//# Create tagAlign file
 		//# ===================
 
-		task( taskName := "make tagAlign " + concat_ctl_rep(ctl, rep), \
+		task( taskName := "bam_to_tagAlign " + concat_ctl_rep(ctl, rep), \
 			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-			FINAL_TA_FILE <- FINAL_BAM_FILE ) {
+			[FINAL_TA_FILE, FINAL_BEDPE_FILE, SUBSAMPLED_TA_FILE] <- [FINAL_BAM_FILE, FINAL_NMSRT_BAM_FILE] ) {
 
 			sys $PRELOAD
 			
 			sys bamToBed -i $FINAL_BAM_FILE | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | gzip -c > $FINAL_TA_FILE			
-		}
-
-		task( taskName := "make bedpe " + concat_ctl_rep(ctl, rep), \
-			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-			[FINAL_BEDPE_FILE, SUBSAMPLED_TA_FILE] <- FINAL_NMSRT_BAM_FILE ) {
-
-			sys $PRELOAD
 			
 			//# ================
 			//# Create BEDPE file
@@ -703,6 +620,20 @@ void bam_to_tagalign( int ctl, int rep ) {
 	}
 	else { // no data		
 		print("warning(bam_to_tagAlign): no input for ctl $ctl, rep $rep\n")
+	}
+}
+
+void create_sig_trk() {
+
+	if ( QC_ONLY ) {
+		print("No signal track generation for QC_ONLY=true \n")
+		return
+	}
+	
+	for ( int ctl=0; ctl <= NUM_CTL; ctl++) { // iterate through fastqs (0: not control, 1~: controls)
+		for ( int rep=1; rep <= NUM_REP; rep++) {
+			par create_sig_trk( ctl, rep )
+		}
 	}
 }
 
@@ -821,7 +752,7 @@ void xcor( int ctl, int rep ) {
 		CC_SCORES_FILE :="$SUBSAMPLED_TA_FILE.cc.qc"
 		CC_PLOT_FILE :="$SUBSAMPLED_TA_FILE.cc.plot.pdf"
 
-		task( taskName := "xcor score " + concat_ctl_rep(ctl, rep), \
+		task( taskName := "xcor " + concat_ctl_rep(ctl, rep), \
 			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 			[CC_SCORES_FILE, CC_PLOT_FILE] <- SUBSAMPLED_TA_FILE ) {
 
