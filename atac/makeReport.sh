@@ -93,6 +93,7 @@ done
 cat > "${thisFolder}.report.tex" <<EOF
 
 \documentclass{article}
+\pdfminorversion=4
 \usepackage{graphicx}
 \usepackage{multicol}
 \usepackage{listings}
