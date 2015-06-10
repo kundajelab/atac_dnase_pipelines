@@ -413,7 +413,7 @@ void main_atac() {
 	VPLOT_FILE := SORTED_BAM_FILE + "." + V_INDEX.baseName() + ".vect.png"
 
 	task( taskName := "makeVPlot", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		 VPLOT_FILE <- SORTED_BAM_FILE ) {
+		 VPLOT_FILE <- [SORTED_BAM_FILE, V_INDEX] ) {
 
 		sys $PRELOAD
 		sys cd $OUTPUT_DIR
