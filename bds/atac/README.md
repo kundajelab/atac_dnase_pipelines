@@ -7,7 +7,7 @@ Please take a look at <a href="../README.md">../README.md</a> first.
 ### Parameters from command line arguments 1
 
 ```
-$bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] [V_INDEX] [OUTPUTDIR] -mod [MOD_DEF] -addpath [PATH_FOR_SOFTWARES] -shcmd [ADDITIONAL_INIT]
+$bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] [V_INDEX] [OUTPUTDIR] -mod [MOD_DEF] -shcmd [ADDITIONAL_INIT] -addpath [PATH_FOR_SOFTWARES]
 
 # Take a look at ../README.md for more details about arguments like -addpath, -mod and -shcmd
 # If you already have -V option (pass all env. vars to qsub) in your ~/.bds/bds.config and defined all env. vars on your current shell, you can skip these additional parameters.
@@ -15,7 +15,7 @@ $bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE]
 
 # For example
 # [MOD_DEF] = 'bowtie/2.2.4; samtools/1.2; bedtools/2.21.0; picard-tools/1.129; ucsc_tools/3.0.9; MACS2/2.1.0; java/latest; preseq/1.0.2'
-# [PATH_FOR_SOFTWARES] = '/users/leepc12/code/pipelines/atac'
+# [PATH_FOR_SOFTWARES] = '/biotools/bin:/whatever/software/you/need'
 # [ADDITIONAL_INIT] = 'export _JAVA_OPTIONS="-Xms256M -Xmx512M -XX:ParallelGCThreads=1"; export MAX_JAVA_MEM="4G"; export MALLOC_ARENA_MAX=4'
 ```
 
@@ -32,7 +32,7 @@ $bds atac.bds [OPTS_FOR_ATAC]
 	-o <string>           : Output directory. (default: out)
 	-tmp <string>         : Temporary directory for intermediate files. (default: tmp).
 
-	-gen                  : Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
+	-gen <string>         : Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
 
 	-wt <int>             : Default walltime in seconds for all cluster jobs (default: 36000).
 	-nth <int>            : Default number of threads for all cluster jobs (default: 1).

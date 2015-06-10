@@ -37,12 +37,17 @@ string SHELLCMD		= shcmd
 string ADDPATH 		= addpath
 
 
+
+// find BDS script path (path of BDS script will be automatically added to env. var. ${PATH})
+string SCRIPT_FILE 	= "$ppwd/$programPath" 	// path of your BDS script
+if (!SCRIPT_FILE.exists()) SCRIPT_FILE = "$programPath"
+string SCRIPT_PATH	= SCRIPT_FILE.dirName() // dir of your BDS script
+
 // system parameters
+string{} conf 		// config. file
 string PRELOAD 		= ""
 string PRELOAD_MODULE 	= ". /etc/profile.d/modules.sh;"
-string PRELOAD_SHELLCMD = "export PATH=\"\${PATH}:/bin:/usr/bin\";" // default path for basic linux utils
-
-string{} conf // config. file
+string PRELOAD_SHELLCMD = "export PATH=\"\${PATH}:/bin:/usr/bin:$SCRIPT_PATH:\";" // default path for basic linux utils
 
 
 

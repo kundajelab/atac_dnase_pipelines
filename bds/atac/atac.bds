@@ -18,8 +18,6 @@ int MEMORY_BWT2 	= 8000			// 2G was not enough
 int MAPQ_THRESH 	= 30					
 string JVM_OPTS 	= "-Xmx4G -Xms256M"
 string MAKE_VPLOT 	= "makeVPlot.py"
-string PLOT_PRESEQ 	= "plotPRESEQ.sh"
-string PLOT_V 		= "plotV.sh" 
 string V_INDEX 					help Index for v-plot
 
 //////// alignPostprocessATAC
@@ -29,10 +27,6 @@ string ADJUST_BED_TN5	= "adjustBedTn5.sh"
 string GENOMESIZE 	= "hs"			help 'hs' for human, 'mm' for mouse (Default: 'hs')
 string CHROMSIZE	= ""			help Path for chrom.sizes file for your reference genome
 int fragLen 		= 75						
-
-//////// makeReport
-string MAKE_REPORT	= "makeReport.sh"
-
 
 
 // program body
@@ -58,8 +52,6 @@ void read_param_atac() {
 		if ( conf.hasKey("READ1") )			READ1		= chk_file( conf{ "READ1" }, "" )
 		if ( conf.hasKey("READ2") )			READ2		= chk_file( conf{ "READ2" }, "" )
 
-		if ( conf.hasKey("TRIM_ADAPTERS") )		TRIM_ADAPTERS	= chk_file( conf{ "TRIM_ADAPTERS" }, "" )
-
 		///////// alignATAC /////////////////////
 		if ( conf.hasKey("BOWTIE_IDX") )		BOWTIE_IDX	= chk_file( conf{ "BOWTIE_IDX" }, ".1.bt2" )
 		if ( conf.hasKey("NUMTHREADS") )		NUMTHREADS	= parse_int( conf{ "NUMTHREADS" } )
@@ -68,21 +60,12 @@ void read_param_atac() {
 		///////// alignPostprocessPE /////////////////////
 		if ( conf.hasKey("MAPQ_THRESH") )		MAPQ_THRESH 	= parse_int( conf{ "MAPQ_THRESH" } )
 		if ( conf.hasKey("JVM_OPTS") )			JVM_OPTS 	= rm_comment( conf{ "JVM_OPTS"} )
-		if ( conf.hasKey("PLOT_PRESEQ") )		PLOT_PRESEQ 	= rm_comment( conf{ "PLOT_PRESEQ"} )
-		if ( conf.hasKey("MAKE_VPLOT") )		MAKE_VPLOT 	= rm_comment( conf{ "MAKE_VPLOT"} )
 		if ( conf.hasKey("V_INDEX") )			V_INDEX 	= rm_comment( conf{ "V_INDEX"} )
-
-		//////// alignPostprocessATAC ////////////
-		if ( conf.hasKey("ADJUST_BED_TN5") )		ADJUST_BED_TN5 	= chk_file( conf{ "ADJUST_BED_TN5" }, "" )
 
 		//////// callATACpeaks ////////
 		if ( conf.hasKey("GENOMESIZE") )		GENOMESIZE	= rm_comment( conf{"GENOMESIZE"} )	
 		if ( conf.hasKey("CHROMSIZE") )			CHROMSIZE	= chk_file( conf{"CHROMSIZE"}, "" )
 		if ( conf.hasKey("fragLen") )			fragLen 	= parse_int( conf{ "fragLen" } )
-
-		//////// makeReport ///////////
-		if ( conf.hasKey("MAKE_REPORT") )		MAKE_REPORT 	= chk_file( conf{ "MAKE_REPORT" }, "" )
-
 	}
 	else { // if there is no conf. file take first five arguments as input
 		BOWTIE_IDX 	= chk_file( args[0], ".1.bt2" )
@@ -131,8 +114,6 @@ void main_atac() {
 	}
 
 	wait
-
-
 
 	print( "\nalignATAC...\n" )
 
@@ -321,6 +302,7 @@ void main_atac() {
 	wait
 
 	PRESEQ_FILE := SORTED_BAM_FILE + ".preseq.pdf"
+	PRESEQ_GNU := OUTPUT_DIR + "/preseq.gnu"
 
 	task( taskName := "PRESEQ", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 		 PRESEQ_FILE <- SORTED_BAM_FILE ) {
@@ -330,8 +312,31 @@ void main_atac() {
 
 		sys echo "PRESEQ Analysis..."
 
-		//# this script must be in PATH
-		sys $(which $PLOT_PRESEQ) "$SORTED_BAM_FILE"
+		//# run preseq
+		sys preseqData="$SORTED_BAM_FILE.preseq.dat"
+		sys preseq lc_extrap -P -B -o "${preseqData}" "$SORTED_BAM_FILE" -v 2> "$SORTED_BAM_FILE.preseq.log"
+
+		//# plot the results
+		//# maximum number of reads on x axis in plot (in millions)
+		sys XMAX=500
+
+		sys titleName=$(basename $SORTED_BAM_FILE)
+		sys titleName=${titleName//_/\\_ } #escape underscores
+
+		sys echo "set terminal pdfcairo" > $PRESEQ_GNU
+		sys echo "set output '$SORTED_BAM_FILE.preseq.pdf'" >> $PRESEQ_GNU
+		sys echo "set key box bottom right" >> $PRESEQ_GNU
+		sys echo "set style line 1 linewidth 5" >> $PRESEQ_GNU
+		sys echo "set style line 2 linewidth 1" >> $PRESEQ_GNU
+		sys echo "set mxtics 2" >> $PRESEQ_GNU
+		sys echo "set grid ytics xtics mxtics" >> $PRESEQ_GNU
+		sys echo "set xrange [0:${XMAX}]" >> $PRESEQ_GNU
+		sys echo "set xlabel \"Number of Reads [millions]\"" >> $PRESEQ_GNU
+		sys echo "set ylabel \"Expected Distinct Reads [millions]\"" >> $PRESEQ_GNU
+		sys echo "set title \"PRESEQ Results for ${titleName}\"" >> $PRESEQ_GNU
+		sys echo "plot '${preseqData}' using (\$1/1000000):(\$2/1000000) with lines linestyle 1 notitle, '' using (\$1/1000000):(\$3/1000000) with lines linestyle 2 notitle, '' using (\$1/1000000):(\$4/1000000) with lines linestyle 2 title '+/- 95% confidence interval' " >> $PRESEQ_GNU
+
+		sys gnuplot $PRESEQ_GNU
 	}
 
 	wait
@@ -358,8 +363,9 @@ void main_atac() {
 		sys samtools view -b "$input_bam" chrM > "$mitoBAM"
 
 		//# Process only non chrM reads
+		// embedded adjustBedTn5.sh	
 		sys bamToBed -i "$nonMitoBAM" | \
-			$(which $ADJUST_BED_TN5) | \
+			awk -F $'\t' 'BEGIN {OFS = FS}{ if ($6 == "+") {$2 = $2 + 4} else if ($6 == "-") {$3 = $3 - 5} print $0}' | \
 			gzip -c > "$output_file"
 
 		sys java $JVM_OPTS -jar ${PICARDROOT}/picard.jar CollectInsertSizeMetrics \
@@ -433,7 +439,7 @@ void main_atac() {
 	PDF_FILE := "$OUTPUT_DIR/report.pdf"
 
 	task( taskName := "make Report", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		[TEX_FILE, PDF_FILE] <- [nonMitoBAM_hist_graph, VPLOT_FILE] ) {
+		[TEX_FILE, PDF_FILE] <- [nonMitoBAM_hist_graph, VPLOT_FILE, PRESEQ_FILE] ) {
 		sys $PRELOAD
 
 		sys cd $OUTPUT_DIR

@@ -80,7 +80,7 @@ $bds hist_chipseq.bds [OPTS_FOR_HIST_CHIPSEQ]
 	-o <string>             : Output directory. (default: out)
 	-tmp <string>           : Temporary directory for intermediate files. (default: tmp).
 
-	-gen                    : Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
+	-gen <string>           : Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
   
 	-wt <int>               : Default walltime in seconds for all cluster jobs (default: 36000).
 	-nth <int>              : Default number of threads for all cluster jobs (default: 1).
