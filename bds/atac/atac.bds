@@ -334,7 +334,7 @@ void main_atac() {
 		sys $(which $PLOT_PRESEQ) "$SORTED_BAM_FILE"
 	}
 
-	//wait
+	wait
 
 	print( "\nalignPostprocessATAC...\n" )
 
@@ -408,11 +408,32 @@ void main_atac() {
 
 	wait
 
+	print( "\nMake VPlot...\n" )
+
+	VPLOT_FILE := SORTED_BAM_FILE + "." + V_INDEX.baseName() + ".vect.png"
+
+	task( taskName := "makeVPlot", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		 VPLOT_FILE <- SORTED_BAM_FILE ) {
+
+		sys $PRELOAD
+		sys cd $OUTPUT_DIR
+
+		//# generate V plot
+		sys echo "Generating V Plot..."
+
+		//# this script must be in PATH (didn't work with 20 thread, so reduce it to 4)
+		sys python $(which $MAKE_VPLOT) -a "$SORTED_BAM_FILE" -b "$V_INDEX" -e 2000 -p ends -c 4 -v -u
+	}
+
+	wait
+
 	print( "\nMake Report...\n" )
 
 	TEX_FILE := "$OUTPUT_DIR/report.tex"
+	PDF_FILE := "$OUTPUT_DIR/report.pdf"
 
-	task( taskName := "make Report", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M ) {
+	task( taskName := "make Report", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		[TEX_FILE, PDF_FILE] <- [nonMitoBAM_hist_graph, VPLOT_FILE] ) {
 		sys $PRELOAD
 
 		sys cd $OUTPUT_DIR
@@ -538,23 +559,6 @@ void main_atac() {
 		//# now generate the pdf report (appears as *.report.pdf)
 		//sys cd $OUTPUT_DIR
 		sys pdflatex $TEX_FILE
-	}
-
-	print( "\nMake VPlot...\n" )
-
-	VPLOT_FILE := SORTED_BAM_FILE + "." + V_INDEX.baseName() + ".vect.png"
-
-	task( taskName := "makeVPlot", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		 VPLOT_FILE <- SORTED_BAM_FILE ) {
-
-		sys $PRELOAD
-		sys cd $OUTPUT_DIR
-
-		//# generate V plot
-		sys echo "Generating V Plot..."
-
-		//# this script must be in PATH (didn't work with 20 thread, so reduce it to 4)
-		sys python $(which $MAKE_VPLOT) -a "$SORTED_BAM_FILE" -b "$V_INDEX" -e 2000 -p ends -c 4 -v -u
 	}
 
 	wait
