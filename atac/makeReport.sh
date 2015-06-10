@@ -92,6 +92,7 @@ done
 # not for the faint of heart!
 cat > "${thisFolder}.report.tex" <<EOF
 
+\pdfminorversion=4
 \documentclass{article}
 \usepackage{graphicx}
 \usepackage{multicol}
