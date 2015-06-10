@@ -408,23 +408,6 @@ void main_atac() {
 
 	wait
 
-	VPLOT_FILE := SORTED_BAM_FILE + "." + V_INDEX.baseName() + ".vect.png"
-
-	task( taskName := "makeVPlot", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		 VPLOT_FILE <- SORTED_BAM_FILE ) {
-
-		sys $PRELOAD
-		sys cd $OUTPUT_DIR
-
-		//# generate V plot
-		sys echo "Generating V Plot..."
-
-		//# this script must be in PATH (didn't work with 20 thread, so reduce it to 4)
-		sys python $(which $MAKE_VPLOT) -a "$SORTED_BAM_FILE" -b "$V_INDEX" -e 2000 -p ends -c 4 -v -u
-	}
-
-	wait
-
 	print( "\nMake Report...\n" )
 
 	TEX_FILE := "$OUTPUT_DIR/report.tex"
@@ -468,16 +451,6 @@ void main_atac() {
 		sys DUPTABLE=""
 
 		//## here we build up the tex styled table contents
-/*
-		sys for (( c=${START}; c<${END}; c++ )) \
-			do \
-				if [ "${c}" = "$((END-1))" ]; then \
-					DUPTABLE="${DUPTABLE}${dupQCHeadings[${c}]}& ${dupQCData[${c}]} \\\\ \bottomrule" \
-				else \
-					DUPTABLE="${DUPTABLE}${dupQCHeadings[${c}]}& ${dupQCData[${c}]} \\\\ \midrule" \
-				fi \
-			done
-*/
 		sys for (( c=${START}; c<${END}; c++ )) do \
 				if [ "${c}" = "$((END-1))" ]; then \
 					DUPTABLE="${DUPTABLE}${dupQCHeadings[${c}]}& ${dupQCData[${c}]} \\\\ \bottomrule"; \
@@ -499,16 +472,6 @@ void main_atac() {
 		sys BPCTABLE=""
 
 		//## here we build up the tex styled table contents
-/*		
-		sys for (( c=${START}; c<${END}; c++ )) \
-			do \
-				if [ "${c}" = "$((END-1))" ]; then \
-					BPCTABLE="${BPCTABLE}${bpcLabels[${c}]}& ${bpcData[${c}]} \\\\ \bottomrule" \
-				else \
-					BPCTABLE="${BPCTABLE}${bpcLabels[${c}]}& ${bpcData[${c}]} \\\\ \midrule" \
-				fi \
-			done
-*/			
 		sys for (( c=${START}; c<${END}; c++ )) do \
 				if [ "${c}" = "$((END-1))" ]; then \
 					BPCTABLE="${BPCTABLE}${bpcLabels[${c}]}& ${bpcData[${c}]} \\\\ \bottomrule"; \
@@ -577,6 +540,24 @@ void main_atac() {
 		sys pdflatex $TEX_FILE
 	}
 
+	print( "\nMake VPlot...\n" )
+
+	VPLOT_FILE := SORTED_BAM_FILE + "." + V_INDEX.baseName() + ".vect.png"
+
+	task( taskName := "makeVPlot", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
+		 VPLOT_FILE <- SORTED_BAM_FILE ) {
+
+		sys $PRELOAD
+		sys cd $OUTPUT_DIR
+
+		//# generate V plot
+		sys echo "Generating V Plot..."
+
+		//# this script must be in PATH (didn't work with 20 thread, so reduce it to 4)
+		sys python $(which $MAKE_VPLOT) -a "$SORTED_BAM_FILE" -b "$V_INDEX" -e 2000 -p ends -c 4 -v -u
+	}
+
+	wait
 }
 
 
