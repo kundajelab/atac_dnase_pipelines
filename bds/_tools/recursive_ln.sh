@@ -2,7 +2,8 @@
 
 if [ "$#" -lt 2 ]
 then
-  echo "Usage: recursive_ln.sh [SOURCE_DIR] [DEST_DIR]"
+  echo "Usage: recursive_ln.sh [SOURCE_DIR] [DEST_DIR] [FILETYPE]"
+  echo "example [FILETYPE]: *.bigwig"
   exit 1
 fi
 

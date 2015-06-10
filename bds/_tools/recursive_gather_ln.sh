@@ -2,7 +2,7 @@
 
 if [ "$#" -lt 3 ]
 then
-  echo "Usage: recursive_cp.sh [SOURCE_DIR] [DEST_DIR] [FILETYPE]"
+  echo "Usage: recursive_gather_cp.sh [SOURCE_DIR] [DEST_DIR] [FILETYPE]"
   echo "example [FILETYPE]: *.bigwig"
   exit 1
 fi
@@ -29,10 +29,13 @@ for f in $(find . -name "$EXT" )
 do
   BASENAME=$(basename $f)
   DIRNAME=$(dirname $f)
-  mkdir -p "$DEST/$DIRNAME"
+  #mkdir -p "$DEST/$DIRNAME"
 
   FULLPATH=$(readlink -f $f)
-  TARGET="$DEST/$DIRNAME/$BASENAME"
-  cp $FULLPATH $TARGET
+  DIRNAME2=${DIRNAME//.\//\_}
+  TARGET="${DEST}/${DIRNAME2//\//\_}_${BASENAME}"
+
+  #echo $TARGET
+  ln -s $FULLPATH $TARGET
 done
 
