@@ -11,27 +11,27 @@ There are three bioinformatics pipelines available on this repository.
 2) <a href="./tf_chipseq/">TF ChIP-seq</a>
 3) <a href="./hist_chipseq/">Histone ChIP-seq</a>
 
-### Baseline pipeline (./conf_general.bds)
+### Baseline pipeline (pipeline.bds)
 
-All BDS pipelines on this repository are based on the general baseline pipeline (./conf_general.bds). The baseline pipeline does not involve any bioinformatics analysis. It just parses parameters from command line argument or from a configuration file. Important parameters like cpu, mem and walltime and initialization settings (env. module init. and exporting env. vars) should be defined here. There are two ways to define such parameters.
+All BDS pipelines on this repository are based on the general baseline pipeline (pipeline.bds). The baseline pipeline does not involve any bioinformatics analysis. It just parses parameters from command line argument or from a configuration file. Important parameters like cpu, mem and walltime and initialization settings (env. module init. and exporting env. vars) should be defined here. There are two ways to define such parameters.
 
 1) From command line arguments 
 ```
-$bds ./conf_general.bds [OPTS_FOR_PIPELINE]
+$bds pipeline.bds [OPTS_FOR_PIPELINE]
 
 # example cmd. line args
 
-$bds ./conf_general.bds -prefix TEST -o out -tmp tmp -wt 7200 ...
+$bds pipeline.bds -prefix TEST -o out -tmp tmp -wt 7200 ...
 
 ```
 
 2) From a configuration file
 ```
-$bds ./conf_general.bds -c [CONF_FILE]
+$bds pipeline.bds -c [CONF_FILE]
 
 # or
 
-$bds ./conf_general.bds [CONF_FILE]
+$bds pipeline.bds [CONF_FILE]
 
 # example configuration file
 $cat [CONF_FILE]
@@ -71,7 +71,7 @@ For any parameters not defined in a configuration file, default value will be us
 For any parameters not defined in command line arguments, default value will be used. The following command will show help for all command line arguments.
 
 ```
-$bds ./conf_general.bds -h
+$bds pipeline.bds -h
 
 	-c <string>       : Configuration file path (if not specified, define parameters in command line argument).
 
@@ -145,7 +145,7 @@ ADDPATH= ${HOME}/program1/bin:${HOME}/program1/bin:${HOME}/program2/bin:/usr/bin
 They are command line argument versions of MODULE, SHELLCMD and ADDPATH. For example,
 
 ```
-$bds ./conf_general.bds -mod 'bwa/0.7.10; samtools/1.2' -shcmd 'export PATH=${PATH}:/home/userid/R-2.15.1' -addpath '${HOME}/program1/bin'
+$bds pipeline.bds -mod 'bwa/0.7.10; samtools/1.2' -shcmd 'export PATH=${PATH}:/home/userid/R-2.15.1' -addpath '${HOME}/program1/bin'
 ```
 
 ### Contributors

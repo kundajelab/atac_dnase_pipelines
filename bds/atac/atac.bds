@@ -1,6 +1,6 @@
 #!/usr/bin/env bds
 
-include "../conf_general.bds"
+include "../pipeline"
 
 // input reads
 string READ1 			= ""					help Read1 fastq.gz

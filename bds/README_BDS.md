@@ -111,7 +111,7 @@ $cp ./_bds_bin/bds ${HOME}/.bds/
 
 It is important to check your BDS job status real-time online. If you have a NFS mounted web directory (eg. /srv/www/kundaje/leepc12/job_status/) connected to your cluster, you can automatically synchronize all files on your working directory to the web directory.
 ```
-./_tools/recursive_ln [SRC] [DEST]
+./_tools/recursive_ln.sh [SRC] [DEST]
 ```
 
 recursive_ln.sh makes the same directory structure on [DEST] as in [SRC] then synchronize (with ln -s) all files (except some BDS system/temporary files) on [SRC] to [DEST]. Additionally it removes all dead soft links and empty directory under [DEST] to keep [DEST] small and simple.

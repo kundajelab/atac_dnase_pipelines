@@ -5,9 +5,9 @@ BigDataScript (BDS) pipelines
 
 Take a look at <a href="./README_BDS.md">./README_BDS.md</a> for installation, configuration and tips for BigDataScript.
 
-### Baseline pipeline (./conf_general.bds)
+### Baseline pipeline (pipeline.bds)
 
-All BDS pipelines on this repository are based on the general baseline pipeline (./conf_general.bds). The baseline pipeline does not involve any bioinformatics analysis. It just parses parameters from cmd. line argument or from configuration files. Important parameters like cpu, mem and walltime and initialization settings (env. module init. and exporting env. vars) should be defined here. There are two ways to define such parameters.
+All BDS pipelines on this repository are based on the general baseline pipeline (pipeline.bds). The baseline pipeline does not involve any bioinformatics analysis. It just parses parameters from cmd. line argument or from configuration files. Important parameters like cpu, mem and walltime and initialization settings (env. module init. and exporting env. vars) should be defined here. There are two ways to define such parameters.
 
 1) From command line arguments 
 
@@ -129,7 +129,6 @@ MODULE_ANY_SUFFIX_SHOULD_BE_OKAY= bedtools/2.x.x; samtools/1.2
 Additional environment variables can be defined with SHELLCMD*
 
 ```
-# There is a bug in BDS code.
 # YOU NEED TO COVER ANY ENVIRONMENT VARS WITH CURLY BRACKETS ${} !!
 SHELLCMD_ETC= export PATH="${PATH}:/usr/bin/example"
 SHELLCMD_TEST= TEST_PATH="/usr/lib/example"; export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${TEST_PATH}"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bds
 
-include "conf_general.bds"
+include "pipeline.bds"
 
 // cmd. line arg. wrapper
 bool qc 		= false 			help Set it true to test-run and stop before peak calling, false: keep going through IDR (default: false).
