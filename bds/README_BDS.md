@@ -121,9 +121,13 @@ You can use a cron job to automate this.
 $crontab -e
 
 # This is an example for nandi cluster. Sync important files every 5 minutes.
-# Modify path for sync_bds_report.sh, SRC (top of your working directory) and DEST (web directory)
+# Modify path for sync_bds_report_??.sh, SRC (top of your working directory) and DEST (web directory)
 
-*/5 * * * * /users/leepc12/code/pipelines/bds/_tools/recursive_ln.sh /srv/scratch/leepc12/run /srv/www/kundaje/leepc12/bds_monitor/nandi
+# sync_bds_report_ln.sh generates symlinks on [DEST] for ALL files on [SRC], use this if your web server can see files on [SRC]
+*/5 * * * * /users/leepc12/code/pipelines/bds/_tools/sync_bds_report_ln.sh /srv/scratch/leepc12/run /srv/www/kundaje/leepc12/bds_monitor/mitra
+
+# sync_bds_report_cp.sh transfers IMPORTANT files (*.html,*.js,*.log,*.pdf,*.txt) on [SRC] to [DEST], use this if your web server cannot see files on [SRC]
+*/5 * * * * /users/leepc12/code/pipelines/bds/_tools/sync_bds_report_cp.sh /srv/scratch/leepc12/run /srv/www/kundaje/leepc12/bds_monitor/nandi
 ```
 
 ### Contributors

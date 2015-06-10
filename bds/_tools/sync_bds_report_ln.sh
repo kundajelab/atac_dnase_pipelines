@@ -2,8 +2,7 @@
 
 if [ "$#" -lt 2 ]
 then
-  echo "Usage: recursive_ln.sh [SOURCE_DIR] [DEST_DIR] [FILETYPE]"
-  echo "example [FILETYPE]: *.bigwig"
+  echo "Usage: sync_bds_report_ln.sh [SOURCE_DIR] [DEST_DIR]"
   exit 1
 fi
 
@@ -28,7 +27,8 @@ find $DEST -mindepth 1 -type d -empty -delete
 
 cd $SRC
 
-for f in $(find . -type f -name "$EXT" )
+#for f in $(find . -type f ! -name "*.js" ! -path "*.bds.*" )
+for f in $(find . -type f ! -name "*.sh" ! -name "*.cluster" ! -name "*.stderr" ! -name "*.stdout" ! -name "*bds.pid*" )
 do
   BASENAME=$(basename $f)
   DIRNAME=$(dirname $f)

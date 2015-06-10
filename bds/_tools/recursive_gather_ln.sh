@@ -23,16 +23,19 @@ then
   exit 3
 fi
 
+cd $DEST
+find $DEST -type l -xtype l -delete
+find $DEST -mindepth 1 -type d -empty -delete
+
 cd $SRC
 
-for f in $(find . -name "$EXT" )
+for f in $(find . -type f -name "$EXT" )
 do
   BASENAME=$(basename $f)
   DIRNAME=$(dirname $f)
-  #mkdir -p "$DEST/$DIRNAME"
 
   FULLPATH=$(readlink -f $f)
-  DIRNAME2=${DIRNAME//.\//\_}
+  DIRNAME2=${DIRNAME#.\/}
   TARGET="${DEST}/${DIRNAME2//\//\_}_${BASENAME}"
 
   #echo $TARGET
