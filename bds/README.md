@@ -3,13 +3,14 @@ BigDataScript (BDS) pipelines
 
 ## BigDataScript
 
-Take a look at <a href="./README_BDS.md">./README_BDS.md</a> for installation, configuration and tips (logging/debugging and reporting) for BigDataScript.
+Take a look at <a href="./README_BDS.md">./README_BDS.md</a> for installation, configuration and tips (logging/debugging and reporting) for BigDataScript. IMPORTANT! BDS pipelines will not work if you don't have properly installed bds and its config (bds.config) on the system.
 
 There are three bioinformatics pipelines available on this repository.
 
 1) <a href="./atac/">ATAC-seq</a>
 2) <a href="./tf_chipseq/">TF ChIP-seq</a>
 3) <a href="./hist_chipseq/">Histone ChIP-seq</a>
+
 
 ### Baseline pipeline (pipeline.bds)
 
