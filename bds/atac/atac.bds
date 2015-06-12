@@ -20,9 +20,6 @@ string JVM_OPTS 	= "-Xmx4G -Xms256M"
 string MAKE_VPLOT 	= "makeVPlot.py"
 string V_INDEX 					help Index for v-plot
 
-//////// alignPostprocessATAC
-string ADJUST_BED_TN5	= "adjustBedTn5.sh"
-
 //////// callATACpeaks
 string GENOMESIZE 	= "hs"			help 'hs' for human, 'mm' for mouse (Default: 'hs')
 string CHROMSIZE	= ""			help Path for chrom.sizes file for your reference genome
@@ -33,8 +30,7 @@ int fragLen 		= 75
 
 PREFIX = 'atac' // redundant
 
-print("IMPORTANT! ADD YOUR ATAC SCRIPT (*.sh; *.py) DIRECTORY BY USING -addpath")
-print("bds atac.bds [PARAM1] ... [PARAM8] -addpath /your/atac/script/path")
+print("bds atac.bds [PARAM1] ... [PARAM8]\n")
 
 read_param_general()
 read_param_atac()
@@ -86,7 +82,6 @@ void read_param_atac() {
 	print("MEMORY_BWT2 = $MEMORY_BWT2 (megabytes)\n");
 	print("MAPQ_THRESH = $MAPQ_THRESH\n");
 	print("JVM_OPTS = $JVM_OPTS\n");
-	print("ADJUST_BED_TN5 = $ADJUST_BED_TN5\n");
 	print("GENOMESIZE = $GENOMESIZE\n");
 	print("CHROMSIZE = $CHROMSIZE\n");
 	print("fragLen = $fragLen\n");

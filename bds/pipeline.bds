@@ -177,7 +177,8 @@ void read_param_general() {
 	print("PRELOAD = $PRELOAD (shell commands to be executed at the beginning of every tasks\n");
 
 	// generate reference genome file
-	sys echo $REF_GENOME > "$OUTPUT_DIR/ref_genome.txt"
+	if ( REF_GENOME != "" ) \
+		sys echo $REF_GENOME > "$OUTPUT_DIR/ref_genome.txt"
 }
 
 
