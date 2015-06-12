@@ -186,7 +186,7 @@ void main_atac() {
 
 			sys echo "Fix mates - orphans and cross chromosomes"
 
-			//# Will produce coordinate sorted BAM
+			//# Will produce coordinate sorted BAM 
 			sys samtools fixmate -O bam -r "$TMP_FILT_BAM_FILE" - | \
 				samtools view -F 1804 -f 2 -u - | \
 				samtools sort - "$FILT_BAM_PREFIX" 

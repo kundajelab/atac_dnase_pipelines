@@ -45,9 +45,11 @@ string SCRIPT_PATH	= SCRIPT_FILE.dirName() // dir of your BDS script
 
 // system parameters
 string{} conf 		// config. file
-string PRELOAD 		= ""
-string PRELOAD_MODULE 	= ". /etc/profile.d/modules.sh;"
-string PRELOAD_SHELLCMD = "export PATH=\"\${PATH}:/bin:/usr/bin:$SCRIPT_PATH:\";" // default path for basic linux utils
+string PRELOAD 			= ""
+string PRELOAD_MODULE_HEADER 	= ". /etc/profile.d/modules.sh;"
+string PRELOAD_MODULE 		= ""
+string PRELOAD_SHELLCMD_HEADER 	= "export PATH=\"\${PATH}:/bin:/usr/bin:$SCRIPT_PATH:\";" // default path for basic linux utils
+string PRELOAD_SHELLCMD 	= ""
 
 
 
@@ -170,13 +172,16 @@ void read_param_general() {
 	print("NTHREADS = $NTHREADS\n");
 	print("MEMORY = $MEMORY (megabytes)\n");
 
-	// additional initialization
-	PRELOAD = PRELOAD_SHELLCMD + "; " + PRELOAD_MODULE
+	// additional initialization	
+	PRELOAD = PRELOAD_SHELLCMD_HEADER + PRELOAD_SHELLCMD
+	if ( PRELOAD_MODULE != "" ) \
+		PRELOAD = PRELOAD + "; " + PRELOAD_MODULE_HEADER + PRELOAD_MODULE
+
 	PRELOAD = PRELOAD.replace( ";;", ";" )
 
 	print("PRELOAD = $PRELOAD (shell commands to be executed at the beginning of every tasks\n");
 
-	// generate reference genome file
+	// generate reference genome file if defined
 	if ( REF_GENOME != "" ) \
 		sys echo $REF_GENOME > "$OUTPUT_DIR/ref_genome.txt"
 }
