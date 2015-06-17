@@ -13,7 +13,7 @@ BOWTIE_IDX=/srv/scratch/leepc12/hg19/bowtie2/ENCODEHg19_male
 NUMTHREADS=4
 GENOMESIZE=hs
 CHROMSIZE=/mnt/data/annotations/by_release/hg19.GRCh37/hg19.chrom.sizes
-V_INDEX=/srv/scratch/leepc12/data/atac_test/AC49GLACXX/fantom5.cage.strict.hg19.bed
+V_INDEX=/srv/scratch/csfoo/projects/parsed_hg19_RefSeq.merged.ANS.bed
 mkdir -p /srv/scratch/leepc12/run/atac_eugene/$SUBDIR; cd /srv/scratch/leepc12/run/atac_eugene/$SUBDIR; 
 bds -s sge ${ATAC_BDS} ${BOWTIE_IDX} $READ1 $READ2 $NUMTHREADS $GENOMESIZE $CHROMSIZE ${V_INDEX} out -mod "${MOD_DEF}"
 
@@ -29,7 +29,7 @@ BOWTIE_IDX=/srv/scratch/leepc12/hg19/bowtie2/ENCODEHg19_male
 NUMTHREADS=4
 GENOMESIZE=hs
 CHROMSIZE=/mnt/data/annotations/by_release/hg19.GRCh37/hg19.chrom.sizes
-V_INDEX=/srv/scratch/leepc12/data/atac_test/AC49GLACXX/fantom5.cage.strict.hg19.bed
+V_INDEX=/srv/scratch/csfoo/projects/parsed_hg19_RefSeq.merged.ANS.bed
 mkdir -p /srv/scratch/leepc12/run/atac_eugene/$SUBDIR; cd /srv/scratch/leepc12/run/atac_eugene/$SUBDIR; 
 bds -s sge ${ATAC_BDS} ${BOWTIE_IDX} $READ1 $READ2 $NUMTHREADS $GENOMESIZE $CHROMSIZE ${V_INDEX} out -mod "${MOD_DEF}"
 
@@ -46,7 +46,7 @@ BOWTIE_IDX=/srv/scratch/leepc12/hg19/bowtie2/ENCODEHg19_male
 NUMTHREADS=4
 GENOMESIZE=hs
 CHROMSIZE=/mnt/data/annotations/by_release/hg19.GRCh37/hg19.chrom.sizes
-V_INDEX=/srv/scratch/leepc12/data/atac_test/AC49GLACXX/fantom5.cage.strict.hg19.bed
+V_INDEX=/srv/scratch/csfoo/projects/parsed_hg19_RefSeq.merged.ANS.bed
 mkdir -p /srv/scratch/leepc12/run/atac_eugene/$SUBDIR; cd /srv/scratch/leepc12/run/atac_eugene/$SUBDIR; 
 bds -s sge ${ATAC_BDS} ${BOWTIE_IDX} $READ1 $READ2 $NUMTHREADS $GENOMESIZE $CHROMSIZE ${V_INDEX} out -mod "${MOD_DEF}"
 
@@ -63,7 +63,7 @@ BOWTIE_IDX=/srv/scratch/leepc12/hg19/bowtie2/ENCODEHg19_male
 NUMTHREADS=4
 GENOMESIZE=hs
 CHROMSIZE=/mnt/data/annotations/by_release/hg19.GRCh37/hg19.chrom.sizes
-V_INDEX=/srv/scratch/leepc12/data/atac_test/AC49GLACXX/fantom5.cage.strict.hg19.bed
+V_INDEX=/srv/scratch/csfoo/projects/parsed_hg19_RefSeq.merged.ANS.bed
 mkdir -p /srv/scratch/leepc12/run/atac_eugene/$SUBDIR; cd /srv/scratch/leepc12/run/atac_eugene/$SUBDIR; 
 bds -s sge ${ATAC_BDS} ${BOWTIE_IDX} $READ1 $READ2 $NUMTHREADS $GENOMESIZE $CHROMSIZE ${V_INDEX} out -mod "${MOD_DEF}"
 
@@ -295,6 +295,11 @@ bds -s sge ${ATAC_BDS} ${BOWTIE_IDX} $READ1 $READ2 $NUMTHREADS $GENOMESIZE $CHRO
 
 
 #REPORTING PDFs on MITRA
+rm -rf /srv/www/kundaje/leepc12/atac_pdf/*
+kdir -p /srv/www/kundaje/leepc12/atac_pdf
 /users/leepc12/code/pipelines/bds/_tools/recursive_gather_ln.sh /srv/scratch/leepc12/run/atac_eugene /srv/www/kundaje/leepc12/atac_pdf report.pdf
+
+
+
 
 

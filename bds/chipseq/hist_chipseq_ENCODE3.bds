@@ -1,6 +1,6 @@
 #!/usr/bin/env bds
 
-include "../modules_align_map.bds"
+include "modules_align_map_ENCODE3.bds"
 
 
 // cmd line arg wrapper and help
