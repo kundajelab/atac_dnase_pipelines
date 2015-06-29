@@ -135,8 +135,11 @@ void run_macs2( string taskname, string out_dir, string ta, string ctl_ta, strin
 		sys sort -k 8gr,8gr $out_dir/"$taskname"_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $out_dir/$taskname.narrowPeak.gz
 
 		//# remove additional files
-		//#rm -f $out_dir/"$taskname"_peaks.xls #$out_dir/$taskname_peaks.bed ${peakFile}_summits.bed
-		sys rm -f $out_dir/"$taskname"_peaks.xls $out_dir/"$taskname"_peaks.narrowPeak $out_dir/"$taskname"_summits.bed
+		//#rm -f $out_dir/"$taskname"_peaks.xls $out_dir/$taskname_peaks.bed ${peakFile}_summits.bed
+		//sys rm -f $out_dir/"$taskname"_peaks.xls $out_dir/"$taskname"_peaks.narrowPeak $out_dir/"$taskname"_summits.bed
+		sys rm -f $out_dir/"$taskname"_peaks.xls \
+			$out_dir/"$taskname"_peaks.narrowPeak \
+			$out_dir/"$taskname"_summits.bed
 
 		//===========================================
 		//# Generate Broad and Gapped Peaks
@@ -150,7 +153,7 @@ void run_macs2( string taskname, string out_dir, string ta, string ctl_ta, strin
 		sys sort -k 14gr,14gr $out_dir/"$taskname"_peaks.gappedPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $out_dir/$taskname.gappedPeak.gz
 
 		//# remove additional files
-		//#rm -f $out_dir/"$taskname"_peaks.xls #$out_dir/$taskname_peaks.bed ${peakFile}_summits.bed
+		//#rm -f $out_dir/"$taskname"_peaks.xls $out_dir/$taskname_peaks.bed ${peakFile}_summits.bed
 		sys rm -f $out_dir/"$taskname"_peaks.xls \
 		  $out_dir/"$taskname"_peaks.broadPeak \
 		  $out_dir/"$taskname"_peaks.gappedPeak \
@@ -182,7 +185,6 @@ void run_macs2( string taskname, string out_dir, string ta, string ctl_ta, strin
 
 		//#chipReads=$(wc -l $ta | awk '"'"'{printf "%f", $1/1000000}'"')"
 		sys chipReads=$(zcat $ta | wc -l | awk '{printf "%f", $1/1000000}');
-
 
 
 		//#controlReads=$(wc -l $ctl_ta | awk '"'"'{printf "%f", $1/1000000}'"')
