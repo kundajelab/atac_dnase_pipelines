@@ -11,6 +11,21 @@ Performs the following steps:
 * Postprocessing / QC (generates insert size distribution)
 * Peak calling using MACS2 (using the shifting trick)
 
+Requirements
+============
+- python 2.7
+
+For paired-end pipeline:
+- numpy
+- matplotlib
+- pysam
+- BioPython
+- python-Levenshtein 
+
+For single-end pipeline:
+- pybedtools
+- trimgalore
+
 Usage
 =====
 
