@@ -16,7 +16,7 @@ tar zxvf bds_Linux.tgz
 rm bds_Linux.tgz
 ```
 
-Download bds.config.SERVERNAME on <a href="./_bds_config">./_bds_config</a>. Move it to your ${HOME}/.bds/bds.config. In bds.config, you can specify your information like email address to get job status notification from clusters.
+Move bds.config to your ${HOME}/.bds/bds.config. In bds.config, you can specify your information like email address to get job status notification from clusters.
 ```
 clusterRunAdditionalArgs = -A accountID -M user@gmail.com
 ```
@@ -89,7 +89,7 @@ execd_params                 ENABLE_ADDGRP_KILL=true
 
 ### Modified version of BDS
 
-The author of BDS is very responsive and supportive but more features like HTML progress report is needed. The BDS binary for that is in <a href="./_bds_bin/">./_bds_bin/</a>. The git repo for modified version of BDS is at <a href="https://github.com/kundajelab/BigDataScript">https://github.com/kundajelab/BigDataScript</a>. Try to clone from a git branch named "jin" to get the latest modification of BDS code. 
+The author of BDS is very responsive and supportive but more features like HTML progress report is needed. The BDS binary for that is in <a href="./bds">./bds</a>. The git repo for modified version of BDS is at <a href="https://github.com/kundajelab/BigDataScript">https://github.com/kundajelab/BigDataScript</a>. Try to clone from a git branch named "jin" to get the latest modification of BDS code. 
 ```
 $git clone https://github.com/kundajelab/BigDataScript
 $cd BigDataScript
@@ -98,12 +98,12 @@ $git pull jin
 
 If you have a sudo privilege, I would recommend to move BDS binary to /usr/bin or /bin.
 ```
-$sudo cp ./_bds_bin/bds /usr/bin/
+$sudo cp ./bds /usr/bin/
 ```
 
 Otherwise, add it to your local directory, do not forget to add it to your $PATH
 ```
-$cp ./_bds_bin/bds ${HOME}/.bds/
+$cp ./bds ${HOME}/.bds/
 ```
 
 
