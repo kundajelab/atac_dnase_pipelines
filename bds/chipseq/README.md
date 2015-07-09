@@ -1,10 +1,10 @@
 ChIP-Seq Pipelines
 ===============================================
 
-### TF ChIP-Seq pipeline
+### ChIP-Seq pipelines (TF and histone)
 
-TF ChIP-Seq pipeline is based on https://docs.google.com/document/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit#.
-Please take a look at <a href="../README.md">../README.md</a> first.
+ChIP-Seq pipelines are based on https://docs.google.com/document/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit#.
+Please take a look at <a href="../README.md">../README.md</a> first if you are interested in base line pipeline and BigDataScript(BDS) details.
 
 
 ### Parameters from configuration file (TF ChIP-Seq pipeline)
@@ -28,7 +28,6 @@ $cat [CONF_FILE]
 	SHELLCMD        	: Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
 	ADDPATH                 : Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
 
-
 	QC_ONLY                 : Set it true to test-run and stop before peak calling, false: keep going through IDR (default: false).
 	NUM_REP                 : # of replicates, set it only for qc = true. (default: 1).
 
@@ -47,6 +46,14 @@ $cat [CONF_FILE]
 	SEQ_DIR                 : Dir. for sequence files (for hg19, dir where chr*.fa exist).
 	CHROM_SIZES             : Path for chrom.sizes file for your sequence files.
 
+	NTHREADS_RUN_SPP        : Number of threads for spp (run_spp.R) (default: 4).
+	NPEAK                   : Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
+	IDR_THRESH              : IDR thresh (default: 0.02).
+	USE_IDR_NBOLEY 	        : Use Nathan Boley's code for IDR, otherwise Anshul's code (default: true)
+
+	INPUT_TYPE              : Input file type: two options (fastq: including mapping of fastqs, tagalign: starting from tagaligns)
+
+	# If inputs are fastqs
 	INPUT_FASTQ_REP1        : Path for input fastq for replicate 1 (single ended).
 	INPUT_FASTQ_REP2        : Path for input fastq for replicate 2 (single ended).
 
@@ -63,10 +70,14 @@ $cat [CONF_FILE]
 	INPUT_FASTQ_CTL_REP2_PE1: Path for control fastq for replicate 2 pair 1 (paired-end).
 	INPUT_FASTQ_CTL_REP2_PE2: Path for control fastq for replicate 2 pair 2 (paired-end).
 
-	NTHREADS_RUN_SPP        : Number of threads for spp (run_spp.R) (default: 4).
-	NPEAK                   : Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
-	DUPE_REMOVED            : Set it true if dupes are removed when aligning (default: true).
-	IDR_THRESH              : IDR thresh (default: 0.02).
+	# If inputs are tagaligns
+	TAGALIGN_PE             : Set it true if tagaligns are paired end
+
+	INPUT_TAGALIGN_REP1     : Path for input tagalign for replicate 1.
+	INPUT_TAGALIGN_REP2     : Path for input tagalign for replicate 2.
+
+	INPUT_TAGALIGN_CTL_REP1 : Path for control tagalign for replicate 1.
+	INPUT_TAGALIGN_CTL_REP2 : Path for control tagalign for replicate 2 (if not exists, leave this blank).
 
 ```
 
@@ -94,7 +105,6 @@ $bds tf_chipseq.bds [OPTS_FOR_TF_CHIPSEQ]
 	-shcmd <string>         : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test").
         -addpath <string>       : Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
 
-
 	-qc                     : Set it true to test-run and stop before peak calling, false: keep going through IDR (default: false).
 	-num_rep <int>          : # of replicates, set it only for qc = true. (default: 1).
 
@@ -113,11 +123,19 @@ $bds tf_chipseq.bds [OPTS_FOR_TF_CHIPSEQ]
 	-seq <string>           : Dir. for sequence files (for hg19, dir where chr*.fa exist).
 	-chrsz <string>         : Path for chrom.sizes file for your sequence files.
 
+	-nth_spp <int>          : Number of threads for spp (run_spp.R) (default: 4).
+	-npeak <int>            : Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
+	-idr_thresh <string>    : IDR thresh (default: 0.02).
+        -idr_nboley <bool>      : Use Nathan Boley's code for IDR, otherwise Anshul's code (default: true)
+
+        -input <string>         : Input file type: two options (fastq: including mapping of fastqs, tagalign: starting from tagaligns)
+
+	# If inputs are fastqs
 	-fastq1 <string>        : Path for input fastq for replicate 1 (single ended).
 	-fastq2 <string>        : Path for input fastq for replicate 2 (single ended).
 
 	-ctl_fastq1 <string>    : Path for control fastq for replicate 1 (single ended).
-	-ctl_fastq2 <string>    : Path for control fastq for replicate 2 (single ended).
+	-ctl_fastq2 <string>    : Path for control fastq for replicate 2 (single ended, if not exists leave this blank).
 
 	-fastq1_1 <string>      : Path for input fastq for replicate 1 pair 1 (paired-end).
 	-fastq1_2 <string>      : Path for input fastq for replicate 1 pair 2 (paired-end).
@@ -126,24 +144,18 @@ $bds tf_chipseq.bds [OPTS_FOR_TF_CHIPSEQ]
 
 	-ctl_fastq1_1 <string>  : Path for control fastq for replicate 1 pair 1 (paired-end).
 	-ctl_fastq1_2 <string>  : Path for control fastq for replicate 1 pair 2 (paired-end).
-	-ctl_fastq2_1 <string>  : Path for control fastq for replicate 2 pair 1 (paired-end).
-	-ctl_fastq2_2 <string>  : Path for control fastq for replicate 2 pair 2 (paired-end).
+	-ctl_fastq2_1 <string>  : Path for control fastq for replicate 2 pair 1 (paired-end, if not exists leave this blank).
+	-ctl_fastq2_2 <string>  : Path for control fastq for replicate 2 pair 2 (paired-end, if not exists leave this blank).
 
-	-nth_spp <int>          : Number of threads for spp (run_spp.R) (default: 4).
-	-npeak <int>            : Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
-	-dup_rm                 : Set it true if dupes are removed when aligning (default: true).
-	-idr_thresh <string>    : IDR thresh (default: 0.02).
+	# If inputs are tagaligns
+        -tagalign_PE <bool>     : Set it true if tagaligns are paired end.
 
+        -tagalign1 <string>     : Path for tagAlign for replicate 1.
+        -tagalign2 <string>     : Path for tagAlign for replicate 2.
+        -ctl_tagalign1 <string> : Path for control tagAlign for replicate 1.
+        -ctl_tagalign2 <string> : Path for control tagAlign for replicate 2 (if not exists leave this blank).
 ```
 
-
-
-
-
-### Histone ChIP-Seq pipeline
-
-Histone ChIP-Seq pipeline is based on https://docs.google.com/document/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit#.
-Please take a look at ../README.md first.
 
 ### Parameters from configuration file  (Histone ChIP-Seq pipeline)
 
@@ -166,7 +178,6 @@ $cat [CONF_FILE]
 	SHELLCMD        	: Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
 	ADDPATH                 : Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
 
-
 	QC_ONLY                 : Set it true to test-run and stop before peak calling, false: keep going through IDR (default: false).
 	NUM_REP                 : # of replicates, set it only for qc = true. (default: 1).
 
@@ -186,6 +197,12 @@ $cat [CONF_FILE]
 	SEQ_DIR                 : Dir. for sequence files (for hg19, dir where chr*.fa exist).
 	CHROM_SIZES             : Path for chrom.sizes file for your sequence files.
 
+	GENOMESIZE              : Genome size; hs for human, mm for mouse (default: hs).
+	NTHREADS_MACS2          : Number of threads for MACS2 (default: 2).
+
+	INPUT_TYPE              : Input file type: two options (fastq: including mapping of fastqs, tagalign: starting from tagaligns)
+
+	# If inputs are fastqs
 	INPUT_FASTQ_REP1        : Path for input fastq for replicate 1 (single ended).
 	INPUT_FASTQ_REP2        : Path for input fastq for replicate 2 (single ended).
 
@@ -202,11 +219,15 @@ $cat [CONF_FILE]
 	INPUT_FASTQ_CTL_REP2_PE1: Path for control fastq for replicate 2 pair 1 (paired-end).
 	INPUT_FASTQ_CTL_REP2_PE2: Path for control fastq for replicate 2 pair 2 (paired-end).
 
-	GENOMESIZE              : Genome size; hs for human, mm for mouse (default: hs).
-	NTHREADS_MACS2          : Number of threads for MACS2 (default: 2).
+	# If inputs are tagaligns
+	TAGALIGN_PE             : Set it true if tagaligns are paired end
 
+	INPUT_TAGALIGN_REP1     : Path for input tagalign for replicate 1.
+	INPUT_TAGALIGN_REP2     : Path for input tagalign for replicate 2.
+
+	INPUT_TAGALIGN_CTL_REP1 : Path for control tagalign for replicate 1.
+	INPUT_TAGALIGN_CTL_REP2 : Path for control tagalign for replicate 2 (if not exists, leave this blank).
 ```
-
 
 ### Parameters from command line arguments (Histone ChIP-Seq pipeline)
 
@@ -251,11 +272,17 @@ $bds hist_chipseq.bds [OPTS_FOR_HIST_CHIPSEQ]
 	-seq <string>           : Dir. for sequence files (for hg19, dir where chr*.fa exist).
 	-chrsz <string>         : Path for chrom.sizes file for your sequence files.
 
+	-gensz <string>         : Genome size; hs for human, mm for mouse (default: hs).
+	-nth_macs2 <int>        : Number of threads for MACS2 (default: 2).
+
+        -input <string>         : Input file type: two options (fastq: including mapping of fastqs, tagalign: starting from tagaligns)
+
+	# If inputs are fastqs
 	-fastq1 <string>        : Path for input fastq for replicate 1 (single ended).
 	-fastq2 <string>        : Path for input fastq for replicate 2 (single ended).
 
 	-ctl_fastq1 <string>    : Path for control fastq for replicate 1 (single ended).
-	-ctl_fastq2 <string>    : Path for control fastq for replicate 2 (single ended).
+	-ctl_fastq2 <string>    : Path for control fastq for replicate 2 (single ended, if not exists leave this blank).
 
 	-fastq1_1 <string>      : Path for input fastq for replicate 1 pair 1 (paired-end).
 	-fastq1_2 <string>      : Path for input fastq for replicate 1 pair 2 (paired-end).
@@ -264,23 +291,21 @@ $bds hist_chipseq.bds [OPTS_FOR_HIST_CHIPSEQ]
 
 	-ctl_fastq1_1 <string>  : Path for control fastq for replicate 1 pair 1 (paired-end).
 	-ctl_fastq1_2 <string>  : Path for control fastq for replicate 1 pair 2 (paired-end).
-	-ctl_fastq2_1 <string>  : Path for control fastq for replicate 2 pair 1 (paired-end).
-	-ctl_fastq2_2 <string>  : Path for control fastq for replicate 2 pair 2 (paired-end).
+	-ctl_fastq2_1 <string>  : Path for control fastq for replicate 2 pair 1 (paired-end, if not exists leave this blank).
+	-ctl_fastq2_2 <string>  : Path for control fastq for replicate 2 pair 2 (paired-end, if not exists leave this blank).
 
-	-gensz <string>         : Genome size; hs for human, mm for mouse (default: hs).
-	-nth_macs2 <int>        : Number of threads for MACS2 (default: 2).
+	# If inputs are tagaligns
+        -tagalign_PE <bool>     : Set it true if tagaligns are paired end.
 
+        -tagalign1 <string>     : Path for tagAlign for replicate 1.
+        -tagalign2 <string>     : Path for tagAlign for replicate 2.
+        -ctl_tagalign1 <string> : Path for control tagAlign for replicate 1.
+        -ctl_tagalign2 <string> : Path for control tagAlign for replicate 2 (if not exists leave this blank).
 ```
-
-
-
-
-
-
 
 ### Installation instruction for softwares for the chipseq pipeline
 
-Look at <a href="./README_SW.md">./README_SW.md</a>
+Look at <a href="README_SW.md">README_SW.md</a>
 
 
 ### Contributors

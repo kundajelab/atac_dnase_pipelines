@@ -3,13 +3,13 @@ BigDataScript (BDS) pipelines
 
 ## BigDataScript
 
-Take a look at <a href="./README_BDS.md">./README_BDS.md</a> for installation, configuration and tips (logging/debugging and reporting) for BigDataScript. IMPORTANT! BDS pipelines will not work if you don't have properly installed bds and its config (bds.config) on the system.
+Take a look at <a href="README_BDS.md">README_BDS.md</a> for installation, configuration and tips (logging/debugging and reporting) for BigDataScript. IMPORTANT! BDS pipelines will not work if you don't have properly installed BDS and its config (bds.config) on your home ($HOME/.bds/bds.config).
 
 There are three bioinformatics pipelines available on this repository.
 
-1) <a href="./atac/">ATAC-seq</a>
-2) <a href="./tf_chipseq/">TF ChIP-seq</a>
-3) <a href="./hist_chipseq/">Histone ChIP-seq</a>
+1) <a href="atac/atac.bds">ATAC-seq</a>
+2) <a href="chipseq/tf_chipseq.bds">TF ChIP-seq and Histone ChIP-seq</a>
+2) <a href="chipseq/hist_chipseq.bds">TF ChIP-seq and Histone ChIP-seq</a>
 
 
 ### Baseline pipeline (pipeline.bds)
@@ -74,21 +74,21 @@ For any parameters not defined in command line arguments, default value will be 
 ```
 $bds pipeline.bds -h
 
-	-c <string>       : Configuration file path (if not specified, define parameters in command line argument).
+        -c <string>        : Configuration file path (if not specified, define parameters in command line argument).
 
-	-prefix <string>  : Prefix for all outputs.
-	-o <string>       : Output directory. (default: out)
-	-tmp <string>     : Temporary directory for intermediate files. (default: tmp).
+        -prefix <string>   : Prefix for all outputs.
+        -o <string>        : Output directory. (default: out)
+        -tmp <string>      : Temporary directory for intermediate files. (default: tmp).
 
-	-gen <string>     : Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
+        -gen <string>      : Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
 
-	-wt <int>         : Default walltime in seconds for all cluster jobs (default: 36000).
-	-nth <int>        : Default number of threads for all cluster jobs (default: 1).
-	-mem <int>        : Default max. memory in MB for all cluster jobs (default: 4000).
+        -wt <int>          : Default walltime in seconds for all cluster jobs (default: 22000).
+        -nth <int>         : Default number of threads for all cluster jobs (default: 1).
+        -mem <int>         : Default max. memory in MB for all cluster jobs (default: 8000).
 
-	-mod <string>     : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
-	-shcmd <string>   : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
-	-addpath <string> : Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
+        -mod <string>      : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+        -shcmd <string>    : Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test").
+        -addpath <string>  : Path to be appended to env. var. PATH. Multiple paths should be separated by ; (example: "/bin/test:/bin/test2")
 ```
 
 
