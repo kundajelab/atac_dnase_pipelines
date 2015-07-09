@@ -1,18 +1,16 @@
 #!/usr/bin/env bds
 
-include "modules_align_map_ENCODE3.bds"
+include "modules_align_map.bds"
 
 // cmd line arg wrapper and help
 int nth_spp 		= 4		help Number of threads for spp (run_spp.R) (default: 4).
 int npeak 		= 300000 	help Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
-bool dup_rm 		= true	 	help Set it true if dupes are removed when aligning (default: true).
 string idr_thresh 	= 0.02		help IDR thresh (default: 0.02).
 bool idr_nboley 	= true	 	help Use Nathan Boley's code for IDR, otherwise Anshul's code (default: true)
 
 // parameters
 int NTHREADS_RUN_SPP	= nth_spp
 int NPEAK 		= npeak	
-bool DUPE_REMOVED 	= dup_rm
 string IDR_THRESH 	= idr_thresh
 bool USE_IDR_NBOLEY 	= idr_nboley
 
@@ -22,11 +20,8 @@ read_param_general()
 read_param_align_map()
 read_param_tf_chipseq()
 
-align_map_xcor_spr_pspr()
-
+align_to_pspr()
 spp_idr()
-
-create_sig_trk();
 
 
 // functions
@@ -38,8 +33,7 @@ void read_param_tf_chipseq() {
 		// peak calling (phantompeakqualtools: run_spp.R)
 		if ( conf.hasKey("NTHREADS_RUN_SPP") )	NTHREADS_RUN_SPP	= parse_int( conf{ "NTHREADS_RUN_SPP" } )
 		if ( conf.hasKey("NPEAK") ) 		NPEAK 			= parse_int( conf{ "NPEAK" } )
-		if ( conf.hasKey("DUPE_REMOVED") ) 	DUPE_REMOVED		= parse_bool( conf{ "DUPE_REMOVED"} )
-				RUN_SPP = DUPE_REMOVED ? "run_spp_nodups.R" : "run_spp.R"
+
 		// IDR
 		if ( conf.hasKey("IDR_THRESH") ) 	IDR_THRESH		= parse_real( conf{ "IDR_THRESH"} )
 		if ( conf.hasKey("USE_IDR_NBOLEY") ) 	USE_IDR_NBOLEY		= parse_bool( conf{ "USE_IDR_NBOLEY"} )
@@ -47,7 +41,6 @@ void read_param_tf_chipseq() {
 
 	print("NTHREADS_RUN_SPP = $NTHREADS_RUN_SPP\n");
 	print("NPEAK = $NPEAK\n");
-	print("DUPE_REMOVED = $DUPE_REMOVED\n");
 	print("IDR_THRESH = $IDR_THRESH\n");
 }
 
@@ -57,53 +50,52 @@ void spp_idr() {
 
 	print( "\nSPP and IDR...\n" );
 
-	// SPP
+	// prepare for SPP
+	FRAG_LEN := get_fraglen( 0, 1 ) // get it from rep1
+	print("FRAGLEN for spp (rep1) <-- this will be used: $FRAG_LEN \n")
+	print("FRAGLEN for spp (rep2): "+get_fraglen( 0, 2 )+"\n")
 
-	FRAGLEN := get_fraglen( 0, 1 ) // get it from rep1
-	print("FRAGLEN for spp: $FRAGLEN \n")
-	
-	// prepare for tagAlign files
-	fastqs_Rep1 	:= get_fastqs( 0, 1 )
-	fastqs_Rep2 	:= get_fastqs( 0, 2 ) // check if rep2 doesn't exist
+	// prepare for tagAlign file names
 	suffix_PE 	:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
 	suffix_SE 	:= ".filt.nodup.srt.SE.tagAlign.gz"
-	suffix 		:= fastqs_Rep1.size()==2 ? suffix_PE : suffix_SE
 	suffix_PSR_PE 	:= ".filt.nodup.PE2SE"
 	suffix_PSR_SE 	:= ".filt.nodup.SE"
-	suffix_PSR 	:= fastqs_Rep1.size()==2 ? suffix_PSR_PE : suffix_PSR_SE
 
-	DATASET_PREFIX := get_ofprefix( 0 )
+	suffix 		:= is_paired_end( 0, 1 ) ? suffix_PE : suffix_SE
+	suffix_PSR 	:= is_paired_end( 0, 1 ) ? suffix_PSR_PE : suffix_PSR_SE
+
+	DATASET_PREFIX 	:= get_ofprefix( 0 )
 	
-	REP1_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix
-	REP2_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix
-	POOLED_TA_FILE :="$DATASET_PREFIX"+"_Rep0.tagAlign.gz"
-	REP1_PR1_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix_PSR + ".pr1.tagAlign.gz"
-	REP1_PR2_TA_FILE :="$DATASET_PREFIX"+"_Rep1" + suffix_PSR + ".pr2.tagAlign.gz"
-	REP2_PR1_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix_PSR + ".pr1.tagAlign.gz"
-	REP2_PR2_TA_FILE :="$DATASET_PREFIX"+"_Rep2" + suffix_PSR + ".pr2.tagAlign.gz"
-	PPR1_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
-	PPR2_TA_FILE :="$DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
+	REP1_TA_FILE 		:="$DATASET_PREFIX"+"_Rep1" + suffix
+	REP2_TA_FILE 		:="$DATASET_PREFIX"+"_Rep2" + suffix
+	POOLED_TA_FILE 		:="$DATASET_PREFIX"+"_Rep0.tagAlign.gz"
+	REP1_PR1_TA_FILE 	:="$DATASET_PREFIX"+"_Rep1" + suffix_PSR + ".pr1.tagAlign.gz"
+	REP1_PR2_TA_FILE 	:="$DATASET_PREFIX"+"_Rep1" + suffix_PSR + ".pr2.tagAlign.gz"
+	REP2_PR1_TA_FILE 	:="$DATASET_PREFIX"+"_Rep2" + suffix_PSR + ".pr1.tagAlign.gz"
+	REP2_PR2_TA_FILE 	:="$DATASET_PREFIX"+"_Rep2" + suffix_PSR + ".pr2.tagAlign.gz"
+	PPR1_TA_FILE 		:="$DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
+	PPR2_TA_FILE 		:="$DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
 
-	ctl_fastqs_Rep1 	:= get_fastqs( 1, 1 )
-	ctl_fastqs_Rep2 	:= get_fastqs( 1, 2 ) // check if rep2 doesn't exist
 	ctl_suffix_PE 		:= ".filt.srt.nodup.PE2SE.tagAlign.gz"
 	ctl_suffix_SE 		:= ".filt.nodup.srt.SE.tagAlign.gz"
-	ctl_suffix 			:= ctl_fastqs_Rep1.size()==2 ? ctl_suffix_PE : ctl_suffix_SE
 	ctl_suffix_PSR_PE 	:= ".filt.nodup.PE2SE"
 	ctl_suffix_PSR_SE 	:= ".filt.nodup.SE"
-	ctl_suffix_PSR 		:= ctl_fastqs_Rep1.size()==2 ? ctl_suffix_PSR_PE : ctl_suffix_PSR_SE
 
-	CTL_DATASET_PREFIX := get_ofprefix( 1 )
+	ctl_suffix 		:= is_paired_end( 1, 1 ) ? ctl_suffix_PE : ctl_suffix_SE
+	ctl_suffix_PSR 		:= is_paired_end( 1, 1 ) ? ctl_suffix_PSR_PE : ctl_suffix_PSR_SE
 
-	CTL_REP1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix
-	CTL_REP2_TA_FILE := ctl_fastqs_Rep2.size()>0 ? "$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix : CTL_REP1_TA_FILE
-	CTL_POOLED_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep0.tagAlign.gz"
-	CTL_REP1_PR1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix_PSR + ".pr1.tagAlign.gz"
-	CTL_REP1_PR2_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix_PSR + ".pr2.tagAlign.gz"
-	CTL_REP2_PR1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix_PSR + ".pr1.tagAlign.gz"
-	CTL_REP2_PR2_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix_PSR + ".pr2.tagAlign.gz"
-	CTL_PPR1_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
-	CTL_PPR2_TA_FILE :="$CTL_DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
+	CTL_DATASET_PREFIX 	:= get_ofprefix( 1 )
+
+	CTL_REP1_TA_FILE 	:="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix
+	CTL_REP2_TA_FILE 	:= is_rep2_exist( 1 ) ? "$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix : CTL_REP1_TA_FILE
+	CTL_POOLED_TA_FILE 	:="$CTL_DATASET_PREFIX"+"_Rep0.tagAlign.gz"
+	CTL_REP1_PR1_TA_FILE 	:="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix_PSR + ".pr1.tagAlign.gz"
+	CTL_REP1_PR2_TA_FILE 	:="$CTL_DATASET_PREFIX"+"_Rep1" + ctl_suffix_PSR + ".pr2.tagAlign.gz"
+	CTL_REP2_PR1_TA_FILE 	:= is_rep2_exist( 1 ) ? "$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix_PSR + ".pr1.tagAlign.gz" : CTL_REP1_PR1_TA_FILE
+	CTL_REP2_PR2_TA_FILE 	:= is_rep2_exist( 1 ) ? "$CTL_DATASET_PREFIX"+"_Rep2" + ctl_suffix_PSR + ".pr2.tagAlign.gz" : CTL_REP1_PR2_TA_FILE
+
+	CTL_PPR1_TA_FILE 	:="$CTL_DATASET_PREFIX"+"_Rep0.pr1.tagAlign.gz"
+	CTL_PPR2_TA_FILE 	:="$CTL_DATASET_PREFIX"+"_Rep0.pr2.tagAlign.gz"
 
 	PEAK_OUTPUT_DIR := OUTPUT_DIR + "/peaks"
 	PEAK_OUTPUT_DIR.mkdir() 
@@ -111,15 +103,15 @@ void spp_idr() {
 	///////////////////////////////// SPP
 
 	// cc score
-	PEAK_REP1_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP1_TA_FILE.baseName() + ".ccscores"
-	PEAK_REP2_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP2_TA_FILE.baseName() + ".ccscores"
-	PEAK_POOLED_CCSCORE := PEAK_OUTPUT_DIR + "/" + POOLED_TA_FILE.baseName() + ".ccscores"
-	PEAK_REP1_PR1_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP1_PR1_TA_FILE.baseName() + ".ccscores"
-	PEAK_REP1_PR2_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP1_PR2_TA_FILE.baseName() + ".ccscores"
-	PEAK_REP2_PR1_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP2_PR1_TA_FILE.baseName() + ".ccscores"
-	PEAK_REP2_PR2_CCSCORE := PEAK_OUTPUT_DIR + "/" + REP2_PR2_TA_FILE.baseName() + ".ccscores"
-	PEAK_PPR1_CCSCORE := PEAK_OUTPUT_DIR + "/" + PPR1_TA_FILE.baseName() + ".ccscores"
-	PEAK_PPR2_CCSCORE := PEAK_OUTPUT_DIR + "/" + PPR2_TA_FILE.baseName() + ".ccscores"
+	PEAK_REP1_CCSCORE 	:= PEAK_OUTPUT_DIR + "/" + get_basename( REP1_TA_FILE ) + ".ccscores"
+	PEAK_REP2_CCSCORE 	:= PEAK_OUTPUT_DIR + "/" + get_basename( REP2_TA_FILE ) + ".ccscores"
+	PEAK_POOLED_CCSCORE 	:= PEAK_OUTPUT_DIR + "/" + get_basename( POOLED_TA_FILE ) + ".ccscores"
+	PEAK_REP1_PR1_CCSCORE 	:= PEAK_OUTPUT_DIR + "/" + get_basename( REP1_PR1_TA_FILE ) + ".ccscores"
+	PEAK_REP1_PR2_CCSCORE 	:= PEAK_OUTPUT_DIR + "/" + get_basename( REP1_PR2_TA_FILE ) + ".ccscores"
+	PEAK_REP2_PR1_CCSCORE 	:= PEAK_OUTPUT_DIR + "/" + get_basename( REP2_PR1_TA_FILE ) + ".ccscores"
+	PEAK_REP2_PR2_CCSCORE 	:= PEAK_OUTPUT_DIR + "/" + get_basename( REP2_PR2_TA_FILE ) + ".ccscores"
+	PEAK_PPR1_CCSCORE 	:= PEAK_OUTPUT_DIR + "/" + get_basename( PPR1_TA_FILE ) + ".ccscores"
+	PEAK_PPR2_CCSCORE 	:= PEAK_OUTPUT_DIR + "/" + get_basename( PPR2_TA_FILE ) + ".ccscores"
 
 	// narrow peak
  	REP1_PEAK_FILE		:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, REP1_TA_FILE, CTL_REP1_TA_FILE, "narrowPeak" )
@@ -143,37 +135,40 @@ void spp_idr() {
 	PPR1_RPEAK_FILE		:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, PPR1_TA_FILE, CTL_PPR1_TA_FILE, "regionPeak" )
 	PPR2_RPEAK_FILE		:= get_spp_out_peak_filename( PEAK_OUTPUT_DIR, PPR2_TA_FILE, CTL_PPR2_TA_FILE, "regionPeak" )
 
-	run_spp( "Rep1", PEAK_OUTPUT_DIR, 		REP1_TA_FILE, CTL_REP1_TA_FILE, REP1_PEAK_FILE, REP1_RPEAK_FILE, PEAK_REP1_CCSCORE, FRAGLEN )
-	run_spp( "Rep2", PEAK_OUTPUT_DIR, 		REP2_TA_FILE, CTL_REP2_TA_FILE, REP2_PEAK_FILE, REP2_RPEAK_FILE, PEAK_REP2_CCSCORE, FRAGLEN )
-	run_spp( "Pooled", PEAK_OUTPUT_DIR, 	POOLED_TA_FILE, CTL_POOLED_TA_FILE, POOLED_PEAK_FILE, POOLED_RPEAK_FILE, PEAK_POOLED_CCSCORE, FRAGLEN )
-	run_spp( "Rep1_PR1", PEAK_OUTPUT_DIR, 	REP1_PR1_TA_FILE, CTL_REP1_PR1_TA_FILE, REP1_PR1_PEAK_FILE, REP1_PR1_RPEAK_FILE, PEAK_REP1_PR1_CCSCORE, FRAGLEN )
-	run_spp( "Rep1_PR2", PEAK_OUTPUT_DIR, 	REP1_PR2_TA_FILE, CTL_REP1_PR2_TA_FILE, REP1_PR2_PEAK_FILE, REP1_PR2_RPEAK_FILE, PEAK_REP1_PR2_CCSCORE, FRAGLEN )
-	run_spp( "Rep2_PR1", PEAK_OUTPUT_DIR, 	REP2_PR1_TA_FILE, CTL_REP2_PR1_TA_FILE, REP2_PR1_PEAK_FILE, REP2_PR1_RPEAK_FILE, PEAK_REP2_PR1_CCSCORE, FRAGLEN )
-	run_spp( "Rep2_PR2", PEAK_OUTPUT_DIR, 	REP2_PR2_TA_FILE, CTL_REP2_PR2_TA_FILE, REP2_PR2_PEAK_FILE, REP2_PR2_RPEAK_FILE, PEAK_REP2_PR2_CCSCORE, FRAGLEN )
-	run_spp( "PPR1", PEAK_OUTPUT_DIR, 		PPR1_TA_FILE, CTL_PPR1_TA_FILE, PPR1_PEAK_FILE, PPR1_RPEAK_FILE, PEAK_PPR1_CCSCORE, FRAGLEN )
-	run_spp( "PPR2", PEAK_OUTPUT_DIR, 		PPR2_TA_FILE, CTL_PPR2_TA_FILE, PPR2_PEAK_FILE, PPR2_RPEAK_FILE, PEAK_PPR2_CCSCORE, FRAGLEN )
+	run_spp( "Rep1", PEAK_OUTPUT_DIR, 	REP1_TA_FILE, CTL_REP1_TA_FILE, REP1_PEAK_FILE, REP1_RPEAK_FILE, PEAK_REP1_CCSCORE, FRAG_LEN )	
+	run_spp( "Rep2", PEAK_OUTPUT_DIR, 	REP2_TA_FILE, CTL_REP2_TA_FILE, REP2_PEAK_FILE, REP2_RPEAK_FILE, PEAK_REP2_CCSCORE, FRAG_LEN )
+	run_spp( "Pooled", PEAK_OUTPUT_DIR, 	POOLED_TA_FILE, CTL_POOLED_TA_FILE, POOLED_PEAK_FILE, POOLED_RPEAK_FILE, PEAK_POOLED_CCSCORE, FRAG_LEN )
+	run_spp( "Rep1_PR1", PEAK_OUTPUT_DIR, 	REP1_PR1_TA_FILE, CTL_REP1_PR1_TA_FILE, REP1_PR1_PEAK_FILE, REP1_PR1_RPEAK_FILE, PEAK_REP1_PR1_CCSCORE, FRAG_LEN )
+	run_spp( "Rep1_PR2", PEAK_OUTPUT_DIR, 	REP1_PR2_TA_FILE, CTL_REP1_PR2_TA_FILE, REP1_PR2_PEAK_FILE, REP1_PR2_RPEAK_FILE, PEAK_REP1_PR2_CCSCORE, FRAG_LEN )
+	run_spp( "Rep2_PR1", PEAK_OUTPUT_DIR, 	REP2_PR1_TA_FILE, CTL_REP2_PR1_TA_FILE, REP2_PR1_PEAK_FILE, REP2_PR1_RPEAK_FILE, PEAK_REP2_PR1_CCSCORE, FRAG_LEN )
+	run_spp( "Rep2_PR2", PEAK_OUTPUT_DIR, 	REP2_PR2_TA_FILE, CTL_REP2_PR2_TA_FILE, REP2_PR2_PEAK_FILE, REP2_PR2_RPEAK_FILE, PEAK_REP2_PR2_CCSCORE, FRAG_LEN )
+	run_spp( "PPR1", PEAK_OUTPUT_DIR, 	PPR1_TA_FILE, CTL_PPR1_TA_FILE, PPR1_PEAK_FILE, PPR1_RPEAK_FILE, PEAK_PPR1_CCSCORE, FRAG_LEN )
+	run_spp( "PPR2", PEAK_OUTPUT_DIR, 	PPR2_TA_FILE, CTL_PPR2_TA_FILE, PPR2_PEAK_FILE, PPR2_RPEAK_FILE, PEAK_PPR2_CCSCORE, FRAG_LEN )
 
 	wait
 
-	// create null NPEAKS_IDR file
-	//task ( taskName := "Prepare NPEAKS_IDR.txt" , cpu := 1 ) {
-	sys echo "Sample type\tNumber of peaks" > "$PEAK_OUTPUT_DIR/NPEAKS_IDR.txt"
-	//}
+	// create NPEAKS_IDR file	
+	NPEAKS_IDR := "$PEAK_OUTPUT_DIR/NPEAKS_IDR.txt"
+
+	task ( taskName := "create NPEAKS_IDR.txt", \
+		NPEAKS_IDR <- [REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE] ) {
+		sys echo -e "Sample type\tNumber of peaks" > $NPEAKS_IDR
+	}
 	
 	///////////////////////////////// IDR
-	run_idr( "Rep1_vs_Rep2", PEAK_OUTPUT_DIR, 			REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE ) // (1) or 4a
-//	run_idr( "PPR1_vs_PPR2", PEAK_OUTPUT_DIR, 			PPR1_PEAK_FILE, PPR2_PEAK_FILE, POOLED_PEAK_FILE ) // (2) or 4c
-//	run_idr( "Rep1_PR1_vs_Rep1_PR2", PEAK_OUTPUT_DIR, 	REP1_PR1_PEAK_FILE, REP1_PR2_PEAK_FILE, REP1_PEAK_FILE ) // (3) or 4b-1
-//	run_idr( "Rep2_PR1_vs_Rep2_PR2", PEAK_OUTPUT_DIR, 	REP2_PR1_PEAK_FILE, REP2_PR2_PEAK_FILE, REP2_PEAK_FILE ) // (4) or 4b-2
+	run_idr( "Rep1_vs_Rep2", PEAK_OUTPUT_DIR, 		REP1_PEAK_FILE, REP2_PEAK_FILE, POOLED_PEAK_FILE ) // (1) or 4a
+	run_idr( "PPR1_vs_PPR2", PEAK_OUTPUT_DIR, 		PPR1_PEAK_FILE, PPR2_PEAK_FILE, POOLED_PEAK_FILE ) // (2) or 4c
+	run_idr( "Rep1_PR1_vs_Rep1_PR2", PEAK_OUTPUT_DIR, 	REP1_PR1_PEAK_FILE, REP1_PR2_PEAK_FILE, REP1_PEAK_FILE ) // (3) or 4b-1
+	run_idr( "Rep2_PR1_vs_Rep2_PR2", PEAK_OUTPUT_DIR, 	REP2_PR1_PEAK_FILE, REP2_PR2_PEAK_FILE, REP2_PEAK_FILE ) // (4) or 4b-2
 
 	wait
+
 }
 
 string get_spp_out_peak_filename( string dir, string ta1, string ta2, string type ) {
-
 	return dir + "/" \
- 			+ rm_str_at_end( ta1.baseName(),".gz" ) \
- 			+ "_VS_" + rm_str_at_end( ta2.baseName(),".gz" ) + "." + type + ".gz" \
+ 		+ rm_str_at_end( get_basename( ta1 ),".gz" ) \
+ 		+ "_VS_" + rm_str_at_end( get_basename( ta2 ),".gz" ) + "." + type + ".gz" \
  			
 }
 
@@ -184,25 +179,22 @@ void run_spp( string taskname, string out_dir, string ta, string ctl_ta, string 
 
 		sys $PRELOAD
 
-		sys Rscript $(which $RUN_SPP) -c=$ta -p=$NTHREADS_RUN_SPP -i=$ctl_ta \
+		sys Rscript $(which run_spp_nodups.R) -c=$ta -p=$NTHREADS_RUN_SPP -i=$ctl_ta \
 			-npeak=$NPEAK -odir=$out_dir -speak=$fraglen -savn -savr -savp -rf -out=$ccscore
 	}
 }
 
 void run_idr( string taskname, string out_dir, string peak1, string peak2, string pooled ) {
 
-	if ( USE_IDR_NBOLEY ) {
-		run_idr_nboley( taskname, out_dir, peak1, peak2, pooled )
-	}
-	else {
-		run_idr_anshul( taskname, out_dir, peak1, peak2, pooled )
-	}
+	if ( USE_IDR_NBOLEY ) 	run_idr_nboley( taskname, out_dir, peak1, peak2, pooled )
+	else 			run_idr_anshul( taskname, out_dir, peak1, peak2, pooled )
 }
 
 void run_idr_nboley( string taskname, string out_dir, string peak1, string peak2, string pooled ) {
 
 	prefix := "$out_dir/$taskname"
 	IDR_OUTPUT := "$prefix.IDR"
+	NPEAKS_IDR := "$out_dir/NPEAKS_IDR.txt"
 
 	task( taskName := "IDR (nboley)" + taskname, cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 		IDR_OUTPUT <- [peak1, peak2, pooled] ) { // --use-old-output-format 
@@ -212,34 +204,36 @@ void run_idr_nboley( string taskname, string out_dir, string peak1, string peak2
 		sys idr --samples $peak1 $peak2 --peak-list $pooled --input-file-type narrowPeak \
 			--output-file $IDR_OUTPUT --plot --idr-threshold $IDR_THRESH
 
-		sys echo "$taskname\t$(cat $IDR_OUTPUT | wc -l)" >> "$out_dir/NPEAKS_IDR.txt"
+		sys echo -e "$taskname\t$(cat $IDR_OUTPUT | wc -l)" >> $NPEAKS_IDR
 	}
 }
 
 void run_idr_anshul( string taskname, string out_dir, string peak1, string peak2, string pooled ) {
 
-	prefix := "$out_dir/$taskname"
-	IDR_OUTPUT := "$prefix.IDR"
-	POOLED_COMMON_PEAKS := "$prefix.POOLED_COMMON_PEAKS.gz"
-	COMMON_REP1_MATCH := "$prefix.COMMON_REP1_MATCH.gz"
-	COMMON_REP2_MATCH := "$prefix.COMMON_REP2_MATCH.gz"
-	REP1_VS_REP2 := "$prefix.REP1_VS_REP2.gz"
+	prefix 	:= "$out_dir/$taskname"
+	NPEAKS_IDR := "$out_dir/NPEAKS_IDR.txt"	
+
+	POOLED_COMMON_PEAKS 	:= "$prefix.POOLED_COMMON_PEAKS.gz"
+	COMMON_REP1_MATCH 	:= "$prefix.COMMON_REP1_MATCH.gz"
+	COMMON_REP2_MATCH 	:= "$prefix.COMMON_REP2_MATCH.gz"
+	REP1_VS_REP2 		:= prefix
 	RECAL_POOLED_COMMON_PEAKS := "$prefix.RECAL_POOLED_COMMON_PEAKS.gz"
 	POOLED_COMMON_PEAKS_IDR := "$prefix.POOLED_COMMON_PEAKS_IDR.gz"
 
-	OUTPUT_PREFIX := taskname
+	IDR_OUTPUT 	:= REP1_VS_REP2+".IDR"+IDR_THRESH+".narrowPeak.gz"
+	OUTPUT_PREFIX 	:= taskname
 
 	// temp files to replace floating point number with integer
-	peak1_ 	:= "$out_dir/_"+peak1.baseName()
-	peak2_ 	:= "$out_dir/_"+peak2.baseName()
-	pooled_ := "$out_dir/_"+pooled.baseName()
+	peak1_ 	:= "$out_dir/_" + get_basename( peak1 )
+	peak2_ 	:= "$out_dir/_" + get_basename( peak2 )
+	pooled_ := "$out_dir/_" + get_basename( pooled )
 
 	task( taskName := "IDR (anshul)" + taskname, cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 		IDR_OUTPUT <- [peak1, peak2, pooled] ) { // --use-old-output-format 
 
 		sys $PRELOAD
 
-		// bug fix (we have floating point representation of chr location, bug in run_spp.R?)
+		// Bug fix (we have floating point representation of chr coord., possible bug in run_spp.R?):
 		// chr3    153999636       1.54e+08        .       0       .       4.47152214284156        -1      -0.0118951365772202     18
 		sys zcat $peak1 | awk 'BEGIN{OFS="\t"}{print $1,int($2),int($3),$4,$5,$6,$7,$8,$9,$10;}' | gzip -c > $peak1_
 		sys zcat $peak2 | awk 'BEGIN{OFS="\t"}{print $1,int($2),int($3),$4,$5,$6,$7,$8,$9,$10;}' | gzip -c > $peak2_
@@ -257,11 +251,11 @@ void run_idr_anshul( string taskname, string out_dir, string peak1, string peak2
 		sys bedtools intersect -wa -wb -a $POOLED_COMMON_PEAKS -b $peak1_ \
 			| awk 'BEGIN{OFS="\t"}{d=$2+$10-$12-$20;$21=sqrt(d^2);print $0}' \
 			| bedtools groupby -i stdin -g 1,2,3,10 -c 21 -o min -full | sort -k7n,7n -k1,1 -k2n,2n -k3n,3n -k10n,10n \
-			| awk 'BEGIN{OFS="\t"}{print $1,$2+$10-2,$2+$10+2,$3,$4,$5,$6,$17,$18,$19,2}' | gzip -c > $COMMON_REP1_MATCH
+			| awk 'BEGIN{OFS="\t"}{print $1,$2+$10-2,$2+$10+2,$4,$5,$6,$17,$18,$19,2}' | gzip -c > $COMMON_REP1_MATCH
 		sys bedtools intersect -wa -wb -a $POOLED_COMMON_PEAKS -b $peak2_ \
 			| awk 'BEGIN{OFS="\t"}{d=$2+$10-$12-$20;$21=sqrt(d^2);print $0}' \
 			| bedtools groupby -i stdin -g 1,2,3,10 -c 21 -o min -full | sort -k7n,7n -k1,1 -k2n,2n -k3n,3n -k10n,10n \
-			| awk 'BEGIN{OFS="\t"}{print $1,$2+$10-2,$2+$10+2,$3,$4,$5,$6,$17,$18,$19,2}' | gzip -c > $COMMON_REP2_MATCH
+			| awk 'BEGIN{OFS="\t"}{print $1,$2+$10-2,$2+$10+2,$4,$5,$6,$17,$18,$19,2}' | gzip -c > $COMMON_REP2_MATCH
 
 		//# =============================
 		//# Pass recalibrated peak files to IDR
@@ -302,22 +296,26 @@ void run_idr_anshul( string taskname, string out_dir, string peak1, string peak2
 		//# Get peaks passing IDR threshold of 2%
 		//# =============================
 		//sys IDR_THRESH=0.02
-
 		sys zcat $POOLED_COMMON_PEAKS_IDR | awk 'BEGIN{OFS="\t"} $14<='"$IDR_THRESH"' {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' \
-			| sort -k7n,7n | gzip -c > $REP1_VS_REP2.IDR$IDR_THRESH.narrowPeak.gz
+			| sort -k7n,7n | gzip -c > $IDR_OUTPUT
 
-		sys NPEAKS_IDR=$(zcat $REP1_VS_REP2.IDR$IDR_THRESH.narrowPeak.gz | wc -l)
+		sys NPEAKS_IDR=$(zcat $IDR_OUTPUT | wc -l)
 
 		//# =============================
 		//# Format: Rscript batch-consistency-plot.r [npairs] [output.prefix] [input.file.prefix1] [input.file.prefix2] [input.file.prefix3] ....
 		//# =============================
-		sys cd $(dirname $(which batch-consistency-analysis.r))
-		sys Rscript batch-consistency-plot.r 2 $OUTPUT_PREFIX $REP1_VS_REP2
+		sys cd $(dirname $(which batch-consistency-plot.r))
+		sys Rscript batch-consistency-plot.r 1 $REP1_VS_REP2 $REP1_VS_REP2
 		sys cd $out_dir
 		
 		sys rm -rf $peak1_ $peak2_ $pooled_
 
-		sys echo "$taskname\t${NPEAKS_IDR}" >> "$out_dir/NPEAKS_IDR.txt"
+		sys echo -e "$taskname\t${NPEAKS_IDR}" >> $NPEAKS_IDR
 	}
 }
 
+
+string get_basename( string path ) { // BDS .baseName() returns wrong basename for softlinks	
+	int loc_slash = path.lastIndexOf( "/" )
+	return path.substr( loc_slash+1 )
+}
