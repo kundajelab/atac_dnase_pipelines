@@ -4,8 +4,6 @@ include "pipeline.bds"
 
 ///////////// command line argument wrapper ////////////////
 
-string input 		= "fastq"			help Input file type: two options (fastq: including mapping of fastqs, tagalign)
-
 int nth_bwa 		= 4 				help Number of threads for bwa aln (default: 4).
 string idx_bwa 		= ""				help Path for bwa index.
 string param_bwa	= "-q 5 -l 32 -k 2" 		help Parameters for bwa align (default: "-q 5 -l 32 -k 2" ).
@@ -25,6 +23,9 @@ string umap 		= "" 				help Path for umap (for hg19, path for globalmap_k20tok54
 string seq 		= "" 				help Path for sequence files (for hg19, directory where chr*.fa exist).
 string chrsz 		= "" 				help Path for chrom.sizes file for your sequence files.
 
+// input file type
+string input 		= "fastq"			help Input file type: two options (fastq: including mapping of fastqs, tagalign)
+
 // for fastqs (SE)
 string fastq1 		= "" 				help Path for input fastq for replicate 1 (single ended).
 string fastq2 		= "" 				help Path for input fastq for replicate 2 (single ended).
@@ -38,15 +39,15 @@ string fastq2_1 	= "" 				help Path for input fastq for replicate 2 pair 1 (pair
 string fastq2_2 	= "" 				help Path for input fastq for replicate 2 pair 2 (paired-end).
 string ctl_fastq1_1	= "" 				help Path for control fastq for replicate 1 pair 1 (paired-end).
 string ctl_fastq1_2	= "" 				help Path for control fastq for replicate 1 pair 2 (paired-end).
-string ctl_fastq2_1 	= "" 				help Path for control fastq for replicate 2 pair 1 (paired-end).
-string ctl_fastq2_2 	= "" 				help Path for control fastq for replicate 2 pair 2 (paired-end).
+string ctl_fastq2_1 	= "" 				help Path for control fastq for replicate 2 pair 1 (paired-end, if not exists leave this blank).
+string ctl_fastq2_2 	= "" 				help Path for control fastq for replicate 2 pair 2 (paired-end, if not exists leave this blank).
 
 // for tagalign data set
-bool tagalign_PE 	= "" 				help Set it true of tagaligns are paired end
-string tagalign1 	= ""				help Path for tagAlign for replicate 1
-string tagalign2 	= ""				help Path for tagAlign for replicate 2
-string ctl_tagalign1 	= "" 				help Path for control tagAlign for replicate 1
-string ctl_tagalign2 	= "" 				help Path for control tagAlign for replicate 2
+bool tagalign_PE 	= false 			help Set it true if tagaligns are paired end (default: false).
+string tagalign1 	= ""				help Path for tagAlign for replicate 1.
+string tagalign2 	= ""				help Path for tagAlign for replicate 2.
+string ctl_tagalign1 	= "" 				help Path for control tagAlign for replicate 1.
+string ctl_tagalign2 	= "" 				help Path for control tagAlign for replicate 2 (if not exists leave this blank).
 //int fraglen 		= 200  				help FragLen for tagAlign input
 
 

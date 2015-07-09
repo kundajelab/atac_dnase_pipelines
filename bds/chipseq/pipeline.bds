@@ -295,4 +295,12 @@ real parse_real( string str ) {
 	return rm_comment( str ).parseReal()
 }
 
+int round( real f ) {
+	string s = f
+	arr := s.split('\.')
+	int a = arr[0].parseInt()
+	int b = arr[1].parseInt()
+	if ( b >= 5 ) return a+1
+	else return a
+}
 
