@@ -14,56 +14,56 @@ $bds tf_chipseq.bds [CONF_FILE]
 
 $cat [CONF_FILE]
 
-	PREFIX         		: Prefix for all outputs.
-	OUTPUT_DIR     		: Output directory. (default: out)
-	TMP_DIR        		: Temporary directory for intermediate files. (default: tmp).
+	PREFIX			: Prefix for all outputs.
+	OUTPUT_DIR		: Output directory. (default: out)
+	TMP_DIR			: Temporary directory for intermediate files. (default: tmp).
 
 	REF_GENOME		: Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
 
-	WALLTIME       		: Default walltime in seconds for all cluster jobs (default: 36000).
-	NTHREADS       		: Default number of threads for all cluster jobs (default: 1).
-	MEMORY         		: Default max. memory in MB for all cluster jobs (default: 4000).
+	WALLTIME		: Default walltime in seconds for all cluster jobs (default: 36000).
+	NTHREADS		: Default number of threads for all cluster jobs (default: 1).
+	MEMORY			: Default max. memory in MB for all cluster jobs (default: 4000).
 
-	MODULE          	: Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
-	SHELLCMD        	: Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
-	ADDPATH                 : Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
+	MODULE			: Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+	SHELLCMD		: Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test")
+	ADDPATH			: Paths to be added to env. var. PATH separated by ; or :. (a quicker way to add PATH)
 
-	QC_ONLY                 : Set it true to test-run and stop before peak calling, false: keep going through IDR (default: false).
-	NUM_REP                 : # of replicates, set it only for qc = true. (default: 1).
+	QC_ONLY			: Set it true to test-run and stop before peak calling, false: keep going through IDR (default: false).
+	NUM_REP			: # of replicates, set it only for qc = true. (default: 1).
 
-	NTHREADS_BWA            : Number of threads for bwa aln (default: 4).
-	BWA_INDEX_NAME          : Path for bwa index.
-	BWA_ALN_PARAM           : Parameters for bwa align (default: "-q 5 -l 32 -k 2" ).
+	NTHREADS_BWA		: Number of threads for bwa aln (default: 4).
+	BWA_INDEX_NAME		: Path for bwa index.
+	BWA_ALN_PARAM		: Parameters for bwa align (default: "-q 5 -l 32 -k 2" ).
 
-	MAPQ_THRESH             : MAPQ_THRESH (default: 30).
-	NREADS                  : Parameter for NREADS (default. 15000000).
+	MAPQ_THRESH		: MAPQ_THRESH (default: 30).
+	NREADS			: Parameter for NREADS (default. 15000000).
 
-	CREATE_WIG              : Set it true to create wig (default: false).
-	CREATE_BEDGRAPH         : Set it true to create bedgraph (default: false).
-	CONVERT_TO_BIGWIG       : Set it true to convert bedgraph to bigwig signal track (default: false).
+	CREATE_WIG		: Set it true to create wig (default: false).
+	CREATE_BEDGRAPH		: Set it true to create bedgraph (default: false).
+	CONVERT_TO_BIGWIG	: Set it true to convert bedgraph to bigwig signal track (default: false).
 
-	UMAP_DIR                : Path for umap (for hg19, path for globalmap_k20tok54).
-	SEQ_DIR                 : Dir. for sequence files (for hg19, dir where chr*.fa exist).
-	CHROM_SIZES             : Path for chrom.sizes file for your sequence files.
+	UMAP_DIR		: Path for umap (for hg19, path for globalmap_k20tok54).
+	SEQ_DIR			: Dir. for sequence files (for hg19, dir where chr*.fa exist).
+	CHROM_SIZES		: Path for chrom.sizes file for your sequence files.
 
-	NTHREADS_RUN_SPP        : Number of threads for spp (run_spp.R) (default: 4).
-	NPEAK                   : Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
-	IDR_THRESH              : IDR thresh (default: 0.02).
-	USE_IDR_NBOLEY 	        : Use Nathan Boley's code for IDR, otherwise Anshul's code (default: true)
+	NTHREADS_RUN_SPP	: Number of threads for spp (run_spp.R) (default: 4).
+	NPEAK			: Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
+	IDR_THRESH		: IDR thresh (default: 0.02).
+	USE_IDR_NBOLEY		: Use Nathan Boley's code for IDR, otherwise Anshul's code (default: true)
 
-	INPUT_TYPE              : Input file type: two options (fastq: including mapping of fastqs, tagalign: starting from tagaligns)
+	INPUT_TYPE		: Input file type: two options (fastq: including mapping of fastqs, tagalign: starting from tagaligns)
 
 	# If inputs are fastqs
-	INPUT_FASTQ_REP1        : Path for input fastq for replicate 1 (single ended).
-	INPUT_FASTQ_REP2        : Path for input fastq for replicate 2 (single ended).
+	INPUT_FASTQ_REP1	: Path for input fastq for replicate 1 (single ended).
+	INPUT_FASTQ_REP2	: Path for input fastq for replicate 2 (single ended).
 
-	INPUT_FASTQ_REP1_PE1    : Path for input fastq for replicate 1 pair 1 (paired-end).
-	INPUT_FASTQ_REP1_PE2    : Path for input fastq for replicate 1 pair 2 (paired-end).
-	INPUT_FASTQ_REP2_PE1    : Path for input fastq for replicate 2 pair 1 (paired-end).
-	INPUT_FASTQ_REP2_PE2    : Path for input fastq for replicate 2 pair 2 (paired-end).
+	INPUT_FASTQ_REP1_PE1	: Path for input fastq for replicate 1 pair 1 (paired-end).
+	INPUT_FASTQ_REP1_PE2	: Path for input fastq for replicate 1 pair 2 (paired-end).
+	INPUT_FASTQ_REP2_PE1	: Path for input fastq for replicate 2 pair 1 (paired-end).
+	INPUT_FASTQ_REP2_PE2	: Path for input fastq for replicate 2 pair 2 (paired-end).
 
-	INPUT_FASTQ_CTL_REP1    : Path for control fastq for replicate 1 (single ended).
-	INPUT_FASTQ_CTL_REP2    : Path for control fastq for replicate 2 (single ended).
+	INPUT_FASTQ_CTL_REP1	: Path for control fastq for replicate 1 (single ended).
+	INPUT_FASTQ_CTL_REP2	: Path for control fastq for replicate 2 (single ended).
 	
 	INPUT_FASTQ_CTL_REP1_PE1: Path for control fastq for replicate 1 pair 1 (paired-end).
 	INPUT_FASTQ_CTL_REP1_PE2: Path for control fastq for replicate 1 pair 2 (paired-end).
@@ -71,13 +71,13 @@ $cat [CONF_FILE]
 	INPUT_FASTQ_CTL_REP2_PE2: Path for control fastq for replicate 2 pair 2 (paired-end).
 
 	# If inputs are tagaligns
-	TAGALIGN_PE             : Set it true if tagaligns are paired end
+	TAGALIGN_PE: Set it true if tagaligns are paired end
 
-	INPUT_TAGALIGN_REP1     : Path for input tagalign for replicate 1.
-	INPUT_TAGALIGN_REP2     : Path for input tagalign for replicate 2.
+	INPUT_TAGALIGN_REP1	: Path for input tagalign for replicate 1.
+	INPUT_TAGALIGN_REP2	: Path for input tagalign for replicate 2.
 
-	INPUT_TAGALIGN_CTL_REP1 : Path for control tagalign for replicate 1.
-	INPUT_TAGALIGN_CTL_REP2 : Path for control tagalign for replicate 2 (if not exists, leave this blank).
+	INPUT_TAGALIGN_CTL_REP1	: Path for control tagalign for replicate 1.
+	INPUT_TAGALIGN_CTL_REP2	: Path for control tagalign for replicate 2 (if not exists, leave this blank).
 
 ```
 
