@@ -1,8 +1,8 @@
 ################ local installation ##################
 
 # DO NOT CHANGE NAMING OF SOFTWARE DIRECTORY!
-SOFTWARE=$HOME"software_bds"
-BASHRC=$HOME"add_to_bashrc"
+SOFTWARE=$HOME/software_bds
+BASHRC=$HOME/add_to_bashrc
 
 echo
 echo "IMPORTANT!"
@@ -30,7 +30,7 @@ echo "Starting automatic installation for dependencies for ChIP-seq pipeline."
 echo "Make sure you have enough disk space (at least 2GB) on your file system."
 echo "All dependencies will be installed under $SOFTWARE."
 echo "Don't forget to All dependencies will be installed under $SOFTWARE."
-echo "Once installation is done, we recommend to add $BASHRC to your $HOME.bashrc or $HOME.bash_profile."
+echo "Once installation is done, we recommend to add $BASHRC to your $HOME/.bashrc or $HOME/.bash_profile."
 echo "=============================================================================="
 read -p "Press [Enter] key to continue..."
 echo

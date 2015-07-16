@@ -152,7 +152,7 @@ void read_param_general() {
 		PATH := " export PATH="
 		for ( string str : paths ) \
 			PATH = PATH + str.trim() + ":"
-		PATH := PATH + "\${PATH}"
+		PATH = PATH + "\${PATH}"
 
 		PRELOAD_SHELLCMD = PRELOAD_SHELLCMD + PATH + ";"
 	}
