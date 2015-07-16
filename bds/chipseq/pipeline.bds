@@ -2,30 +2,28 @@
 
 helpUnsorted := true // help will not be sorted
 
-
 // cmd line arg. wrapper
 string c 		= "" 			help Configuration file path (if not specified, define parameters in command line argument).
 
 string prefix		= ""			help Prefix for all outputs.
 string o 		= "out" 		help Output directory. (default: out)
 string tmp 		= "tmp"			help Temporary directory for intermediate files. (default: tmp).
-string gen		= "" 			help Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
+//string gen		= "" 			help Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
 
-int wt 			= 22000			help Default walltime in seconds for all cluster jobs (default: 22000).
+int wt 			= 10800			help Default walltime in seconds for all cluster jobs (default: 10800).
 int nth			= 1 			help Default number of threads for all cluster jobs (default: 1).
-int mem 		= 8000			help Default max. memory in MB for all cluster jobs (default: 8000).
+int mem 		= 4000			help Default max. memory in MB for all cluster jobs (default: 4000).
 
 string mod 		= ""			help Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
 string shcmd 		= ""			help Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test"). 
-string addpath 		= "" 			help Path to be appended to env. var. PATH. Multiple paths should be separated by ; (example: "/bin/test:/bin/test2")
-
+string addpath 		= "" 			help Path to be PREPENDED to env. var. PATH. Multiple paths should be separated by ; (example: "/bin/test:/bin/test2")
 
 // parameters
 string CONF_FILE 	= c
 string PREFIX 		= prefix
 string OUTPUT_DIR 	= o
 string TMP_DIR 		= tmp
-string REF_GENOME	= gen
+//string REF_GENOME	= gen
 
 int WALLTIME 		= wt
 int NTHREADS 		= nth
@@ -43,12 +41,13 @@ string SCRIPT_PATH	= SCRIPT_FILE.dirName() // dir of your BDS script
 
 // system parameters
 string{} conf 		// config. file
+string DIR_SW_BDS 		= "$HOME"+"software_bds"
+string INIT_MOD 		= "/etc/profile.d/modules.sh"
 string PRELOAD 			= ""
-string PRELOAD_MODULE_HEADER 	= ". /etc/profile.d/modules.sh;"
+string PRELOAD_MODULE_HEADER 	= ". $INIT_MOD;"
 string PRELOAD_MODULE 		= ""
-string PRELOAD_SHELLCMD_HEADER 	= "export PATH=\"\${PATH}:/bin:/usr/bin:$SCRIPT_PATH:\";" // default path for basic linux utils
+string PRELOAD_SHELLCMD_HEADER 	= "export PATH=\"\${PATH}:/bin:/usr/bin:$SCRIPT_PATH:\${HOME}/.bds\";" // default path for basic linux utils
 string PRELOAD_SHELLCMD 	= ""
-
 
 
 void read_param_general() {
@@ -78,7 +77,7 @@ void read_param_general() {
 		if ( conf.hasKey("NTHREADS") ) 		NTHREADS  	= parse_int( conf{ "NTHREADS" } ) 
 		if ( conf.hasKey("MEMORY") ) 		MEMORY 		= parse_int( conf{ "MEMORY" } ) 
 
-		if ( conf.hasKey("REF_GENOME") )	REF_GENOME	= rm_comment( conf{ "REF_GENOME" } ) 
+		//if ( conf.hasKey("REF_GENOME") )	REF_GENOME	= rm_comment( conf{ "REF_GENOME" } ) 
 
 
 		for( string k : conf.keys() ) {
@@ -118,21 +117,23 @@ void read_param_general() {
 		}
 	} 
 	else {
-
-		if ( MODULE=="" ) \
-			print( "Warning: MODULE is not specified.\n")
-		if ( SHELLCMD=="" ) \
-			print( "Warning: SHELLCMD is not specified.\n")
+		//if ( MODULE=="" ) \
+		//	print( "Warning: MODULE is not specified.\n")
+		//if ( SHELLCMD=="" ) \
+		//	print( "Warning: SHELLCMD is not specified.\n")
 		//if ( ADDPATH=="" ) \
 		//	print( "Warning: ADDPATH is not specified.\n")
 	}
 
 	if ( MODULE!="" ) {
-		trimmed := MODULE.trim()
-		mods := trimmed.split(";")
+		if ( INIT_MOD.exists() ) { // if /etc/profile.d/modules.sh exists
 
-		for ( string str : mods ) \
-			PRELOAD_MODULE = PRELOAD_MODULE + " module add " + str.trim() + ";"
+			trimmed := MODULE.trim()
+			mods := trimmed.split(";")
+
+			for ( string str : mods ) \
+				PRELOAD_MODULE = PRELOAD_MODULE + " module add " + str.trim() + ";"
+		}
 	}
 
 	if ( SHELLCMD!="" ) {
@@ -145,10 +146,13 @@ void read_param_general() {
 
 		trimmed = trimmed.replace(":",";")
 		paths := trimmed.split(";")
-		PATH := " export PATH=\${PATH}"
-
+		//PATH := " export PATH=\${PATH}"
+		//for ( string str : paths ) \
+		//	PATH = PATH + ":" + str.trim()
+		PATH := " export PATH="
 		for ( string str : paths ) \
-			PATH = PATH + ":" + str.trim()
+			PATH = PATH + str.trim() + ":"
+		PATH := PATH + "\${PATH}"
 
 		PRELOAD_SHELLCMD = PRELOAD_SHELLCMD + PATH + ";"
 	}
@@ -165,12 +169,12 @@ void read_param_general() {
 	print("OUTPUT_DIR = $OUTPUT_DIR\n");
 	print("TMP_DIR = $TMP_DIR\n");
 
-	print("REF_GENOME = $REF_GENOME (for genome browser track generation)\n" );
+	//print("REF_GENOME = $REF_GENOME (for genome browser track generation)\n" );
 	print("WALLTIME = $WALLTIME (seconds)\n");
 	print("NTHREADS = $NTHREADS\n");
 	print("MEMORY = $MEMORY (megabytes)\n");
 
-	// additional initialization	
+	// additional initialization
 	PRELOAD = PRELOAD_SHELLCMD_HEADER + PRELOAD_SHELLCMD
 	if ( PRELOAD_MODULE != "" ) \
 		PRELOAD = PRELOAD + "; " + PRELOAD_MODULE_HEADER + PRELOAD_MODULE
@@ -180,8 +184,8 @@ void read_param_general() {
 	print("PRELOAD = $PRELOAD (shell commands to be executed at the beginning of every tasks\n");
 
 	// generate reference genome file if defined
-	if ( REF_GENOME != "" ) \
-		sys echo $REF_GENOME > "$OUTPUT_DIR/ref_genome.txt"
+	//if ( REF_GENOME != "" ) \
+	//	sys echo $REF_GENOME > "$OUTPUT_DIR/ref_genome.txt"
 }
 
 

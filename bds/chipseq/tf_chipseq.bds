@@ -1,15 +1,20 @@
 #!/usr/bin/env bds
 
-include "modules_align_map.bds"
+include "modules_chipseq.bds"
 
 // cmd line arg wrapper and help
-int nth_spp 		= 4		help Number of threads for spp (run_spp.R) (default: 4).
+int nth_spp 		= 2		help Number of threads for spp (run_spp.R) (default: 2).
+int wt_spp		= 40000		help Walltime in seconds for spp (default: 40000).
+int mem_spp		= 8000 		help Max. memory in MB for spp (default: 8000).
 int npeak 		= 300000 	help Parameter for -npeak in phantompeakqual tool run_spp.R (default: 300000).
 string idr_thresh 	= 0.02		help IDR thresh (default: 0.02).
-bool idr_nboley 	= true	 	help Use Nathan Boley's code for IDR, otherwise Anshul's code (default: true)
+bool idr_nboley 	= true	 	help Use Nathan Boley's code for IDR, otherwise Anshul Kundaje's code (default: true)
 
-// parameters
-int NTHREADS_RUN_SPP	= nth_spp
+// comp. resources for spp
+int NTHREADS_SPP	= nth_spp
+int WALLTIME_SPP 	= wt_spp
+int MEMORY_SPP		= mem_spp
+
 int NPEAK 		= npeak	
 string IDR_THRESH 	= idr_thresh
 bool USE_IDR_NBOLEY 	= idr_nboley
@@ -31,17 +36,25 @@ void read_param_tf_chipseq() {
 	if ( conf_file_exists() ) {
 
 		// peak calling (phantompeakqualtools: run_spp.R)
-		if ( conf.hasKey("NTHREADS_RUN_SPP") )	NTHREADS_RUN_SPP	= parse_int( conf{ "NTHREADS_RUN_SPP" } )
-		if ( conf.hasKey("NPEAK") ) 		NPEAK 			= parse_int( conf{ "NPEAK" } )
+		if ( conf.hasKey("NTHREADS_SPP") )	NTHREADS_SPP	= parse_int( conf{ "NTHREADS_SPP" } )
+		if ( conf.hasKey("WALLTIME_SPP") )	WALLTIME_SPP	= parse_int( conf{ "WALLTIME_SPP" } )
+		if ( conf.hasKey("MEMORY_SPP") )	MEMORY_SPP	= parse_int( conf{ "MEMORY_SPP" } )
+		if ( conf.hasKey("NPEAK") ) 		NPEAK 		= parse_int( conf{ "NPEAK" } )
 
 		// IDR
-		if ( conf.hasKey("IDR_THRESH") ) 	IDR_THRESH		= parse_real( conf{ "IDR_THRESH"} )
-		if ( conf.hasKey("USE_IDR_NBOLEY") ) 	USE_IDR_NBOLEY		= parse_bool( conf{ "USE_IDR_NBOLEY"} )
+		if ( conf.hasKey("IDR_THRESH") ) 	IDR_THRESH	= parse_real( conf{ "IDR_THRESH"} )
+		if ( conf.hasKey("USE_IDR_NBOLEY") ) 	USE_IDR_NBOLEY	= parse_bool( conf{ "USE_IDR_NBOLEY"} )
 	}
 
-	print("NTHREADS_RUN_SPP = $NTHREADS_RUN_SPP\n");
+	print("NTHREADS_SPP = $NTHREADS_SPP\n");
+	print("WALLTIME_SPP = $WALLTIME_SPP\n");
+	print("MEMORY_SPP = $MEMORY_SPP\n");
 	print("NPEAK = $NPEAK\n");
 	print("IDR_THRESH = $IDR_THRESH\n");
+	if ( USE_IDR_NBOLEY ) \
+		print("\nUsing Nathan Boley's IDR\n\n");
+	else \
+		print("\nUsing Anshul Kundaje's IDR\n\n");		
 }
 
 void spp_idr() {
@@ -179,12 +192,12 @@ string get_spp_out_peak_filename( string dir, string ta1, string ta2, string typ
 
 void run_spp( string taskname, string out_dir, string ta, string ctl_ta, string npeak, string rpeak, string ccscore, string fraglen ) {
 
-	task( taskName := "spp " + taskname, cpus := NTHREADS_RUN_SPP, timeout := WALLTIME, mem := MEMORY * M, \
+	task( taskName := "spp " + taskname, cpus := NTHREADS_SPP, timeout := WALLTIME, mem := MEMORY * M, \
 		[npeak, rpeak, ccscore] <- [ta, ctl_ta] ) {
 
 		sys $PRELOAD
 
-		sys Rscript $(which run_spp_nodups.R) -c=$ta -p=$NTHREADS_RUN_SPP -i=$ctl_ta \
+		sys Rscript $(which run_spp_nodups.R) -c=$ta -p=$NTHREADS_SPP -i=$ctl_ta \
 			-npeak=$NPEAK -odir=$out_dir -speak=$fraglen -savn -savr -savp -rf -out=$ccscore
 	}
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bds
 
-include "modules_align_map.bds"
+include "modules_chipseq.bds"
 
 
 // cmd line arg wrapper and help
