@@ -124,6 +124,16 @@ echo "# Path for PICARd tools" >> $BASHRC
 echo "export PATH=\$PATH:$SOFTWARE/picard-tools-1.92" >> $BASHRC
 echo "export PICARDROOT=$SOFTWARE/picard-tools-1.92" >> $BASHRC
 
+# Local installation for run_spp.R (Anshul's phantompeakqualtool)
+cd $SOFTWARE
+wget https://phantompeakqualtools.googlecode.com/files/ccQualityControl.v.1.1.tar.gz
+tar zxvf ccQualityControl.v.1.1.tar.gz
+rm -f ccQualityControl.v.1.1.tar.gz
+chmod 755 phantompeakqualtools/*
+echo "" >> $BASHRC
+echo "# Path for run_spp.R (Anshul's phantompeakqualtool)" >> $BASHRC
+echo "export PATH=\$PATH:$SOFTWARE/phantompeakqualtools" >> $BASHRC
+
 # Local installation instruction for R (2.15.1) and relevant packages
 cd $SOFTWARE
 wget http://cran.r-project.org/src/base/R-2/R-2.15.1.tar.gz
@@ -134,28 +144,20 @@ cd R-2.15.1
 ./configure --with-readline=no --with-x=no --enable-R-static-lib
 make
 cd $SOFTWARE
-wget http://compbio.med.harvard.edu/Supplements/ChIP-seq/spp_1.10.tar.gz
+#wget http://compbio.med.harvard.edu/Supplements/ChIP-seq/spp_1.10.tar.gz
 echo > tmp.R
   echo 'install.packages("snow", repos="http://cran.us.r-project.org")' >> tmp.R
   echo 'install.packages("snowfall", repos="http://cran.us.r-project.org")' >> tmp.R
   echo 'install.packages("bitops", repos="http://cran.us.r-project.org")' >> tmp.R
   echo 'install.packages("caTools", repos="http://cran.us.r-project.org")' >> tmp.R
-  echo 'install.packages("./spp_1.10.tar.gz")' >> tmp.R
+#  echo 'install.packages("./spp_1.10.tar.gz")' >> tmp.R
+  echo 'install.packages("./phantompeakqualtools/spp_1.10.1.tar.gz")' >> tmp.R
 $SOFTWARE/R-2.15.1/bin/Rscript tmp.R
 rm -f tmp.R
 echo "" >> $BASHRC
 echo "# Path for R (2.15.1)" >> $BASHRC
 echo "export PATH=\$PATH:$SOFTWARE/R-2.15.1/bin" >> $BASHRC
 
-# Local installation for run_spp.R (Anshul's phantompeakqualtool)
-cd $SOFTWARE
-wget https://phantompeakqualtools.googlecode.com/files/ccQualityControl.v.1.1.tar.gz
-tar zxvf ccQualityControl.v.1.1.tar.gz
-rm -f ccQualityControl.v.1.1.tar.gz
-chmod 755 phantompeakqualtools/*
-echo "" >> $BASHRC
-echo "# Path for run_spp.R (Anshul's phantompeakqualtool)" >> $BASHRC
-echo "export PATH=\$PATH:$SOFTWARE/phantompeakqualtools" >> $BASHRC
 
 # Local installation instruction for Python (3.4.3) and relevant packages (for Nathan Boley's IDR)
 cd $SOFTWARE
@@ -212,6 +214,7 @@ echo 1 >> tmp.stdin
 echo 3 >> tmp.stdin
 ./MCR2010b.bin -console < tmp.stdin
 rm -f tmp.stdin
+rm -f MCR2010b.bin
 echo "" >> $BASHRC
 echo "# Path for MCR2010b.bin" >> $BASHRC
 echo "MCRROOT=$SOFTWARE/MATLAB_Compiler_Runtime/v714" >> $BASHRC
@@ -224,7 +227,6 @@ echo "LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\${MCRJRE}" >> $BASHRC
 echo "XAPPLRESDIR=\${MCRROOT}/X11/app-defaults" >> $BASHRC
 echo "export LD_LIBRARY_PATH" >> $BASHRC
 echo "export XAPPLRESDIR" >> $BASHRC
-
 
 # WARNING
 echo
