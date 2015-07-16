@@ -52,7 +52,7 @@ int mapq_thresh 	= 30 				help MAPQ_THRESH (default: 30).
 int nreads 		= 15000000			help NREADS (default. 15000000).
 
 bool qc 		= false 			help Set it true to test-run and stop before peak calling, false: keep going through IDR (default: false).
-int num_rep 		= 1 				//help Number of replicates, set it only for qc = true. (default: 1).
+int num_rep 		= 2				help Number of replicates, define it for qc = true only. (default: 2).
 //int fraglen 		= 200  				//help FragLen for tagAlign input
 
 
@@ -76,11 +76,11 @@ string CHROM_SIZES 	= chrsz
 int MAPQ_THRESH 	= mapq_thresh
 int NREADS 		= nreads
 bool QC_ONLY		= qc
+int NUM_REP 		= num_rep
 //int FRAGLEN 		= fraglen
 
 // system vars
 int NUM_CTL
-int NUM_REP
 
 // program body
 init_cmd_line_arg_fastqs()
@@ -112,9 +112,13 @@ void read_param_align_map() {
 
 		// QC only?
 		if ( conf.hasKey("QC_ONLY") )		QC_ONLY 		= parse_bool( conf{ "QC_ONLY"} )
-			NUM_CTL 	= QC_ONLY ? 0 : 1
-			NUM_REP 	= QC_ONLY ? parse_int( conf{ "NUM_REP"} ) : 2
+		if ( QC_ONLY ) \
+			NUM_REP	= parse_int( conf{ "NUM_REP"} )
 	}
+	else {
+	}
+
+	NUM_CTL 	= QC_ONLY ? 0 : 1
 
 	// check params
 	if ( BWA_INDEX_NAME == "" ) error("BWA_INDEX_NAME is not specifed.")
@@ -217,9 +221,13 @@ void read_param_align_map() {
 				+ "$DIR_SW_BDS/idr/bin:" \
 				+ "$DIR_SW_BDS/python3.4/bin:" \
 				+ "$DIR_SW_BDS/align2rawsignal/bin:" \
+				+ "$DIR_SW_BDS/idrCode:" \
 				+ "\${PATH}"
 
-		SHELLCMD := "MCRROOT=$DIR_SW_BDS/MATLAB_Compiler_Runtime/v714;" \
+		SHELLCMD := "export PICARDROOT=$DIR_SW_BDS/picard-tools-1.92;" \
+
+		SHELLCMD = SHELLCMD \
+				+ "MCRROOT=$DIR_SW_BDS/MATLAB_Compiler_Runtime/v714;" \
 				+ "LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\${MCRROOT}/runtime/glnxa64;" \
 				+ "LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\${MCRROOT}/bin/glnxa64;" \
 				+ "MCRJRE=\${MCRROOT}/sys/java/jre/glnxa64/jre/lib/amd64;" \
@@ -447,7 +455,7 @@ void post_align_filt( int ctl, int rep ) {
 
 		PBC_FILE_QC :="$FINAL_BAM_PREFIX.pbc.qc"
 
-		task( taskName := "post_alignt_filt " + cat_ctl_rep(ctl, rep), \
+		task( taskName := "post_align_filt " + cat_ctl_rep(ctl, rep), \
 			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 			[PBC_FILE_QC, FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS, FINAL_NMSRT_BAM_FILE, FINAL_BAM_FILE] <- RAW_BAM_FILE ) {
 
@@ -551,7 +559,7 @@ void post_align_filt( int ctl, int rep ) {
 		FINAL_BAM_FILE_MAPSTATS :="$FINAL_BAM_PREFIX.flagstat.qc" //# QC file
 		PBC_FILE_QC 		:="$FINAL_BAM_PREFIX.pbc.qc"
 
-		task( taskName := "post_alignt_filt " + cat_ctl_rep(ctl, rep), \
+		task( taskName := "post_align_filt " + cat_ctl_rep(ctl, rep), \
 			cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
 			[PBC_FILE_QC, FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS, FINAL_BAM_FILE] <- RAW_BAM_FILE ) {
 

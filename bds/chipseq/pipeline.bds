@@ -41,7 +41,7 @@ string SCRIPT_PATH	= SCRIPT_FILE.dirName() // dir of your BDS script
 
 // system parameters
 string{} conf 		// config. file
-string DIR_SW_BDS 		= "$HOME"+"software_bds"
+string DIR_SW_BDS 		= "$HOME/software_bds"
 string INIT_MOD 		= "/etc/profile.d/modules.sh"
 string PRELOAD 			= ""
 string PRELOAD_MODULE_HEADER 	= ". $INIT_MOD;"
@@ -68,17 +68,14 @@ void read_param_general() {
 		if ( conf.hasKey("PREFIX") ) 		PREFIX 		= chk_slash( conf{ "PREFIX" } )
 
 		if ( conf.hasKey("OUTPUT_DIR") ) 	OUTPUT_DIR	= rm_comment( conf{ "OUTPUT_DIR" } ) 
-							OUTPUT_DIR 	= mkdir_path( OUTPUT_DIR )
 
 		if ( conf.hasKey("TMP_DIR") ) 		TMP_DIR 	= rm_comment( conf{ "TMP_DIR" } )
-							TMP_DIR 	= mkdir_path( TMP_DIR )
 
 		if ( conf.hasKey("WALLTIME") ) 		WALLTIME 	= parse_int( conf{ "WALLTIME" } ) 
 		if ( conf.hasKey("NTHREADS") ) 		NTHREADS  	= parse_int( conf{ "NTHREADS" } ) 
 		if ( conf.hasKey("MEMORY") ) 		MEMORY 		= parse_int( conf{ "MEMORY" } ) 
 
 		//if ( conf.hasKey("REF_GENOME") )	REF_GENOME	= rm_comment( conf{ "REF_GENOME" } ) 
-
 
 		for( string k : conf.keys() ) {
 			// if key is comment ignore
@@ -116,14 +113,9 @@ void read_param_general() {
 			}
 		}
 	} 
-	else {
-		//if ( MODULE=="" ) \
-		//	print( "Warning: MODULE is not specified.\n")
-		//if ( SHELLCMD=="" ) \
-		//	print( "Warning: SHELLCMD is not specified.\n")
-		//if ( ADDPATH=="" ) \
-		//	print( "Warning: ADDPATH is not specified.\n")
-	}
+
+	OUTPUT_DIR 	= mkdir_path( OUTPUT_DIR )
+	TMP_DIR 	= mkdir_path( TMP_DIR )
 
 	if ( MODULE!="" ) {
 		if ( INIT_MOD.exists() ) { // if /etc/profile.d/modules.sh exists

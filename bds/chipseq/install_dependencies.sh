@@ -6,7 +6,9 @@ BASHRC=$HOME/add_to_bashrc
 
 echo
 echo "IMPORTANT!"
-echo "Please ask your system administrator to have the following softwares installed on your system."
+echo
+echo "Please make sure that the following softwares are installed on your system."
+echo "These command lines need super-user privilege to install them, or ask your system administrator."
 echo "=============================================================================="
 echo "sudo apt-get install build-essential zlib1g-dev ncurses-dev gfortran libboost-all-dev"
 echo "sudo apt-get install openssl libssl-dev"
@@ -24,13 +26,28 @@ echo "sudo apt-get install python2.7"
 echo "=============================================================================="
 read -p "Press [Enter] key to continue..."
 
+
+echo
+echo "Add the following lines to your \$HOME/.bashrc or \$HOME/.bash_profile."
+echo "Once installation is done, we recommend to add $BASHRC to one of them too."
+echo "=============================================================================="
+echo "# Java settings"
+echo "export _JAVA_OPTIONS=\"-Xms256M -Xmx512M -XX:ParallelGCThreads=1\""
+echo "export MAX_JAVA_MEM=\"8G\""
+echo "export MALLOC_ARENA_MAX=4"
+echo
+echo "# BigDataScript settings"
+echo "export PATH=\$PATH:\$HOME/.bds"
+echo "=============================================================================="
+read -p "Press [Enter] key to continue..."
+echo
+
+
 echo
 echo "=============================================================================="
 echo "Starting automatic installation for dependencies for ChIP-seq pipeline."
 echo "Make sure you have enough disk space (at least 2GB) on your file system."
 echo "All dependencies will be installed under $SOFTWARE."
-echo "Don't forget to All dependencies will be installed under $SOFTWARE."
-echo "Once installation is done, we recommend to add $BASHRC to your $HOME/.bashrc or $HOME/.bash_profile."
 echo "=============================================================================="
 read -p "Press [Enter] key to continue..."
 echo
@@ -105,6 +122,7 @@ chmod 755 *
 echo "" >> $BASHRC
 echo "# Path for PICARd tools" >> $BASHRC
 echo "export PATH=\$PATH:$SOFTWARE/picard-tools-1.92" >> $BASHRC
+echo "export PICARDROOT=$SOFTWARE/picard-tools-1.92" >> $BASHRC
 
 # Local installation instruction for R (2.15.1) and relevant packages
 cd $SOFTWARE
@@ -167,6 +185,15 @@ $SOFTWARE/python3.4/bin/python3.4 setup.py install --prefix=$SOFTWARE/python3.4
 echo "" >> $BASHRC
 echo "# Path for IDR (written by Nathan Boley)" >> $BASHRC
 echo "export PATH=\$PATH:$SOFTWARE/idr/bin" >> $BASHRC
+
+# Local installation instruction for Anshul Kundaje's IDR
+cd $SOFTWARE
+wget https://sites.google.com/site/anshulkundaje/projects/idr/idrCode.tar.gz?attredirects=0 -O idrCode.tar.gz
+tar zxvf idrCode.tar.gz
+rm -f idrCode.tar.gz
+echo "" >> $BASHRC
+echo "# Path for IDR (written by Anshul Kundaje)" >> $BASHRC
+echo "export PATH=\$PATH:$SOFTWARE/idrCode" >> $BASHRC
 
 # Local installation instruction for Wiggler (for generating signal tracks)
 cd $SOFTWARE
