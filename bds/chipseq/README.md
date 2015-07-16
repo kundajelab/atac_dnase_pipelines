@@ -72,6 +72,14 @@ BWA_INDEX_NAME= /srv/scratch/leepc12/hg19/encodeHg19Male_v0.7.10/encodeHg19Male_
 USE_IDR_NBOLEY=true
 ```
 
+### For cluster use (Sun Grid Engine only)
+
+Add "-s sge" to the command line.
+
+```
+$bds -s sge tf_chipseq.bds ...
+```
+
 ### Contributors
 
 * Jin wook Lee - PhD Student, Mechanical Engineering Dept., Stanford University
