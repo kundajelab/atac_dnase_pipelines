@@ -62,7 +62,7 @@ $bds tf_chipseq.bds \
 -input fastq \
 -fastq1 /DATA/ENCSR000EGM/ENCFF000YLW.fastq.gz \
 -fastq2 /DATA/ENCSR000EGM/ENCFF000YLY.fastq.gz \
--ctl_fastq1_1 /DATA/ENCSR000EGM/Ctl/ENCFF000YRB.fastq.gz \
+-ctl_fastq1 /DATA/ENCSR000EGM/Ctl/ENCFF000YRB.fastq.gz \
 -idx_bwa /INDEX/encodeHg19Male_v0.7.10/encodeHg19Male_bwa-0.7.10.fa \
 -idr_nboley false
 ```
