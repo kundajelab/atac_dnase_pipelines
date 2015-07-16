@@ -5,12 +5,14 @@ ENCODE ChIP-Seq pipelines are based on https://docs.google.com/document/d/1lG_Rd
 
 Taking advandatge of the powerful pipeline language BigDataScript (http://pcingola.github.io/BigDataScript/index.html), ENCODE ChIP-Seq pipelines have the following features:
 
+```
 1) One-command-line installation for all dependencies for ChIP-Seq pipeline
 2) One command line (or one configuration file) to run the whole pipeline
 3) Automatically resuming from the point of failure for failed jobs (by comparing timestamps of input/output files)
 4) Optimized parallel jobs for the pipeline
 5) Sun Grid Engine cluster support
 6) Realtime HTML Progress report to monitor the pipeline jobs
+```
 
 ### Installation instruction (pipelines and their dependencies)
 
