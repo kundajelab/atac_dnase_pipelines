@@ -35,8 +35,9 @@ def parse_args():
                         default='')
     return parser.parse_args()
 
+SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
 
-ATAC_BDS = '/users/leepc12/code/pipelines/bds/atac/atac.bds'
+ATAC_BDS = os.path.join(SCRIPT_PATH, 'atac.bds')
 MOD_DEF = ('bowtie/2.2.4; samtools/1.2; bedtools/2.21.0; picard-tools/1.129; '
            'ucsc_tools/3.0.9; MACS2/2.1.0; java/latest; preseq/1.0.2; '
            'texlive/2013')
