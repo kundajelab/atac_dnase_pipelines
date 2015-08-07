@@ -1,15 +1,12 @@
 ATAC Seq Pipeline
 ===================================================
 
-Please take a look at <a href="../README.md">../README.md</a> first.
-
 
 ### Parameters from command line arguments 1
 
 ```
 $bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] [V_INDEX] [OUTPUTDIR] -mod "${MOD_DEF}" -shcmd "{ADDITIONAL_INIT}" -addpath "{PATH_FOR_SOFTWARES}"
 
-# Take a look at ../README.md for more details about arguments like -addpath, -mod and -shcmd
 # If you already have -V option (pass all env. vars to qsub) in your ~/.bds/bds.config and defined all env. vars on your current shell, you can skip these additional parameters.
 # Otherwise you need to define enviromnet variables with -mod, -shcmd and -addpath.
 
@@ -19,8 +16,7 @@ MOD_DEF= 'bowtie/2.2.4; samtools/1.2; bedtools/2.21.0; picard-tools/1.129; ucsc_
 PATH_FOR_SOFTWARES= '/biotools/bin:/whatever/software/you/need'
 ADDITIONAL_INIT= 'export _JAVA_OPTIONS="-Xms256M -Xmx512M -XX:ParallelGCThreads=1"; export MAX_JAVA_MEM="4G"; export MALLOC_ARENA_MAX=4'
 
-# There is another nice example on ./conf/cmds_all_jobs_atac_eugene_CORRECTED.sh
-# which includes more than 20 samples.
+# There is another nice example on ./conf/cmds_all_jobs_atac_eugene_CORRECTED.sh, which includes more than 20 samples.
 ```
 
 ### Parameters from command line arguments 2
