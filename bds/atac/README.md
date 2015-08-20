@@ -2,6 +2,26 @@ ATAC Seq Pipeline
 ===================================================
 
 
+### For Kundaje lab memebers
+
+Environment variables will be automatically set in Kundaje lab clusters.
+
+Add '-kundaje_lab true' at the end of the parameters.
+```
+$bds atac.bds [BOWTIE_IDX] [READ1] [READ2] [NUMTHREADS] [GENOMESIZE] [CHROMSIZE] [V_INDEX] [OUTPUTDIR] -kundaje_lab true
+```
+or
+
+Add 'KUNDAJE_LAB= true' to a configuration file.
+```
+$bds atac.bds [CONF_FILE]
+
+$cat [CONF_FILE]
+...
+KUNDAJE_LAB= true
+...
+```
+
 ### Parameters from command line arguments 1
 
 ```
@@ -25,6 +45,8 @@ ADDITIONAL_INIT= 'export _JAVA_OPTIONS="-Xms256M -Xmx512M -XX:ParallelGCThreads=
 $bds atac.bds [OPTS_FOR_ATAC]
 
 #[OPTS_FOR_ATAC] are like the following:
+
+	-KUNDAJE_LAB <bool>   : Set it true if you run the pipeline on Kundaje lab servers (automatically set environments, default: false)
 
 	-c <string>           : Configuration file path (if not specified, define parameters in command line argument).
 
@@ -57,6 +79,8 @@ $bds atac.bds [OPTS_FOR_ATAC]
 $bds atac.bds [CONF_FILE]
 
 $cat [CONF_FILE]
+
+	KUNDAJE_LAB : Set it true if you run the pipeline on Kundaje lab servers (automatically set environments, default: false)
 
 	PREFIX      : Prefix for all outputs.
 	OUTPUT_DIR  : Output directory. (default: out)
