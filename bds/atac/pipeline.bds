@@ -152,9 +152,7 @@ void read_param_general() {
 	}
 
 	// check params
-	if ( PREFIX=="") {
-		error( "PREFIX is null, specify it.\n" )
-	}	
+	//if ( PREFIX=="") error( "PREFIX is null, specify it.\n" )	
 
 	// print params
 	print("CONF_FILE = $CONF_FILE\n");
