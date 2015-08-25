@@ -49,7 +49,7 @@ void read_param_atac() {
 		if ( conf.hasKey("READ2") )			READ2		= chk_file( conf{ "READ2" }, "" )
 
 		///////// alignATAC /////////////////////
-		if ( conf.hasKey("BOWTIE_IDX") )		BOWTIE_IDX	= chk_file( conf{ "BOWTIE_IDX" }, ".1.bt2" )
+		if ( conf.hasKey("BOWTIE_IDX") )		BOWTIE_IDX	= chk_file( conf{ "BOWTIE_IDX" }, ".1.bt2l" )
 		if ( conf.hasKey("NUMTHREADS") )		NUMTHREADS	= parse_int( conf{ "NUMTHREADS" } )
 		if ( conf.hasKey("MEMORY_BWT2") )		MEMORY_BWT2	= parse_int( conf{ "MEMORY_BWT2" } )
 		
@@ -64,7 +64,7 @@ void read_param_atac() {
 		if ( conf.hasKey("fragLen") )			fragLen 	= parse_int( conf{ "fragLen" } )
 	}
 	else { // if there is no conf. file take first five arguments as input
-		BOWTIE_IDX 	= chk_file( args[0], ".1.bt2" )
+		BOWTIE_IDX 	= chk_file( args[0], ".1.bt2l" )
 		READ1 		= chk_file( args[1], "" )
 		READ2 		= chk_file( args[2], "" )
 		NUMTHREADS	= args[3].parseInt()
@@ -191,7 +191,22 @@ void main_atac() {
 				samtools view -F 1804 -f 2 -u - | \
 				samtools sort - "$FILT_BAM_PREFIX" 
 
-			sys rm -f "$TMP_FILT_BAM_FILE"
+			//# Only keep reads that map to human chromosomes
+			sys samtools index "$FILT_BAM_FILE"
+
+			sys humanChromosomes=$(grep ">chr" /srv/scratch/pangwei/het/genome/hg19_mm9_phix_ERCCv2.fa \
+									| sed 's/>//') 
+
+			sys samtools view "$FILT_BAM_FILE" | wc > mappedReads.count
+
+			sys samtools view -b "$FILT_BAM_FILE" ${humanChromosomes} > "$TMP_FILT_BAM_FILE"
+			sys samtools view "$TMP_FILT_BAM_FILE" | wc > mappedReadsHumanOnly.count
+
+			sys cp "$FILT_BAM_FILE" "$FILT_BAM_FILE".mappedReads.bam
+			sys cp "$TMP_FILT_BAM_FILE" "$FILT_BAM_FILE".mappedReadsHumanOnly.bam
+			sys mv "$TMP_FILT_BAM_FILE" "$FILT_BAM_FILE"
+			
+			//sys rm -f "$TMP_FILT_BAM_FILE"
 		}
 
 		wait
