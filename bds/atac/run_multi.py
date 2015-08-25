@@ -84,7 +84,6 @@ if __name__ == "__main__":
             chrom_size = GENOME2CHROM_SIZE[genome]
 
             if args.printscript:
-
                 # If --kundajelab is set, module definitions are automatically loaded in the BDS script.        
                 if (args.kundaje_lab):
                     printString = ' '.join(map(str, ['bds', '-s', args.system, ATAC_BDS,
