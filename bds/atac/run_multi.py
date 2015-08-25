@@ -80,7 +80,7 @@ if __name__ == "__main__":
             chrom_size = GENOME2CHROM_SIZE[genome]
 
             if args.printscript:
-                print_fp.write('%s\n' % ' '.join(
+                print_fp.write('%s &\n' % ' '.join(
                     map(str, ['bds', '-s', args.system, ATAC_BDS,
                               index, read1, read2, args.threads,
                               genome_size, chrom_size, tssfile,

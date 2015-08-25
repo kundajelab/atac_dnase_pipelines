@@ -10,9 +10,9 @@ string o 		= "out" 		help Output directory. (default: out)
 string tmp 		= "tmp"			help Temporary directory for intermediate files. (default: tmp).
 //string gen		= "" 			help Reference genome name for epigenome browser track generation (eg. hg19, hg18, mm9 or mm10)
 
-int wt 			= 10800			help Default walltime in seconds for all cluster jobs (default: 10800).
-int nth			= 1 			help Default number of threads for all cluster jobs (default: 1).
-int mem 		= 4000			help Default max. memory in MB for all cluster jobs (default: 4000).
+int wt 			= 86400			help Default walltime in seconds for all cluster jobs (default: 10800).
+int nth			= 4 			help Default number of threads for all cluster jobs (default: 1).
+int mem 		= 8000			help Default max. memory in MB for all cluster jobs (default: 4000).
 
 string mod 		= ""			help Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
 string shcmd 		= ""			help Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test"). 
