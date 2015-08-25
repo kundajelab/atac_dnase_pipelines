@@ -3,6 +3,7 @@
 include "pipeline.bds"
 
 bool kundaje_lab	= false			help Set it true if you run the pipeline on Kundaje lab servers (automatically set environments, default: false)
+bool debugMode		= false			help Set debugMode=true to keep intermediate .BAM files around after the pipeline has finished. (Default: false)
 
 // input reads
 string READ1 		= ""			help Read1 fastq.gz
@@ -146,6 +147,11 @@ void main_atac() {
 			-1 <(zcat -f "$READ1") -2 <(zcat -f "$READ2") \
 			2>"$outputLog" | \
 			samtools view -bS - > "$outputBAM"
+
+		// Clean up *trim.fastq
+		if (debugMode == false){
+ 			sys rm -f "$P1_OUT" "$P2_OUT"
+ 		}
 	}
 
 	wait
@@ -240,6 +246,7 @@ void main_atac() {
 
 			//sys samtools view -F 1804 -f 2 -b "$FILT_BAM_FILE" > "$FINAL_BAM_FILE"
 			sys samtools view -F 1804 -f 2 -b "$TMP_FILT_BAM_FILE2" > "$FINAL_BAM_FILE"
+
 		}
 
 		wait
@@ -382,6 +389,11 @@ void main_atac() {
 		sys java $JVM_OPTS -jar ${PICARDROOT}/picard.jar CollectInsertSizeMetrics \
 			INPUT="$nonMitoBAM" OUTPUT="$nonMitoBAM.hist_data.log" \
 			H="$nonMitoBAM_hist_graph" W=1000 STOP_AFTER=5000000
+
+		// Clean up FINAL_BAM_FILE and FILT_BAM_FILE
+		if (debugMode == false){
+ 			sys rm -f "$FINAL_BAM_FILE" "$FILT_BAM_FILE"
+ 		}
 	}
 
 	wait
@@ -425,7 +437,7 @@ void main_atac() {
 
 	wait
 
-	print( "\nMake VPlot...\n" )
+	print( "\nMake VPlot and clean up intermediate sorted BAM file...\n" )
 
 	VPLOT_FILE := SORTED_BAM_FILE + "." + V_INDEX.baseName() + ".vect.png"
 
@@ -440,7 +452,13 @@ void main_atac() {
 
 		//# this script must be in PATH (didn't work with 20 thread, so reduce it to 4)
 		sys python $(which $MAKE_VPLOT) -a "$SORTED_BAM_FILE" -b "$V_INDEX" -e 2000 -p ends -c 4 -v -u
+
+		// Clean up SORTED_BAM_FILE
+		if (debugMode == false){
+ 			sys rm -f "$SORTED_BAM_FILE" "$SORTED_BAM_IDX_FILE"
+ 		}
 	}
+
 
 	wait
 
