@@ -3,7 +3,7 @@
 include "pipeline.bds"
 
 bool kundaje_lab	= false			help Set it true if you run the pipeline on Kundaje lab servers (automatically set environments, default: false)
-bool debugMode      = false         help Set debugMode=true to keep intermediate .BAM files around after the pipeline has finished. (Default: false)
+bool debug_mode      = false        help Set debug_mode=true to keep intermediate .BAM files around after the pipeline has finished. (Default: false)
 
 // input reads
 string READ1 		= ""			help Read1 fastq.gz
@@ -92,7 +92,7 @@ void read_param_atac() {
 	print("GENOMESIZE = $GENOMESIZE\n");
 	print("CHROMSIZE = $CHROMSIZE\n");
 	print("fragLen = $fragLen\n");
-	print("debugMode = $debugMode\n");
+	print("debug_mode = $debug_mode\n");
 
 	print("KUNDAJE_LAB = $KUNDAJE_LAB\n");
 
@@ -585,7 +585,7 @@ void main_atac() {
 
     // Clean up intermediate products
 
-    if (debugMode == false){
+    if (debug_mode == false){
         // Clean up *trim.fastq
         sys rm -f "$P1_OUT" "$P2_OUT"
     
