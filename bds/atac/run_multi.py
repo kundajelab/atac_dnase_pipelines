@@ -33,6 +33,10 @@ def parse_args():
     parser.add_argument('-p', '--printscript',
                         help='Prints commands to file (does not run them)',
                         default='')
+    parser.add_argument('-k', '--kundaje_lab',
+                        help='If set, the script will define Kundajelab environment variables automatically. (default: False)',
+                        action='store_true',
+                        default=False)
     return parser.parse_args()
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -80,16 +84,34 @@ if __name__ == "__main__":
             chrom_size = GENOME2CHROM_SIZE[genome]
 
             if args.printscript:
-                print_fp.write('%s &\n' % ' '.join(
-                    map(str, ['bds', '-s', args.system, ATAC_BDS,
-                              index, read1, read2, args.threads,
-                              genome_size, chrom_size, tssfile,
-                              sample_output_dir, '-mod "', MOD_DEF, '"'])))
+
+                # If --kundajelab is set, module definitions are automatically loaded in the BDS script.        
+                if (args.kundaje_lab):
+                    printString = ' '.join(map(str, ['bds', '-s', args.system, ATAC_BDS,
+                                  index, read1, read2, args.threads,
+                                  genome_size, chrom_size, tssfile,
+                                  sample_output_dir, '-kundaje_lab true']))                        
+                else:
+                    printString = ' '.join(map(str, ['bds', '-s', args.system, ATAC_BDS,
+                                  index, read1, read2, args.threads,
+                                  genome_size, chrom_size, tssfile,
+                                  sample_output_dir, '-mod "', MOD_DEF, '"']))                        
+
+                print_fp.write('%s &\n' % printString)
+
             else:
-                workers.append(
-                    bds('-s', args.system, ATAC_BDS, index, read1, read2,
-                        args.threads, genome_size, chrom_size, tssfile,
-                        sample_output_dir, '-mod', MOD_DEF, _bg=True))
+                # If --kundajelab is set, module definitions are automatically loaded in the BDS script.        
+                if (args.kundaje_lab):
+                    workers.append(
+                        bds('-s', args.system, ATAC_BDS, index, read1, read2,
+                            args.threads, genome_size, chrom_size, tssfile,
+                            sample_output_dir, '-kundaje_lab', 'true', _bg=True))
+                    
+                else:
+                    workers.append(
+                        bds('-s', args.system, ATAC_BDS, index, read1, read2,
+                            args.threads, genome_size, chrom_size, tssfile,
+                            sample_output_dir, '-mod', MOD_DEF, _bg=True))
 
     if not args.printscript:
         for worker in workers:

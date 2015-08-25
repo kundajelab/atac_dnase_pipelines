@@ -92,6 +92,7 @@ void read_param_atac() {
 	print("GENOMESIZE = $GENOMESIZE\n");
 	print("CHROMSIZE = $CHROMSIZE\n");
 	print("fragLen = $fragLen\n");
+	print("debugMode = $debugMode\n")
 
 	print("KUNDAJE_LAB = $KUNDAJE_LAB\n");
 
@@ -148,10 +149,6 @@ void main_atac() {
 			2>"$outputLog" | \
 			samtools view -bS - > "$outputBAM"
 
-		// Clean up *trim.fastq
-		if (debugMode == false){
- 			sys rm -f "$P1_OUT" "$P2_OUT"
- 		}
 	}
 
 	wait
@@ -216,7 +213,7 @@ void main_atac() {
 			//# Only keep reads that map to human chromosomes
 			sys samtools index "$FILT_BAM_FILE"
 
-			sys humanChromosomes=$(grep ">chr" /srv/scratch/pangwei/het/genome/hg19_mm9_phix_ERCCv2.fa \
+			sys humanChromosomes=$(grep ">chr" /srv/scratch/pangwei/het/genome/hg19_mm9_phix.fa \
 									| sed 's/>//') 
 
 			sys samtools view "$FILT_BAM_FILE" | wc > mappedReads.count
@@ -229,6 +226,7 @@ void main_atac() {
 			sys mv "$TMP_FILT_BAM_FILE" "$FILT_BAM_FILE"
 			
 			//sys rm -f "$TMP_FILT_BAM_FILE"
+			//mm9_chr9_random
 		}
 
 		wait
@@ -405,10 +403,6 @@ void main_atac() {
 			INPUT="$nonMitoBAM" OUTPUT="$nonMitoBAM.hist_data.log" \
 			H="$nonMitoBAM_hist_graph" W=1000 STOP_AFTER=5000000
 
-		// Clean up FINAL_BAM_FILE and FILT_BAM_FILE
-		if (debugMode == false){
- 			sys rm -f "$FINAL_BAM_FILE" "$FILT_BAM_FILE"
- 		}
 	}
 
 	wait
@@ -468,10 +462,6 @@ void main_atac() {
 		//# this script must be in PATH (didn't work with 20 thread, so reduce it to 4)
 		sys python $(which $MAKE_VPLOT) -a "$SORTED_BAM_FILE" -b "$V_INDEX" -e 2000 -p ends -c 4 -v -u
 
-		// Clean up SORTED_BAM_FILE
-		if (debugMode == false){
- 			sys rm -f "$SORTED_BAM_FILE" "$SORTED_BAM_IDX_FILE"
- 		}
 	}
 
 
@@ -612,6 +602,29 @@ void main_atac() {
 	}
 
 	wait
+
+
+	// Clean up intermediate products
+
+	if (debugMode == false){
+		// Clean up *trim.fastq
+ 		sys rm -f "$P1_OUT" "$P2_OUT"
+ 	
+ 		// Clean up FINAL_BAM_FILE and FILT_BAM_FILE and indices
+		sys rm -f "$FINAL_BAM_FILE" "$FILT_BAM_FILE"
+		sys rm -f "$FINAL_BAM_INDEX_FILE" "$FILT_BAM_FILE".bai
+ 		
+ 		// Clean up RAW_BAM_FILE
+ 		sys rm -f "$RAW_BAM_FILE"
+
+ 		// Clean up SORTED_BAM_FILE
+		sys rm -f "$SORTED_BAM_FILE" "$SORTED_BAM_IDX_FILE"
+
+		// Heterokaryon only: clean up mappedReads and mappedReadsHumanOnly BAM files
+		sys rm -f "$FILT_BAM_FILE".mappedReadsHumanOnly.bam
+		sys rm -f "$FILT_BAM_FILE".mappedReads.bam
+			
+ 	}
 }
 
 
