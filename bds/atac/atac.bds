@@ -20,6 +20,8 @@ help()
 
 read_conf()
 
+chk_input_data()
+
 init()
 
 atac()
@@ -63,8 +65,26 @@ void read_conf() {
 	}
 }
 
-void init() {
+void chk_input_data() {
 
+	print( "\n\n====== Checking input fastqs ...\n\n" );
+
+	if ( fastq1 == "" ) error( "READ1 (fastq) file missing!\n")
+	print( "\tREAD1 (fastq): $fastq1\n")
+	if ( !fastq1.exists() )\
+		error( "\t\tFile not found!\n")
+
+	if ( fastq2 == "" ) error( "READ2 (fastq) file missing!\n")
+	print( "\tREAD2 (fastq): $fastq2\n")
+	if ( !fastq2.exists() )\
+		error( "\t\tFile not found!\n")
+
+	if ( get_basename( fastq1 ) == get_basename( fastq2 ) ) \
+		error( "Duplicate input fastq filenames!\n")
+}
+
+void init() {
+	
 	// create output dir.	
 	out_dir = mkdir_path( out_dir ) // mkdir and get absolute path
 
