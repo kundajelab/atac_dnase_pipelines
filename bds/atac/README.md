@@ -29,7 +29,7 @@ $bds atac.bds [BOWTIE_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE] [CHROM
 
 # If you already have -V option (pass all env. vars to qsub) in your ~/.bds/bds.config and defined all env. vars on your current shell, you can skip these additional parameters.
 # Otherwise you need to define enviromnet variables with -mod, -shcmd and -addpath.
-
+```
 
 ### Detailed help
 
@@ -38,8 +38,6 @@ To get more detailed help, run atac.bds without any parameters.
 ```
 $bds atac.bds
 ```
-
-
 
 
 ### How to set shell environments (What are MOD, SHCMD and ADDPATH?)
