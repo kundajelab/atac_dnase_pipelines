@@ -1,0 +1,101 @@
+#!/usr/bin/env bds
+
+include "base.bds"
+
+
+bool make_wig 		= false		help Set it true to create wig (default: false).
+bool make_bedgraph 	= false		help Set it true to create bedgraph (default: false).
+bool make_bigwig 	= false		help Set it true to convert bedgraph to bigwig signal track (default: false).
+
+string umap 		= "" 		help Path for unique mappability tracks (https://sites.google.com/site/anshulkundaje/projects/mappability).
+
+
+string[] _signal_trk( string tag, string fraglen, string out_dir, string info ) {
+	
+	string wig, bedgraph, bigwig
+
+	if ( make_wig ) {
+		wig = _create_wig( tag, fraglen, out_dir, info )
+	}
+
+	if ( make_bedgraph ) {
+		bedgraph = _create_bedgraph( tag, fraglen, out_dir, info )
+
+		wait // hold parallel
+
+		if ( make_bigwig ) {
+			bigwig = _conv_bg_to_bigwig( bedgraph, out_dir, info )
+		}
+	}
+	wait
+
+	out := [ wig, bedgraph, bigwig ]
+
+	return out
+}
+
+string _create_wig( string tag, string fraglen, string out_dir, string info ) {
+
+	prefix 	:= change_dir( remove_ext( tag, ["tag", "tagAlign", "bed"] ), out_dir )
+	wig 	:= "$prefix.wig"
+	
+	in 	:= [ tag ]
+	out 	:= wig
+
+	task( taskName:= "make wig "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys align2rawsignal -i=$tag -o=$wig -s=$seq -u=$umap -of=wig -l=$fraglen -mm=4
+	}
+
+	return out
+}
+
+string _create_bedgraph( string tag, string fraglen, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( tag, ["tag", "tagAlign", "bed"] ), out_dir )
+	bedgraph 	:= "$prefix.bedgraph"
+	
+	in 	:= [ tag ]
+	out 	:= bedgraph
+
+	task( taskName:= "make bedgraph "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys align2rawsignal -i=$tag -o=$bedgraph -s=$seq -u=$umap -of=bg -l=$fraglen -mm=4
+	}
+
+	return out
+}
+
+string _conv_bg_to_bigwig( string bedgraph, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( tag, ["bed", "bedgraph", "bg"] ), out_dir )
+
+	bedgraph 	:= "$prefix.bedgraph"
+	sorted_bg 	:= "$prefix.srt.bedgraph"
+	bigwig 		:= "$prefix.bigwig"
+	
+	in 	:= [ tag ]
+	out 	:= bigwig
+
+	task( taskName:= "make bigwig "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+		
+		sys sort -k1,1 -k2,2n $bedgraph > $sorted_bg
+
+		sys bedGraphToBigWig $sorted_bg $chrsz $bigwig
+		sys rm -f $sorted_bg
+	}
+
+	return out
+}

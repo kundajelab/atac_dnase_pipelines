@@ -1,463 +1,189 @@
 #!/usr/bin/env bds
 
-include "pipeline.bds"
+helpUnsorted := true // help( $ bds chipseq.bds -h ) will not be sorted
 
-bool kundaje_lab	= false			help Set it true if you run the pipeline on Kundaje lab servers (automatically set environments, default: false)
+include "../modules/align.bds"
+include "../modules/peakcall.bds"
+include "../modules/report.bds"
+include "../modules/conf.bds"
 
-// input reads
-string READ1 		= ""			help Read1 fastq.gz
-string READ2		= ""			help Read2 fastq.gz
 
-///////// trimAdapters 
-string TRIM_ADAPTERS 	= "trimAdapters.py"
+bool kundaje_lab 	= false		help Set it true if you run the pipeline on Kundaje lab servers (automatically set environments, default: false)
 
-///////// alignATAC 
-string BOWTIE_IDX	= ""			help Path for bowtie index
-int NUMTHREADS 		= 1			help Number of threads for bowtie2 (Default: 1)
-int MEMORY_BWT2 	= 8000			// 2G was not enough
+string fastq1 		= ""		help Read1 fastq.gz
+string fastq2		= ""		help Read2 fastq.gz
 
-///////// alignPostprocessPE 
-int MAPQ_THRESH 	= 30					
-string JVM_OPTS 	= "-Xmx4G -Xms256M"
-string MAKE_VPLOT 	= "makeVPlot.py"
-string V_INDEX 					help Index for v-plot
+int fraglen 		= 75 		help Read fragment length (default: 75)
 
-//////// callATACpeaks
-string GENOMESIZE 	= "hs"			help 'hs' for human, 'mm' for mouse (Default: 'hs')
-string CHROMSIZE	= ""			help Path for chrom.sizes file for your reference genome
-int fragLen 		= 75						
 
-///////
-bool KUNDAJE_LAB	= kundaje_lab
+help()
 
-// program body
+read_conf()
 
-PREFIX = 'atac' // redundant
+init()
 
-print("bds atac.bds [PARAM1] ... [PARAM8]\n")
-
-read_param_general()
-read_param_atac()
-main_atac()
+atac()
 
 
 
-
-
-void read_param_atac() {
+void read_conf() {
 
 	if ( conf_file_exists() ) {
 
-		///////// trimAdapters /////////////////////
-		if ( conf.hasKey("READ1") )			READ1		= chk_file( conf{ "READ1" }, "" )
-		if ( conf.hasKey("READ2") )			READ2		= chk_file( conf{ "READ2" }, "" )
+		// kundaje lab support (automatic shell env. settings)
+		kundaje_lab 	= get_conf_val_bool( kundaje_lab,	["KUNDAJE_LAB"] )
 
-		///////// alignATAC /////////////////////
-		if ( conf.hasKey("BOWTIE_IDX") )		BOWTIE_IDX	= chk_file( conf{ "BOWTIE_IDX" }, ".1.bt2" )
-		if ( conf.hasKey("NUMTHREADS") )		NUMTHREADS	= parse_int( conf{ "NUMTHREADS" } )
-		if ( conf.hasKey("MEMORY_BWT2") )		MEMORY_BWT2	= parse_int( conf{ "MEMORY_BWT2" } )
-		
-		///////// alignPostprocessPE /////////////////////
-		if ( conf.hasKey("MAPQ_THRESH") )		MAPQ_THRESH 	= parse_int( conf{ "MAPQ_THRESH" } )
-		if ( conf.hasKey("JVM_OPTS") )			JVM_OPTS 	= rm_comment( conf{ "JVM_OPTS"} )
-		if ( conf.hasKey("V_INDEX") )			V_INDEX 	= rm_comment( conf{ "V_INDEX"} )
+		mapq_thresh 	= get_conf_val_int( mapq_thresh,	["MAPQ_THRESH"] )
+		bwt_idx 	= get_conf_val( bwt_idx, 		["BWT_INDEX_NAME", "BWT_IDX", "BWT_IDX_NAME", "BOWTIE_IDX", "BOWTIE_INDEX"] )
 
-		//////// callATACpeaks ////////
-		if ( conf.hasKey("GENOMESIZE") )		GENOMESIZE	= rm_comment( conf{"GENOMESIZE"} )	
-		if ( conf.hasKey("CHROMSIZE") )			CHROMSIZE	= chk_file( conf{"CHROMSIZE"}, "" )
-		if ( conf.hasKey("fragLen") )			fragLen 	= parse_int( conf{ "fragLen" } )
+		nth_bwt2 	= get_conf_val_int( nth_bwt2,		["NTHREADS_BWT2", "NTH_BWT2", "CPU_BWT2", "NUMTHREADS"] )
+		wt_bwt2 	= get_conf_val( wt_bwt2, 		["WALLTIME_BWT2", "WT_BWT2", "TIMEOUT_BWT2"] )
+		mem_bwt2 	= get_conf_val( mem_bwt2, 		["MEMORY_BWT2", "MEM_BWT2"] )
 
-		if ( conf.hasKey("KUNDAJE_LAB") )		KUNDAJE_LAB	= parse_bool( conf{ "KUNDAJE_LAB"} )
+		gensz		= get_conf_val( gensz, 			["GENSZ", "GENOMESIZE", "GENOME_SIZE", "GENOME_SZ", "GEN_SZ"] )
+		chrsz		= get_conf_val( chrsz, 			["CHROMSIZE","CHROMSIZES","CHROM_SIZES", "CHRSZ", "CHR_SZ"] )
+
+		fraglen 	= get_conf_val_int( fraglen,		["FRAGLEN", "FRAG_LEN"] )
+
+		fastq1 		= get_conf_val( fastq1, 		["FASTQ1", "READ1"] )
+		fastq2 		= get_conf_val( fastq2, 		["FASTQ2", "READ2"] )
+
+		vplot_idx 	= get_conf_val( vplot_idx, 		["VPLOTINDEX", "VPLOT_INDEX", "VPLOTIDX", "VPLOT_IDX", "V_INDEX"] )
 	}
 	else { // if there is no conf. file take first five arguments as input
-		BOWTIE_IDX 	= chk_file( args[0], ".1.bt2" )
-		READ1 		= chk_file( args[1], "" )
-		READ2 		= chk_file( args[2], "" )
-		NUMTHREADS	= args[3].parseInt()
-		GENOMESIZE	= args[4]
-		CHROMSIZE	= chk_file( args[5], "" )
-		V_INDEX 	= chk_file( args[6], "" )
-		OUTPUT_DIR 	= mkdir_path( args[7] )
-	}
 
-	print("READ1 = $READ1\n");
-	print("READ2 = $READ2\n");
-	print("TRIM_ADAPTERS = $TRIM_ADAPTERS\n");
-	print("BOWTIE_IDX = $BOWTIE_IDX\n");
-	print("NUMTHREADS = $NUMTHREADS (for bowtie2)\n");
-	print("MEMORY_BWT2 = $MEMORY_BWT2 (megabytes)\n");
-	print("MAPQ_THRESH = $MAPQ_THRESH\n");
-	print("JVM_OPTS = $JVM_OPTS\n");
-	print("GENOMESIZE = $GENOMESIZE\n");
-	print("CHROMSIZE = $CHROMSIZE\n");
-	print("fragLen = $fragLen\n");
-
-	print("KUNDAJE_LAB = $KUNDAJE_LAB\n");
-
-	if ( KUNDAJE_LAB ) {
-		print("\n\nKUNDAJE_LAB == true\n")
-		print("Automatically adding environment variables...\n")
-
-		PRELOAD = PRELOAD + "; . /etc/profile.d/modules.sh; module add bowtie/2.2.4; module add samtools/1.2; module add bedtools/2.21.0; module add picard-tools/1.129; module add ucsc_tools/3.0.9; module add MACS2/2.1.0; module add java/latest; module add preseq/1.0.2; module add texlive/2013; export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='4G'; export MALLOC_ARENA_MAX=4"
-		PRELOAD = PRELOAD.replace( ";;", ";" )
+		bwt_idx 	= chk_file( args[0], ".1.bt2" )
+		fastq1 		= chk_file( args[1], "" )
+		fastq2 		= chk_file( args[2], "" )
+		nth_bwt2	= args[3].parseInt()
+		gensz		= args[4]
+		chrsz		= chk_file( args[5], "" )
+		vplot_idx 	= chk_file( args[6], "" )
+		out_dir 	= mkdir_path( args[7] )
 	}
 }
 
-void main_atac() {
+void init() {
 
-	print( "\ntrimAdapters...\n" )
+	// create output dir.	
+	out_dir = mkdir_path( out_dir ) // mkdir and get absolute path
 
-	// inputs
-	P1_IN := READ1
-	P2_IN := READ2
+	if ( kundaje_lab ) {
 
-	// outputs (on OUTPUT_DIR)
-	P1_OUT := OUTPUT_DIR + "/" + P1_IN.baseName().replace(".fastq.gz",".trim.fastq")
-	P2_OUT := OUTPUT_DIR + "/" + P2_IN.baseName().replace(".fastq.gz",".trim.fastq")
+		print("\n\nAutomatically adding environment variables... (kundaje_lab == true) \n\n")
 
-	task( taskName := "trimAdapters", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		 [P1_OUT, P2_OUT] <- [P1_IN, P2_IN] ) {
-
-		sys $PRELOAD
-
-		sys cd $OUTPUT_DIR
-		sys python $(which $TRIM_ADAPTERS) -a $P1_IN -b $P2_IN
+		SHCMD_INIT = SHCMD_INIT + " . /etc/profile.d/modules.sh; module add bowtie/2.2.4; module add samtools/1.2; module add bedtools/2.21.0;" \
+					+ " module add picard-tools/1.129; module add ucsc_tools/3.0.9; module add MACS2/2.1.0; module add java/latest;" \
+					+ " module add preseq/1.0.2; module add texlive/2013;" \
+					+ " export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='8G'; export MALLOC_ARENA_MAX=4"
+		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
 	}
+}
+
+void atac() {
+
+	info := "" // no info needed for atac
+
+	string p1, p2
+	( p1, p2 ) = _trim_adapters( fastq1, fastq2, out_dir, info )
+
+	wait // hold parallel
+
+	string bam, log
+	( bam, log ) = _bowtie2( p1, p2, out_dir, info )
 
 	wait
 
-	print( "\nalignATAC...\n" )
-
-	READ1 = P1_OUT
-	READ2 = P2_OUT
-
-	//OFPREFIX := OUTPUT_DIR + "/" + PREFIX
-	OFPREFIX := P1_OUT.replace(".fastq","")
-
-	outputBAM := "$OFPREFIX.bam"
-	outputLog := "$OFPREFIX.align.log"
-
-	task( taskName := "alignATAC", cpus := NUMTHREADS, timeout := WALLTIME, mem := MEMORY_BWT2 * M, \
-		 [outputBAM, outputLog] <- [READ1, READ2] ) {
-
-		sys $PRELOAD
-
-		sys bowtie2 -X2000 --threads "$NUMTHREADS" -x "$BOWTIE_IDX" \
-			-1 <(zcat -f "$READ1") -2 <(zcat -f "$READ2") \
-			2>"$outputLog" | \
-			samtools view -bS - > "$outputBAM"
-	}
+	string nodup_bam, nodup_bam_idx
+	( nodup_bam, nodup_bam_idx ) = _bam_to_nodup_bam_PE( bam, out_dir, info )
 
 	wait
 
-
-	print( "\nalignPostprocessPE...\n" )
-
-	RAW_BAM_FILE	:= outputBAM	
-
-	FILT_BAM_PREFIX := "$OFPREFIX.filt.srt"
-	FILT_BAM_FILE 	:= "$FILT_BAM_PREFIX.bam"
-
-	TMP_FILT_BAM_PREFIX := "$FILT_BAM_PREFIX.nmsrt.tmp"
-	TMP_FILT_BAM_FILE 	:= "$TMP_FILT_BAM_PREFIX.bam"
-
-	TMP_FILT_BAM_FILE2	:= "$FILT_BAM_PREFIX.dupmark.bam"
-	DUP_FILE_QC 		:= "$FILT_BAM_PREFIX.dup.qc"
-
-	FINAL_BAM_PREFIX 		:= "$OFPREFIX.filt.srt.nodup"
-	FINAL_BAM_FILE 			:= "$FINAL_BAM_PREFIX.bam" //# To be stored
-	FINAL_BAM_INDEX_FILE 	:= "$FINAL_BAM_PREFIX.bai"
-	FINAL_BAM_FILE_MAPSTATS := "$FINAL_BAM_PREFIX.flagstat.qc" //# QC file
-	FINAL_NMSRT_BAM_PREFIX 	:= "$OFPREFIX.filt.nmsrt.nodup"
-	FINAL_NMSRT_BAM_FILE 	:= "$FINAL_NMSRT_BAM_PREFIX.bam" //# To be stored
-
-	PBC_FILE_QC := "$FINAL_BAM_PREFIX.pbc.qc"
-
-
-	// 
-	if ( [PBC_FILE_QC, FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS, FINAL_NMSRT_BAM_FILE, FINAL_BAM_FILE] <- RAW_BAM_FILE ) {
-
-		task( taskName := "alignPostprocessPE (filt & sort)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-			 FILT_BAM_FILE <- RAW_BAM_FILE ) {
-
-			sys $PRELOAD
-
-			//# =============================
-			//# Remove unmapped, mate unmapped
-			//# not primary alignment, reads failing platform
-			//# Remove low MAPQ reads
-			//# Only keep properly paired reads
-			//# Obtain name sorted BAM file
-			//# ==================
-
-			sys echo "Filter reads and sort"
-
-			//# Will produce name sorted BAM
-			sys samtools view -F 1804 -f 2 -q "$MAPQ_THRESH" -u "$RAW_BAM_FILE" | \
-				samtools sort -n - "$TMP_FILT_BAM_PREFIX" 
-
-			//# Remove orphan reads (pair was removed)
-			//# and read pairs mapping to different chromosomes
-			//# Obtain position sorted BAM
-
-			sys echo "Fix mates - orphans and cross chromosomes"
-
-			//# Will produce coordinate sorted BAM 
-			sys samtools fixmate -O bam -r "$TMP_FILT_BAM_FILE" - | \
-				samtools view -F 1804 -f 2 -u - | \
-				samtools sort - "$FILT_BAM_PREFIX" 
-
-			sys rm -f "$TMP_FILT_BAM_FILE"
-		}
-
-		wait
-
-		task( taskName := "alignPostprocessPE (rm dup)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-			 FINAL_BAM_FILE <- FILT_BAM_FILE ) {
-
-			sys $PRELOAD
-
-			//# =============
-			//# Mark duplicates
-			//# =============
-
-			sys echo "Mark duplicates"
-
-			sys java $JVM_OPTS -jar ${PICARDROOT}/picard.jar MarkDuplicates \
-				INPUT="$FILT_BAM_FILE" OUTPUT="$TMP_FILT_BAM_FILE2" \
-				METRICS_FILE="$DUP_FILE_QC" VALIDATION_STRINGENCY=LENIENT \
-				ASSUME_SORTED=true REMOVE_DUPLICATES=false
-
-			//sys mv "$TMP_FILT_BAM_FILE2" "$FILT_BAM_FILE"
-
-			//# ============================
-			//# Remove duplicates
-			//# Index final position sorted BAM
-			//# Create final name sorted BAM
-			//# ============================
-
-			sys echo "Remove duplicates"
-
-			//sys samtools view -F 1804 -f 2 -b "$FILT_BAM_FILE" > "$FINAL_BAM_FILE"
-			sys samtools view -F 1804 -f 2 -b "$TMP_FILT_BAM_FILE2" > "$FINAL_BAM_FILE"
-		}
-
-		wait
-
-		task( taskName := "alignPostprocessPE (sort final bam)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-			FINAL_NMSRT_BAM_FILE <- FINAL_BAM_FILE ) {
-
-			sys $PRELOAD
-
-			sys samtools sort -n "$FINAL_BAM_FILE" "$FINAL_NMSRT_BAM_PREFIX"
-		}
-
-		task( taskName := "alignPostprocessPE (index final bam)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-			[FINAL_BAM_INDEX_FILE, FINAL_BAM_FILE_MAPSTATS]  <- FINAL_BAM_FILE ) {
-
-			sys $PRELOAD
-
-			//# Index Final BAM file
-
-			sys samtools index "$FINAL_BAM_FILE"
-
-			sys mv -f "$FINAL_BAM_FILE".bai "$FINAL_BAM_INDEX_FILE"
-			sys samtools flagstat "$FINAL_BAM_FILE" > "$FINAL_BAM_FILE_MAPSTATS"
-		}
-
-		task( taskName := "alignPostprocessPE (QC final bam)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-			PBC_FILE_QC <- TMP_FILT_BAM_FILE2 ) {
-
-			sys $PRELOAD
-
-			//# =============================
-			//# Compute library complexity
-			//# =============================
-			//# Sort by name
-			//# convert to bedPE and obtain fragment coordinates
-			//# sort by position and strand
-			//# Obtain unique count statistics
-
-			sys echo "Compute library complexity"
-
-			//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
-			//sys samtools sort -n -o "$FILE_BAM_FILE" "$FILT_BAM_FILE.tmp" | \
-			sys samtools sort -n -o "$TMP_FILT_BAM_FILE2" "$TMP_FILT_BAM_FILE2.tmp" | \
-				bedtools bamtobed -bedpe -i stdin | \
-				awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
-				grep -v 'chrM' | sort | uniq -c | \
-				awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > "$PBC_FILE_QC"
-
-			sys rm -f $FILT_BAM_FILE
-			sys rm -f $TMP_FILT_BAM_FILE2
-		}
-	}
-
-	//# sort the raw bam file
-	SORTED_BAM_FILE := RAW_BAM_FILE.replace(".bam",".sort.bam")
-	SORTED_BAM_IDX_FILE := SORTED_BAM_FILE + ".bai"
-
-	task( taskName := "sort bam (V-plot)", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		 [SORTED_BAM_FILE, SORTED_BAM_IDX_FILE] <- RAW_BAM_FILE ) {
-
-		sys $PRELOAD
-
-		sys cd $OUTPUT_DIR
-
-		//# preseq needs sorted input
-		sys samtools sort -Ttmp -l0 -Obam "$RAW_BAM_FILE" -o "$SORTED_BAM_FILE"
-
-		sys samtools index "$SORTED_BAM_FILE"
-	}
+	string srt_bam, srt_bai 
+	( srt_bam, srt_bai ) = _bam_to_srt_bam( bam, out_dir, info )
 
 	wait
 
-	PRESEQ_FILE := SORTED_BAM_FILE + ".preseq.pdf"
-	PRESEQ_GNU := OUTPUT_DIR + "/preseq.gnu"
+	// jobs go in parallel
+	pdf := _preseq( srt_bam, out_dir, info )
+	
+	png := _vplot( srt_bam, out_dir, info )
 
-	task( taskName := "PRESEQ", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		 PRESEQ_FILE <- SORTED_BAM_FILE ) {
+	bed := _bam_to_bed_non_chrM( nodup_bam, out_dir, info )
 
-		sys $PRELOAD
-		sys cd $OUTPUT_DIR
+	wait
 
-		sys echo "PRESEQ Analysis..."
+	string npeakfile, fc_bw, pval_bw
+	( npeakfile, fc_bw, pval_bw ) = _macs2_bed( bed, "$fraglen", out_dir, info )
 
-		//# run preseq
-		sys preseqData="$SORTED_BAM_FILE.preseq.dat"
-		sys preseq lc_extrap -P -B -o "${preseqData}" "$SORTED_BAM_FILE" -v 2> "$SORTED_BAM_FILE.preseq.log"
+	wait
 
-		//# plot the results
-		//# maximum number of reads on x axis in plot (in millions)
-		sys XMAX=500
+	_report_atac( pdf, png, out_dir, info )
+}
 
-		sys titleName=$(basename $SORTED_BAM_FILE)
-		sys titleName=${titleName//_/\\_ } #escape underscores
+void help() {
 
-		sys echo "set terminal pdfcairo" > $PRESEQ_GNU
-		sys echo "set output '$SORTED_BAM_FILE.preseq.pdf'" >> $PRESEQ_GNU
-		sys echo "set key box bottom right" >> $PRESEQ_GNU
-		sys echo "set style line 1 linewidth 5" >> $PRESEQ_GNU
-		sys echo "set style line 2 linewidth 1" >> $PRESEQ_GNU
-		sys echo "set mxtics 2" >> $PRESEQ_GNU
-		sys echo "set grid ytics xtics mxtics" >> $PRESEQ_GNU
-		sys echo "set xrange [0:${XMAX}]" >> $PRESEQ_GNU
-		sys echo "set xlabel \"Number of Reads [millions]\"" >> $PRESEQ_GNU
-		sys echo "set ylabel \"Expected Distinct Reads [millions]\"" >> $PRESEQ_GNU
-		sys echo "set title \"PRESEQ Results for ${titleName}\"" >> $PRESEQ_GNU
-		sys echo "plot '${preseqData}' using (\$1/1000000):(\$2/1000000) with lines linestyle 1 notitle, '' using (\$1/1000000):(\$3/1000000) with lines linestyle 2 notitle, '' using (\$1/1000000):(\$4/1000000) with lines linestyle 2 title '+/- 95% confidence interval' " >> $PRESEQ_GNU
+	if ( is_cmd_line_arg_empty() ) {
 
-		sys gnuplot $PRESEQ_GNU
+		print("\n")
+		print(" Usage 1 (command line argument): \n")
+		print("\n")
+		print("\t\$ bds atac.bds [BOWTIE_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE] [CHROMSIZES] [VPLOT_INDEX] [OUTPUT_DIR] \n")
+		print("\n")
+		print(" Usage 2 (command line argument): \n")
+		print("\n")
+		print("\t\$ bds atac.bds -bwt_idx [BOWTIE_INDEX] \\ \n")
+		print("\t\t -fastq1 [READ1] \\ \n")
+		print("\t\t -fastq2 [READ2] \\ \n")
+		print("\t\t -nth_bwt2 [NTHREADS_BWT2] \\ \n")
+		print("\t\t -gensz [GENOMESIZE] \\ \n")
+		print("\t\t -chrsz [CHROMSIZES] \\ \n")
+		print("\t\t -vplot_idx [VPLOT_INDEX] \\ \n")
+		print("\t\t -out_dir [OUTPUT_DIR] \n")
+		print("\n")
+		print(" Usage 3 (configruation file): \n")
+		print("\n")
+		print("\t\$ bds atac.bds [CONF_FILE]\n")
+		print("\n")
+		print("\t=== [CONF_FILE] contents ===\n")
+		print("\tBWT_IDX= [BOWTIE_INDEX]\n")
+		print("\tFASTQ1= [READ1]\n")
+		print("\tFASTQ2= [READ2]\n")
+		print("\tNTH_BWT2= [NTHREADS_BWT2]\n")
+		print("\tGENSZ= [GENOMESIZE]\n")
+		print("\tCHRSZ= [CHROMSIZES]\n")
+		print("\tVPLOT_IDX= [VPLOT_INDEX]\n")
+		print("\tOUT_DIR= [OUTPUT_DIR]\n")
+		print("\n")
+		print(" For Sun Grid Engine (SGE) cluster use\n")
+		print("\n")
+		print("\t\$ bds -s sge atac.bds ... \n")
+		print("\n")
+
+		exit
 	}
+}
 
-	wait
+string[] _report_atac( string pdf, string png, string out_dir, string info ) {
 
-	print( "\nalignPostprocessATAC...\n" )
+	tex_file := "$out_dir/report.tex"
+	pdf_file := "$out_dir/report.pdf"
 
-	input_bam 	:= FINAL_BAM_FILE
-	mitoBAM 	:= input_bam.replace(".bam",".chrM.bam")
-	nonMitoBAM 	:= input_bam.replace(".bam",".nonchrM.bam")
-	nonMitoBAM_hist_graph := "$nonMitoBAM.hist_graph.pdf"
+	// a lot of inputs so I picked up just two
+	in 	:= [pdf, png]
+	out 	:= [tex_file, pdf_file]
 
-	output_file := nonMitoBAM.replace(".bam",".tn5.bed.gz")
+	task( taskName:= "bwa_aln "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
 
-	task( taskName := "alignPostprocessATAC", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		 [output_file, mitoBAM, nonMitoBAM, nonMitoBAM_hist_graph] <- input_bam ) {
+		sys $SHCMD_INIT
 
-		sys $PRELOAD
-
-		sys nonMitoChromosomes=$(samtools view -H "$input_bam" | \
-								grep chr | cut -f2 | sed 's/SN://g' | grep -v chrM)
-
-		sys samtools view -b "$input_bam" ${nonMitoChromosomes} > "$nonMitoBAM"
-		
-		sys samtools view -b "$input_bam" chrM > "$mitoBAM"
-
-		//# Process only non chrM reads
-		// embedded adjustBedTn5.sh	
-		sys bamToBed -i "$nonMitoBAM" | \
-			awk -F $'\t' 'BEGIN {OFS = FS}{ if ($6 == "+") {$2 = $2 + 4} else if ($6 == "-") {$3 = $3 - 5} print $0}' | \
-			gzip -c > "$output_file"
-
-		sys java $JVM_OPTS -jar ${PICARDROOT}/picard.jar CollectInsertSizeMetrics \
-			INPUT="$nonMitoBAM" OUTPUT="$nonMitoBAM.hist_data.log" \
-			H="$nonMitoBAM_hist_graph" W=1000 STOP_AFTER=5000000
-	}
-
-	wait
-
-
-	print( "\ncallATACpeaks...\n" )
-
-	readBed 	:= output_file
-	peakFile 	:= readBed.replace(".bed.gz",".pf"); //"$readBed.pf"
-
-	task( taskName := "callATACpeaks", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		 ["$peakFile.fc.signal.bigwig", "$peakFile.pval.signal.bigwig"] <- readBed ) {
-
-		sys $PRELOAD
-
-		sys adjustedBed="slopBed -i $readBed -g $CHROMSIZE -l 75 -r -75 -s"
-		sys macs2 callpeak \
-			-t <(${adjustedBed}) -f BED -n "$peakFile" -g "$GENOMESIZE" -p 1e-2 \
-			--nomodel --shift "$fragLen" -B --SPMR --keep-dup all --call-summits
-
-		sys macs2 bdgcmp \
-			-t "$peakFile"_treat_pileup.bdg -c "$peakFile"_control_lambda.bdg \
-			--o-prefix "$peakFile" -m FE
-		sys slopBed -i "$peakFile"_FE.bdg -g "$CHROMSIZE" -b 0 | \
-			bedClip stdin "$CHROMSIZE" "$peakFile.fc.signal.bedgraph"
-		sys rm -f "$peakFile"_FE.bdg
-		sys bedGraphToBigWig "$peakFile.fc.signal.bedgraph" "$CHROMSIZE" "$peakFile.fc.signal.bigwig"
-		sys rm -f "$peakFile.fc.signal.bedgraph"
-
-		//# sval counts the number of tags per million in the (compressed) BED file
-		sys sval=$(wc -l <(zcat -f "$readBed") | awk '{printf "%f", $1/1000000}')
-		sys macs2 bdgcmp \
-			-t "$peakFile"_treat_pileup.bdg -c "$peakFile"_control_lambda.bdg \
-			--o-prefix "$peakFile" -m ppois -S "${sval}"
-		sys slopBed -i "$peakFile"_ppois.bdg -g "$CHROMSIZE" -b 0 | \
-			bedClip stdin "$CHROMSIZE" "$peakFile.pval.signal.bedgraph"
-		sys rm -f "$peakFile"_ppois.bdg
-		sys bedGraphToBigWig "$peakFile.pval.signal.bedgraph" "$CHROMSIZE" "$peakFile.pval.signal.bigwig"
-		sys rm -f "$peakFile.pval.signal.bedgraph"
-	}	
-
-	wait
-
-	print( "\nMake VPlot...\n" )
-
-	VPLOT_FILE := SORTED_BAM_FILE + "." + V_INDEX.baseName() + ".vect.png"
-
-	task( taskName := "makeVPlot", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		 VPLOT_FILE <- [SORTED_BAM_FILE, V_INDEX] ) {
-
-		sys $PRELOAD
-		sys cd $OUTPUT_DIR
-
-		//# generate V plot
-		sys echo "Generating V Plot..."
-
-		//# this script must be in PATH (didn't work with 20 thread, so reduce it to 4)
-		sys python $(which $MAKE_VPLOT) -a "$SORTED_BAM_FILE" -b "$V_INDEX" -e 2000 -p ends -c 4 -v -u
-	}
-
-	wait
-
-	print( "\nMake Report...\n" )
-
-	TEX_FILE := "$OUTPUT_DIR/report.tex"
-	PDF_FILE := "$OUTPUT_DIR/report.pdf"
-
-	task( taskName := "make Report", cpus := NTHREADS, timeout := WALLTIME, mem := MEMORY * M, \
-		[TEX_FILE, PDF_FILE] <- [nonMitoBAM_hist_graph, VPLOT_FILE, PRESEQ_FILE] ) {
-		sys $PRELOAD
-
-		sys cd $OUTPUT_DIR
-		sys thisFolder=$OUTPUT_DIR
+		sys cd $out_dir
+		sys thisFolder=$out_dir
 
 		//# figure out what we've aligned to
-		sys MODEL=$BOWTIE_IDX
+		sys MODEL=$bwt_idx
 
 		//# insert size histogram graph file name
 		sys insertSizeHist="$(echo *.hist_graph.pdf)"
@@ -521,64 +247,64 @@ void main_atac() {
 		//# Now we generate the tex language file that defines the report
 		//# warning! two layers of command interpretaion in here (bash&tex),
 		//# not for the faint of heart!
-		sys echo "\documentclass{article}" > $TEX_FILE
-		sys echo "\usepackage{graphicx}" >> $TEX_FILE
-		sys echo "\usepackage{multicol}" >> $TEX_FILE
-		sys echo "\usepackage{listings}" >> $TEX_FILE
-		sys echo "\usepackage{grffile}" >> $TEX_FILE
-		sys echo "\usepackage[margin=0.5in]{geometry}" >> $TEX_FILE
-		sys echo "\usepackage{booktabs}" >> $TEX_FILE
-		sys echo "\usepackage{hyphenat}" >> $TEX_FILE
-		sys echo "\usepackage{fancyhdr}" >> $TEX_FILE
-		sys echo "\pagestyle{fancy}" >> $TEX_FILE
-		sys echo "\fancyhf{}" >> $TEX_FILE
-		sys echo "\renewcommand{\headrulewidth}{0pt}" >> $TEX_FILE
-		sys echo "\fancyfoot[RO, LE] {Generated on $(date)}" >> $TEX_FILE
-		sys echo "\begin{document}" >> $TEX_FILE
-		sys echo "\setlength{\columnseprule}{0.1pt}" >> $TEX_FILE
-		sys echo "\section{Summary for ${thisFolder//_/\\_}}" >> $TEX_FILE
-		sys echo "\begin{multicols}{2}" >> $TEX_FILE
-		sys echo "\subsection{Genome Model}" >> $TEX_FILE
-		sys echo "${MODEL//_/\\_}" >> $TEX_FILE
-		sys echo "\subsection{V-Plot}" >> $TEX_FILE
-		sys echo "From ${vPlot//_/\\_}:\\\\" >> $TEX_FILE
-		sys echo "\includegraphics[width=0.5\textwidth]{${vPlot}}" >> $TEX_FILE
-		sys echo "\subsection{preseq lc\_extrap Yield Predicion}" >> $TEX_FILE
-		sys echo "From ${preseqGraph//_/\\_}:\\\\" >> $TEX_FILE
-		sys echo "\includegraphics[width=0.5\textwidth]{${preseqGraph}}" >> $TEX_FILE
-		sys echo "\subsection{Library Complexity}" >> $TEX_FILE
-		sys echo "From ${bpcQCFile//_/\\_}:\\\\" >> $TEX_FILE
-		sys echo "\centerline{" >> $TEX_FILE
-		sys echo "\begin{tabular}{l|c}" >> $TEX_FILE
-		sys echo "\toprule" >> $TEX_FILE
-		sys echo "${BPCTABLE}" >> $TEX_FILE
-		sys echo "\end{tabular}" >> $TEX_FILE
-		sys echo "}" >> $TEX_FILE
-		sys echo "\subsection{Insert size histogram}" >> $TEX_FILE
-		sys echo "From ${insertSizeHist//_/\\_}:\\\\" >> $TEX_FILE
-		sys echo "\includegraphics[width=0.5\textwidth]{${insertSizeHist}}" >> $TEX_FILE
-		sys echo "\subsection{Picard Duplication Metrics}" >> $TEX_FILE
-		sys echo "From ${dupQCFile//_/\\_}:\\\\" >> $TEX_FILE
-		sys echo "\begin{tabular}{l|c}" >> $TEX_FILE
-		sys echo "\toprule" >> $TEX_FILE
-		sys echo "${DUPTABLE}" >> $TEX_FILE
-		sys echo "\end{tabular}" >> $TEX_FILE
-		sys echo "\subsection{bowtie2 Alignment Log}" >> $TEX_FILE
-		sys echo "\textbf{${alignLogLastLine//'%'/'\%'}}\\\\" >> $TEX_FILE
-		sys echo "From ${alignLog//_/\\_}:\\\\" >> $TEX_FILE
-		sys echo "\scalebox{.6}{" >> $TEX_FILE
-		sys echo "\lstinputlisting{${alignLog}}" >> $TEX_FILE
-		sys echo "}" >> $TEX_FILE
-		sys echo "\end{multicols}  " >> $TEX_FILE
-		sys echo "%\pagebreak" >> $TEX_FILE
-		sys echo "\end{document}" >> $TEX_FILE		
+		sys echo "\documentclass{article}" > $tex_file
+		sys echo "\usepackage{graphicx}" >> $tex_file
+		sys echo "\usepackage{multicol}" >> $tex_file
+		sys echo "\usepackage{listings}" >> $tex_file
+		sys echo "\usepackage{grffile}" >> $tex_file
+		sys echo "\usepackage[margin=0.5in]{geometry}" >> $tex_file
+		sys echo "\usepackage{booktabs}" >> $tex_file
+		sys echo "\usepackage{hyphenat}" >> $tex_file
+		sys echo "\usepackage{fancyhdr}" >> $tex_file
+		sys echo "\pagestyle{fancy}" >> $tex_file
+		sys echo "\fancyhf{}" >> $tex_file
+		sys echo "\renewcommand{\headrulewidth}{0pt}" >> $tex_file
+		sys echo "\fancyfoot[RO, LE] {Generated on $(date)}" >> $tex_file
+		sys echo "\begin{document}" >> $tex_file
+		sys echo "\setlength{\columnseprule}{0.1pt}" >> $tex_file
+		sys echo "\section{Summary for ${thisFolder//_/\\_}}" >> $tex_file
+		sys echo "\begin{multicols}{2}" >> $tex_file
+		sys echo "\subsection{Genome Model}" >> $tex_file
+		sys echo "${MODEL//_/\\_}" >> $tex_file
+		sys echo "\subsection{V-Plot}" >> $tex_file
+		sys echo "From ${vPlot//_/\\_}:\\\\" >> $tex_file
+		sys echo "\includegraphics[width=0.5\textwidth]{${vPlot}}" >> $tex_file
+		sys echo "\subsection{preseq lc\_extrap Yield Predicion}" >> $tex_file
+		sys echo "From ${preseqGraph//_/\\_}:\\\\" >> $tex_file
+		sys echo "\includegraphics[width=0.5\textwidth]{${preseqGraph}}" >> $tex_file
+		sys echo "\subsection{Library Complexity}" >> $tex_file
+		sys echo "From ${bpcQCFile//_/\\_}:\\\\" >> $tex_file
+		sys echo "\centerline{" >> $tex_file
+		sys echo "\begin{tabular}{l|c}" >> $tex_file
+		sys echo "\toprule" >> $tex_file
+		sys echo "${BPCTABLE}" >> $tex_file
+		sys echo "\end{tabular}" >> $tex_file
+		sys echo "}" >> $tex_file
+		sys echo "\subsection{Insert size histogram}" >> $tex_file
+		sys echo "From ${insertSizeHist//_/\\_}:\\\\" >> $tex_file
+		sys echo "\includegraphics[width=0.5\textwidth]{${insertSizeHist}}" >> $tex_file
+		sys echo "\subsection{Picard Duplication Metrics}" >> $tex_file
+		sys echo "From ${dupQCFile//_/\\_}:\\\\" >> $tex_file
+		sys echo "\begin{tabular}{l|c}" >> $tex_file
+		sys echo "\toprule" >> $tex_file
+		sys echo "${DUPTABLE}" >> $tex_file
+		sys echo "\end{tabular}" >> $tex_file
+		sys echo "\subsection{bowtie2 Alignment Log}" >> $tex_file
+		sys echo "\textbf{${alignLogLastLine//'%'/'\%'}}\\\\" >> $tex_file
+		sys echo "From ${alignLog//_/\\_}:\\\\" >> $tex_file
+		sys echo "\scalebox{.6}{" >> $tex_file
+		sys echo "\lstinputlisting{${alignLog}}" >> $tex_file
+		sys echo "}" >> $tex_file
+		sys echo "\end{multicols}  " >> $tex_file
+		sys echo "%\pagebreak" >> $tex_file
+		sys echo "\end{document}" >> $tex_file		
 
 		//# now generate the pdf report (appears as *.report.pdf)
-		//sys cd $OUTPUT_DIR
-		sys pdflatex $TEX_FILE
+		//sys cd $out_dir
+		sys pdflatex $tex_file
 	}
 
-	wait
+	return out
 }
 
 

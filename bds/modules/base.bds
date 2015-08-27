@@ -1,0 +1,450 @@
+#!/usr/bin/env bds
+
+/*
+All functions based on base.bds should have two common parameters (out_dir, info):
+	out_dir: directory of all output filenames.
+	info: additional information for task name (to distinguish each replicate).
+
+All output filenames should be based on out_dir (not the directory where input data are).
+*/
+
+string out_dir 		= "out"		help Output directory. (default: out)
+bool no_par_job		= false		help Set if true to serialize all jobs, this option is for desktops with limited memory (default: false)
+
+// cluster resource
+int nth			= 1 		help Default number of threads for all cluster jobs (default: 1).
+string wt 		= "6h"		help Default walltime for all cluster jobs (example: 8:10:00, 3h, 3600 , default: 6h).
+string mem 		= "4G"		help Default max. memory for all cluster jobs (example: 4G, 100KB, default: 4G).
+
+// shell environment setting
+string mod 		= ""		help Env. modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+string shcmd 		= ""		help Shell cmds separated by ;. Env. vars should be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test"). 
+string addpath 		= "" 		help Path to be PREPENDED to env. var. PATH. Allows multiple paths separated by ; (example: "/bin/test:/bin/test2")
+
+// parameters shared by many bio softwares
+string chrsz 		= "" 		help Path for chrom sizes file for your ref. sequence files (use fetchChromSizes from UCSC tools).
+string seq 		= "" 		help Path for sequence files (directory where chr*.fa exist).
+string gensz 		= "hs"		help Genome size; hs for human, mm for mouse (default: hs)
+
+string init_mod 	= "/etc/profile.d/modules.sh"
+
+
+
+// IMPORTANT! Shell command executed prior to all BigDataScript tasks (use this for setting environemts)
+string SHCMD_INIT 	= "" 
+
+init_shcmd()
+
+
+
+void init_shcmd() { 
+
+	string module
+	
+	if ( mod!="" ) {
+		string module_header 	= ". $init_mod;"
+
+		if ( init_mod.exists() ) { // if /etc/profile.d/modules.sh exists
+
+			trimmed := mod.trim()
+			mods := trimmed.split(";")
+
+			for ( string str : mods ) \
+				module = module + " module add " + str.trim() + ";"
+		}
+	}
+
+	// find BDS script path (path of BDS script will be automatically added to env. var. ${PATH})
+
+	script_file 	:= "$ppwd/$programPath"	// path of your BDS script
+
+	if (!script_file.exists()) script_file = "$programPath"
+
+	script_path	:= script_file.dirName() // dir of your BDS script
+	script_path2	:= ("$script_path/../").dirName() // ../
+	script_path3	:= ("$script_path/modules/").dirName() // ./modules
+
+
+	string shellcmd = "export PATH=\"\${PATH}:/bin:/usr/bin:$script_path:$script_path2:$script_path3:\${HOME}/.bds\";" // default path for basic linux utils
+
+	if ( shcmd!="" ) {
+		shellcmd = shellcmd + shcmd.trim() + ";"
+	}
+
+	string path
+
+	if ( addpath!="" ) {
+		trimmed := addpath.trim()
+
+		trimmed = trimmed.replace(":",";")
+		paths := trimmed.split(";")
+
+		path = " export PATH="
+
+		for ( string str : paths ) \
+			path = path + str.trim() + ":"
+		path = path + "\${PATH};"
+	}
+
+	
+	// additional initialization
+	SHCMD_INIT = module + shellcmd + path
+	SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
+}
+
+
+
+bool is_cmd_line_arg_empty() {
+	return args.size()==0
+}
+
+bool cmd_line_arg_has_dash() {
+	if ( !is_cmd_line_arg_empty() ) {
+		if ( args[0].substr(0,1) == '-' ) {
+			return true
+		}
+	}
+	return false
+}
+
+string chk_file( string str, string ext ) {
+	path := get_path( str )
+	path_ext := path + ext
+
+	if ( !path_ext.exists() ) {
+		error("error: file does not exist for $path_ext\n")
+	}
+	else if ( path_ext.isDir() ) {
+		error("error: need file instead of dir for $path_ext\n")
+	}
+	else if ( path_ext.isFile() ) {
+		return path
+	}
+	else {
+		error("error: unknown error for $path_ext\n")
+	}
+}
+
+string mkdir_path( string str ) { 
+	// make filename full path and mkdir -p
+	path := get_path( str )
+
+	if ( path.exists() ) {		
+		return path
+	}
+	else if ( path.mkdir() ) {
+		return path
+	}
+	else {
+		error("error: could not make for $path\n")
+	}
+}
+
+string get_path( string str ) {
+	base := rm_str_at_end( str, "/" ).path()
+	return base
+}
+
+string get_basename( string path ) { // BDS .baseName() returns wrong basename for softlinks
+	if (path=="") return ""
+	int loc_slash = path.lastIndexOf( "/" )
+	return path.substr( loc_slash+1 )
+}
+
+string[] get_basename( string[] paths ) { // BDS .baseName() returns wrong basename for softlinks
+	string[] ret
+	for ( string path : paths ) {
+		if (path=="") { 
+			ret.add("")
+			continue
+		}
+		int loc_slash = path.lastIndexOf( "/" )
+		ret.add( path.substr( loc_slash+1 ) )
+	}
+	return ret
+}
+
+string get_common_basename( string f1, string f2 ) {
+
+	base1 := get_basename( f1 )
+	base2 := get_basename( f2 )
+
+	string common
+
+	for (int i=0; i< min(base1.length(),base2.length());i++) {
+		c1 := base1.substr(i,i+1)
+		c2 := base2.substr(i,i+1)
+
+		if ( c1 == c2 ) common = common + c1
+		else break
+	}
+	return common
+}
+
+string change_dir( string file, string out_dir ) {
+	return out_dir + "/" + get_basename( file )
+}
+
+string remove_ext( string file, string ext ) {
+	// remove .gz
+	if ( file.endsWith( ".gz" ) ) \
+		file = rm_str_at_end( file, ".gz" )
+	// remove dot from ext
+	ext = ext.replace( ".", "" );
+	file = rm_str_at_end( file, "."+ext )
+
+	return file
+}
+
+string remove_ext( string file, string[] exts ) {
+	// remove .gz
+	if ( file.endsWith( ".gz" ) ) \
+		file = rm_str_at_end( file, ".gz" )
+
+	for ( string ext : exts ) {
+		// remove dot from ext
+		ext = ext.replace( ".", "" );
+		file = file.rm_str_at_end( "."+ext )
+	}
+
+	return file
+}
+
+string concat_basename_wo_ext( string file1, string file2, string[] exts1, string[] exts2 ) {
+	base1_wo_ext := remove_ext( get_basename( file1 ), exts1 )
+	base2_wo_ext := remove_ext( get_basename( file2 ), exts2 )	
+	return base1_wo_ext + "_" + base2_wo_ext
+}
+
+string concat_basename_wo_ext( string file1, string file2, string[] exts ) {
+	return concat_basename_wo_ext( file1, file2, exts, exts )
+}
+
+string concat_basename_wo_ext( string file1, string file2, string ext1, string ext2 ) {
+	return concat_basename_wo_ext( file1, file2, [ext1], [ext2] )
+}
+
+string concat_basename_wo_ext( string file1, string file2, string ext ) {
+	return concat_basename_wo_ext( file1, file2, [ext], [ext] )
+}
+
+string make_vs_basename( string file1, string file2, string suffix ) {
+	return rm_str_at_end( get_basename( file1 ),".gz" ) + \
+		"_VS_" + rm_str_at_end( get_basename( file2 ),".gz" ) + suffix
+}
+
+void save_data( string file, string[] data ) { // ; separated array
+	string str
+	for( string val : data ) { str = str + val + ";" }
+
+	rm_str_at_end( str, ";")
+	file.write( str )
+}
+
+void save_data( string file, string[] data, string delimiter ) { // ; separated array
+	string str
+	for( string val : data ) { str = str + val + delimiter }
+
+	rm_str_at_end( str, delimiter )
+	file.write( str )
+}
+
+string[] load_data( string file ) {
+	return file.read().split(";")
+}
+
+// string functions
+
+int parse_time( string str ) {
+	trimmed := str.trim().toLower()
+
+	if (  trimmed.indexOf("w")>=0 || trimmed.indexOf("d")>=0 || trimmed.indexOf("h")>=0 \
+		|| trimmed.indexOf("m")>=0 || trimmed.indexOf("s")>=0 ) {
+
+		int multiplier
+		string delimiter
+
+		if ( trimmed.indexOf("w")>=0 ) {
+			delimiter = "w";        multiplier = 3600*24*7
+		}
+		else if ( trimmed.indexOf("d")>=0 ) {
+			delimiter = "d";        multiplier = 3600*24
+		}
+		else if ( trimmed.indexOf("h")>=0 ) {
+			delimiter = "h";        multiplier = 3600
+		}
+		else if ( trimmed.indexOf("m")>=0 ) {
+			delimiter = "m";        multiplier = 60
+		}
+		else if ( trimmed.indexOf("s")>=0 ) {
+			delimiter = "s";        multiplier = 1
+		}
+
+		string[] arr = trimmed.split( delimiter )
+		return arr[0].parseInt()*multiplier
+	}
+	else if ( trimmed.indexOf(":")>=0 ) {
+		string[] arr = trimmed.split( ":" )
+
+		int d, h, m, s
+
+		if ( arr.size() >= 4 ) {
+			d = arr[0].parseInt(); h = arr[1].parseInt(); m = arr[2].parseInt(); s = arr[3].parseInt()
+		}
+		else if ( arr.size() >= 3 ) {
+			h = arr[0].parseInt(); m = arr[1].parseInt(); s = arr[2].parseInt()
+		}
+		else if ( arr.size() >= 2 ) {
+			m = arr[0].parseInt(); s = arr[1].parseInt()
+		}
+		else if ( arr.size() >= 1 ) {
+			s = arr[0].parseInt()
+		}
+
+		return 3600*24*d + 3600*h + 60*m + s
+	}
+	else {
+		return trimmed.parseInt()
+	}
+}
+
+int parse_mem( string str ) {
+	trimmed := str.trim().toLower()
+
+	int multiplier
+	string delimiter
+
+	if ( trimmed.indexOf("gb")>=0 ) {
+		delimiter = "gb"
+		multiplier = 1000*1000*1000
+	}
+	else if ( trimmed.indexOf("g")>=0 ) {
+		delimiter = "g"
+		multiplier = 1000*1000*1000
+	}
+	else if ( trimmed.indexOf("mb")>=0 ) {
+		delimiter = "mb"
+		multiplier = 1000*1000
+	}
+	else if ( trimmed.indexOf("m")>=0 ) {
+		delimiter = "m"
+		multiplier = 1000*1000
+	}
+	else if ( trimmed.indexOf("kb")>=0 ) {
+		delimiter = "kb"
+		multiplier = 1000
+	}
+	else if ( trimmed.indexOf("k")>=0 ) {
+		delimiter = "k"
+		multiplier = 1000
+	}
+	else if ( trimmed.indexOf("b")>=0 ) {
+		delimiter = "b"
+		multiplier = 1
+	}
+	else {
+		return trimmed.parseInt()
+	}
+
+	string[] arr = trimmed.split( delimiter )
+	return arr[0].parseInt()*multiplier
+}
+
+string chk_slash( string str ) { // if slash found, error
+	trimmed := rm_comment( str )
+	if ( trimmed.indexOf("/")>=0 ) {
+		error("error: path including / not allowed for $str\n")
+	}
+	return trimmed
+}
+
+string rm_str_at_end( string str, string rm ) {
+	trimmed := rm_comment( str )
+	
+	if ( trimmed.substr( trimmed.length()-rm.length() ).toLower() == rm.toLower() ) {
+		return trimmed.substr( 0, trimmed.length()-rm.length() )
+	}
+	
+	return trimmed
+}
+
+string rm_comment( string str ) { // remove substring after double slash "//"
+	trimmed := str.trim()
+	int pos = trimmed.indexOf("//")
+
+    	if ( pos>=0 ) {
+		return trimmed.substr(0,pos-1).trim()
+	}
+
+	return trimmed
+}
+
+int parse_int( string str ) {
+	return rm_comment( str ).parseInt()
+}
+
+bool parse_bool( string str ) {
+	return rm_comment( str ).parseBool()
+}
+
+real parse_real( string str ) {
+	return rm_comment( str ).parseReal()
+}
+
+string array_to_str( string[] arr ) {
+	string ret
+	for ( string str : arr ) ret = ret + str + "\n"	
+	return ret
+}
+
+string[] concat( string[] s1, string[] s2 ) {
+	string[] ret	
+	for ( string str : s1 ) ret.push(str)
+	for ( string str : s2 ) ret.push(str)
+	return ret
+}
+
+string[] concat( string[] s1, string[] s2, string[] s3 ) {
+	string[] ret	
+	for ( string str : s1 ) ret.push(str)
+	for ( string str : s2 ) ret.push(str)
+	for ( string str : s3 ) ret.push(str)
+	return ret
+}
+
+string[] concat( string[] s1, string[] s2, string[] s3, string[] s4 ) {
+	string[] ret	
+	for ( string str : s1 ) ret.push(str)
+	for ( string str : s2 ) ret.push(str)
+	for ( string str : s3 ) ret.push(str)
+	for ( string str : s4 ) ret.push(str)
+	return ret
+}
+
+bool is_in_array( string str, string[] arr ) { // case-insensitive
+	for( string val : arr ) \
+		if ( val.toLower() == str.toLower() ) \
+			return true
+	return false
+}
+
+// math functions
+
+int round( real f ) {
+	string s = f
+	arr := s.split('\.')
+	int a = arr[0].parseInt()
+	int b = arr[1].parseInt()
+	if ( b >= 5 ) return a+1
+	else return a
+}
+
+int min( int a, int b ) {
+	if ( a > b ) return b
+	else return a
+}
+
+int max( int a, int b ) {
+	if ( a > b ) return a
+	else return b
+}

@@ -1,0 +1,965 @@
+#!/usr/bin/env bds
+
+include "base.bds"
+
+
+// removing dupes
+int mapq_thresh 	= 30 			help Threshold for removing low MAPQ reads (default: 30).
+
+// bwa
+string bwa_idx 		= ""			help Path for bwa index.
+string param_bwa_aln	= "-q 5 -l 32 -k 2" 	help Parameters for bwa align (default: "-q 5 -l 32 -k 2").
+
+int nth_bwa_aln		= 2 			help Number of threads for bwa aln (default: 2).
+string wt_bwa_aln	= "10h"			help Walltime for bwa aln (default: 10h).
+string mem_bwa_aln	= "8G"	 		help Max. memory for bwa aln (default: 8G).
+string wt_bwa_sam	= "12h"			help Walltime for bwa sampe/samse (default: 12h).
+string mem_bwa_sam	= "8G"			help Max. memory for bwa sampe/samse (default: 8G).
+
+// xcor
+int nreads 		= 15000000		help Number of reads to be subsampled for cross corr. analysis (default. 15000000).
+
+// bowtie2
+string bwt_idx		= ""			help Path for bowtie index
+
+int nth_bwt2		= 2 			help Number of threads for bowtie2 (default: 2).
+string wt_bwt2		= "10h"			help Walltime for bowtie2 (default: 10h).
+string mem_bwt2		= "12G"	 		help Max. memory for bowtie2 (default: 8G).
+
+// vplot
+string vplot_idx 	= "" 			help Path for V plot index.
+string make_vplot 	= "makeVPlot.py" 	// IMPORTANT! chmod 755 to this file to allow $which finds the location for this
+
+// trim adapter
+string trim_adapters 	= "trimAdapters.py" 	// IMPORTANT! chmod 755 to this file to allow $which finds the location for this
+
+
+/*		
+final_stage : align finishes at final_stage.
+	(bam, nodup_bam, tag, xcor)
+
+data type : align starts from a given type.
+	(fastq, bam, nodup_bam, tag)
+
+_PE : for paired end data
+
+IMPORTANT!: legacy softwares compatibility (make the code work with legacy samtools, picard-tools)
+
+	- samtools fixmate -O doesn't work in legacy samtools
+		specify output ext like [TARGET].bam (samtools fixmate -O [SRC] [TARGET].bam)
+
+	- samtools index [SRC] [TARGET] doesn't work in legacy samtools
+		you need to manually mv .bam.bai .bai
+
+	- samtools sort -O -T  doesn't work in legacy samtools (do not use them)
+
+	- java -Xmx4G -Xms256M -jar ${PICARDROOT}/picard.jar [METHOD]  for old picard
+	- java -Xmx4G -Xms256M -jar ${PICARDROOT}/[METHOD].jar  for new picard
+*/
+
+string[] _align( string[] data, string type, string final_stage, string out_dir, string info ) {
+
+	string bam, qc // make bam and map_qc with using bwa
+	if ( is_data_type_before( type, "bam" ) ) {
+
+		fastq := data[0]
+
+		(bam, qc) = _bwa( fastq, out_dir, info )
+		wait
+
+		if ( final_stage.toLower() == "bam" ) return [bam, qc]
+	}
+
+	string nodup_bam, nodup_bam_idx, nmsrt_bam // remove dupes and make nodup.bam and name sorted bam
+	if ( is_data_type_before( type, "nodup_bam" ) ) {
+
+		if ( type.toLower() == "bam" ) bam = data[0]
+
+		(nodup_bam, nodup_bam_idx) = _bam_to_nodup_bam( bam, out_dir, info )
+		wait
+
+		if ( final_stage.toLower() == "nodup_bam" ) return [nodup_bam]
+	}
+
+	string tag // make tagalign
+	if ( is_data_type_before( type, "tag" ) ) {
+
+		if ( type.toLower() == "nodup_bam" ) nodup_bam = data[0]
+
+		tag = _bam_to_tag( nodup_bam, out_dir, info )
+		wait
+
+		if ( final_stage.toLower() == "tag" ) return [tag]
+	}
+
+	string xcor_score, xcor_plot // make cross correlation score and plot	
+	if ( is_data_type_before( type, "xcor" ) ) {
+
+		if ( type.toLower() == "tag" ) tag = data[0]
+
+		subsampled_tag := _subsample_tag( tag, out_dir, info )
+		wait
+
+		(xcor_score, xcor_plot) = _xcor( subsampled_tag, out_dir, info )
+		wait
+
+		save_data( "$out_dir/data_fraglen_$info", [ get_fraglen(xcor_score) ] )
+
+		if ( final_stage.toLower() == "xcor" ) return [xcor_score, xcor_plot]
+	}
+
+	string tag_pr1, tag_pr2 // make self pseudo replicate	
+	(tag_pr1, tag_pr2) = _spr( tag, out_dir, info )
+
+	save_data( "$out_dir/data_tag_$info", [tag, tag_pr1, tag_pr2] )
+
+	return [tag, tag_pr1, tag_pr2]
+}
+
+string[] _align_PE( string[] data, string type, string final_stage, string out_dir, string info ) {
+
+	string bam, qc // make bam and map_qc with using bwa
+	if ( is_data_type_before( type, "bam" ) ) {
+
+		fastq1 := data[0]
+		fastq2 := data[1]
+		(bam, qc) = _bwa_PE( fastq1, fastq2, out_dir, info )
+		wait
+
+		if ( final_stage.toLower() == "bam" ) return [bam, qc]
+	}
+
+	string nodup_bam, nodup_bam_idx // remove dupes and make nodup.bam
+	if ( is_data_type_before( type, "nodup_bam" ) ) {
+
+		if ( type.toLower() == "bam" ) bam = data[0]
+
+		(nodup_bam, nodup_bam_idx) = _bam_to_nodup_bam_PE( bam, out_dir, info )
+		wait
+
+		if ( final_stage.toLower() == "nodup_bam" ) return [nodup_bam]
+	}
+
+	string tag // make tagalign
+	if ( is_data_type_before( type, "tag" ) ) {
+
+		if ( type.toLower() == "nodup_bam" ) nodup_bam = data[0]
+
+		tag = _bam_to_tag( nodup_bam, out_dir, info )
+		wait
+
+		if ( final_stage.toLower() == "tag" ) return [tag]
+	}
+
+	string bedpe, xcor_score, xcor_plot // make cross correlation score and plot	
+	if ( is_data_type_before( type, "xcor" ) ) {
+
+		string subsampled_tag
+
+		if ( type.toLower() == "tag" ) {
+			tag = data[0]
+
+			subsampled_tag = _subsample_tag( tag, out_dir, info )
+			wait
+		}
+		else {
+			nmsrt_bam := _bam_to_nmsrt_bam( nodup_bam, out_dir, info )
+			wait
+
+			bedpe = _bam_to_bedpe( nmsrt_bam, out_dir, info )
+			wait 
+
+			subsampled_tag = _subsample_bedpe( bedpe, out_dir, info )
+			wait
+		}
+
+		(xcor_score, xcor_plot) = _xcor( subsampled_tag, out_dir, info )
+		wait
+
+		save_data( "$out_dir/data_fraglen_$info", [ get_fraglen(xcor_score) ] )
+
+		if ( final_stage.toLower() == "xcor" ) return [xcor_score, xcor_plot]
+	}
+
+	string tag_pr1, tag_pr2 // make self pseudo replicate	
+
+	if ( type.toLower() == "tag" ) { // if started from tag, we don't have bedpe file, use SE version
+		(tag_pr1, tag_pr2) = _spr( tag, out_dir, info )	
+	}
+	else {
+		(tag_pr1, tag_pr2) = _spr_PE( bedpe, out_dir, info )
+	}
+
+	save_data( "$out_dir/data_tag_$info", [tag, tag_pr1, tag_pr2] )
+	return [tag, tag_pr1, tag_pr2]
+}
+
+string[] _bwa( string fastq, string out_dir, string info ) {
+
+	prefix 	:= change_dir( remove_ext( fastq, "fastq" ), out_dir )
+	bam 	:= "$prefix.bam"
+	qc 	:= "$prefix.flagstat.qc"
+
+	in 	:= [ fastq ]
+	out 	:= [ bam, qc ]
+
+	if ( out <- in ) { // compare file timestamps of in and out (to check if job is already done or not)
+		sai := _bwa_aln( fastq, out_dir, info )
+		wait
+
+		_bwa_sam( fastq, sai, out_dir, info )
+		wait
+
+		sai.rm() // delete intermediate file sai		
+	}
+
+	return out
+}
+
+string[] _bwa_PE( string fastq1, string fastq2, string out_dir, string info ) {
+
+	//prefix 	:= "$out_dir/" + concat_basename_wo_ext( fastq1, fastq2, "fastq" )
+	prefix 	:= change_dir( remove_ext( fastq1, "fastq" ), out_dir ) + ".PE2SE"
+
+	bam 	:= "$prefix.bam"
+	qc 	:= "$prefix.flagstat.qc"
+
+	in 	:= [ fastq1, fastq2 ]
+	out 	:= [ bam, qc ]
+
+	if ( out <- in ) { // compare file timestamps of in and out (to check if job is already done or not)
+
+		// parallel jobs
+		sai1 := _bwa_aln( fastq1, out_dir, info ) 
+		sai2 := _bwa_aln( fastq2, out_dir, info )
+
+		wait
+
+		_bwa_sam_PE( fastq1, fastq2, sai1, sai2, out_dir, info )
+		wait
+		
+		sai1.rm() // delete intermediate file sai1, sai2
+		sai2.rm()
+	}
+
+	return out
+}
+
+string _bwa_aln( string fastq, string out_dir, string info ) {
+
+	prefix 	:= change_dir( remove_ext( fastq, "fastq" ), out_dir )
+
+	sai 	:= "$prefix.sai"	
+	
+	in 	:= [ fastq ]
+	out 	:= sai
+
+	task( taskName:= "bwa_aln "+info, \
+		cpus:=nth_bwa_aln, mem:=parse_mem(mem_bwa_aln), timeout:=parse_time(wt_bwa_aln), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		//# Map reads to create raw SAM file
+		sys bwa aln $param_bwa_aln -t $nth_bwa_aln $bwa_idx $fastq > $sai
+	}
+
+	return out
+}
+
+string[] _bwa_sam( string fastq, string sai, string out_dir, string info ) {
+
+	prefix 	:= change_dir( remove_ext( fastq, "fastq" ), out_dir )
+
+	bam 	:= "$prefix.bam"
+	qc	:= "$prefix.flagstat.qc"
+
+	in 	:= [ fastq, sai ]
+	out 	:= [ bam, qc ]
+
+	task( taskName:= "bwa_sam "+info, \
+		cpus:=nth, mem:=parse_mem(mem_bwa_sam), timeout:=parse_time(wt_bwa_sam), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys bwa samse $bwa_idx $sai $fastq | samtools view -Su - | samtools sort - $prefix
+		sys samtools flagstat $bam > $qc
+	}
+
+	return out
+}
+
+string[] _bwa_sam_PE( string fastq1, string fastq2, string sai1, string sai2, string out_dir, string info ) {
+
+	//prefix 	:= "$out_dir/" + concat_basename_wo_ext( fastq1, fastq2, "fastq" )
+	prefix 	:= change_dir( remove_ext( fastq1, "fastq" ), out_dir ) + ".PE2SE"
+
+	sam 	:= "$prefix.sam"
+	badcigar:= "$prefix.badReads"
+	bam 	:= "$prefix.bam"
+	qc	:= "$prefix.flagstat.qc"
+
+	in 	:= [ fastq1, fastq2, sai1, sai2 ]
+	out 	:= [ bam, qc ]
+
+	task( taskName:= "bwa_sam_PE "+info, \
+		cpus:=nth, mem:=parse_mem(mem_bwa_sam), timeout:=parse_time(wt_bwa_sam), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+		
+		sys bwa sampe $bwa_idx $sai1 $sai2 $fastq1 $fastq2 | gzip -c > $sam
+
+		//# Remove read pairs with bad CIGAR strings and sort by position                                                                
+
+		//# Find bad CIGAR read names                                                                                                                                                  
+		sys zcat $sam \
+			| awk 'BEGIN {FS="\t" ; OFS="\t"} ! /^@/ && $6!="*" { cigar=$6; gsub("[0-9]+D","",cigar); n = split(cigar,vals,"[A-Z]"); s = 0; for (i=1;i<=n;i++) s=s+vals[i]; seqlen=length($10) ; if (s!=seqlen) print $1"\t"; }' \
+			| sort | uniq > $badcigar
+
+		//# Remove bad CIGAR read pairs
+		sys if [ $(cat $badcigar | wc -l) -gt 0 ]; then \
+				zcat $sam | grep -v -F -f $badcigar | samtools view -Su - | samtools sort - $prefix; \
+			else \
+				samtools view -Su $sam | samtools sort - $prefix; \
+			fi
+
+		sys samtools flagstat $bam > $qc
+		sys rm -f $badcigar $sam
+	}
+
+	return out
+}
+
+string[] _bam_to_nodup_bam( string bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( bam, "bam" ), out_dir )
+
+	nodup_bam 	:= "$prefix.nodup.bam"
+	nodup_bam_idx 	:= "$prefix.nodup.bai"
+	dup_qc 		:= "$prefix.dup.qc"
+	map_qc 		:= "$prefix.nodup.flagstat.qc"
+	pbc_qc 		:= "$prefix.nodup.pbc.qc"
+	filt_bam 	:= "$prefix.filt.bam"
+	tmp_filt_bam 	:= "$prefix.dupmark.bam"
+
+	in 		:= [ bam ]
+	out 		:= [ nodup_bam, nodup_bam_idx, dup_qc, map_qc, pbc_qc ]
+
+	task( taskName:= "bam_to_nodup_bam "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		//# =============================
+		//# Remove  unmapped, mate unmapped
+		//# not primary alignment, reads failing platform
+		//# Remove low MAPQ reads
+		//# ==================  
+		sys samtools view -F 1804 -q $mapq_thresh -b $bam > $filt_bam
+
+		//# Mark duplicates
+		sys if [ -f ${PICARDROOT}/MarkDuplicates.jar ]; then \
+			java -Xmx4G -jar ${PICARDROOT}/MarkDuplicates.jar \
+				INPUT="$filt_bam" OUTPUT="$tmp_filt_bam" \
+				METRICS_FILE="$dup_qc" VALIDATION_STRINGENCY=LENIENT \
+				ASSUME_SORTED=true REMOVE_DUPLICATES=false; \
+			else \
+			java -Xmx4G -jar ${PICARDROOT}/picard.jar MarkDuplicates \
+				INPUT="$filt_bam" OUTPUT="$tmp_filt_bam" \
+				METRICS_FILE="$dup_qc" VALIDATION_STRINGENCY=LENIENT \
+				ASSUME_SORTED=true REMOVE_DUPLICATES=false; \
+			fi
+
+		//# Remove duplicates
+		//# Index final position sorted BAM
+		sys mv $tmp_filt_bam $filt_bam
+		sys samtools view -F 1804 -b $filt_bam > $nodup_bam
+		
+		//# Index Final BAM file
+		sys samtools index $nodup_bam
+		
+		sys if [ "$nodup_bam.bai" != "$nodup_bam_idx" ]; then \
+			mv $nodup_bam.bai $nodup_bam_idx; \
+			fi
+
+		sys samtools flagstat $nodup_bam > $map_qc
+
+		//# =============================
+		//# Compute library complexity
+		//# =============================
+		//# sort by position and strand
+		//# Obtain unique count statistics
+
+		//# PBC File output
+		//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
+		sys bedtools bamtobed -i $filt_bam | \
+			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$6}' | \
+			grep -v 'chrM' | sort | uniq -c | \
+			awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $pbc_qc
+
+		sys rm -f $filt_bam
+		sys rm -f $tmp_filt_bam
+	}
+
+	return out
+}
+
+string[] _bam_to_nodup_bam_PE( string bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( bam, "bam" ), out_dir )
+
+	nodup_bam 	:= "$prefix.nodup.bam"
+	nodup_bam_idx 	:= "$prefix.nodup.bai"
+
+	dup_qc 		:= "$prefix.dup.qc"
+	map_qc 		:= "$prefix.nodup.flagstat.qc"
+	pbc_qc 		:= "$prefix.nodup.pbc.qc"
+
+	filt_bam 	:= "$prefix.filt.bam"
+	filt_bam_prefix := "$prefix.filt"
+
+	tmp_filt_bam 	:= "$prefix.dupmark.bam"
+	tmp_filt_bam_prefix := "$prefix.dupmark"
+
+	in 		:= [ bam ]
+	out 		:= [ nodup_bam, nodup_bam_idx, dup_qc, map_qc, pbc_qc ]
+
+	task( taskName:= "bam_to_nodup_bam_PE "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+		sys $SHCMD_INIT
+
+		//# =============================
+		//# Remove  unmapped, mate unmapped
+		//# not primary alignment, reads failing platform
+		//# Remove low MAPQ reads
+		//# Only keep properly paired reads
+		//# Obtain name sorted BAM file
+		//# ==================
+
+		sys samtools view -F 1804 -f 2 -q $mapq_thresh -u $bam | \
+			samtools sort -n - $tmp_filt_bam_prefix       # Will produce name sorted BAM
+
+		//# Remove orphan reads (pair was removed)
+		//# and read pairs mapping to different chromosomes
+		//# Obtain position sorted BAM			
+
+		//# Will produce coordinate sorted BAM
+		sys samtools fixmate -r $tmp_filt_bam $tmp_filt_bam.fixmate.bam
+		sys samtools view -F 1804 -f 2 -u $tmp_filt_bam.fixmate.bam | samtools sort - $filt_bam_prefix
+		sys rm $tmp_filt_bam.fixmate.bam
+
+		//# Mark duplicates
+		sys if [ -f ${PICARDROOT}/MarkDuplicates.jar ]; then \
+			java -Xmx4G -jar ${PICARDROOT}/MarkDuplicates.jar \
+				INPUT="$filt_bam" OUTPUT="$tmp_filt_bam" \
+				METRICS_FILE="$dup_qc" VALIDATION_STRINGENCY=LENIENT \
+				ASSUME_SORTED=true REMOVE_DUPLICATES=false; \
+			else \
+			java -Xmx4G -jar ${PICARDROOT}/picard.jar MarkDuplicates \
+				INPUT="$filt_bam" OUTPUT="$tmp_filt_bam" \
+				METRICS_FILE="$dup_qc" VALIDATION_STRINGENCY=LENIENT \
+				ASSUME_SORTED=true REMOVE_DUPLICATES=false; \
+			fi
+
+		//# ============================
+		//# Remove duplicates
+		//# Index final position sorted BAM
+		//# Create final name sorted BAM
+		//# ============================
+
+		sys mv $tmp_filt_bam $filt_bam
+		
+		sys samtools view -F 1804 -f 2 -b $filt_bam > $nodup_bam
+						
+		sys samtools index $nodup_bam
+
+		sys if [ "$nodup_bam.bai" != "$nodup_bam_idx" ]; then \
+			mv $nodup_bam.bai $nodup_bam_idx; \
+			fi
+
+		sys samtools flagstat $nodup_bam > $map_qc
+
+		//# =============================
+		//# Compute library complexity
+		//# =============================
+		//# Sort by name
+		//# convert to bedPE and obtain fragment coordinates
+		//# sort by position and strand
+		//# Obtain unique count statistics
+	
+		//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
+		sys samtools sort -n $filt_bam $filt_bam.tmp
+		sys bedtools bamtobed -bedpe -i $filt_bam.tmp.bam | \
+			awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
+			grep -v 'chrM' | sort | uniq -c | \
+			awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $pbc_qc
+		sys rm $filt_bam.tmp.bam
+		
+		sys rm -f $filt_bam
+		sys rm -f $tmp_filt_bam
+	}
+
+	return out
+}
+
+string _bam_to_nmsrt_bam( string bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( bam, "bam" ), out_dir )
+
+	nmsrt_bam 	:= "$prefix.nmsrt.bam"
+	nmsrt_bam_prefix:= "$prefix.nmsrt"
+
+	in 		:= [ bam ]
+	out 		:= nmsrt_bam
+
+	task( taskName:= "bam_to_nmsrt_bam "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys samtools sort -n $bam $nmsrt_bam_prefix
+	}
+
+	return out	
+}
+
+string[] _bam_to_srt_bam( string bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( bam, "bam" ), out_dir )
+
+	srt_bam 	:= "$prefix.srt.bam"
+	srt_bam_prefix 	:= "$prefix.srt"
+	srt_bam_idx 	:= "$prefix.srt.bai"
+
+	in 		:= [ bam ]
+	out 		:= [ srt_bam, srt_bam_idx ]
+
+	task( taskName:= "bam_to_srt_bam "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		//sys samtools sort -Ttmp -l0 -Obam $bam -o $srt_bam
+		//sys samtools index $srt_bam $srt_bam.bai
+		//sys mv $srt_bam.bai $srt_bam_idx
+
+		sys samtools sort $bam $srt_bam_prefix
+		sys samtools index $srt_bam
+
+		sys if [ "$srt_bam.bai" != "$srt_bam_idx" ]; then \
+			cp $srt_bam.bai $srt_bam_idx; \
+			fi
+		}
+	/*
+		sys if [ "$srt_bam.bai" != "$srt_bam_idx" ]; then \
+			mv $srt_bam.bai $srt_bam_idx; \
+			fi		
+		}
+	*/
+
+	return out	
+}
+
+string _bam_to_tag( string bam, string out_dir, string info ) {
+	
+	prefix 		:= change_dir( remove_ext( bam, "bam" ), out_dir )
+
+	tag 		:= "$prefix.tagAlign.gz"
+
+	in 		:= [ bam ]
+	out 		:= tag
+
+	task( taskName:= "bam_to_tag "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+	
+		//# Create SE tagAlign file
+		sys bedtools bamtobed -i $bam | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | gzip -c > $tag
+	}
+
+	return out
+}
+
+string _bam_to_bedpe( string nmsrt_bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( nmsrt_bam, "bam" ), out_dir )
+
+	bedpe 		:= "$prefix.bedpe.gz"
+
+	in 		:= [ nmsrt_bam ]
+	out 		:= bedpe
+
+	task( taskName:= "bam_to_bedpe "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		//# Create BEDPE file
+		sys bedtools bamtobed -bedpe -mate1 -i $nmsrt_bam | gzip -c > $bedpe
+	}
+
+	return out
+}
+
+string _bam_to_bed_non_chrM( string nodup_bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( nodup_bam, "bam" ), out_dir )
+
+	mito_bam 	:= "$prefix.chrM.bam"
+	non_mito_bam 	:= "$prefix.nonchrM.bam"
+	non_mito_bam_hist_grp := "$non_mito_bam.hist_graph.pdf"
+	non_mito_bam_hist_log := "$non_mito_bam.hist_data.log"
+
+	bed 	:= "$prefix.nonchrM.tn5.bed.gz"
+
+
+	in 	:= [nodup_bam]
+	out 	:= bed //, mito_bam, non_mito_bam, non_mito_bam_hist_grp ]
+
+	task( taskName:= "bam_to_bed_non_chrM "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys nonMitoChromosomes=$(samtools view -H "$nodup_bam" | \
+					grep chr | cut -f2 | sed 's/SN://g' | grep -v chrM)
+
+		sys samtools view -b "$nodup_bam" ${nonMitoChromosomes} > "$non_mito_bam"		
+		sys samtools view -b "$nodup_bam" chrM > "$mito_bam"
+
+		//# Process only non chrM reads
+		// embedded adjustBedTn5.sh	
+		sys bamToBed -i "$non_mito_bam" | \
+			awk -F $'\t' 'BEGIN {OFS = FS}{ if ($6 == "+") {$2 = $2 + 4} else if ($6 == "-") {$3 = $3 - 5} print $0}' | \
+			gzip -c > "$bed"
+
+		sys if [ -f ${PICARDROOT}/CollectInsertSizeMetrics.jar ]; then \
+				java -Xmx4G -Xms256M -jar ${PICARDROOT}/CollectInsertSizeMetrics.jar \
+				INPUT="$non_mito_bam" OUTPUT="$non_mito_bam_hist_log" \
+				H="$non_mito_bam_hist_grp" W=1000 STOP_AFTER=5000000; \
+			else \
+				java -Xmx4G -Xms256M -jar ${PICARDROOT}/picard.jar CollectInsertSizeMetrics \
+				INPUT="$non_mito_bam" OUTPUT="$non_mito_bam_hist_log" \
+				H="$non_mito_bam_hist_grp" W=1000 STOP_AFTER=5000000; \
+			fi
+	}
+
+	return out
+}
+
+string _subsample_tag( string tag, string out_dir, string info ) {
+	
+	prefix 		:= change_dir( remove_ext( tag, ["tagAlign","tag","bed"] ), out_dir )
+
+	nreads_per_mill := (nreads/1000000)
+	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
+
+	in 		:= [ tag ]
+	out 		:= subsampled_tag
+
+	task( taskName:= "_subsample_tag "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+	
+		//# Subsample tagAlign file
+		sys zcat $tag | \
+			grep -v "chrM" | shuf -n $nreads | gzip -c > $subsampled_tag
+	}
+
+	return out
+}
+
+string _subsample_bedpe( string bedpe, string out_dir, string info ) {
+	
+	prefix 		:= change_dir( remove_ext( bedpe, ["bedpe","bed"] ), out_dir )
+
+	nreads_per_mill := (nreads/1000000)
+	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
+
+	in 		:= [ bedpe ]
+	out 		:= subsampled_tag
+
+	task( taskName:= "bam_to_tag_PE "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		//# Subsample tagAlign file
+		//# Restrict to one read end per pair for CC analysis
+		sys zcat $bedpe | \
+			grep -v "chrM" | shuf -n $nreads | \
+			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | gzip -c > $subsampled_tag
+	}
+
+	return out
+}
+
+string[] _xcor( string tag, string out_dir, string info ) {
+
+	// misc.
+	prefix 		:= change_dir( remove_ext( tag, ["tagAlign","tag","bed"] ), out_dir )
+
+	xcor_score 	:= "$prefix.cc.qc"
+	xcor_plot 	:= "$prefix.cc.plot.pdf"
+
+	in 		:= [ tag ]
+	out 		:= [ xcor_score, xcor_plot ]
+
+	task( taskName:= "xcor "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		//# CCSCORE FILE format
+		//# Filename <tab> numReads <tab> estFragLen <tab> correstFragLen <tab> PhantomPeak <tab> corrphantomPeak <tab> argmincorr <tab> mincorr <tab> phantomPeakCoef <tab> relPhantomPeakCoef <tab> QualityTag
+		sys Rscript $(which run_spp_nodups.R) -rf \
+			-c=$tag -p=$nth \
+			-filtchr=chrM -savp=$xcor_plot -out=$xcor_score
+		sys sed -r 's/,[^\t]+//g' $xcor_score > $xcor_score.tmp
+		sys mv $xcor_score.tmp $xcor_score
+	}
+
+	return out
+}
+
+// make spr(self_pseudo_replicate)
+string[] _spr( string tag, string out_dir, string info ) {
+	
+	prefix 	:= change_dir( remove_ext( tag, ["tagAlign","tag","bed"] ), out_dir )
+
+	tag_pr1	:= "$prefix.pr1.tagAlign.gz"
+	tag_pr2	:= "$prefix.pr2.tagAlign.gz"
+
+	in 	:= [ tag ]
+	out 	:= [ tag_pr1, tag_pr2 ]
+
+	task( taskName:= "spr "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		//# Get total number of read pairs
+		sys nlines=$( zcat $tag | wc -l )
+		sys nlines=$(( (nlines + 1) / 2 ))
+		
+		//# Shuffle and split BEDPE file into 2 equal parts
+		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
+		sys zcat $tag | shuf | split -d -l $((nlines)) - $prefix.
+
+		//# Convert read pairs to reads into standard tagAlign file
+		sys gzip -c $prefix.00 > $tag_pr1
+		sys rm -f $prefix.00
+		sys gzip -c $prefix.01 > $tag_pr2
+		sys rm -f $prefix.01
+	}
+
+	return out
+}
+
+string[] _spr_PE( string bedpe, string out_dir, string info ) {
+	
+	prefix 	:= change_dir( remove_ext( bedpe, ["bedpe","bed","tagAlign"] ), out_dir )
+
+	tag_pr1	:= "$prefix.pr1.tagAlign.gz"
+	tag_pr2	:= "$prefix.pr2.tagAlign.gz"
+
+	in 	:= [ bedpe ]
+	out 	:= [ tag_pr1, tag_pr2 ]
+
+	task( taskName:= "spr_PE "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		//# Get total number of read pairs
+		sys nlines=$( zcat $bedpe | wc -l )
+		sys nlines=$(( (nlines + 1) / 2 ))
+
+		//# Shuffle and split BEDPE file into 2 equal parts
+		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
+		sys zcat $bedpe | shuf | split -d -l $((nlines)) - $prefix.  
+
+		//# Convert read pairs to reads into standard tagAlign file
+		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$prefix.00" | \
+			gzip -c > $tag_pr1
+		sys rm -f $prefix.00
+		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$prefix.01" | \
+			gzip -c > $tag_pr2
+		sys rm -f $prefix.01
+	}
+	
+	return out
+}
+
+// make psr(pooled pseudo replicate)
+string[] _ppr( string[] tags, string[] tags_pr1, string[] tags_pr2, string out_dir, string info ) {
+
+	tag1 := tags[0]
+	tag2 := (tags.size()>=2) ? tags[1] : ""
+
+	tag1_pr1 := tags_pr1[0]
+	tag2_pr1 := (tags_pr1.size()>=2) ? tags_pr1[1] : ""
+
+	tag1_pr2 := tags_pr2[0]
+	tag2_pr2 := (tags_pr2.size()>=2) ? tags_pr2[1] : ""
+
+	prefix 	:= "$out_dir/" + concat_basename_wo_ext( tag1, tag2, ["tagAlign","tag","bed"] )	
+
+	tag_pooled 	:= "$prefix"+"_pooled.tagAlign.gz"
+	tag_ppr1 	:= "$prefix"+"_pooled.pr1.tagAlign.gz"
+	tag_ppr2 	:= "$prefix"+"_pooled.pr2.tagAlign.gz"
+
+	out 	:= [ tag_pooled, tag_ppr1, tag_ppr2 ]
+
+	if ( tags.size()>=2 ) { // if two replicates, pool them
+
+		in 	:= [ tag1, tag2, tag1_pr1, tag1_pr2, tag2_pr1, tag2_pr2 ]
+
+		task( taskName:= "ppr "+info, \
+			cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+			out<-in ) {
+
+			sys $SHCMD_INIT
+
+			//# Create pooled datasets
+			sys zcat $tag1 $tag2 | gzip -c > $tag_pooled
+
+			//# Create pooled pseudoreplicates
+			sys zcat $tag1_pr1 $tag2_pr1 | gzip -c > $tag_ppr1
+			sys zcat $tag1_pr2 $tag2_pr2 | gzip -c > $tag_ppr2
+		}
+		return out
+	}
+	else { // if only one replicate, duplicate rep1 for rep2
+
+		in 	:= [ tag1, tag1_pr1, tag1_pr2 ]
+
+		task( taskName:= "ppr "+info, \
+			cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+			out<-in ) {
+
+			sys cp $tag1 $tag_pooled
+			sys cp $tag1_pr1 $tag_ppr1
+			sys cp $tag1_pr2 $tag_ppr2
+		}
+		return out
+	}
+
+}
+
+string[] _trim_adapters( string fastq1, string fastq2, string out_dir, string info ) {
+
+	prefix1	:= change_dir( remove_ext( fastq1, ["fastq"] ), out_dir )
+	prefix2	:= change_dir( remove_ext( fastq2, ["fastq"] ), out_dir )
+
+	p1 	:= "$prefix1.trim.fastq"
+	p2 	:= "$prefix2.trim.fastq"
+
+	in 	:= [ fastq1, fastq2 ]
+	out 	:= [ p1, p2 ]
+
+	task( taskName:= "trim_adapters "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys cd $out_dir
+		sys python $(which $trim_adapters) -a $fastq1 -b $fastq2
+	}
+
+	return out
+}
+
+string[] _bowtie2( string fastq1, string fastq2, string out_dir, string info ) {
+
+	//prefix 	:= change_dir( remove_ext( fastq1, ["fastq"] ), out_dir )
+	prefix 	:= change_dir( remove_ext( fastq1, "fastq" ), out_dir ) + ".PE2SE"
+
+	bam 	:= "$prefix.bam"
+	log 	:= "$prefix.align.log"
+
+	in 	:= [ fastq1, fastq2 ]
+	out 	:= [ bam, log ]
+
+	task( taskName:= "bowtie2 "+info, \
+		cpus:=nth_bwt2, mem:=parse_mem(mem_bwt2), timeout:=parse_time(wt_bwt2), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys bowtie2 -X2000 --threads $nth_bwt2 -x $bwt_idx \
+			-1 <(zcat -f $fastq1) -2 <(zcat -f $fastq2) \
+			2>$log | \
+			samtools view -bS - > $bam
+	}
+
+	return out
+}
+
+string _vplot( string srt_bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( srt_bam , out_dir )
+	vp_idx_base 	:= get_basename( vplot_idx )
+
+	vplot 	:= "$prefix.$vp_idx_base.vect.png"
+
+	in 	:= [ srt_bam ]
+	out 	:= vplot
+
+	task( taskName:= "v_plot"+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys cd $out_dir
+
+		//# generate V plot
+		sys echo "Generating V Plot..."
+
+		//# this script must be in PATH (didn't work with 20 thread, so reduce it to 4)
+		sys python $(which $make_vplot) -a $srt_bam -b $vplot_idx -e 2000 -p ends -c 4 -v -u
+	}
+
+	return out
+}
+
+bool is_data_type_before( string type, string stage ) {
+
+	if ( stage.toLower() == "bam" ) {
+		return is_in_array( type, ["fastq"] )
+	}
+	else if ( stage.toLower() == "nodup_bam" ) {
+		return is_in_array( type, ["fastq","bam"] )
+	}
+	else if ( stage.toLower() == "tag" || stage.toLower() == "tagalign" ) {
+		return is_in_array( type, ["fastq","bam","nodup_bam"] ) 	
+	}
+	else if ( stage.toLower() == "xcor" ) {
+		return is_in_array( type, ["fastq","bam","nodup_bam","tag","tagalign"] )
+	}
+
+	return false
+}
+
+string get_fraglen( string xcor_score ) {   // get FRAGLEN (3rd column of cc score file) for spp(-speak=$FRAGLEN)	
+	cols := xcor_score.read().split("\t")
+	return cols[2]
+}

@@ -1,0 +1,138 @@
+#!/usr/bin/env bds
+
+include "base.bds"
+
+// Parameters defined in configuration overrides those on command line argument.
+
+conf_file	:= ""		help Configuration file path
+
+string{} conf	// configruation map
+
+
+
+init_conf()
+
+void init_conf() {
+
+	if ( is_cmd_line_arg_empty() ) {
+		print( "\nWarninig: No parameters are given (specify cmd. line arguments or configuration file)!\n\n")
+	}
+
+	// if only one argument, it's configuration file
+	if ( args.size()==1 ) conf_file = args[0]
+
+	if ( conf_file_exists() ) {
+
+		conf = config( conf_file )
+
+		// make all keys in conf file upper case
+		for(string k : conf.keys() ) conf{ k.toUpper() } = conf{k}
+		
+		// read conf values for basic variables defined in base.bds
+		out_dir 	= get_conf_val( 	out_dir, 	["OUTPUT_DIR", "OUT_DIR", "OUTDIR"] )	
+		no_par_job 	= get_conf_val_bool( 	no_par_job, 	["NO_PARALLEL_JOB","NO_PAR_JOB"] )
+		wt 		= get_conf_val( 	wt, 		["WALLTIME","WT","TIMEOUT"] )
+		nth 		= get_conf_val_int( 	nth, 		["NTHREADS","NTH","CPU"] )
+		mem 		= get_conf_val( 	mem, 		["MEMORY","MEM"] )
+
+		// read MODULE, SHELLCMD, ADDPATH
+		string module, shellcmd, path
+
+		for( string k : conf.keys() ) {
+			// if key is comment ignore
+			if ( k.indexOf("//")>=0 ) \
+				continue
+
+			// concat. module
+			if ( (k.indexOf("MOD_")>=0) || (k=="MOD") ) {
+
+				if ( init_mod.exists() ) {
+					trimmed := rm_comment( conf{k} )
+					trimmed = trimmed.replace("module add ","")
+					mods := trimmed.split(";")
+
+					if ( SHCMD_INIT.indexOf( init_mod )<0 ) module = " . $init_mod; "
+						
+					for ( string str : mods ) \
+						module = module + " module add " + str.trim() + ";"
+				}
+			}
+			else if ( k.indexOf("SHCMD")>=0 ) {
+
+				trimmed := rm_comment( conf{k} )
+				shellcmd = shellcmd + " " + trimmed + ";"
+			}
+			else if ( k.indexOf("ADDPATH")>=0 ) {
+
+				trimmed := rm_comment( conf{k} )
+
+				trimmed = trimmed.replace(":",";")
+				paths := trimmed.split(";")
+
+				path = " export PATH=\${PATH}"
+
+				for ( string str : paths ) \
+					path = path + ":" + str.trim()
+
+				path = path + ";"
+			}
+		}
+
+		SHCMD_INIT = SHCMD_INIT + module + shellcmd + path
+		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
+	}
+}
+
+bool conf_file_exists() {
+	if ( conf_file=="" ) return false
+	else return conf_file.exists()
+}
+
+int get_conf_val_int( int curr_val, string key ) {
+	val := get_conf_val( curr_val, key )
+	return parse_int( val )	
+}
+
+int get_conf_val_int( int curr_val, string[] keys ) {
+	val := get_conf_val( curr_val, keys )
+	return parse_int( val )	
+}
+
+bool get_conf_val_bool( bool curr_val, string key ) {
+	val := get_conf_val( curr_val, key )
+	return parse_bool( val )	
+}
+
+bool get_conf_val_bool( bool curr_val, string[] keys ) {
+	val := get_conf_val( curr_val, keys )
+	return parse_bool( val )	
+}
+
+real get_conf_val_real( real curr_val, string key ) {
+	val := get_conf_val( curr_val, key )
+	return parse_real( val )
+}
+
+real get_conf_val_real( real curr_val, string[] keys ) {
+	val := get_conf_val( curr_val, keys )
+	return parse_real( val )
+}
+
+string get_conf_val( string curr_val, string key ) {
+	key = key.toUpper()
+	if ( conf.hasKey( key ) ) return conf{ key }
+	return curr_val
+}
+
+string get_conf_val( string curr_val, string[] keys ) {
+	for ( string key : keys ) {
+		key = key.toUpper()
+		if ( conf.hasKey( key ) ) return conf{ key }
+	}
+	return curr_val
+}
+
+bool has_conf_key( string key ) {
+	if ( conf.hasKey( key.toUpper() ) ) return true
+	return false
+}

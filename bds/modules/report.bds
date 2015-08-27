@@ -1,0 +1,88 @@
+#!/usr/bin/env bds
+
+include "base.bds"
+
+
+void _write_report( string title, string report_file, string root ) {
+
+	print("\n====== Generating reports (out: $report_file) \n")
+
+	html_header := 	"<html> <head> <title>"+ title+"</title> </head> <body> <h1>" + title + "</h1>\n"
+	html_footer := "\n</body></html>\n"
+
+	string[] report_contents
+
+	report_contents.push( html_header )
+
+	// recursively find all files for report (png, pdf, txt, qc, ccscores)
+	_write_files_to_report( root, report_contents )
+
+	report_contents.push( html_footer )
+
+	report_file.write( array_to_str( report_contents ) )	
+}
+
+// recursive function
+void _write_files_to_report( string root, string[] lines ) {
+	all := root.dirPath()	
+
+	for ( string str : all ) {
+		//print("debug: $str\n")
+		if ( str.isDir() ) {
+			_write_files_to_report( str, lines )
+		}
+		else {	
+			rel_path := str.replace( root.path(), "." )
+
+			string html = "<h2>" + rel_path + "</h2> \n"
+
+			if ( str.endsWith( ".png") || str.endsWith( ".jpg") || str.endsWith( ".gif") ) {
+				html = html + 	"<a href=" + rel_path + ">" + rel_path  + "</a>\n" + \
+						"<img src=" + rel_path + ">\n"
+			}
+			else if ( str.endsWith( ".pdf") ||  str.endsWith( ".ps") ) {
+				html = html + 	"<a href=" + rel_path + ">" + rel_path  + "</a>\n"
+			} 
+			else if ( str.endsWith( ".ccscores") || str.endsWith( ".cc.qc" ) ) {				
+				html = html + 	"<pre>" + "Filename\tnumReads\testFragLen\tcorr_estFragLen\tPhantomPeak\tcorr_phantomPeak\targmin_corr\tmin_corr\tphantomPeakCoef\trelPhantomPeakCoef\tQualityTag<br>" + \
+						array_to_str( str.readLines() ) + "</pre>\n"
+						
+				html = html + 	"<pre>" + \
+						"Normalized strand cross-correlation coefficient (NSC) = col9 in outFile <br>" + \
+						"Relative strand cross-correlation coefficient (RSC) = col10 in outFile <br>" + \
+						"Estimated fragment length = col3 in outFile, take the top value <br>" + \
+						"Important columns highlighted, but all/whole file can be stored for display <br>" + \
+						 "</pre>\n"						 
+			}
+			else if ( str.endsWith( ".pbc.qc" ) ) {
+				html = html + "<pre>" + "TotalReadPairs\tDistinctReadPairs\tOneReadPair\tTwoReadPairs\tNRF=Distinct/Total\tPBC1=OnePair/Distinct\tPBC2=OnePair/TwoPair<br>" + \
+						array_to_str( str.readLines() ) + "</pre>\n"
+				html = html + "<pre>" + \
+						"NRF (non redundant fraction) <br>" + \
+						"PBC1 (PCR Bottleneck coefficient 1) <br>" + \
+						"PBC2 (PCR Bottleneck coefficient 2) <br>" + \
+						"PBC1 is the primary measure. Provisionally <br>" + \
+						"<ul>" + \
+						"<li>0-0.5 is severe bottlenecking</li>" + \
+						"<li>0.5-0.8 is moderate bottlenecking </li>" + \
+						"<li>0.8-0.9 is mild bottlenecking </li>" + \
+						"<li>0.9-1.0 is no bottlenecking </li>" + \
+						"</ul>" + \
+						"</pre>\n"				
+			}
+			else if ( str.endsWith( ".txt") || str.endsWith( ".qc" )) {
+				if ( str.size() > 1000000 ) { // if file size is too big > 1MB just link
+					html = html + 	"<a href=" + rel_path + ">" + rel_path  + "</a>\n"
+				}
+				else {
+					html = html + 	"<pre>" + array_to_str( str.readLines() ) + "</pre>\n"
+				}
+			}
+			else {
+				continue
+			}
+
+			lines.push( html )
+		}
+	}
+}

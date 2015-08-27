@@ -1,0 +1,323 @@
+#!/usr/bin/env bds
+
+include "base.bds"
+
+string peakcall 	= "spp"		help Choose peak calling method: spp, macs2 and gem (default: spp).
+
+//spp
+int npeak 		= 300000 	help Parameter for -npeak in spp (phantompeakqual tool run_spp.R) (default: 300000).
+int nth_spp 		= 2		help Number of threads for spp (run_spp.R) (default: 2).
+string wt_spp		= "10h"		help Walltime for spp (default: 10h).
+string mem_spp		= "8G" 		help Max. memory for spp (default: 8G).
+
+//macs2
+int nth_macs2		= 2 		help Number of threads for MACS2 (default: 2)
+string wt_macs2		= "10h"		help Walltime for MACS2 (default: 10h).
+string mem_macs2	= "8G" 		help Max. memory for MACS2 (default: 8G).
+
+//gem
+int nth_gem		= 2 		help Number of threads for gem (default: 2)
+string wt_gem		= "20h"		help Walltime for gem (default: 20h).
+string mem_gem		= "16G" 	help Max. memory for gem (default: 16G).
+
+//preseq
+int xmax 		= 500		help Maximum number of reads for preseq analysis (default: 500)
+
+
+
+string[] _peakcall( string tag, string ctl_tag, string fraglen, string out_dir, string info ) {
+
+	if ( is_peakcall_spp() ) {
+		return _spp( tag, ctl_tag, fraglen, out_dir, info )
+	}
+	else if ( is_peakcall_macs2() ) {
+		return _macs2( tag, ctl_tag, fraglen, out_dir, info )
+	}
+	else if ( is_peakcall_gem() ) {
+		return _gem( tag, ctl_tag, out_dir, info )
+	}
+}
+
+string[] _spp( string tag, string ctl_tag, string fraglen, string out_dir, string info ) {
+
+	// outputs
+	prefix 		:= "$out_dir/" + make_vs_basename( tag, ctl_tag, "" )
+
+	npeakfile 	:= "$prefix.narrowPeak.gz"
+	rpeakfile 	:= "$prefix.regionPeak.gz"
+	ccscore		:= "$prefix.ccscore"
+
+	pdf_tmp		:= change_dir( remove_ext( tag, ["gz"] ), out_dir ) + ".pdf"
+	pdf 		:= "$prefix.pdf"
+
+	in 	:= [ tag, ctl_tag ]
+	out 	:= [ npeakfile, rpeakfile, pdf, ccscore ]
+
+	task( taskName:= "spp "+info, \
+		cpus:=nth_spp, mem:=parse_mem(mem_spp), timeout:=parse_time(wt_spp), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys Rscript $(which run_spp_nodups.R) -c=$tag -p=$nth_spp -i=$ctl_tag \
+			-npeak=$npeak -odir=$out_dir -speak=$fraglen -savn -savr -savp -rf -out=$ccscore
+
+		// Bug fix (we have floating point representation of chr coord., possible bug in run_spp.R?):
+		// chr3    153999636       1.54e+08        .       0       .       4.47152214284156        -1      -0.0118951365772202     18
+		sys zcat $npeakfile | awk 'BEGIN{OFS="\t"}{print $1,int($2),int($3),$4,$5,$6,$7,$8,$9,$10;}' | gzip -c > $npeakfile.tmp
+		sys mv $npeakfile.tmp $npeakfile
+		sys mv $pdf_tmp $pdf
+	}
+
+	return out
+}
+
+string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, string info ) {
+
+	prefix 		:= "$out_dir/" + make_vs_basename( tag, ctl_tag, "" )
+
+	npeakfile	:= "$prefix.narrowPeak.gz"
+	bpeakfile	:= "$prefix.broadPeak.gz"
+	gpeakfile	:= "$prefix.gappedPeak.gz"
+	bigwig_fc 	:= "$prefix.fc.signal.bw"
+	bigwig_pval 	:= "$prefix.pval.signal.bw"
+
+ 	in 	:= [ tag, ctl_tag ]
+ 	out 	:= [ npeakfile, bpeakfile, gpeakfile, bigwig_fc, bigwig_pval ]
+
+	prefix_basename	:= get_basename( prefix )
+
+	task( taskName:= "macs2 "+info, \
+		cpus:=nth_macs2, mem:=parse_mem(mem_macs2), timeout:=parse_time(wt_macs2), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		//==========================================
+		//# Generate narrow peaks and preliminary signal tracks
+		//============================================
+		sys macs2 callpeak -t $tag -c $ctl_tag -f BED -n $out_dir/$prefix_basename -g $gensz -p 1e-2 --nomodel --shift 0 --extsize $fraglen --keep-dup all -B --SPMR
+
+		//# Sort by Col8 in descending order and replace long peak names in Column 4 with Peak_<peakRank>
+		sys sort -k 8gr,8gr $out_dir/"$prefix_basename"_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $out_dir/$prefix_basename.narrowPeak.gz
+
+		//# remove additional files
+		sys rm -f $out_dir/"$prefix_basename"_peaks.xls \
+			$out_dir/"$prefix_basename"_peaks.narrowPeak \
+			$out_dir/"$prefix_basename"_summits.bed
+
+		//===========================================
+		//# Generate Broad and Gapped Peaks
+		//============================================
+		sys macs2 callpeak -t $tag -c $ctl_tag -f BED -n $out_dir/$prefix_basename -g $gensz -p 1e-2 --broad --nomodel --shift 0 --extsize $fraglen --keep-dup all
+
+		//# Sort by Col8 (for broadPeak) or Col 14(for gappedPeak)  in descending order and replace long peak names in Column 4 with Peak_<peakRank>
+		sys sort -k 8gr,8gr $out_dir/"$prefix_basename"_peaks.broadPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $out_dir/$prefix_basename.broadPeak.gz
+		sys sort -k 14gr,14gr $out_dir/"$prefix_basename"_peaks.gappedPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $out_dir/$prefix_basename.gappedPeak.gz
+
+		//# remove additional files
+		sys rm -f $out_dir/"$prefix_basename"_peaks.xls \
+		  $out_dir/"$prefix_basename"_peaks.broadPeak \
+		  $out_dir/"$prefix_basename"_peaks.gappedPeak \
+		  $out_dir/"$prefix_basename"_summits.bed
+
+		//===========================================
+		//# For Fold enrichment signal tracks
+		//============================================
+		//# This file is a tab delimited file with 2 columns Col1 (chromosome name), Col2 (chromosome size in bp).
+
+		sys macs2 bdgcmp -t $out_dir/"$prefix_basename"_treat_pileup.bdg -c $out_dir/"$prefix_basename"_control_lambda.bdg --outdir $out_dir -o "$prefix_basename"_FE.bdg -m FE
+
+		//# Remove coordinates outside chromosome sizes (stupid MACS2 bug)
+		sys slopBed -i $out_dir/"$prefix_basename"_FE.bdg -g $chrsz -b 0 |   awk '{if ($3 != -1) print $0}' |  bedClip stdin $chrsz $out_dir/$prefix_basename.fc.signal.bedgraph
+
+		sys rm -f $out_dir/"$prefix_basename"_FE.bdg
+
+		//# Convert bedgraph to bigwig
+		sys bedGraphToBigWig $out_dir/$prefix_basename.fc.signal.bedgraph $chrsz $out_dir/$prefix_basename.fc.signal.bw
+
+		sys rm -f $out_dir/$prefix_basename.fc.signal.bedgraph
+
+		//===========================================
+		//# For -log10(p-value) signal tracks
+		//============================================
+
+		//# Compute sval = min(no. of reads in ChIP, no. of reads in control) / 1,000,000
+
+		sys chipReads=$(zcat $tag | wc -l | awk '{printf "%f", $1/1000000}');
+
+		sys controlReads=$(zcat $ctl_tag | wc -l | awk '{printf "%f", $1/1000000}');
+
+		sys sval=$(echo "${chipReads} ${controlReads}" | awk '$1>$2{printf "%f",$2} $1<=$2{printf "%f",$1}');
+
+		sys macs2 bdgcmp -t $out_dir/"$prefix_basename"_treat_pileup.bdg -c $out_dir/"$prefix_basename"_control_lambda.bdg --outdir $out_dir -o "$prefix_basename"_ppois.bdg -m ppois -S "${sval}"
+
+		//# Remove coordinates outside chromosome sizes (stupid MACS2 bug)
+		sys slopBed -i $out_dir/"$prefix_basename"_ppois.bdg -g $chrsz -b 0 |   awk '{if ($3 != -1) print $0}' |  bedClip stdin $chrsz $out_dir/$prefix_basename.pval.signal.bedgraph
+
+		sys rm -rf $out_dir/"$prefix_basename"_ppois.bdg
+
+		//# Convert bedgraph to bigwig
+		sys bedGraphToBigWig $out_dir/$prefix_basename.pval.signal.bedgraph $chrsz $out_dir/$prefix_basename.pval.signal.bw
+
+		sys rm -f $out_dir/$prefix_basename.pval.signal.bedgraph
+		sys rm -f $out_dir/"$prefix_basename"_treat_pileup.bdg "$prefix_basename"_control_lambda.bdg
+	}
+
+	return out
+}
+
+string[] _macs2_bed( string non_mito_bed, string fraglen, string out_dir, string info ) {
+
+	prefix 	:= change_dir( remove_ext( non_mito_bed, "bed" ), out_dir ) + ".pf"
+
+	peakfile 	:= "$prefix"+"_peaks.narrowPeak"
+	fc_bigwig 	:= "$prefix.fc.signal.bigwig"
+	pval_bigwig 	:= "$prefix.pval.signal.bigwig"
+
+	in 	:= [ non_mito_bed ]
+	out 	:= [ peakfile, fc_bigwig, pval_bigwig ]
+
+	task( taskName:= "macs2_bed "+info, \
+		cpus:=nth_macs2, mem:=parse_mem(mem_macs2), timeout:=parse_time(wt_macs2), \
+		out<-in ) {
+	
+		sys $SHCMD_INIT
+
+		sys adjustedBed="slopBed -i $non_mito_bed -g $chrsz -l 75 -r -75 -s"
+		sys macs2 callpeak \
+			-t <(${adjustedBed}) -f BED -n "$prefix" -g "$gensz" -p 1e-2 \
+			--nomodel --shift "$fraglen" -B --SPMR --keep-dup all --call-summits
+
+		sys macs2 bdgcmp \
+			-t "$prefix"_treat_pileup.bdg -c "$prefix"_control_lambda.bdg \
+			--o-prefix "$prefix" -m FE
+		sys slopBed -i "$prefix"_FE.bdg -g "$chrsz" -b 0 | \
+			bedClip stdin "$chrsz" "$prefix.fc.signal.bedgraph"
+		sys rm -f "$prefix"_FE.bdg
+		sys bedGraphToBigWig "$prefix.fc.signal.bedgraph" "$chrsz" "$fc_bigwig"
+		sys rm -f "$prefix.fc.signal.bedgraph"
+
+		//# sval counts the number of tags per million in the (compressed) BED file
+		sys sval=$(wc -l <(zcat -f "$non_mito_bed") | awk '{printf "%f", $1/1000000}')
+		sys macs2 bdgcmp \
+			-t "$prefix"_treat_pileup.bdg -c "$prefix"_control_lambda.bdg \
+			--o-prefix "$prefix" -m ppois -S "${sval}"
+		sys slopBed -i "$prefix"_ppois.bdg -g "$chrsz" -b 0 | \
+			bedClip stdin "$chrsz" "$prefix.pval.signal.bedgraph"
+		sys rm -f "$prefix"_ppois.bdg
+		sys bedGraphToBigWig "$prefix.pval.signal.bedgraph" "$chrsz" "$pval_bigwig"
+		sys rm -f "$prefix.pval.signal.bedgraph"
+	}
+
+	wait
+
+	return out
+}
+
+string[] _gem( string tag, string ctl_tag, string out_dir, string info ) {
+
+	// misc.
+	prefix 		:= "$out_dir/" + make_vs_basename( tag, ctl_tag, "" )
+	prefix_basename := get_basename( prefix )
+
+	peak 	:= "$prefix.narrowPeak.gz"
+	ksm	:= "$prefix.KSM.txt"
+	pfm	:= "$prefix.PFM.txt"
+	html	:= "$prefix.result.html"
+
+	Xmx 	:= "-Xmx" + mem_gem
+
+	in 	:= [ tag, ctl_tag ]
+	out 	:= [ peak, ksm, pfm, html ]
+
+	task( taskName:= "gem "+info, \
+		cpus:=nth_gem, mem:=parse_mem(mem_gem), timeout:=parse_time(wt_gem), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys export _JAVA_OPTIONS="-Xms256M $Xmx"; export MAX_JAVA_MEM=$mem_gem;
+		
+		sys gzip -d -c $tag > $prefix.tagAlign
+		sys gzip -d -c $ctl_tag > $prefix.ctl.tagAlign
+
+		sys java $Xmx -jar ${GEMROOT}/gem.jar --g $chrsz --d ${GEMROOT}/Read_Distribution_default.txt --s 2400000000 \
+			--expt $prefix.tagAlign  --ctrl $prefix.ctl.tagAlign --f BED \
+			--out  $prefix --genome $seq --k_min 6 --k_max 13 --outNP --q 0 --t $nth_gem
+
+		sys rm -f $prefix.tagAlign
+		sys rm -f $prefix.ctl.tagAlign
+
+		//# =============================
+		//# Sort peaks by signal value and truncate peaks to top 300K
+		//# =============================
+		sys sort -k7nr,7nr "$prefix/$prefix_basename"_GEM_events.narrowPeak | head -n 300000 | gzip -c > $peak
+
+		sys mv "$prefix/$prefix_basename"_KSM.txt $ksm
+		sys mv "$prefix/$prefix_basename"_PFM.txt $pfm
+		sys mv "$prefix/$prefix_basename"_result.htm $html
+	}
+
+	return out
+}
+
+string _preseq( string srt_bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( srt_bam, out_dir )
+
+	preseq_file 	:= "$prefix.preseq.pdf"
+	preseq_gnu 	:= "$prefix.preseq.gnu"
+
+	preseq_data 	:= "$prefix.preseq.dat"
+	preseq_log 	:= "$prefix.preseq.log"
+
+	in 	:= [srt_bam]
+	out 	:= preseq_file
+
+	task( taskName:= "preseq "+info, cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys cd $out_dir
+
+		sys echo "PRESEQ Analysis..."
+
+		//# run preseq		
+		sys preseq lc_extrap -P -B -o "$preseq_data" "$srt_bam" -v 2> "$preseq_log"
+
+		//# plot the results
+		sys titleName=$(basename $srt_bam)
+		sys titleName=${titleName//_/\\_ } #escape underscores
+
+		sys echo "set terminal pdfcairo" > $preseq_gnu
+		sys echo "set output '$preseq_file'" >> $preseq_gnu
+		sys echo "set key box bottom right" >> $preseq_gnu
+		sys echo "set style line 1 linewidth 5" >> $preseq_gnu
+		sys echo "set style line 2 linewidth 1" >> $preseq_gnu
+		sys echo "set mxtics 2" >> $preseq_gnu
+		sys echo "set grid ytics xtics mxtics" >> $preseq_gnu
+		sys echo "set xrange [0:$xmax]" >> $preseq_gnu
+		sys echo "set xlabel \"Number of Reads [millions]\"" >> $preseq_gnu
+		sys echo "set ylabel \"Expected Distinct Reads [millions]\"" >> $preseq_gnu
+		sys echo "set title \"PRESEQ Results for ${titleName}\"" >> $preseq_gnu
+		sys echo "plot '$preseq_data' using (\$1/1000000):(\$2/1000000) with lines linestyle 1 notitle, '' using (\$1/1000000):(\$3/1000000) with lines linestyle 2 notitle, '' using (\$1/1000000):(\$4/1000000) with lines linestyle 2 title '+/- 95% confidence interval' " >> $preseq_gnu
+
+		sys gnuplot $preseq_gnu
+	}
+	
+	return out
+}
+
+bool is_peakcall_spp() {
+	return peakcall.toLower()=="spp"
+}
+
+bool is_peakcall_gem() {
+	return peakcall.toLower()=="gem"
+}
+
+bool is_peakcall_macs2() {
+	return peakcall.toLower()=="macs2"
+}
+
