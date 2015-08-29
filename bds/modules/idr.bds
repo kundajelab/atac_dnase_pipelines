@@ -8,6 +8,7 @@ string idr_thresh 	= 0.02		help IDR threshold (default: 0.02).
 string idr_summary 	= "NPEAKS_IDR.txt"	// file basename for summary of number of peaks found
 
 
+//string[] _idr( string peak1, string peak2, string pooled, string prefix, string info ) {
 string[] _idr( string peak1, string peak2, string pooled, string out_dir, string info ) {
 
 	// write three peak filenames to file (just for information)
@@ -16,17 +17,22 @@ string[] _idr( string peak1, string peak2, string pooled, string out_dir, string
 
 	// do IDR
 	if ( use_idr1 ) {
+//		return _idr1( peak1, peak2, pooled, prefix, info )
 		return _idr1( peak1, peak2, pooled, out_dir, info )
 	}
 	else {
+//		return _idr2( peak1, peak2, pooled, prefix, info )
 		return _idr2( peak1, peak2, pooled, out_dir, info )
 	}
 }
 
+//string[] _idr1( string peak1, string peak2, string pooled, string prefix, string info ) {
 string[] _idr1( string peak1, string peak2, string pooled, string out_dir, string info ) {
 
-	npeaks_file 	:= "$out_dir/$idr_summary"
 	prefix 		:= "$out_dir/$info"
+	//prefix 	:= change_dir( remove_ext( fastq, "fastq" ), out_dir )"$out_dir/$info"
+
+	npeaks_file 	:= prefix.dirName()+"/$idr_summary"
 
 	create_idr_summary( npeaks_file ) // do nothing if it already exists
 
@@ -121,58 +127,24 @@ string[] _idr1( string peak1, string peak2, string pooled, string out_dir, strin
 	return out
 }
 
+//string[] _idr2( string peak1, string peak2, string pooled, string prefix, string info ) { // use --idr-threshold
 string[] _idr2( string peak1, string peak2, string pooled, string out_dir, string info ) { // use --idr-threshold
 
-	npeaks_file  	:= "$out_dir/$idr_summary"
 	prefix 		:= "$out_dir/$info"
+	npeaks_file 	:= prefix.dirName()+"/$idr_summary"
 
 	create_idr_summary( npeaks_file ) // do nothing if it already exists
 
 	peak 		:= "$prefix.IDR"+"$idr_thresh.narrowPeak.gz"
-	summit_peak 	:= "$prefix.IDR"+"$idr_thresh.withSummits.narrowPeak.gz"
 	idr_output 	:= "$prefix.overlapped-peaks.txt"
 
-	in 	:= [peak1, peak2, pooled]
-	out 	:= [idr_output, peak, summit_peak]
-
-	task( taskName:= "idr2 "+info, cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), out<-in ) {		
-		sys $SHCMD_INIT
-
-		sys idr --samples $peak1 $peak2 --peak-list $pooled --input-file-type narrowPeak \
-			--output-file $idr_output --rank signal.value --idr-threshold $idr_thresh \
-			--plot
-		
-                // calculate idr_thresh_transformed ( = -125 x log_2(idr_thresh) )
-		sys idr_thresh_transformed=$(awk -v p=$idr_thresh 'BEGIN{print int(-125*log(p)/log(2))}')
-
-		//# Get peaks passing global IDR threshold and convert file to narrowPeak format (Step 9)
-		sys awk 'BEGIN{OFS="\t"} $5>'"${idr_thresh_transformed}"' {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' $idr_output \
-			| sort -u -k1,1 -k2,2n -k3,3n | sort -k7n,7n | gzip -c > $peak
-
-		//# Get peaks summit locations from offsets (Step 10)
-		sys zcat $peak | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6,$7,$8,$9,$2+$10}' | sort -k1,1 -k10,10n | gzip > $summit_peak
-
-		sys echo -e "$info\t$(zcat $peak | wc -l)" >> $npeaks_file
-	}
-
-	return out
-}
-
-string[] _idr2_soft( string peak1, string peak2, string pooled, string out_dir, string info ) { // use --idr-threshold
-
-	npeaks_file  	:= "$out_dir/$idr_summary"
-	prefix 		:= "$out_dir/$info"
-
-	create_idr_summary( npeaks_file ) // do nothing if it already exists
-
-	peak 		:= "$prefix.IDR"+"$idr_thresh.narrowPeak.gz"
-	summit_peak 	:= "$prefix.IDR"+"$idr_thresh.withSummits.narrowPeak.gz"
-	idr_output 	:= "$prefix.overlapped-peaks.txt"
+//	peak 		:= prefix.dirName() + "/" + info + ".IDR$idr_thresh.narrowPeak.gz"
+//	idr_output 	:= prefix.dirName() + "/" + info + ".overlapped-peaks.txt"
 
 	in 	:= [peak1, peak2, pooled]
-	out 	:= [idr_output, peak, summit_peak]
+	out 	:= [idr_output, peak]
 
-	task( taskName:= "idr2 "+info, cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), out<-in ) {		
+	task( taskName:= "idr2 "+info, cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), out<-in ) {
 		sys $SHCMD_INIT
 
 		sys idr --samples $peak1 $peak2 --peak-list $pooled --input-file-type narrowPeak \
@@ -180,14 +152,11 @@ string[] _idr2_soft( string peak1, string peak2, string pooled, string out_dir, 
 			--plot
 		
                 // calculate idr_thresh_transformed ( = -125 x log_2(idr_thresh) )
-		sys idr_thresh_transformed=$(awk -v p=$idr_thresh 'BEGIN{print int(-125*log(p)/log(2))}')
+		sys idr_thresh_transformed=$(awk -v p=$idr_thresh 'BEGIN{print -log(p)/log(10)}')
 
 		//# Get peaks passing global IDR threshold and convert file to narrowPeak format (Step 9)
-		sys awk 'BEGIN{OFS="\t"} $5>'"${idr_thresh_transformed}"' {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' $idr_output \
-			| sort -u -k1,1 -k2,2n -k3,3n | sort -k7n,7n | gzip -c > $peak
-
-		//# Get peaks summit locations from offsets (Step 10)
-		sys zcat $peak | awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6,$7,$8,$9,$2+$10}' | sort -k1,1 -k10,10n | gzip > $summit_peak
+		sys awk 'BEGIN{OFS="\t"} $12>='"${idr_thresh_transformed}"' {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' $idr_output \
+			| sort | uniq | sort -k7n,7n | gzip -c > $peak
 
 		sys echo -e "$info\t$(zcat $peak | wc -l)" >> $npeaks_file
 	}

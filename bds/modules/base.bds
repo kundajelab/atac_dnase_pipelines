@@ -13,7 +13,7 @@ bool no_par_job		= false		help Set if true to serialize all jobs, this option is
 
 // cluster resource
 int nth			= 1 		help Default number of threads for all cluster jobs (default: 1).
-string wt 		= "6h"		help Default walltime for all cluster jobs (example: 8:10:00, 3h, 3600 , default: 6h).
+string wt 		= "6h"		help Default walltime for all cluster jobs (example: 8:10:00, 3h, 3600, default: 6h, 6:00:00).
 string mem 		= "4G"		help Default max. memory for all cluster jobs (example: 4G, 100KB, default: 4G).
 
 // shell environment setting
@@ -27,7 +27,6 @@ string seq 		= "" 		help Path for sequence files (directory where chr*.fa exist)
 string gensz 		= "hs"		help Genome size; hs for human, mm for mouse (default: hs)
 
 string init_mod 	= "/etc/profile.d/modules.sh"
-
 
 
 // IMPORTANT! Shell command executed prior to all BigDataScript tasks (use this for setting environemts)
@@ -228,9 +227,32 @@ string concat_basename_wo_ext( string file1, string file2, string ext ) {
 	return concat_basename_wo_ext( file1, file2, [ext], [ext] )
 }
 
-string make_vs_basename( string file1, string file2, string suffix ) {
-	return rm_str_at_end( get_basename( file1 ),".gz" ) + \
-		"_VS_" + rm_str_at_end( get_basename( file2 ),".gz" ) + suffix
+string make_vs_basename_wo_gz( string file1, string file2, string suffix ) {
+	ret := rm_str_at_end( get_basename( file1 ),".gz" ) + \
+		"_VS_" + rm_str_at_end( get_basename( file2 ),".gz" )
+
+	// linux filename length limitation is 255
+	if ( ret.length() > 210 ) {
+		ret = ret.substr(0, 210)
+	}
+
+	ret = ret + suffix
+
+	return ret
+}
+
+string make_x_basename_wo_gz( string file1, string file2, string suffix ) {
+	ret := rm_str_at_end( get_basename( file1 ),".gz" ) + \
+		"_x_" + rm_str_at_end( get_basename( file2 ),".gz" )
+
+	// linux filename length limitation is 255
+	if ( ret.length() > 210 ) {
+		ret = ret.substr(0, 210)
+	}
+
+	ret = ret + suffix
+
+	return ret
 }
 
 void save_data( string file, string[] data ) { // ; separated array
@@ -247,9 +269,13 @@ void save_data( string file, string[] data, string delimiter ) { // ; separated 
 
 	rm_str_at_end( str, delimiter )
 	file.write( str )
+
+	sleep( 3 ) // wait 3 seconds before 	
 }
 
 string[] load_data( string file ) {
+	sleep( 3 ) // wait 3 seconds before loading t
+
 	return file.read().split(";")
 }
 

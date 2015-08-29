@@ -7,17 +7,17 @@ string peakcall 	= "spp"		help Choose peak calling method: spp, macs2 and gem (d
 //spp
 int npeak 		= 300000 	help Parameter for -npeak in spp (phantompeakqual tool run_spp.R) (default: 300000).
 int nth_spp 		= 2		help Number of threads for spp (run_spp.R) (default: 2).
-string wt_spp		= "10h"		help Walltime for spp (default: 10h).
+string wt_spp		= "15h"		help Walltime for spp (default: 10h, 10:00:00).
 string mem_spp		= "8G" 		help Max. memory for spp (default: 8G).
 
 //macs2
 int nth_macs2		= 2 		help Number of threads for MACS2 (default: 2)
-string wt_macs2		= "10h"		help Walltime for MACS2 (default: 10h).
+string wt_macs2		= "10h"		help Walltime for MACS2 (default: 10h, 10:00:00).
 string mem_macs2	= "8G" 		help Max. memory for MACS2 (default: 8G).
 
 //gem
 int nth_gem		= 2 		help Number of threads for gem (default: 2)
-string wt_gem		= "20h"		help Walltime for gem (default: 20h).
+string wt_gem		= "20h"		help Walltime for gem (default: 20h, 20:00:00).
 string mem_gem		= "16G" 	help Max. memory for gem (default: 16G).
 
 //preseq
@@ -41,17 +41,21 @@ string[] _peakcall( string tag, string ctl_tag, string fraglen, string out_dir, 
 string[] _spp( string tag, string ctl_tag, string fraglen, string out_dir, string info ) {
 
 	// outputs
-	prefix 		:= "$out_dir/" + make_vs_basename( tag, ctl_tag, "" )
+	prefix_vs	:= "$out_dir/" + make_vs_basename_wo_gz( tag, ctl_tag, "" )
+	prefix_x	:= "$out_dir/" + make_x_basename_wo_gz( tag, ctl_tag, "" )
 
-	npeakfile 	:= "$prefix.narrowPeak.gz"
-	rpeakfile 	:= "$prefix.regionPeak.gz"
-	ccscore		:= "$prefix.ccscore"
+	npeakfile_vs 	:= "$prefix_vs.narrowPeak.gz"
+	rpeakfile_vs 	:= "$prefix_vs.regionPeak.gz"
+	
+	npeakfile 	:= "$prefix_x.narrowPeak.gz"
+	rpeakfile 	:= "$prefix_x.regionPeak.gz"
+	ccscore		:= "$prefix_x.ccscore"
 
 	pdf_tmp		:= change_dir( remove_ext( tag, ["gz"] ), out_dir ) + ".pdf"
-	pdf 		:= "$prefix.pdf"
+	pdf 		:= "$prefix_x.pdf"
 
 	in 	:= [ tag, ctl_tag ]
-	out 	:= [ npeakfile, rpeakfile, pdf, ccscore ]
+	out 	:= [ npeakfile, rpeakfile ] ////, pdf, ccscore ]
 
 	task( taskName:= "spp "+info, \
 		cpus:=nth_spp, mem:=parse_mem(mem_spp), timeout:=parse_time(wt_spp), \
@@ -64,8 +68,12 @@ string[] _spp( string tag, string ctl_tag, string fraglen, string out_dir, strin
 
 		// Bug fix (we have floating point representation of chr coord., possible bug in run_spp.R?):
 		// chr3    153999636       1.54e+08        .       0       .       4.47152214284156        -1      -0.0118951365772202     18
-		sys zcat $npeakfile | awk 'BEGIN{OFS="\t"}{print $1,int($2),int($3),$4,$5,$6,$7,$8,$9,$10;}' | gzip -c > $npeakfile.tmp
-		sys mv $npeakfile.tmp $npeakfile
+		sys zcat $npeakfile_vs | awk 'BEGIN{OFS="\t"}{print $1,int($2),int($3),$4,$5,$6,$7,$8,$9,$10;}' | gzip -f -c > $npeakfile
+		sys zcat $rpeakfile_vs | awk 'BEGIN{OFS="\t"}{print $1,int($2),int($3),$4,$5,$6,$7,$8,$9,$10;}' | gzip -f -c > $rpeakfile
+		
+		sys rm -f $npeakfile_vs
+		sys rm -f $rpeakfile_vs
+
 		sys mv $pdf_tmp $pdf
 	}
 
@@ -74,7 +82,7 @@ string[] _spp( string tag, string ctl_tag, string fraglen, string out_dir, strin
 
 string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, string info ) {
 
-	prefix 		:= "$out_dir/" + make_vs_basename( tag, ctl_tag, "" )
+	prefix 		:= "$out_dir/" + make_vs_basename_wo_gz( tag, ctl_tag, "" )
 
 	npeakfile	:= "$prefix.narrowPeak.gz"
 	bpeakfile	:= "$prefix.broadPeak.gz"
@@ -99,12 +107,12 @@ string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, str
 		sys macs2 callpeak -t $tag -c $ctl_tag -f BED -n $out_dir/$prefix_basename -g $gensz -p 1e-2 --nomodel --shift 0 --extsize $fraglen --keep-dup all -B --SPMR
 
 		//# Sort by Col8 in descending order and replace long peak names in Column 4 with Peak_<peakRank>
-		sys sort -k 8gr,8gr $out_dir/"$prefix_basename"_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $out_dir/$prefix_basename.narrowPeak.gz
+		sys sort -k 8gr,8gr "$prefix"_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $npeakfile
 
 		//# remove additional files
-		sys rm -f $out_dir/"$prefix_basename"_peaks.xls \
-			$out_dir/"$prefix_basename"_peaks.narrowPeak \
-			$out_dir/"$prefix_basename"_summits.bed
+		sys rm -f "$prefix"_peaks.xls \
+			"$prefix"_peaks.narrowPeak \
+			"$prefix"_summits.bed
 
 		//===========================================
 		//# Generate Broad and Gapped Peaks
@@ -112,31 +120,31 @@ string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, str
 		sys macs2 callpeak -t $tag -c $ctl_tag -f BED -n $out_dir/$prefix_basename -g $gensz -p 1e-2 --broad --nomodel --shift 0 --extsize $fraglen --keep-dup all
 
 		//# Sort by Col8 (for broadPeak) or Col 14(for gappedPeak)  in descending order and replace long peak names in Column 4 with Peak_<peakRank>
-		sys sort -k 8gr,8gr $out_dir/"$prefix_basename"_peaks.broadPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $out_dir/$prefix_basename.broadPeak.gz
-		sys sort -k 14gr,14gr $out_dir/"$prefix_basename"_peaks.gappedPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $out_dir/$prefix_basename.gappedPeak.gz
+		sys sort -k 8gr,8gr "$prefix"_peaks.broadPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $bpeakfile
+		sys sort -k 14gr,14gr "$prefix"_peaks.gappedPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -c > $gpeakfile
 
 		//# remove additional files
-		sys rm -f $out_dir/"$prefix_basename"_peaks.xls \
-		  $out_dir/"$prefix_basename"_peaks.broadPeak \
-		  $out_dir/"$prefix_basename"_peaks.gappedPeak \
-		  $out_dir/"$prefix_basename"_summits.bed
+		sys rm -f "$prefix"_peaks.xls \
+		  "$prefix"_peaks.broadPeak \
+		  "$prefix"_peaks.gappedPeak \
+		  "$prefix"_summits.bed
 
 		//===========================================
 		//# For Fold enrichment signal tracks
 		//============================================
 		//# This file is a tab delimited file with 2 columns Col1 (chromosome name), Col2 (chromosome size in bp).
 
-		sys macs2 bdgcmp -t $out_dir/"$prefix_basename"_treat_pileup.bdg -c $out_dir/"$prefix_basename"_control_lambda.bdg --outdir $out_dir -o "$prefix_basename"_FE.bdg -m FE
+		sys macs2 bdgcmp -t "$prefix"_treat_pileup.bdg -c "$prefix"_control_lambda.bdg --outdir $out_dir -o "$prefix_basename"_FE.bdg -m FE
 
 		//# Remove coordinates outside chromosome sizes (stupid MACS2 bug)
-		sys slopBed -i $out_dir/"$prefix_basename"_FE.bdg -g $chrsz -b 0 |   awk '{if ($3 != -1) print $0}' |  bedClip stdin $chrsz $out_dir/$prefix_basename.fc.signal.bedgraph
+		sys slopBed -i "$prefix"_FE.bdg -g $chrsz -b 0 |   awk '{if ($3 != -1) print $0}' |  bedClip stdin $chrsz "$prefix".fc.signal.bedgraph
 
-		sys rm -f $out_dir/"$prefix_basename"_FE.bdg
+		sys rm -f "$prefix"_FE.bdg
 
 		//# Convert bedgraph to bigwig
-		sys bedGraphToBigWig $out_dir/$prefix_basename.fc.signal.bedgraph $chrsz $out_dir/$prefix_basename.fc.signal.bw
+		sys bedGraphToBigWig "$prefix".fc.signal.bedgraph $chrsz $bigwig_fc
 
-		sys rm -f $out_dir/$prefix_basename.fc.signal.bedgraph
+		sys rm -f "$prefix".fc.signal.bedgraph
 
 		//===========================================
 		//# For -log10(p-value) signal tracks
@@ -150,18 +158,18 @@ string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, str
 
 		sys sval=$(echo "${chipReads} ${controlReads}" | awk '$1>$2{printf "%f",$2} $1<=$2{printf "%f",$1}');
 
-		sys macs2 bdgcmp -t $out_dir/"$prefix_basename"_treat_pileup.bdg -c $out_dir/"$prefix_basename"_control_lambda.bdg --outdir $out_dir -o "$prefix_basename"_ppois.bdg -m ppois -S "${sval}"
+		sys macs2 bdgcmp -t "$prefix"_treat_pileup.bdg -c "$prefix"_control_lambda.bdg --outdir $out_dir -o "$prefix_basename"_ppois.bdg -m ppois -S "${sval}"
 
 		//# Remove coordinates outside chromosome sizes (stupid MACS2 bug)
-		sys slopBed -i $out_dir/"$prefix_basename"_ppois.bdg -g $chrsz -b 0 |   awk '{if ($3 != -1) print $0}' |  bedClip stdin $chrsz $out_dir/$prefix_basename.pval.signal.bedgraph
+		sys slopBed -i "$prefix"_ppois.bdg -g $chrsz -b 0 |   awk '{if ($3 != -1) print $0}' |  bedClip stdin $chrsz $out_dir/$prefix_basename.pval.signal.bedgraph
 
-		sys rm -rf $out_dir/"$prefix_basename"_ppois.bdg
+		sys rm -rf "$prefix"_ppois.bdg
 
 		//# Convert bedgraph to bigwig
-		sys bedGraphToBigWig $out_dir/$prefix_basename.pval.signal.bedgraph $chrsz $out_dir/$prefix_basename.pval.signal.bw
+		sys bedGraphToBigWig "$prefix".pval.signal.bedgraph $chrsz $bigwig_pval
 
-		sys rm -f $out_dir/$prefix_basename.pval.signal.bedgraph
-		sys rm -f $out_dir/"$prefix_basename"_treat_pileup.bdg "$prefix_basename"_control_lambda.bdg
+		sys rm -f "$prefix".pval.signal.bedgraph
+		sys rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg
 	}
 
 	return out
@@ -218,7 +226,7 @@ string[] _macs2_bed( string non_mito_bed, string fraglen, string out_dir, string
 string[] _gem( string tag, string ctl_tag, string out_dir, string info ) {
 
 	// misc.
-	prefix 		:= "$out_dir/" + make_vs_basename( tag, ctl_tag, "" )
+	prefix 		:= "$out_dir/" + make_vs_basename_wo_gz( tag, ctl_tag, "" )
 	prefix_basename := get_basename( prefix )
 
 	peak 	:= "$prefix.narrowPeak.gz"
@@ -229,7 +237,7 @@ string[] _gem( string tag, string ctl_tag, string out_dir, string info ) {
 	Xmx 	:= "-Xmx" + mem_gem
 
 	in 	:= [ tag, ctl_tag ]
-	out 	:= [ peak, ksm, pfm, html ]
+	out 	:= [peak, ksm, pfm, html ]
 
 	task( taskName:= "gem "+info, \
 		cpus:=nth_gem, mem:=parse_mem(mem_gem), timeout:=parse_time(wt_gem), \
