@@ -82,7 +82,7 @@ string[] _spp( string tag, string ctl_tag, string fraglen, string out_dir, strin
 
 string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, string info ) {
 
-	prefix 		:= "$out_dir/" + make_vs_basename_wo_gz( tag, ctl_tag, "" )
+	prefix 		:= "$out_dir/" + make_x_basename_wo_gz( tag, ctl_tag, "" )
 
 	npeakfile	:= "$prefix.narrowPeak.gz"
 	bpeakfile	:= "$prefix.broadPeak.gz"

@@ -49,7 +49,7 @@ _PE : for paired end data
 IMPORTANT!: legacy softwares compatibility (make the code work with legacy samtools, picard-tools)
 
 	- samtools fixmate -O doesn't work in legacy samtools
-		specify output ext like [TARGET].bam (samtools fixmate -O [SRC] [TARGET].bam)
+		specify output ext like [TARGET].bam (samtools fixmate -r [SRC] [TARGET].bam)
 
 	- samtools index [SRC] [TARGET] doesn't work in legacy samtools
 		you need to manually mv .bam.bai .bai
@@ -387,9 +387,10 @@ string[] _bam_to_nodup_bam( string bam, string out_dir, string info ) {
 		//# Index Final BAM file
 		sys samtools index $nodup_bam
 		
-		sys if [ "$nodup_bam.bai" != "$nodup_bam_idx" ]; then \
-			mv $nodup_bam.bai $nodup_bam_idx; \
-			fi
+		//sys if [ "$nodup_bam.bai" != "$nodup_bam_idx" ]; then \
+		//	mv $nodup_bam.bai $nodup_bam_idx; \
+		//	fi
+		sys cp $nodup_bam.bai $nodup_bam_idx
 
 		sys samtools flagstat $nodup_bam > $map_qc
 
