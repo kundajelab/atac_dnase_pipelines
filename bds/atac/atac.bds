@@ -2,6 +2,8 @@
 
 include "pipeline.bds"
 
+bool kundaje_lab	= false			help Set it true if you run the pipeline on Kundaje lab servers (automatically set environments, default: false)
+
 // input reads
 string READ1 		= ""			help Read1 fastq.gz
 string READ2		= ""			help Read2 fastq.gz
@@ -25,6 +27,8 @@ string GENOMESIZE 	= "hs"			help 'hs' for human, 'mm' for mouse (Default: 'hs')
 string CHROMSIZE	= ""			help Path for chrom.sizes file for your reference genome
 int fragLen 		= 75						
 
+///////
+bool KUNDAJE_LAB	= kundaje_lab
 
 // program body
 
@@ -62,6 +66,8 @@ void read_param_atac() {
 		if ( conf.hasKey("GENOMESIZE") )		GENOMESIZE	= rm_comment( conf{"GENOMESIZE"} )	
 		if ( conf.hasKey("CHROMSIZE") )			CHROMSIZE	= chk_file( conf{"CHROMSIZE"}, "" )
 		if ( conf.hasKey("fragLen") )			fragLen 	= parse_int( conf{ "fragLen" } )
+
+		if ( conf.hasKey("KUNDAJE_LAB") )		KUNDAJE_LAB	= parse_bool( conf{ "KUNDAJE_LAB"} )
 	}
 	else { // if there is no conf. file take first five arguments as input
 		BOWTIE_IDX 	= chk_file( args[0], ".1.bt2" )
@@ -85,6 +91,16 @@ void read_param_atac() {
 	print("GENOMESIZE = $GENOMESIZE\n");
 	print("CHROMSIZE = $CHROMSIZE\n");
 	print("fragLen = $fragLen\n");
+
+	print("KUNDAJE_LAB = $KUNDAJE_LAB\n");
+
+	if ( KUNDAJE_LAB ) {
+		print("\n\nKUNDAJE_LAB == true\n")
+		print("Automatically adding environment variables...\n")
+
+		PRELOAD = PRELOAD + "; . /etc/profile.d/modules.sh; module add bowtie/2.2.4; module add samtools/1.2; module add bedtools/2.21.0; module add picard-tools/1.129; module add ucsc_tools/3.0.9; module add MACS2/2.1.0; module add java/latest; module add preseq/1.0.2; module add texlive/2013; export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='4G'; export MALLOC_ARENA_MAX=4"
+		PRELOAD = PRELOAD.replace( ";;", ";" )
+	}
 }
 
 void main_atac() {
