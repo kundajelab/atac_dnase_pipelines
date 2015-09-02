@@ -27,10 +27,10 @@ void init_peakcall_spp() {
 	if ( v ) { // verbose
 		print("\n")
 		//print_if_not_null( "Peak calling method", "$peakcall" )
-		print_if_not_default( "# peak for spp (-npeak)", "$npeak",300000)
-		print_if_not_default( "# threads (spp)", "$nth_spp", 2)
-		print_if_not_default( "Walltime (spp)", "$wt_spp", "15h")
-		print_if_not_default( "Max. memory (spp)", "$mem_spp", "8G")
+		print( "# peak for spp (-npeak)\t: $npeak\n")
+		print( "# threads (spp)\t\t: $nth_spp\n")
+		print( "Walltime (spp)\t\t: $wt_spp\n")
+		print( "Max. memory (spp)\t: $mem_spp\n")
 	}
 }
 

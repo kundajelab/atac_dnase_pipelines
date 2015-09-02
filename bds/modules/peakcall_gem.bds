@@ -24,10 +24,9 @@ void init_peakcall_gem() {
 
 	if ( v ) { // verbose
 		print("\n")
-		//print_if_not_null( "Peak calling method", "$peakcall" )
-		print_if_not_default( "# threads (gem)", "$nth_gem", 2)
-		print_if_not_default( "Walltime (gem)", "$wt_gem", "20h")
-		print_if_not_default( "Max. memory (gem)", "$mem_gem", "16G")
+		print( "# threads (gem)\t\t: $nth_gem\n")
+		print( "Walltime (gem)\t\t: $wt_gem\n")
+		print( "Max. memory (gem)\t: $mem_gem\n")
 	}
 }
 

@@ -20,7 +20,7 @@ void init_peakcall_etc() {
 
 	if ( v ) { // verbose
 		print("\n")
-		print_if_not_default( "Xmax for preseq", "$xmax", 500)
+		print( "Xmax for preseq\t: $xmax\n")
 	}
 }
 

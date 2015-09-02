@@ -399,12 +399,16 @@ string[] load_data( string file ) {
 
 // print
 
+void print_a_tab_colon_b( string a, string b ) {
+	print( a + "\t: " + b + "\n")
+}
+
 void print_if_not_null( string a, string b ) {
-	if ( b!="" && b!="false" ) print( a + "\t: " + b + "\n")
+	if ( b!="" && b!="false" ) print_a_tab_colon_b( a, b )
 }
 
 void print_if_not_default( string a, string b, string default ) {
-	if ( b.toLower()!=default.toLower() ) print( a + "\t: " + b + "\n")
+	if ( b.toLower()!=default.toLower() ) print_a_tab_colon_b( a, b )
 }
 
 // math functions

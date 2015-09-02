@@ -6,10 +6,11 @@ include "../modules/peakcall_etc.bds"
 include "../modules/report.bds"
 
 
-help ATAC-Seq Pipeline input files
+help ATAC-Seq Pipeline setting : input files, fragment length
 
 fastq1 		:= ""		help Read1 fastq.gz.
 fastq2		:= ""		help Read2 fastq.gz.
+
 fraglen 	:= 75 		help Read fragment length (default: 75).
 
 
@@ -47,7 +48,9 @@ void init_atac() {
 
 	if ( v ) { // verbose
 		print("\n")
-		print_if_not_default( "Fragment length", "$fraglen", 75)
+		print( "FASTQ1\t\t: $fastq1\n")
+		print( "FASTQ2\t\t: $fastq2\n")
+		print( "Fragment length\t: $fraglen\n")
 	}
 
 	// create output directory
@@ -70,22 +73,6 @@ void chk_input_data() {
 
 	if ( get_basename( fastq1 ) == get_basename( fastq2 ) ) \
 		error( "Duplicate input fastq filenames!\n")
-}
-
-void set_shell_env() {
-	
-	// create output dir.	
-
-	if ( kundaje_lab ) {
-
-		print("\n\nAutomatically adding environment variables... (kundaje_lab == true) \n\n")
-
-		SHCMD_INIT = SHCMD_INIT + " . /etc/profile.d/modules.sh; module add bowtie/2.2.4; module add samtools/1.2; module add bedtools/2.21.0;" \
-					+ " module add picard-tools/1.129; module add ucsc_tools/3.0.9; module add MACS2/2.1.0; module add java/latest;" \
-					+ " module add preseq/1.0.2; module add texlive/2013;" \
-					+ " export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='8G'; export MALLOC_ARENA_MAX=4"
-		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
-	}
 }
 
 void atac() {
@@ -127,52 +114,6 @@ void atac() {
 	wait
 
 	_report_atac( pdf, png, out_dir, info )
-}
-
-void help() {
-
-	if ( is_cmd_line_arg_empty() ) {
-
-		print("\n")
-		print(" Usage 1 (command line argument): \n")
-		print("\n")
-		print("\t\$ bds atac.bds [BOWTIE_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE] [CHROMSIZES] [VPLOT_INDEX] [OUTPUT_DIR] \n")
-		print("\n")
-		print(" Usage 2 (command line argument): \n")
-		print("\n")
-		print("\t\$ bds atac.bds -bwt_idx [BOWTIE_INDEX] \\ \n")
-		print("\t\t -fastq1 [READ1] \\ \n")
-		print("\t\t -fastq2 [READ2] \\ \n")
-		print("\t\t -nth_bwt2 [NTHREADS_BWT2] \\ \n")
-		print("\t\t -gensz [GENOMESIZE] \\ \n")
-		print("\t\t -chrsz [CHROMSIZES] \\ \n")
-		print("\t\t -vplot_idx [VPLOT_INDEX] \\ \n")
-		print("\t\t -out_dir [OUTPUT_DIR] \n")
-		print("\n")
-		print(" Usage 3 (configruation file): \n")
-		print("\n")
-		print("\t\$ bds atac.bds [CONF_FILE]\n")
-		print("\n")
-		print("\t=== [CONF_FILE] contents ===\n")
-		print("\tBWT_IDX= [BOWTIE_INDEX]\n")
-		print("\tFASTQ1= [READ1]\n")
-		print("\tFASTQ2= [READ2]\n")
-		print("\tNTH_BWT2= [NTHREADS_BWT2]\n")
-		print("\tGENSZ= [GENOMESIZE]\n")
-		print("\tCHRSZ= [CHROMSIZES]\n")
-		print("\tVPLOT_IDX= [VPLOT_INDEX]\n")
-		print("\tOUT_DIR= [OUTPUT_DIR]\n")
-		print("\n")
-		print(" For Sun Grid Engine (SGE) cluster use\n")
-		print("\n")
-		print("\t\$ bds -s sge atac.bds ... \n")
-		print("\n")
-		print(" List of parameters\n")
-		print(" \n")
-		printHelp()
-
-		exit
-	}
 }
 
 string[] _report_atac( string pdf, string png, string out_dir, string info ) {
@@ -318,6 +259,66 @@ string[] _report_atac( string pdf, string png, string out_dir, string info ) {
 	return out
 }
 
+void set_shell_env() {
+	
+	// create output dir.	
 
+	if ( kundaje_lab ) {
+
+		print("\n\nAutomatically adding environment variables... (kundaje_lab == true) \n\n")
+
+		SHCMD_INIT = SHCMD_INIT + " . /etc/profile.d/modules.sh; module add bowtie/2.2.4; module add samtools/1.2; module add bedtools/2.21.0;" \
+					+ " module add picard-tools/1.129; module add ucsc_tools/3.0.9; module add MACS2/2.1.0; module add java/latest;" \
+					+ " module add preseq/1.0.2; module add texlive/2013;" \
+					+ " export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='8G'; export MALLOC_ARENA_MAX=4"
+		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
+	}
+}
+
+void help() {
+
+	if ( is_cmd_line_arg_empty() ) {
+
+		print("\n")
+		print(" Usage 1 (command line argument): \n")
+		print("\n")
+		print("\t\$ bds atac.bds [BOWTIE_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE] [CHROMSIZES] [VPLOT_INDEX] [OUTPUT_DIR] \n")
+		print("\n")
+		print(" Usage 2 (command line argument): \n")
+		print("\n")
+		print("\t\$ bds atac.bds -bwt_idx [BOWTIE_INDEX] \\ \n")
+		print("\t\t -fastq1 [READ1] \\ \n")
+		print("\t\t -fastq2 [READ2] \\ \n")
+		print("\t\t -nth_bwt2 [NTHREADS_BWT2] \\ \n")
+		print("\t\t -gensz [GENOMESIZE] \\ \n")
+		print("\t\t -chrsz [CHROMSIZES] \\ \n")
+		print("\t\t -vplot_idx [VPLOT_INDEX] \\ \n")
+		print("\t\t -out_dir [OUTPUT_DIR] \n")
+		print("\n")
+		print(" Usage 3 (configruation file): \n")
+		print("\n")
+		print("\t\$ bds atac.bds [CONF_FILE]\n")
+		print("\n")
+		print("\t=== [CONF_FILE] contents ===\n")
+		print("\tBWT_IDX= [BOWTIE_INDEX]\n")
+		print("\tFASTQ1= [READ1]\n")
+		print("\tFASTQ2= [READ2]\n")
+		print("\tNTH_BWT2= [NTHREADS_BWT2]\n")
+		print("\tGENSZ= [GENOMESIZE]\n")
+		print("\tCHRSZ= [CHROMSIZES]\n")
+		print("\tVPLOT_IDX= [VPLOT_INDEX]\n")
+		print("\tOUT_DIR= [OUTPUT_DIR]\n")
+		print("\n")
+		print(" For Sun Grid Engine (SGE) cluster use\n")
+		print("\n")
+		print("\t\$ bds -s sge atac.bds ... \n")
+		print("\n")
+		print(" List of parameters\n")
+		print(" \n")
+		printHelp()
+
+		exit
+	}
+}
 
 

@@ -2,11 +2,12 @@
 
 include "species.bds"
 
-help Signal track generation settings
+help Signal track generation settings : bamCoverage (deelTools)
 
-make_wig 	:= false	help Add it to create wig (default: false).
-make_bedgraph 	:= false	help Add it to create bedgraph (default: false).
-make_bigwig 	:= false	help Add it to convert bedgraph to bigwig (default: false).
+param_bam_cvrg 	:= "--normalizeTo1x 2451960000 --missingDataAsZero no --centerReads -f 150 -bs 10"	help Parameters for deepTools bigwig generation from nodup_bam (default: "--normalizeTo1x 2451960000 --missingDataAsZero no --centerReads -f 150 -bs 10")
+nth_bam_cvrg	:= 3 		help # threads for bamCoverage (deepTools) (default: 3)
+wt_bam_cvrg	:= "5h"		help Walltime for bamCoverage (deepTools) (default: 5h, 5:00:00).
+mem_bam_cvrg	:= "8G" 	help Max. memory for bamCoverage (deepTools) (default: 8G).
 
 
 init_signal()
@@ -16,44 +17,22 @@ void init_signal() {
 
 	if ( conf_file_exists() ) {
 		//signal track genenration
-		make_wig	= get_conf_val_bool( make_wig, 		["CREATE_WIG", "MAKE_WIG"] )
-		make_bedgraph	= get_conf_val_bool( make_bedgraph, 	["CREATE_BEDGRAPH", "MAKE_BEDGRAPH"] )
-		make_bigwig	= get_conf_val_bool( make_bigwig, 	["CONVERT_TO_BIGWIG", "MAKE_BIGWIG"] )
+		param_bam_cvrg	= get_conf_val( param_bam_cvrg, 	["PARAM_BAM_CVRG", "PARAM_BAM_COVERAGE"] )
+		nth_bam_cvrg 	= get_conf_val_int( nth_bam_cvrg,	["NTHREADS_BAM_CVRG", "NTH_BAM_CVRG", "CPU_BAM_CVRG"] )
+		wt_bam_cvrg 	= get_conf_val( wt_bam_cvrg, 		["WALLTIME_BAM_CVRG", "WT_BAM_CVRG", "TIMEOUT_BAM_CVRG"] )
+		mem_bam_cvrg 	= get_conf_val( mem_bam_cvrg, 		["MEMORY_BAM_CVRG", "MEM_BAM_CVRG"] )
 	}
 
 	if ( v ) { // verbose
 		print("\n")		
-		print_if_not_null( "Create wig", "$make_wig" )
-		print_if_not_null( "Create bedgraph", "$make_bedgraph" )
-		print_if_not_null( "Convert bdg to bigwig", "$make_bigwig" )
+		print( "Param. for bamCoverage (deeptools)\t: $param_bam_cvrg\n")
+		print( "# threads (bam_cvrg)\t: $nth_bam_cvrg\n")
+		print( "Walltime (bam_cvrg)\t: $wt_bam_cvrg\n")
+		print( "Max. memory (bam_cvrg)\t: $mem_bam_cvrg\n")
 	}	
 }
 
-string[] _signal_trk( string tag, string fraglen, string out_dir, string info ) {
-	
-	string wig, bedgraph, bigwig
-
-	if ( make_wig ) {
-		wig = _create_wig( tag, fraglen, out_dir, info )
-	}
-
-	if ( make_bedgraph ) {
-		bedgraph = _create_bedgraph( tag, fraglen, out_dir, info )
-
-		wait // hold parallel
-
-		if ( make_bigwig ) {
-			bigwig = _conv_bg_to_bigwig( bedgraph, out_dir, info )
-		}
-	}
-	wait
-
-	out := [ wig, bedgraph, bigwig ]
-
-	return out
-}
-
-string _create_wig( string tag, string fraglen, string out_dir, string info ) {
+string _tag_to_wig_aln2rawsig( string tag, string fraglen, string out_dir, string info ) {
 
 	prefix 	:= change_dir( remove_ext( tag, ["tag", "tagAlign", "bed"] ), out_dir )
 	wig 	:= "$prefix.wig"
@@ -61,7 +40,7 @@ string _create_wig( string tag, string fraglen, string out_dir, string info ) {
 	in 	:= [ tag ]
 	out 	:= wig
 
-	task( taskName:= "make wig "+info, \
+	task( taskName:= "tag to wig a2rs "+info, \
 		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
 		out<-in ) {
 
@@ -73,7 +52,7 @@ string _create_wig( string tag, string fraglen, string out_dir, string info ) {
 	return out
 }
 
-string _create_bedgraph( string tag, string fraglen, string out_dir, string info ) {
+string _tag_to_bdg_aln2rawsig( string tag, string fraglen, string out_dir, string info ) {
 
 	prefix 		:= change_dir( remove_ext( tag, ["tag", "tagAlign", "bed"] ), out_dir )
 	bedgraph 	:= "$prefix.bedgraph"
@@ -81,7 +60,7 @@ string _create_bedgraph( string tag, string fraglen, string out_dir, string info
 	in 	:= [ tag ]
 	out 	:= bedgraph
 
-	task( taskName:= "make bedgraph "+info, \
+	task( taskName:= "tag to bdg a2rs "+info, \
 		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
 		out<-in ) {
 
@@ -93,18 +72,38 @@ string _create_bedgraph( string tag, string fraglen, string out_dir, string info
 	return out
 }
 
-string _conv_bg_to_bigwig( string bedgraph, string out_dir, string info ) {
+string _nodup_bam_to_bw_bam_cvrg( string nodup_bam, string out_dir, string info ) { // deeptools
 
-	prefix 		:= change_dir( remove_ext( tag, ["bed", "bedgraph", "bg"] ), out_dir )
+	prefix 	:= change_dir( remove_ext( nodup_bam, ["bam"] ), out_dir )
+	bigwig 	:= "$prefix.bigwig"
+	
+	in 	:= [ nodup_bam ]
+	out 	:= bigwig
+
+	task( taskName:= "bam cvrg "+info, \
+		cpus:=nth_bam_cvrg, mem:=parse_mem(mem_bam_cvrg), timeout:=parse_time(wt_bam_cvrg), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys bamCoverage -v -b $nodup_bam -o $bigwig -of bigwig -p $nth_bam_cvrg $param_bam_cvrg
+	}
+
+	return out
+}
+
+string _bdg_to_bw( string bedgraph, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( bedgraph, ["bed", "bedgraph", "bg"] ), out_dir )
 
 	bedgraph 	:= "$prefix.bedgraph"
 	sorted_bg 	:= "$prefix.srt.bedgraph"
 	bigwig 		:= "$prefix.bigwig"
 	
-	in 	:= [ tag ]
+	in 	:= [ bedgraph ]
 	out 	:= bigwig
 
-	task( taskName:= "make bigwig "+info, \
+	task( taskName:= "bdg to bw "+info, \
 		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
 		out<-in ) {
 

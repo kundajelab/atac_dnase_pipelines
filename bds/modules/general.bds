@@ -57,12 +57,12 @@ void init_base() {
 
 	if ( v ) { // verbose
 		print("\n")
-		print_if_not_null( "Kundaje lab cluster", "$kundaje_lab" )
-		print_if_not_null( "Output dir.", "$out_dir" )
-		print_if_not_null( "No parallel jobs", "$no_par_job" )
-		print_if_not_null( "# threads (general)", "$nth" )
-		print_if_not_null( "Walltime (general)", "$wt" )
-		print_if_not_null( "Max. memory (general)", "$mem" )
+		print( "Kundaje lab cluster\t: $kundaje_lab\n" )
+		print( "Output dir.\t\t: $out_dir\n" )
+		print( "No parallel jobs\t: $no_par_job\n" )
+		print( "# threads (general)\t: $nth\n" )
+		print( "Walltime (general)\t: $wt\n" )
+		print( "Max. memory (general)\t: $mem\n" )
 	}
 }
 

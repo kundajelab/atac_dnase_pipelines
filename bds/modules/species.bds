@@ -35,8 +35,8 @@ void init_genome() {
 
 	if ( v ) { // verbose
 		print("\n")		
-		print_if_not_null( "Species", "$species" )
-		print_if_not_null( "Species file", "$species_file" )
+		print( "Species\t: $species\n" )
+		print( "Species file\t: $species_file\n" )
 	}
 }
 
@@ -93,14 +93,14 @@ void read_species() { // check for species configruation files
 
 				if ( v ) { // verbose
 					print("\n")
-					print_if_not_null( "Chromesizes file", "$chrsz" )
-					print_if_not_null( "Genome size (hs,mm)", "$gensz" )
-					print_if_not_null( "Sequence dir.", "$seq" )
-					print_if_not_null( "Umap dir.", "$umap" )
-					print_if_not_null( "BWA index", "$bwa_idx" )
-					print_if_not_null( "Bowtie index", "$bwt_idx" )
-					print_if_not_null( "Bowtie2 index", "$bwt2_idx" )
-					print_if_not_null( "V-Plot index", "$vplot_idx" )
+					print( "Chromesizes file\t: $chrsz\n" )
+					print( "Genome size (hs,mm)\t: $gensz\n" )
+					print( "Sequence dir.\t\t: $seq\n" )
+					print( "Umap dir.\t\t: $umap\n" )
+					print( "BWA index\t\t: $bwa_idx\n" )
+					print( "Bowtie index\t\t: $bwt_idx\n" )
+					print( "Bowtie2 index\t\t: $bwt2_idx\n" )
+					print( "V-Plot index\t\t: $vplot_idx\n" )
 				}
 
 				break

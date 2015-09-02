@@ -41,9 +41,9 @@ void init_align() {
 
 	if ( v ) { // verbose
 		print("\n")		
-		print_if_not_default( "MAPQ reads rm thresh.", "$mapq_thresh",30 )
-		print_if_not_default( "# read for xcor subsample", "$nreads", 15000000)
-		print_if_not_null( "Rm. reads with chr.", "$rm_chr_from_tag")
+		print( "MAPQ reads rm thresh.\t\t: $mapq_thresh\n")
+		print( "# read for xcor subsample\t: $nreads\n")
+		print( "Rm. tag reads with str.\t\t: $rm_chr_from_tag\n")
 	}	
 }
 
@@ -524,9 +524,8 @@ string[] _spr_PE( string bedpe, string out_dir, string info ) {
 	return out
 }
 
-// make psr(pooled pseudo replicate)
-//string[] _ppr( string[] tags, string[] tags_pr1, string[] tags_pr2, string out_dir, string info ) {
 string[] _ppr( string tag1, string tag1_pr1, string tag1_pr2, string tag2, string tag2_pr1, string tag2_pr2, string out_dir, string info ) {
+	// make psr(pooled pseudo replicate)
 
 	tag_pooled 	:= _pool_tag( tag1, tag2, out_dir, info )
 	tag_ppr1 	:= _pool_tag( tag1_pr1, tag2_pr1, out_dir, info )

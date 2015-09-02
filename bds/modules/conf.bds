@@ -17,7 +17,7 @@ void init_conf() {
 
 	if ( is_cmd_line_arg_empty() ) {
 
-		print( "\nWarning: No parameters are given (specify cmd. line arguments or configuration file)!\n")
+		print( "\nWarning: No parameters are given (specify cmd. line arguments or configuration file)!\n\n")
 	}
 	
 	if ( is_first_arg_conf() ) {

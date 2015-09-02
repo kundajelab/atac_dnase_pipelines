@@ -23,8 +23,8 @@ void init_idr() {
 
 	if ( v ) { // verbose
 		print("\n")		
-		print_if_not_null( "Use IDR-1", "$use_idr1" )
-		print_if_not_default( "IDR threshold", "$idr_thresh","0.02")
+		print( "Use IDR-1\t\t: $use_idr1\n" )
+		print( "IDR threshold\t\t: $idr_thresh\n" )
 	}
 }
 

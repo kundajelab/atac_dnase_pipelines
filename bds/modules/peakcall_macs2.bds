@@ -24,10 +24,9 @@ void init_peakcall_macs2() {
 
 	if ( v ) { // verbose
 		print("\n")
-		//print_if_not_null( "Peak calling method", "$peakcall" )
-		print_if_not_default( "# threads (macs2)", "$nth_macs2", 2)
-		print_if_not_default( "Walltime (macs2)", "$wt_macs2", "10h")
-		print_if_not_default( "Max. memory (macs2)", "$mem_macs2", "8G")
+		print( "# threads (macs2)\t: $nth_macs2\n")
+		print( "Walltime (macs2)\t: $wt_macs2\n")
+		print( "Max. memory (macs2)\t: $mem_macs2\n")
 	}
 }
 
@@ -38,11 +37,14 @@ string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, str
 	npeakfile	:= "$prefix.narrowPeak.gz"
 	bpeakfile	:= "$prefix.broadPeak.gz"
 	gpeakfile	:= "$prefix.gappedPeak.gz"
-	bigwig_fc 	:= "$prefix.fc.signal.bw"
-	bigwig_pval 	:= "$prefix.pval.signal.bw"
+
+	fc_bedgraph 	:= "$prefix.fc.signal.bedgraph"
+	fc_bigwig 	:= "$prefix.fc.signal.bw"
+	pval_bedgraph 	:= "$prefix.pval.signal.bedgraph"
+	pval_bigwig 	:= "$prefix.pval.signal.bw"
 
  	in 	:= [ tag, ctl_tag ]
- 	out 	:= [ npeakfile, bpeakfile, gpeakfile, bigwig_fc, bigwig_pval ]
+ 	out 	:= [ npeakfile, bpeakfile, gpeakfile, fc_bigwig, pval_bigwig ]
 
 	prefix_basename	:= get_basename( prefix )
 
@@ -88,14 +90,14 @@ string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, str
 		sys macs2 bdgcmp -t "$prefix"_treat_pileup.bdg -c "$prefix"_control_lambda.bdg --outdir $out_dir -o "$prefix_basename"_FE.bdg -m FE
 
 		//# Remove coordinates outside chromosome sizes (stupid MACS2 bug)
-		sys slopBed -i "$prefix"_FE.bdg -g $chrsz -b 0 |   awk '{if ($3 != -1) print $0}' |  bedClip stdin $chrsz "$prefix".fc.signal.bedgraph
+		sys slopBed -i "$prefix"_FE.bdg -g $chrsz -b 0 |   awk '{if ($3 != -1) print $0}' |  bedClip stdin $chrsz $fc_bedgraph
 
 		sys rm -f "$prefix"_FE.bdg
 
 		//# Convert bedgraph to bigwig
-		sys bedGraphToBigWig "$prefix".fc.signal.bedgraph $chrsz $bigwig_fc
+		sys bedGraphToBigWig $fc_bedgraph $chrsz $fc_bigwig
 
-		sys rm -f "$prefix".fc.signal.bedgraph
+		sys rm -f $fc_bedgraph
 
 		//===========================================
 		//# For -log10(p-value) signal tracks
@@ -117,9 +119,9 @@ string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, str
 		sys rm -rf "$prefix"_ppois.bdg
 
 		//# Convert bedgraph to bigwig
-		sys bedGraphToBigWig "$prefix".pval.signal.bedgraph $chrsz $bigwig_pval
+		sys bedGraphToBigWig $pval_bedgraph $chrsz $pval_bigwig
 
-		sys rm -f "$prefix".pval.signal.bedgraph
+		sys rm -f $pval_bedgraph
 		sys rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg
 	}
 
@@ -131,7 +133,9 @@ string[] _macs2_bed( string non_mito_bed, string fraglen, string out_dir, string
 	prefix 	:= change_dir( remove_ext( non_mito_bed, "bed" ), out_dir ) + ".pf"
 
 	peakfile 	:= "$prefix"+"_peaks.narrowPeak"
+	fc_bedgraph 	:= "$prefix.fc.signal.bedgraph"
 	fc_bigwig 	:= "$prefix.fc.signal.bigwig"
+	pval_bedgraph 	:= "$prefix.pval.signal.bedgraph"
 	pval_bigwig 	:= "$prefix.pval.signal.bigwig"
 
 	in 	:= [ non_mito_bed ]
@@ -152,9 +156,9 @@ string[] _macs2_bed( string non_mito_bed, string fraglen, string out_dir, string
 			-t "$prefix"_treat_pileup.bdg -c "$prefix"_control_lambda.bdg \
 			--o-prefix "$prefix" -m FE
 		sys slopBed -i "$prefix"_FE.bdg -g "$chrsz" -b 0 | \
-			bedClip stdin "$chrsz" "$prefix.fc.signal.bedgraph"
+			bedClip stdin "$chrsz" $fc_bedgraph
 		sys rm -f "$prefix"_FE.bdg
-		sys bedGraphToBigWig "$prefix.fc.signal.bedgraph" "$chrsz" "$fc_bigwig"
+		sys bedGraphToBigWig $fc_bedgraph "$chrsz" "$fc_bigwig"
 		sys rm -f "$prefix.fc.signal.bedgraph"
 
 		//# sval counts the number of tags per million in the (compressed) BED file
@@ -163,10 +167,12 @@ string[] _macs2_bed( string non_mito_bed, string fraglen, string out_dir, string
 			-t "$prefix"_treat_pileup.bdg -c "$prefix"_control_lambda.bdg \
 			--o-prefix "$prefix" -m ppois -S "${sval}"
 		sys slopBed -i "$prefix"_ppois.bdg -g "$chrsz" -b 0 | \
-			bedClip stdin "$chrsz" "$prefix.pval.signal.bedgraph"
+			bedClip stdin "$chrsz" $pval_bedgraph
 		sys rm -f "$prefix"_ppois.bdg
-		sys bedGraphToBigWig "$prefix.pval.signal.bedgraph" "$chrsz" "$pval_bigwig"
+		sys bedGraphToBigWig $pval_bedgraph "$chrsz" "$pval_bigwig"
 		sys rm -f "$prefix.pval.signal.bedgraph"
+
+		sys rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg
 	}
 
 	wait
