@@ -1,0 +1,77 @@
+#!/usr/bin/env bds
+
+include "species.bds"
+
+
+help Peakcalling settings : spp (phantompeakqual tool: run_SPP.R)
+
+npeak 		:= 300000 	help -npeak in spp (phantompeakqual tool run_spp.R) (default: 300000).
+nth_spp 	:= 2		help # threads for spp (run_spp.R) (default: 2).
+wt_spp		:= "15h"	help Walltime for spp (default: 10h, 10:00:00).
+mem_spp		:= "8G" 	help Max. memory for spp (default: 8G).
+
+
+init_peakcall_spp()
+
+
+void init_peakcall_spp() {
+
+	if ( conf_file_exists() ) {
+
+		npeak 		= get_conf_val_int( npeak,		["NPEAK"] )
+		nth_spp 	= get_conf_val_int( nth_spp,		["NTHREADS_SPP", "NTH_SPP", "CPU_SPP"] )
+		wt_spp 		= get_conf_val( wt_spp, 		["WALLTIME_SPP", "WT_SPP", "TIMEOUT_SPP"] )
+		mem_spp 	= get_conf_val( mem_spp, 		["MEMORY_SPP", "MEM_SPP"] )
+	}
+
+	if ( v ) { // verbose
+		print("\n")
+		//print_if_not_null( "Peak calling method", "$peakcall" )
+		print_if_not_default( "# peak for spp (-npeak)", "$npeak",300000)
+		print_if_not_default( "# threads (spp)", "$nth_spp", 2)
+		print_if_not_default( "Walltime (spp)", "$wt_spp", "15h")
+		print_if_not_default( "Max. memory (spp)", "$mem_spp", "8G")
+	}
+}
+
+string[] _spp( string tag, string ctl_tag, string fraglen, string out_dir, string info ) {
+
+	// outputs
+	prefix_vs	:= "$out_dir/" + make_vs_basename_wo_gz( tag, ctl_tag, "" )
+	prefix_x	:= "$out_dir/" + make_x_basename_wo_gz( tag, ctl_tag, "" )
+
+	npeakfile_vs 	:= "$prefix_vs.narrowPeak.gz"
+	rpeakfile_vs 	:= "$prefix_vs.regionPeak.gz"
+	
+	npeakfile 	:= "$prefix_x.narrowPeak.gz"
+	rpeakfile 	:= "$prefix_x.regionPeak.gz"
+	ccscore		:= "$prefix_x.ccscore"
+
+	pdf_tmp		:= change_dir( remove_ext( tag, ["gz"] ), out_dir ) + ".pdf"
+	pdf 		:= "$prefix_x.pdf"
+
+	in 	:= [ tag, ctl_tag ]
+	out 	:= [ npeakfile, rpeakfile ] ////, pdf, ccscore ]
+
+	task( taskName:= "spp "+info, \
+		cpus:=nth_spp, mem:=parse_mem(mem_spp), timeout:=parse_time(wt_spp), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys Rscript $(which run_spp_nodups.R) -c=$tag -p=$nth_spp -i=$ctl_tag \
+			-npeak=$npeak -odir=$out_dir -speak=$fraglen -savn -savr -savp -rf -out=$ccscore
+
+		// Bug fix (we have floating point representation of chr coord., possible bug in run_spp.R?):
+		// chr3    153999636       1.54e+08        .       0       .       4.47152214284156        -1      -0.0118951365772202     18
+		sys zcat $npeakfile_vs | awk 'BEGIN{OFS="\t"}{print $1,int($2),int($3),$4,$5,$6,$7,$8,$9,$10;}' | gzip -f -c > $npeakfile
+		sys zcat $rpeakfile_vs | awk 'BEGIN{OFS="\t"}{print $1,int($2),int($3),$4,$5,$6,$7,$8,$9,$10;}' | gzip -f -c > $rpeakfile
+		
+		sys rm -f $npeakfile_vs
+		sys rm -f $rpeakfile_vs
+
+		sys mv $pdf_tmp $pdf
+	}
+
+	return out
+}

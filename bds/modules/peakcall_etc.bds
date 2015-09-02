@@ -1,0 +1,72 @@
+#!/usr/bin/env bds
+
+include "species.bds"
+
+
+help Preseq analysis settings
+
+xmax 		:= 500		help Maximum # of reads for preseq analysis (default: 500)
+
+
+init_peakcall_etc()
+
+
+void init_peakcall_etc() {
+
+	if ( conf_file_exists() ) {
+
+		xmax 		= get_conf_val_int( xmax,		["XMAX", "X_MAX"] )
+	}
+
+	if ( v ) { // verbose
+		print("\n")
+		print_if_not_default( "Xmax for preseq", "$xmax", 500)
+	}
+}
+
+string _preseq( string srt_bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( srt_bam, out_dir )
+
+	preseq_file 	:= "$prefix.preseq.pdf"
+	preseq_gnu 	:= "$prefix.preseq.gnu"
+
+	preseq_data 	:= "$prefix.preseq.dat"
+	preseq_log 	:= "$prefix.preseq.log"
+
+	in 	:= [srt_bam]
+	out 	:= preseq_file
+
+	task( taskName:= "preseq "+info, cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys cd $out_dir
+
+		sys echo "PRESEQ Analysis..."
+
+		//# run preseq		
+		sys preseq lc_extrap -P -B -o "$preseq_data" "$srt_bam" -v 2> "$preseq_log"
+
+		//# plot the results
+		sys titleName=$(basename $srt_bam)
+		sys titleName=${titleName//_/\\_ } #escape underscores
+
+		sys echo "set terminal pdfcairo" > $preseq_gnu
+		sys echo "set output '$preseq_file'" >> $preseq_gnu
+		sys echo "set key box bottom right" >> $preseq_gnu
+		sys echo "set style line 1 linewidth 5" >> $preseq_gnu
+		sys echo "set style line 2 linewidth 1" >> $preseq_gnu
+		sys echo "set mxtics 2" >> $preseq_gnu
+		sys echo "set grid ytics xtics mxtics" >> $preseq_gnu
+		sys echo "set xrange [0:$xmax]" >> $preseq_gnu
+		sys echo "set xlabel \"Number of Reads [millions]\"" >> $preseq_gnu
+		sys echo "set ylabel \"Expected Distinct Reads [millions]\"" >> $preseq_gnu
+		sys echo "set title \"PRESEQ Results for ${titleName}\"" >> $preseq_gnu
+		sys echo "plot '$preseq_data' using (\$1/1000000):(\$2/1000000) with lines linestyle 1 notitle, '' using (\$1/1000000):(\$3/1000000) with lines linestyle 2 notitle, '' using (\$1/1000000):(\$4/1000000) with lines linestyle 2 title '+/- 95% confidence interval' " >> $preseq_gnu
+
+		sys gnuplot $preseq_gnu
+	}
+	
+	return out
+}

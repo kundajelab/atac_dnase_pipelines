@@ -1,60 +1,41 @@
 #!/usr/bin/env bds
 
-helpUnsorted := true // help( $ bds chipseq.bds -h ) will not be sorted
-
-include "../modules/align.bds"
-include "../modules/peakcall.bds"
+include "../modules/align_bowtie2.bds"
+include "../modules/peakcall_macs2.bds"
+include "../modules/peakcall_etc.bds"
 include "../modules/report.bds"
-include "../modules/conf.bds"
 
 
-bool kundaje_lab 	= false		help Set it true if you run the pipeline on Kundaje lab servers (automatically set environments, default: false)
+help ATAC-Seq Pipeline input files
 
-string fastq1 		= ""		help Read1 fastq.gz
-string fastq2		= ""		help Read2 fastq.gz
-
-int fraglen 		= 75 		help Read fragment length (default: 75)
+fastq1 		:= ""		help Read1 fastq.gz.
+fastq2		:= ""		help Read2 fastq.gz.
+fraglen 	:= 75 		help Read fragment length (default: 75).
 
 
 help()
 
-read_conf()
+init_atac()
 
 chk_input_data()
 
-init()
+set_shell_env()
 
 atac()
 
 
-
-void read_conf() {
+void init_atac() {
 
 	if ( conf_file_exists() ) {
-
-		// kundaje lab support (automatic shell env. settings)
-		kundaje_lab 	= get_conf_val_bool( kundaje_lab,	["KUNDAJE_LAB"] )
-
-		mapq_thresh 	= get_conf_val_int( mapq_thresh,	["MAPQ_THRESH"] )
-		bwt_idx 	= get_conf_val( bwt_idx, 		["BWT_INDEX_NAME", "BWT_IDX", "BWT_IDX_NAME", "BOWTIE_IDX", "BOWTIE_INDEX"] )
-
-		nth_bwt2 	= get_conf_val_int( nth_bwt2,		["NTHREADS_BWT2", "NTH_BWT2", "CPU_BWT2", "NUMTHREADS"] )
-		wt_bwt2 	= get_conf_val( wt_bwt2, 		["WALLTIME_BWT2", "WT_BWT2", "TIMEOUT_BWT2"] )
-		mem_bwt2 	= get_conf_val( mem_bwt2, 		["MEMORY_BWT2", "MEM_BWT2"] )
-
-		gensz		= get_conf_val( gensz, 			["GENSZ", "GENOMESIZE", "GENOME_SIZE", "GENOME_SZ", "GEN_SZ"] )
-		chrsz		= get_conf_val( chrsz, 			["CHROMSIZE","CHROMSIZES","CHROM_SIZES", "CHRSZ", "CHR_SZ"] )
-
-		fraglen 	= get_conf_val_int( fraglen,		["FRAGLEN", "FRAG_LEN"] )
 
 		fastq1 		= get_conf_val( fastq1, 		["FASTQ1", "READ1"] )
 		fastq2 		= get_conf_val( fastq2, 		["FASTQ2", "READ2"] )
 
-		vplot_idx 	= get_conf_val( vplot_idx, 		["VPLOTINDEX", "VPLOT_INDEX", "VPLOTIDX", "VPLOT_IDX", "V_INDEX"] )
+		fraglen 	= get_conf_val_int( fraglen,		["FRAGLEN", "FRAG_LEN"] )
 	}
 	else { // if there is no conf. file take first five arguments as input
 
-		bwt_idx 	= chk_file( args[0], ".1.bt2" )
+		bwt2_idx 	= chk_file( args[0], ".1.bt2" )
 		fastq1 		= chk_file( args[1], "" )
 		fastq2 		= chk_file( args[2], "" )
 		nth_bwt2	= args[3].parseInt()
@@ -63,11 +44,19 @@ void read_conf() {
 		vplot_idx 	= chk_file( args[6], "" )
 		out_dir 	= mkdir_path( args[7] )
 	}
+
+	if ( v ) { // verbose
+		print("\n")
+		print_if_not_default( "Fragment length", "$fraglen", 75)
+	}
+
+	// create output directory
+	out_dir = mkdir_path( out_dir ) // mkdir and get absolute path	
 }
 
 void chk_input_data() {
 
-	print( "\n\n====== Checking input fastqs ...\n\n" );
+	print( "\n====== Checking input fastqs ...\n\n" );
 
 	if ( fastq1 == "" ) error( "READ1 (fastq) file missing!\n")
 	print( "\tREAD1 (fastq): $fastq1\n")
@@ -83,10 +72,9 @@ void chk_input_data() {
 		error( "Duplicate input fastq filenames!\n")
 }
 
-void init() {
+void set_shell_env() {
 	
 	// create output dir.	
-	out_dir = mkdir_path( out_dir ) // mkdir and get absolute path
 
 	if ( kundaje_lab ) {
 
@@ -179,6 +167,9 @@ void help() {
 		print("\n")
 		print("\t\$ bds -s sge atac.bds ... \n")
 		print("\n")
+		print(" List of parameters\n")
+		print(" \n")
+		printHelp()
 
 		exit
 	}

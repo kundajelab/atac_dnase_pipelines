@@ -1,0 +1,159 @@
+#!/usr/bin/env bds
+
+include "conf.bds"
+
+
+help General pipeline settings
+
+v 		:= false 	help Verbose
+kundaje_lab 	:= false	help Add it if you run pipeline on Kundaje lab servers (automatically set shell environments, default: false).
+out_dir 	:= "out"	help Output directory. (default: out).
+no_par_job	:= false	help Add it to serialize all jobs for desktops with limited resources (default: false).
+
+help General cluster resource settings
+
+nth		:= 1 		help # threads for all cluster jobs (default: 1).
+wt 		:= "6h"		help Walltime for all cluster jobs (example: 8:10:00, 3h, 3600, default: 6h, 6:00:00).
+mem 		:= "4G"		help Max. memory for all cluster jobs (example: 4G, 1000MB, default: 4G).
+
+help Shell environment settings
+
+mod 		:= ""		help Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+shcmd 		:= ""		help Shell cmds separated by ;. Variable must be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test"). 
+addpath 	:= "" 		help Path separated by ; to be PREPENDED to \$PATH. Paths are  (example: "/bin/test:${HOME}/utils").
+
+
+
+// environment modules (bash) initialization file paths (pick from the first if exists)
+init_mods 	:= ["/etc/profile.d/modules.sh", "/etc/profile.d/modules.bash", "$MODULESHOME/init/bash"]
+
+// basic unix paths and BigDataScript bin path (pick all)
+init_paths 	:= ["/bin","/usr/bin"]
+
+SHCMD_INIT 	:= ""  // IMPORTANT! Shell command executed prior to all BigDataScript tasks (use this for setting environemts)
+
+
+
+init_base()
+init_shell_env()
+
+
+
+void init_base() { 
+
+	if ( conf_file_exists() ) {
+
+		// read conf values for basic variables defined in base.bds
+		v		= get_conf_val_bool( v,			["V","VERBOSE"] )
+		kundaje_lab 	= get_conf_val_bool( kundaje_lab,	["KUNDAJE_LAB"] )
+
+		out_dir 	= get_conf_val( out_dir, 		["OUTPUT_DIR", "OUT_DIR", "OUTDIR"] )	
+		no_par_job 	= get_conf_val_bool( no_par_job, 	["NO_PARALLEL_JOB","NO_PAR_JOB"] )
+
+		nth 		= get_conf_val_int( nth, 		["NTHREADS","NTH","CPU"] )
+		wt 		= get_conf_val( wt, 			["WALLTIME","WT","TIMEOUT"] )
+		mem 		= get_conf_val( mem, 			["MEMORY","MEM"] )
+	}
+
+	if ( v ) { // verbose
+		print("\n")
+		print_if_not_null( "Kundaje lab cluster", "$kundaje_lab" )
+		print_if_not_null( "Output dir.", "$out_dir" )
+		print_if_not_null( "No parallel jobs", "$no_par_job" )
+		print_if_not_null( "# threads (general)", "$nth" )
+		print_if_not_null( "Walltime (general)", "$wt" )
+		print_if_not_null( "Max. memory (general)", "$mem" )
+	}
+}
+
+void init_shell_env() {	
+
+	string shellcmd, module, path
+
+	string init_mod
+
+	// find env. modules init script
+	for ( string file : init_mods ) {
+		if ( file.exists() ) {
+			init_mod = file
+			break
+		}
+	}
+
+	// check directories to add to PATH
+	script_file_paths := get_script_file_paths()
+
+	paths_to_find := concat( script_file_paths, init_paths )
+
+	for ( string _path : paths_to_find ) {
+		
+		if ( _path.exists() ) {
+			path = path + _path + ":"
+		}
+	}
+
+	if ( init_mod == "" ) {
+		print("\n\nInfo: Environments modules not found on your system (eg. /etc/profile.d/modules.sh). Ignoring shell env. parameters like '-mod'. \n")
+	}
+
+	if ( conf_file_exists() ) {
+		for( string k : conf.keys() ) {		
+			string val = conf{k}	
+
+			// concat. module
+			if ( (k.indexOf("mod_")>=0) || (k=="mod") ) {
+
+				if ( init_mod != "" ) {
+					trimmed := val.trim().replace("module add ","").replace( ":", " " ).replace( ";", " " ).trim()
+					trimmed = trimmed.replace( "   ", " ").replace( "  ", " ")
+					module = module + " " + trimmed
+				}
+			}
+			else if ( k.indexOf("shcmd")>=0 ) {
+
+				shellcmd = shellcmd + " " + val + ";"
+			}
+			else if ( k.indexOf("addpath")>=0 ) {
+
+				path = path + val.trim().replace(";",":").replace(" ",":").replace(":::",":").replace("::",":") + ":"
+			}
+		}
+	}
+
+	if ( mod!="" ) {
+		string module_header = ". $init_mod;"
+
+		if ( init_mod != "" ) { // if /etc/profile.d/modules.sh exists
+
+			trimmed := mod.trim().replace("module add ","").replace( ":", " " ).replace( ";", " " ).trim()
+			trimmed = trimmed.replace( "   ", " ").replace( "  ", " ")
+			module = module + " " + trimmed
+		}
+	}
+	if ( shcmd!="" ) {
+		shellcmd = shellcmd + shcmd.trim() + "; "
+	}
+
+	if ( addpath!="" ) {
+		path = path + addpath.trim().replace(";",":").replace(" ",":").replace(":::",":").replace("::",":") + ":"
+	}
+
+	// finally concat all
+
+	if ( module !="" ) {
+		module = ". $init_mod; module add " + module + ";"
+	}
+
+	if ( path !="" ) {
+		path = "export PATH=$path:\${HOME}/.bds:\${PATH}; "
+	}
+
+	// additional initialization
+	SHCMD_INIT = SHCMD_INIT + module + shellcmd + path
+	SHCMD_INIT = SHCMD_INIT.replace( "::", ":" )
+	SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
+
+	if ( v ) { // verbose
+		print_if_not_null( "Shell cmd. for init.", "$SHCMD_INIT" )		
+	}		
+}

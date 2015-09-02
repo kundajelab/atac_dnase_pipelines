@@ -1,14 +1,33 @@
 #!/usr/bin/env bds
 
-include "base.bds"
+include "species.bds"
+
+help IDR settings
+
+use_idr1	:= false	help Add it use IDR-1 code (default: false).
+idr_thresh 	:= "0.02"	help IDR threshold ( -log_10 (score) ) (default: 0.02).
+
+idr_summary 	:= "NPEAKS_IDR.txt"	// file basename for summary of number of peaks found
 
 
-bool use_idr1		= false	 	help If set true, use IDR1 code. Otherwise use IDR2 code (default: false)
-string idr_thresh 	= 0.02		help IDR threshold (default: 0.02).
-string idr_summary 	= "NPEAKS_IDR.txt"	// file basename for summary of number of peaks found
+init_idr()
 
 
-//string[] _idr( string peak1, string peak2, string pooled, string prefix, string info ) {
+void init_idr() {
+
+	if ( conf_file_exists() ) {
+
+		use_idr1 	= get_conf_val_bool( use_idr1, 		["USE_IDR1"] )
+		idr_thresh 	= get_conf_val( idr_thresh, 		["IDR_THRESH"] )
+	}
+
+	if ( v ) { // verbose
+		print("\n")		
+		print_if_not_null( "Use IDR-1", "$use_idr1" )
+		print_if_not_default( "IDR threshold", "$idr_thresh","0.02")
+	}
+}
+
 string[] _idr( string peak1, string peak2, string pooled, string out_dir, string info ) {
 
 	// write three peak filenames to file (just for information)
@@ -17,20 +36,16 @@ string[] _idr( string peak1, string peak2, string pooled, string out_dir, string
 
 	// do IDR
 	if ( use_idr1 ) {
-//		return _idr1( peak1, peak2, pooled, prefix, info )
 		return _idr1( peak1, peak2, pooled, out_dir, info )
 	}
 	else {
-//		return _idr2( peak1, peak2, pooled, prefix, info )
 		return _idr2( peak1, peak2, pooled, out_dir, info )
 	}
 }
 
-//string[] _idr1( string peak1, string peak2, string pooled, string prefix, string info ) {
 string[] _idr1( string peak1, string peak2, string pooled, string out_dir, string info ) {
 
 	prefix 		:= "$out_dir/$info"
-	//prefix 	:= change_dir( remove_ext( fastq, "fastq" ), out_dir )"$out_dir/$info"
 
 	npeaks_file 	:= prefix.dirName()+"/$idr_summary"
 
@@ -127,7 +142,6 @@ string[] _idr1( string peak1, string peak2, string pooled, string out_dir, strin
 	return out
 }
 
-//string[] _idr2( string peak1, string peak2, string pooled, string prefix, string info ) { // use --idr-threshold
 string[] _idr2( string peak1, string peak2, string pooled, string out_dir, string info ) { // use --idr-threshold
 
 	prefix 		:= "$out_dir/$info"
@@ -137,9 +151,6 @@ string[] _idr2( string peak1, string peak2, string pooled, string out_dir, strin
 
 	peak 		:= "$prefix.IDR"+"$idr_thresh.narrowPeak.gz"
 	idr_output 	:= "$prefix.overlapped-peaks.txt"
-
-//	peak 		:= prefix.dirName() + "/" + info + ".IDR$idr_thresh.narrowPeak.gz"
-//	idr_output 	:= prefix.dirName() + "/" + info + ".overlapped-peaks.txt"
 
 	in 	:= [peak1, peak2, pooled]
 	out 	:= [idr_output, peak]
@@ -151,7 +162,6 @@ string[] _idr2( string peak1, string peak2, string pooled, string out_dir, strin
 			--output-file $idr_output --rank signal.value --soft-idr-threshold $idr_thresh \
 			--plot
 		
-                // calculate idr_thresh_transformed ( = -125 x log_2(idr_thresh) )
 		sys idr_thresh_transformed=$(awk -v p=$idr_thresh 'BEGIN{print -log(p)/log(10)}')
 
 		//# Get peaks passing global IDR threshold and convert file to narrowPeak format (Step 9)

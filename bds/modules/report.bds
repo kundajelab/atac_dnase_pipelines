@@ -1,6 +1,8 @@
 #!/usr/bin/env bds
 
-include "base.bds"
+include "general.bds"
+
+// sub module: report
 
 
 void _write_report( string title, string report_file, string root ) {

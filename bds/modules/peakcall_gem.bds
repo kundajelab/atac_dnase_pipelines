@@ -1,0 +1,79 @@
+#!/usr/bin/env bds
+
+include "species.bds"
+
+
+help Peakcalling settings : gem
+
+nth_gem		:= 2 		help # threads for gem (default: 2)
+wt_gem		:= "20h"	help Walltime for gem (default: 20h, 20:00:00).
+mem_gem		:= "16G" 	help Max. memory for gem (default: 16G).
+
+
+init_peakcall_gem()
+
+
+void init_peakcall_gem() {
+
+	if ( conf_file_exists() ) {
+
+		nth_gem 	= get_conf_val_int( nth_gem,		["NTHREADS_GEM", "NTH_GEM", "CPU_GEM"] )
+		wt_gem 		= get_conf_val( wt_gem, 		["WALLTIME_GEM", "WT_GEM", "TIMEOUT_GEM"] )
+		mem_gem 	= get_conf_val( mem_gem, 		["MEMORY_GEM", "MEM_GEM"] )
+	}
+
+	if ( v ) { // verbose
+		print("\n")
+		//print_if_not_null( "Peak calling method", "$peakcall" )
+		print_if_not_default( "# threads (gem)", "$nth_gem", 2)
+		print_if_not_default( "Walltime (gem)", "$wt_gem", "20h")
+		print_if_not_default( "Max. memory (gem)", "$mem_gem", "16G")
+	}
+}
+
+string[] _gem( string tag, string ctl_tag, string out_dir, string info ) {
+
+	// misc.
+	prefix 		:= "$out_dir/" + make_vs_basename_wo_gz( tag, ctl_tag, "" )
+	prefix_basename := get_basename( prefix )
+
+	peak 	:= "$prefix.narrowPeak.gz"
+	ksm	:= "$prefix.KSM.txt"
+	pfm	:= "$prefix.PFM.txt"
+	html	:= "$prefix.result.html"
+
+	Xmx 	:= "-Xmx" + mem_gem
+
+	in 	:= [ tag, ctl_tag ]
+	out 	:= [peak, ksm, pfm, html ]
+
+	task( taskName:= "gem "+info, \
+		cpus:=nth_gem, mem:=parse_mem(mem_gem), timeout:=parse_time(wt_gem), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys export _JAVA_OPTIONS="-Xms256M $Xmx"; export MAX_JAVA_MEM=$mem_gem;
+		
+		sys gzip -d -c $tag > $prefix.tagAlign
+		sys gzip -d -c $ctl_tag > $prefix.ctl.tagAlign
+
+		sys java $Xmx -jar ${GEMROOT}/gem.jar --g $chrsz --d ${GEMROOT}/Read_Distribution_default.txt --s 2400000000 \
+			--expt $prefix.tagAlign  --ctrl $prefix.ctl.tagAlign --f BED \
+			--out  $prefix --genome $seq --k_min 6 --k_max 13 --outNP --q 0 --t $nth_gem
+
+		sys rm -f $prefix.tagAlign
+		sys rm -f $prefix.ctl.tagAlign
+
+		//# =============================
+		//# Sort peaks by signal value and truncate peaks to top 300K
+		//# =============================
+		sys sort -k7nr,7nr "$prefix/$prefix_basename"_GEM_events.narrowPeak | head -n 300000 | gzip -c > $peak
+
+		sys mv "$prefix/$prefix_basename"_KSM.txt $ksm
+		sys mv "$prefix/$prefix_basename"_PFM.txt $pfm
+		sys mv "$prefix/$prefix_basename"_result.htm $html
+	}
+
+	return out
+}

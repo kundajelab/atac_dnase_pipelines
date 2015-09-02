@@ -6,37 +6,70 @@ ATAC Seq Pipeline
 
 Environment variables will be automatically set in Kundaje lab clusters.
 
-Add '-kundaje_lab true' at the end of the parameters.
+Add '-kundaje_lab' at the end of the parameters.
 ```
-$bds atac.bds [BOWTIE_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE] [CHROMSIZES] [VPLOT_INDEX] [OUTPUT_DIR] -kundaje_lab true
+$ bds atac.bds [BOWTIE2_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE] [CHROMSIZES] [VPLOT_INDEX] [OUTPUT_DIR] -kundaje_lab
 ```
 or
 
 Add 'KUNDAJE_LAB= true' to a configuration file.
 ```
-$bds atac.bds [CONF_FILE]
+$ bds atac.bds [CONF_FILE]
 
-$cat [CONF_FILE]
+$ cat [CONF_FILE]
 ...
 KUNDAJE_LAB= true
 ...
 ```
 
-### Parameters from command line arguments 1
+### Parameters from command line arguments
 
 ```
-$bds atac.bds [BOWTIE_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE] [CHROMSIZES] [VPLOT_INDEX] [OUTPUT_DIR] -mod [MOD_DEF] -shcmd [ADDITIONAL_INIT] -addpath [PATH_FOR_SOFTWARES]
+$ bds atac.bds [BOWTIE2_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE] [CHROMSIZES] [VPLOT_INDEX] [OUTPUT_DIR] -mod [MOD_DEF] -shcmd [ADDITIONAL_INIT] -addpath [PATH_FOR_SOFTWARES]
 
 # If you already have -V option (pass all env. vars to qsub) in your ~/.bds/bds.config and defined all env. vars on your current shell, you can skip these additional parameters.
 # Otherwise you need to define enviromnet variables with -mod, -shcmd and -addpath.
 ```
+
+### Using Species file
+
+For ATAC-Seq pipeline, there are many species specific parameters like indices (bwa, bowtie, ...), chrome sizes, sequence file and genome size. If you have multiple pipelines, it's a hard job to individually define all parameters for each pipeline. However, if you have a species file with all species specific parameters defined, then you define less parameters and share the species file with all other pipelines.
+
+```
+$ bds chipseq.bds ... -species [SPECIES] -species_file [SPECIES_FILE]
+```
+
+Example species file:
+```
+[hg19]
+chrsz   = /mnt/data/annotations/by_release/hg19.GRCh37/hg19.chrom.sizes // chrome sizes
+seq     = /mnt/data/ENCODE/sequence/encodeHg19Male // genome reference sequence
+gensz   = hs // genome size: hs for humna, mm for mouse
+umap    = /mnt/data/ENCODE/umap/encodeHg19Male/globalmap_k20tok54 // uniq. mappability tracks
+bwa_idx = /mnt/data/annotations/indexes/bwa_indexes/encodeHg19Male/v0.7.10/encodeHg19Male_bwa-0.7.10.fa
+bwt_idx = /mnt/data/annotations/indexes/bowtie1_indexes/encodeHg19Male/encodeHg19Male
+bwt2_idx = /mnt/data/annotations/indexes/bowtie2_indexes/bowtie2/ENCODEHg19_male
+vplot_idx = /mnt/data/annotations/indexes/vplot_indexes/hg19/parsed_hg19_RefSeq.merged.ANS.bed
+
+[hg38]
+...
+
+[mm9]
+...
+
+[mm10]
+...
+```
+
+If '-kundaje_lab' flag is defined, you can skip '-species_file' on Kundaje lab clusters because 'species_kundaje_lab.conf' is already provided in the pipeline repository.
+
 
 ### Detailed help
 
 To get more detailed help, run atac.bds without any parameters.
 
 ```
-$bds atac.bds
+$ bds atac.bds
 ```
 
 

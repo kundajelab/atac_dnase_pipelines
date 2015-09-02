@@ -1,0 +1,118 @@
+#!/usr/bin/env bds
+
+include "general.bds"
+
+
+help Species settings
+
+species		:= "" 		help Species. If added, also specify '-species_file' (default: blank).
+species_file	:= "" 		help Species configuration file path (default: blank).
+
+chrsz 		:= "" 		help Chrome sizes file path (use fetchChromSizes from UCSC tools).
+seq 		:= "" 		help Reference sequence file path (where chr*.fa exist).
+gensz 		:= "hs"		help Genome size; hs for human, mm for mouse (default: hs).
+umap 		:= "" 		help Unique mappability tracks path (https://sites.google.com/site/anshulkundaje/projects/mappability).
+
+bwa_idx 	:= ""		help bwa index.
+bwt_idx		:= ""		help bowtie index
+bwt2_idx	:= ""		help bowtie2 index
+vplot_idx 	:= "" 		help V plot index.
+
+species_basename 		:= "species.conf"
+species_basename_kundaje_lab  	:= "species_kundaje_lab.conf"
+
+
+init_genome()
+read_species() // read it if exists
+
+
+void init_genome() {
+
+	if ( conf_file_exists() ) {
+		species 	= get_conf_val( species, 		["SPECIES"] )
+		species_file 	= get_conf_val( species_file, 		["SPECIES_FILE", "SPECIES_CONF_FILE", "SPECIES_CONF"] )
+	}
+
+	if ( v ) { // verbose
+		print("\n")		
+		print_if_not_null( "Species", "$species" )
+		print_if_not_null( "Species file", "$species_file" )
+	}
+}
+
+void read_species() { // check for species configruation files
+
+	if ( species != "" ) {
+
+		// get bds script path
+		string[] species_paths
+
+		if ( species_file != "" ) \
+			species_paths.add( species_file )  // try to find in specifed species file firstly		
+
+		if ( conf_file != "" ) \
+			species_paths.add( conf_file ) // try to find in configuration file secondly
+
+		species_paths.add( species_basename ) // working directory
+
+		tmp := get_script_file_paths( "/" + species_basename ) // and then look into BDS script file paths
+
+		if ( kundaje_lab ) {
+			tmp2 := get_script_file_paths( "/" + species_basename_kundaje_lab )
+			tmp = concat( tmp2, tmp ) 
+		}
+
+		species_paths = concat( species_paths, tmp )
+
+		found_species := false
+
+		for ( string path : species_paths ) {
+
+			if ( path.exists() ) {
+
+				_conf := read_conf( path, species )
+
+				if ( _conf.size() == 0 ) continue // no species section (like [hg19], [mm9], ...) found, keep going with next
+
+				chrsz		= get_conf_val( chrsz, 			["CHROMSIZE","CHROMSIZES","CHROM_SIZES", "CHRSZ", "CHR_SZ"], _conf )
+				gensz		= get_conf_val( gensz, 			["GENSZ", "GENOMESIZE", "GENOME_SIZE", "GENOME_SZ", "GEN_SZ"], _conf )
+				seq 		= get_conf_val( seq,			["SEQ_DIR", "SEQ"], _conf )
+
+				umap		= get_conf_val( umap, 			["UMAP_DIR", "UMAP"], _conf )
+
+				bwa_idx 	= get_conf_val( bwa_idx, 		["BWA_INDEX_NAME", "BWA_IDX", "BWA_IDX_NAME"], _conf )
+
+				bwt_idx 	= get_conf_val( bwt_idx, 		["BWT_INDEX_NAME", "BWT_IDX", "BWT_IDX_NAME", "BOWTIE_IDX", "BOWTIE_INDEX"], _conf )
+				bwt2_idx 	= get_conf_val( bwt2_idx, 		["BWT2_INDEX_NAME", "BWT2_IDX", "BWT2_IDX_NAME", "BOWTIE2_IDX", "BOWTIE2_INDEX"], _conf )
+
+				vplot_idx 	= get_conf_val( vplot_idx, 		["VPLOTINDEX", "VPLOT_INDEX", "VPLOTIDX", "VPLOT_IDX", "V_INDEX"], _conf )
+
+				found_species 	= true
+
+				print("\n\nSpecies file found ($path).\n")
+
+				if ( v ) { // verbose
+					print("\n")
+					print_if_not_null( "Chromesizes file", "$chrsz" )
+					print_if_not_null( "Genome size (hs,mm)", "$gensz" )
+					print_if_not_null( "Sequence dir.", "$seq" )
+					print_if_not_null( "Umap dir.", "$umap" )
+					print_if_not_null( "BWA index", "$bwa_idx" )
+					print_if_not_null( "Bowtie index", "$bwt_idx" )
+					print_if_not_null( "Bowtie2 index", "$bwt2_idx" )
+					print_if_not_null( "V-Plot index", "$vplot_idx" )
+				}
+
+				break
+			}
+		}
+
+		if ( !found_species ) \
+			error("Species ($species) is chosen but species file was not found. Put $species_basename on your working directory or on BDS script path.\n")
+	}
+	else {
+		if ( v ) { // verbose
+			print("\nNo species file found. You need to manually define parameters for genome.\n\n")
+		}		
+	}
+}

@@ -1,14 +1,33 @@
 #!/usr/bin/env bds
 
-include "base.bds"
+include "species.bds"
+
+help Signal track generation settings
+
+make_wig 	:= false	help Add it to create wig (default: false).
+make_bedgraph 	:= false	help Add it to create bedgraph (default: false).
+make_bigwig 	:= false	help Add it to convert bedgraph to bigwig (default: false).
 
 
-bool make_wig 		= false		help Set it true to create wig (default: false).
-bool make_bedgraph 	= false		help Set it true to create bedgraph (default: false).
-bool make_bigwig 	= false		help Set it true to convert bedgraph to bigwig signal track (default: false).
+init_signal()
 
-string umap 		= "" 		help Path for unique mappability tracks (https://sites.google.com/site/anshulkundaje/projects/mappability).
 
+void init_signal() {
+
+	if ( conf_file_exists() ) {
+		//signal track genenration
+		make_wig	= get_conf_val_bool( make_wig, 		["CREATE_WIG", "MAKE_WIG"] )
+		make_bedgraph	= get_conf_val_bool( make_bedgraph, 	["CREATE_BEDGRAPH", "MAKE_BEDGRAPH"] )
+		make_bigwig	= get_conf_val_bool( make_bigwig, 	["CONVERT_TO_BIGWIG", "MAKE_BIGWIG"] )
+	}
+
+	if ( v ) { // verbose
+		print("\n")		
+		print_if_not_null( "Create wig", "$make_wig" )
+		print_if_not_null( "Create bedgraph", "$make_bedgraph" )
+		print_if_not_null( "Convert bdg to bigwig", "$make_bigwig" )
+	}	
+}
 
 string[] _signal_trk( string tag, string fraglen, string out_dir, string info ) {
 	

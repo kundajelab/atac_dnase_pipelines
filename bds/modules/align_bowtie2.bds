@@ -1,0 +1,55 @@
+#!/usr/bin/env bds
+
+include "align.bds"
+
+
+help Alignment settings : bowtie2
+
+nth_bwt2	:= 2 			help # threads for bowtie2 (default: 2).
+wt_bwt2		:= "10h"		help Walltime for bowtie2 (default: 10h, 10:00:00).
+mem_bwt2	:= "12G"	 	help Max. memory for bowtie2 (default: 8G).
+
+
+init_align_bwt2()
+
+
+void init_align_bwt2() {
+
+	if ( conf_file_exists() ) {
+		nth_bwt2 	= get_conf_val_int( nth_bwt2,		["NTHREADS_BWT2", "NTH_BWT2", "CPU_BWT2", "NUMTHREADS"] )
+		wt_bwt2 	= get_conf_val( wt_bwt2, 		["WALLTIME_BWT2", "WT_BWT2", "TIMEOUT_BWT2"] )
+		mem_bwt2 	= get_conf_val( mem_bwt2, 		["MEMORY_BWT2", "MEM_BWT2"] )
+	}
+
+	if ( v ) { // verbose
+		print("\n")		
+		print_if_not_default( "# threads (bowtie2)", "$nth_bwt2", 2)
+		print_if_not_default( "Walltime (bowtie2)", "$wt_bwt2", "10h")
+		print_if_not_default( "Max. memory (bowtie2)", "$mem_bwt2", "12G")
+	}	
+}
+
+string[] _bowtie2( string fastq1, string fastq2, string out_dir, string info ) {
+
+	prefix 	:= change_dir( remove_ext( fastq1, "fastq" ), out_dir ) + ".PE2SE"
+
+	bam 	:= "$prefix.bam"
+	log 	:= "$prefix.align.log"
+
+	in 	:= [ fastq1, fastq2 ]
+	out 	:= [ bam, log ]
+
+	task( taskName:= "bowtie2 "+info, \
+		cpus:=nth_bwt2, mem:=parse_mem(mem_bwt2), timeout:=parse_time(wt_bwt2), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys bowtie2 -X2000 --threads $nth_bwt2 -x $bwt2_idx \
+			-1 <(zcat -f $fastq1) -2 <(zcat -f $fastq2) \
+			2>$log | \
+			samtools view -bS - > $bam
+	}
+
+	return out
+}
