@@ -13,8 +13,8 @@ rel_script_file_paths := [".","..","modules","../modules","species","../species"
 // command line argument functions
 
 bool cmd_line_arg_has_key( string key ) {
-	for ( string arg : args ) {
-		//print("DEBUG: $key, $arg\n")
+
+	for ( string arg : args ) {		
 		if ( ("-"+key) == arg.trim() ) return true
 	}
 	return false
@@ -37,6 +37,25 @@ bool is_first_arg_conf() {
 		}
 	}
 	return false
+}
+
+string get_cmd_line_arg_val( string key ) {
+
+	for (int i=0; i< args.size(); i++) {
+
+		arg := args[i]
+		
+		if ( ("-"+key) == arg.trim() ) {
+
+			if ( i==(args.size()-1) ) break
+			next_arg := args[i+1]
+
+			if ( next_arg.indexOf("-") > -1 ) break
+
+			return next_arg
+		}
+	}
+	return ""
 }
 
 // string functions

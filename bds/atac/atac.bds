@@ -2,7 +2,7 @@
 
 include "../modules/align_bowtie2.bds"
 include "../modules/peakcall_macs2.bds"
-include "../modules/peakcall_etc.bds"
+include "../modules/preseq.bds"
 include "../modules/report.bds"
 
 
