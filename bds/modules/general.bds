@@ -5,7 +5,7 @@ include "conf.bds"
 
 help General pipeline settings
 
-v 		:= false 	help Verbose
+v 		:= true 	help Verbose
 kundaje_lab 	:= false	help Add it if you run pipeline on Kundaje lab servers (automatically set shell environments, default: false).
 out_dir 	:= "out"	help Output directory. (default: out).
 no_par_job	:= false	help Add it to serialize all jobs for desktops with limited resources (default: false).

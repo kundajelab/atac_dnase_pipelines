@@ -10,7 +10,37 @@ helpUnsorted := true
 rel_script_file_paths := [".","..","modules","../modules","species","../species"]
 
 
+// command line argument functions
+
+bool cmd_line_arg_has_key( string key ) {
+	for ( string arg : args ) {
+		//print("DEBUG: $key, $arg\n")
+		if ( ("-"+key) == arg.trim() ) return true
+	}
+	return false
+}
+
+bool is_cmd_line_arg_empty() {
+
+	return args.size()==0
+}
+
+bool is_first_arg_conf() {
+
+	if ( (args.size()>0) && (args[0].indexOf("-")==-1) )  {
+
+		if ( args.size()==1 ) {
+			return true
+		}
+		else {
+			return args[1].indexOf("-")>-1
+		}
+	}
+	return false
+}
+
 // string functions
+
 string get_basename( string path ) { // BDS .baseName() returns wrong basename for softlinks
 	if (path=="") return ""
 	int loc_slash = path.lastIndexOf( "/" )
