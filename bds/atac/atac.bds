@@ -30,8 +30,6 @@ atac()
 
 void init_atac() {
 
-print("DEBUG: "+args.size() + " " + args[0] + ":" +args+"\n")
-
 	if ( conf_file_exists() ) {
 
 		fraglen 	= get_conf_val_int( fraglen,		["FRAGLEN", "FRAG_LEN"] )
@@ -391,7 +389,6 @@ bool is_legacy_input() {
 		ret = true
 
 		for (int i=0; i<8;i++) {
-			print("DEBUG (legacy input)" + args[i] + " \n")
 			
 			if ( args[i].startsWith("-") ) {
 				ret = false
