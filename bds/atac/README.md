@@ -55,7 +55,12 @@ $ bds atac.bds \
 -gensz [GENOMESIZE] -chrsz [CHROMESIZES] -vplot_idx [VPLOT_INDEX]
 ```
 
-ATAC seq for each repliacte will go IN PARALLEL!. Consider your computation resources! # of processors taken will be [NTHREADS_BWT2] x [# REP]. If you don't like this add '-no_par_job'.
+ATAC seq for each repliacte will go IN PARALLEL!. Consider your computation resources! # of processors taken will be :
+```
+max( [NTH_BWT2], [NTH_MACS2] ) x [NUM_REP]
+```
+
+If you don't parallization add '-no_par_job'.
 
 
 ### Using Species file
@@ -115,6 +120,13 @@ To get more detailed help, run atac.bds without any parameters.
 $ bds atac.bds
 ```
 
+### For cluster use (Sun Grid Engine only)
+
+Add "-s sge" to the command line.
+
+```
+$ bds -s sge atac.bds [...]
+```
 
 ### How to set shell environments (What are mod, shcmd and addpath?)
 
