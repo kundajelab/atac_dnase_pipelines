@@ -1,0 +1,68 @@
+#!/usr/bin/env bds
+
+include "species.bds"
+
+
+help Alignment settings : 
+
+make_vplot 	:= "makeVPlot.py" 	// IMPORTANT! chmod 755 to this file to allow $which finds the location for this
+trim_adapters 	:= "trimAdapters.py" 	// IMPORTANT! chmod 755 to this file to allow $which finds the location for this
+
+
+
+string[] _trim_adapters( string fastq1, string fastq2, string out_dir, string info ) {
+
+	prefix1	:= change_dir( remove_ext( fastq1, ["fastq"] ), out_dir )
+	prefix2	:= change_dir( remove_ext( fastq2, ["fastq"] ), out_dir )
+
+	p1 	:= "$prefix1.trim.fastq"
+	p2 	:= "$prefix2.trim.fastq"
+
+	in 	:= [ fastq1, fastq2 ]
+	out 	:= [ p1, p2 ]
+
+	task( taskName:= "trim_adapters "+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys cd $out_dir
+		sys python $(which $trim_adapters) -a $fastq1 -b $fastq2
+	}
+
+	return out
+}
+
+string _vplot( string srt_bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( srt_bam , out_dir )
+	vp_idx_base 	:= get_basename( vplot_idx )
+
+	vplot 	:= "$prefix.$vp_idx_base.vect.png"
+
+	in 	:= [ srt_bam ]
+	out 	:= vplot
+
+	task( taskName:= "v_plot"+info, \
+		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys cd $out_dir
+
+		//# generate V plot
+		sys echo "Generating V Plot..."
+
+		//# this script must be in PATH (didn't work with 20 thread, so reduce it to 4)
+		sys python $(which $make_vplot) -a $srt_bam -b $vplot_idx -e 2000 -p ends -c 4 -v -u
+	}
+
+	return out
+}
+
+string get_fraglen( string xcor_score ) {   // get FRAGLEN (3rd column of cc score file) for spp(-speak=$FRAGLEN)	
+	cols := xcor_score.read().split("\t")
+	return cols[2]
+}

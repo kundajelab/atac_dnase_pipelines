@@ -2,6 +2,23 @@
 
 include "species.bds"
 
+// has functions related to bam, and helps getting bam from configruation file or command line argument
+
+help Bam definition
+help      Single-ended : To define bam use '-bam[REP_NO]', For control use '-ctl_bam[REP_NO]'
+help      Paired end : To define bam use '-bam[REP_NO] -bam[REP_NO]_PE', For control use '-ctl_bam[REP_NO]_[REP_NO] -ctl_bam[REP_NO]_PE'
+
+// Dummy variables for HELP context (bam)
+bam1 		:= ""		help Bam or nodup_bam for replicate 1.
+bam2 		:= ""		help Bam or nodup_bam for replicate 2.
+bam1_PE 	:= false 	help Add it if bam replicate 1 is paired end (default: false).
+bam2_PE 	:= false 	help Add it if bam replicate 2 is paired end (default: false).
+
+help Alignment settings for bam
+
+mapq_thresh 	:= 30 		help Threshold for low MAPQ reads removal (default: 30).
+rm_chr_from_tag	:= "" 		help If defined, remove lines including it from all tagalign files. (example: 'other|ribo|mito|_', '_', default: blank)
+
 /*
 IMPORTANT!: legacy softwares compatibility (make the code work with legacy samtools, picard-tools)
 
@@ -17,32 +34,20 @@ IMPORTANT!: legacy softwares compatibility (make the code work with legacy samto
 	- java -Xmx4G -Xms256M -jar ${PICARDROOT}/[METHOD].jar  for new picard
 */
 
-help Alignment settings : cross-correlation analysis, filtering bam and tagalign
 
-mapq_thresh 	:= 30 			help Threshold for low MAPQ reads removal (default: 30).
-nreads 		:= 15000000		help # reads to be subsampled for cross corr. analysis (default: 15000000).
-rm_chr_from_tag	:= "" 			help If defined, remove lines including it from all tagalign files. (example: 'other|ribo|mito|_', '_', default: blank)
+init_bam()
 
 
-make_vplot 	:= "makeVPlot.py" 	// IMPORTANT! chmod 755 to this file to allow $which finds the location for this
-trim_adapters 	:= "trimAdapters.py" 	// IMPORTANT! chmod 755 to this file to allow $which finds the location for this
-
-init_align()
-
-
-void init_align() {
+void init_bam() {
 
 	if ( conf_file_exists() ) {
-
 		mapq_thresh 	= get_conf_val_int( mapq_thresh,	["MAPQ_THRESH"] )
-		nreads 		= get_conf_val_int( nreads,		["NREADS"] )
-		rm_chr_from_tag = get_conf_val( rm_chr_from_tag, 	["RM_CHR_FROM_TAG", "REMOVE_CHR_FROM_TAG", "RM_CHR_FROM_TAGALIGN", "REMOVE_CHR_FROM_TAGALIGN"] )
+		rm_chr_from_tag = get_conf_val( rm_chr_from_tag, 	["RM_CHR_FROM_TAG", "REMOVE_CHR_FROM_TAG", "RM_CHR_FROM_TAGALIGN", "REMOVE_CHR_FROM_TAGALIGN"] )		
 	}
 
 	if ( v ) { // verbose
 		print("\n")		
 		print( "MAPQ reads rm thresh.\t\t: $mapq_thresh\n")
-		print( "# read for xcor subsample\t: $nreads\n")
 		print( "Rm. tag reads with str.\t\t: $rm_chr_from_tag\n")
 	}	
 }
@@ -338,7 +343,6 @@ string _bam_to_bed_non_chrM( string nodup_bam, string out_dir, string info ) {
 
 	bed 	:= "$prefix.nonchrM.tn5.bed.gz"
 
-
 	in 	:= [nodup_bam]
 	out 	:= bed //, mito_bam, non_mito_bam, non_mito_bam_hist_grp ]
 
@@ -374,243 +378,72 @@ string _bam_to_bed_non_chrM( string nodup_bam, string out_dir, string info ) {
 	return out
 }
 
-string _subsample_tag( string tag, string out_dir, string info ) {
-	
-	prefix 		:= change_dir( remove_ext( tag, ["tagAlign","tag","bed"] ), out_dir )
+string get_bam( int ctl, int rep ) {
 
-	nreads_per_mill := (nreads/1000000)
-	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
+	key := ( ctl > 0 ? "ctl_bam" : "bam" ) + "_rep" + rep
+	key2 := ( ctl > 0 ? "ctl_bam" : "bam" ) + rep
+	key3 := ( ctl > 0 ? "ctl_bam" : "bam" )
 
-	in 		:= [ tag ]
-	out 		:= subsampled_tag
-
-	task( taskName:= "_subsample_tag "+info, \
-		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
-		out<-in ) {
-
-		sys $SHCMD_INIT
-	
-		//# Subsample tagAlign file
-		sys zcat $tag | \
-			grep -v "chrM" | shuf -n $nreads | gzip -c > $subsampled_tag
+	if ( (ctl==0) && (rep==1) && ( bam1 != "") ) {
+		return bam1
 	}
-
-	return out
-}
-
-string _subsample_bedpe( string bedpe, string out_dir, string info ) {
-	
-	prefix 		:= change_dir( remove_ext( bedpe, ["bedpe","bed"] ), out_dir )
-
-	nreads_per_mill := (nreads/1000000)
-	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
-
-	in 		:= [ bedpe ]
-	out 		:= subsampled_tag
-
-	task( taskName:= "subsample_bedpe "+info, \
-		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
-		out<-in ) {
-
-		sys $SHCMD_INIT
-
-		//# Subsample tagAlign file
-		//# Restrict to one read end per pair for CC analysis
-		sys zcat $bedpe | \
-			grep -v "chrM" | shuf -n $nreads | \
-			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | gzip -c > $subsampled_tag
+	else if ( (ctl==0) && (rep==2) && ( bam2 != "") ) {
+		return bam2
 	}
-
-	return out
-}
-
-string[] _xcor( string tag, string out_dir, string info ) {
-
-	// misc.
-	prefix 		:= change_dir( remove_ext( tag, ["tagAlign","tag","bed"] ), out_dir )
-
-	xcor_score 	:= "$prefix.cc.qc"
-	xcor_plot 	:= "$prefix.cc.plot.pdf"
-
-	in 		:= [ tag ]
-	out 		:= [ xcor_score, xcor_plot ]
-
-	task( taskName:= "xcor "+info, \
-		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
-		out<-in ) {
-
-		sys $SHCMD_INIT
-
-		//# CCSCORE FILE format
-		//# Filename <tab> numReads <tab> estFragLen <tab> correstFragLen <tab> PhantomPeak <tab> corrphantomPeak <tab> argmincorr <tab> mincorr <tab> phantomPeakCoef <tab> relPhantomPeakCoef <tab> QualityTag
-		sys Rscript $(which run_spp_nodups.R) -rf \
-			-c=$tag -p=$nth \
-			-filtchr=chrM -savp=$xcor_plot -out=$xcor_score
-		sys sed -r 's/,[^\t]+//g' $xcor_score > $xcor_score.tmp
-		sys mv $xcor_score.tmp $xcor_score
+	else if ( cmd_line_arg_has_key( key ) ) {
+		return get_cmd_line_arg_val( key )
 	}
-
-	return out
-}
-
-// make spr(self_pseudo_replicate)
-string[] _spr( string tag, string out_dir, string info ) {
-	
-	prefix 	:= change_dir( remove_ext( tag, ["tagAlign","tag","bed"] ), out_dir )
-
-	tag_pr1	:= "$prefix.pr1.tagAlign.gz"
-	tag_pr2	:= "$prefix.pr2.tagAlign.gz"
-
-	in 	:= [ tag ]
-	out 	:= [ tag_pr1, tag_pr2 ]
-
-	task( taskName:= "spr "+info, \
-		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
-		out<-in ) {
-
-		sys $SHCMD_INIT
-
-		//# Get total number of read pairs
-		sys nlines=$( zcat $tag | wc -l )
-		sys nlines=$(( (nlines + 1) / 2 ))
-		
-		//# Shuffle and split BEDPE file into 2 equal parts
-		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
-		sys zcat $tag | shuf | split -d -l $((nlines)) - $prefix.
-
-		//# Convert read pairs to reads into standard tagAlign file
-		sys gzip -c $prefix.00 > $tag_pr1
-		sys rm -f $prefix.00
-		sys gzip -c $prefix.01 > $tag_pr2
-		sys rm -f $prefix.01
+	else if ( cmd_line_arg_has_key( key2 ) ) {
+		return get_cmd_line_arg_val( key2 )
 	}
-
-	return out
-}
-
-string[] _spr_PE( string bedpe, string out_dir, string info ) {
-	
-	prefix 	:= change_dir( remove_ext( bedpe, ["bedpe","bed","tagAlign"] ), out_dir )
-
-	tag_pr1	:= "$prefix.pr1.tagAlign.gz"
-	tag_pr2	:= "$prefix.pr2.tagAlign.gz"
-
-	in 	:= [ bedpe ]
-	out 	:= [ tag_pr1, tag_pr2 ]
-
-	task( taskName:= "spr_PE "+info, \
-		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
-		out<-in ) {
-
-		sys $SHCMD_INIT
-
-		//# Get total number of read pairs
-		sys nlines=$( zcat $bedpe | wc -l )
-		sys nlines=$(( (nlines + 1) / 2 ))
-
-		//# Shuffle and split BEDPE file into 2 equal parts
-		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
-		sys zcat $bedpe | shuf | split -d -l $((nlines)) - $prefix.  
-
-		//# Convert read pairs to reads into standard tagAlign file
-		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$prefix.00" | \
-			gzip -c > $tag_pr1
-		sys rm -f $prefix.00
-		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$prefix.01" | \
-			gzip -c > $tag_pr2
-		sys rm -f $prefix.01
+	else if ( (rep==1) && cmd_line_arg_has_key( key3 ) ) {
+		return get_cmd_line_arg_val( key3 )
 	}
-	
-	return out
-}
-
-string[] _ppr( string tag1, string tag1_pr1, string tag1_pr2, string tag2, string tag2_pr1, string tag2_pr2, string out_dir, string info ) {
-	// make psr(pooled pseudo replicate)
-
-	tag_pooled 	:= _pool_tag( tag1, tag2, out_dir, info )
-	tag_ppr1 	:= _pool_tag( tag1_pr1, tag2_pr1, out_dir, info )
-	tag_ppr2 	:= _pool_tag( tag1_pr2, tag2_pr2, out_dir, info )
-
-	out 	:= [ tag_pooled, tag_ppr1, tag_ppr2 ]
-
-	wait
-
-	return out
-}
-
-string _pool_tag( string tag1, string tag2, string out_dir, string info ) {
-
-	prefix 		:= "$out_dir/" + concat_basename_wo_ext( tag1, tag2, ["tagAlign","tag","bed"] )	
-
-	tag_pooled 	:= "$prefix"+"_pooled.tagAlign.gz"
-
-	in 		:= [ tag1, tag2 ]
-	out 		:= tag_pooled
-
-	task( taskName:= "pool_tag "+info, \
-		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
-		out<-in ) {
-
-		sys $SHCMD_INIT
-		sys zcat $tag1 $tag2 | gzip -c > $tag_pooled		
+	else if ( conf.hasKey( key ) ) {
+		return get_path( conf{ key } )
 	}
-
-	return out
-}
-
-string[] _trim_adapters( string fastq1, string fastq2, string out_dir, string info ) {
-
-	prefix1	:= change_dir( remove_ext( fastq1, ["fastq"] ), out_dir )
-	prefix2	:= change_dir( remove_ext( fastq2, ["fastq"] ), out_dir )
-
-	p1 	:= "$prefix1.trim.fastq"
-	p2 	:= "$prefix2.trim.fastq"
-
-	in 	:= [ fastq1, fastq2 ]
-	out 	:= [ p1, p2 ]
-
-	task( taskName:= "trim_adapters "+info, \
-		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
-		out<-in ) {
-
-		sys $SHCMD_INIT
-
-		sys cd $out_dir
-		sys python $(which $trim_adapters) -a $fastq1 -b $fastq2
+	else if ( conf.hasKey( key2 ) ) {
+		return get_path( conf{ key2 } )
 	}
-
-	return out
-}
-
-string _vplot( string srt_bam, string out_dir, string info ) {
-
-	prefix 		:= change_dir( srt_bam , out_dir )
-	vp_idx_base 	:= get_basename( vplot_idx )
-
-	vplot 	:= "$prefix.$vp_idx_base.vect.png"
-
-	in 	:= [ srt_bam ]
-	out 	:= vplot
-
-	task( taskName:= "v_plot"+info, \
-		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
-		out<-in ) {
-
-		sys $SHCMD_INIT
-
-		sys cd $out_dir
-
-		//# generate V plot
-		sys echo "Generating V Plot..."
-
-		//# this script must be in PATH (didn't work with 20 thread, so reduce it to 4)
-		sys python $(which $make_vplot) -a $srt_bam -b $vplot_idx -e 2000 -p ends -c 4 -v -u
+	else if ( (rep==1) && conf.hasKey( key3 ) ) {
+		return get_path( conf{ key3 } )
 	}
-
-	return out
+	return ""
 }
 
-string get_fraglen( string xcor_score ) {   // get FRAGLEN (3rd column of cc score file) for spp(-speak=$FRAGLEN)	
-	cols := xcor_score.read().split("\t")
-	return cols[2]
+bool is_bam_paired_end( int ctl, int rep ) {
+
+	key := ( ctl > 0 ? "ctl_bam" : "bam" ) + rep + "_pe"
+	key_wo_rep := ( ctl > 0 ? "ctl_bam" : "bam" ) + "_pe"
+
+	if ( conf.hasKey( key ) ) {
+		return conf{ key }.parseBool()
+	}
+	else if ( (rep==1) && conf.hasKey( key_wo_rep ) ) {
+		return conf{ key_wo_rep }.parseBool()
+	}
+	else if ( cmd_line_arg_has_key( key ) ) {
+		val := get_cmd_line_arg_val( key )
+		return (val=="") || (val.parseBool())
+	}
+	else if ( (rep==1) && cmd_line_arg_has_key( key_wo_rep ) ) {
+		val := get_cmd_line_arg_val( key_wo_rep )
+		return (val=="") || (val.parseBool())
+	}	
+	return false
+}
+
+bool is_bam_single_ended( int ctl, int rep ) {
+
+	return !is_bam_paired_end( ctl, rep )
+}
+
+bool is_bam_PE( int ctl, int rep ) {
+
+	return is_bam_paired_end( ctl, rep )
+}
+
+bool is_bam_SE( int ctl, int rep ) {
+
+	return is_bam_single_ended( ctl, rep )
 }

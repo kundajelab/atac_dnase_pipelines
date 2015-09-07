@@ -1,0 +1,92 @@
+#!/usr/bin/env bds
+
+include "species.bds"
+
+help Fastq definition
+help      Single-ended : To define fastqs use '-fastq[REP_NO]', For control use '-ctl_fastq[REP_NO]'
+help      Paired end : To define fastqs use '-fastq[REP_NO]_[PE_NO]', For control use '-ctl_fastq[REP_NO]_[REP_NO]'
+
+// Dummy variables for HELP context (fastq SE)
+fastq1 		:= "" 		help Fastq for replicate 1 (single ended). 
+fastq2 		:= "" 		help Fastq for replicate 2 (single ended). 
+
+// Dummy variables for HELP context (fastq PE)
+fastq1_1	:= "" 		help Fastq for replicate 1 pair 1 (paired-end).
+fastq1_2	:= "" 		help Fastq for replicate 1 pair 2 (paired-end). 
+fastq2_1 	:= "" 		help Fastq for replicate 2 pair 1 (paired-end).
+fastq2_2 	:= "" 		help Fastq for replicate 2 pair 2 (paired-end).
+
+
+string[] get_fastqs( int ctl, int rep ) {  // if paired-end return [PE1, PE2], elseif single-end else return [PE1], else []	
+
+	string[] ret
+	for ( int pe=1; pe<=2; pe++ ) {
+		str := get_fastq( ctl, rep, pe )
+		if ( str.length() > 0 ) { // if not null, append
+			ret.add( str )
+		}
+	}
+
+	return ret
+}
+
+string get_fastq( int ctl, int rep, int pe ) {
+
+	key_wo_PE := ( ctl > 0 ? "ctl_fastq" : "fastq" ) + "_rep" + rep 
+	key := key_wo_PE + "_PE" + pe
+
+	key_wo_PE2 := ( ctl > 0 ? "ctl_fastq" : "fastq" ) + rep 
+	key2 := key_wo_PE2 + "_" + pe
+
+	key_wo_PE3 := ( ctl > 0 ? "ctl_fastq" : "fastq" )
+
+	if ( (ctl==0) && (rep==1) && (pe==1) && (fastq1 != "") ) {
+		return fastq1
+	}
+	else if ( (ctl==0) && (rep==2) && (pe==1) && (fastq2 != "") ) {
+		return fastq2
+	}
+	else if ( (ctl==0) && (rep==1) && (pe==1) && (fastq1_1 != "") ) {
+		return fastq1_1
+	}
+	else if ( (ctl==0) && (rep==1) && (pe==2) && (fastq1_2 != "") ) {
+		return fastq1_2
+	}
+	else if ( (ctl==0) && (rep==2) && (pe==1) && (fastq2_1 != "") ) {
+		return fastq2_1
+	}
+	else if ( (ctl==0) && (rep==2) && (pe==2) && (fastq2_2 != "") ) {
+		return fastq2_2
+	}
+	else if ( (pe==1) && cmd_line_arg_has_key( key_wo_PE ) ) {
+		return get_cmd_line_arg_val( key_wo_PE )
+	}
+	else if ( (pe==1) && cmd_line_arg_has_key( key_wo_PE2 ) ) {
+		return get_cmd_line_arg_val( key_wo_PE2 )
+	}
+	else if ( (pe==1) && (rep==1) && cmd_line_arg_has_key( key_wo_PE3 ) ) {
+		return get_cmd_line_arg_val( key_wo_PE3 )
+	}
+	else if ( cmd_line_arg_has_key( key ) ) {
+		return get_cmd_line_arg_val( key )
+	}
+	else if ( cmd_line_arg_has_key( key2 ) ) {
+		return get_cmd_line_arg_val( key2 )
+	}	
+	else if ( (pe==1) && conf.hasKey( key_wo_PE ) ) {
+		return get_path( conf{ key_wo_PE } )
+	}
+	else if ( (pe==1) && conf.hasKey( key_wo_PE2 ) ) {
+		return get_path( conf{ key_wo_PE2 } )
+	}
+	else if ( (pe==1) && (rep==1) && conf.hasKey( key_wo_PE3 ) ) {
+		return get_path( conf{ key_wo_PE3 } )
+	}
+	else if ( conf.hasKey( key ) ) {
+		return get_path( conf{ key } )
+	}
+	else if ( conf.hasKey( key2 ) ) {
+		return get_path( conf{ key2 } )
+	}
+	return ""
+}

@@ -14,8 +14,10 @@ rel_script_file_paths := [".","..","modules","../modules","species","../species"
 
 bool cmd_line_arg_has_key( string key ) {
 
-	for ( string arg : args ) {		
-		if ( ("-"+key) == arg.trim() ) return true
+	key = key.toLower()
+
+	for ( string arg : args ) {
+		if ( ("-"+key) == arg.toLower().trim() ) return true
 	}
 	return false
 }
@@ -41,11 +43,13 @@ bool is_first_arg_conf() {
 
 string get_cmd_line_arg_val( string key ) {
 
+	key = key.toLower()
+
 	for (int i=0; i< args.size(); i++) {
 
 		arg := args[i]
 		
-		if ( ("-"+key) == arg.trim() ) {
+		if ( ("-"+key) == arg.toLower().trim() ) {
 
 			if ( i==(args.size()-1) ) break
 			next_arg := args[i+1]

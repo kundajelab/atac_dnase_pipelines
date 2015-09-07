@@ -1,6 +1,6 @@
 #!/usr/bin/env bds
 
-include "align.bds"
+include "species.bds"
 
 
 help Alignment settings : bowtie2
