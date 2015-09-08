@@ -1,6 +1,13 @@
 ATAC Seq Pipeline
 ===================================================
 
+### Installation instruction (Kundaje lab members)
+
+```
+$ mkdir -p ~/.bds
+$ cp bds.config ~/.bds
+```
+
 ### Usage
 
 1) Define parameters in command line argument (legacy method)
