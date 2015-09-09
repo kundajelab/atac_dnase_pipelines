@@ -155,8 +155,12 @@ void _atac( int rep ) {
 
 	// jobs go in parallel
 	pdf := _preseq( srt_bam, atac_out_dir, info )
+
+	if ( no_par_job ) wait
 	
 	png := _vplot( srt_bam, atac_out_dir, info )
+
+	if ( no_par_job ) wait
 
 	bed := _bam_to_bed_non_chrM( nodup_bam, atac_out_dir, info )
 
@@ -168,7 +172,6 @@ void _atac( int rep ) {
 	wait
 
 	_report_atac( pdf, png, atac_out_dir, info )
-
 }
 
 string[] _report_atac( string pdf, string png, string out_dir, string info ) {
@@ -322,9 +325,9 @@ void set_shell_env() {
 
 		print("\n\nAutomatically adding environment variables... (kundaje_lab == true) \n\n")
 
-		SHCMD_INIT = SHCMD_INIT + " . /etc/profile.d/modules.sh; module add bowtie/2.2.4; module add samtools/1.2; module add bedtools/2.21.0;" \
-					+ " module add picard-tools/1.129; module add ucsc_tools/3.0.9; module add MACS2/2.1.0; module add java/latest;" \
-					+ " module add preseq/1.0.2; module add texlive/2013;" \
+		SHCMD_INIT = SHCMD_INIT + " . /etc/profile.d/modules.sh; module add bowtie/2.2.4 samtools/1.2 bedtools/2.21.0;" \
+					+ " module add picard-tools/1.129 ucsc_tools/3.0.9 MACS2/2.1.0 java/latest;" \
+					+ " module add preseq/1.0.2 texlive/2013;" \
 					+ " export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='8G'; export MALLOC_ARENA_MAX=4"
 		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
 	}

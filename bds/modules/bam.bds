@@ -160,8 +160,8 @@ string[] _bam_to_nodup_bam_PE( string bam, string out_dir, string info ) {
 		//# Obtain name sorted BAM file
 		//# ==================
 
-		sys samtools view -F 1804 -f 2 -q $mapq_thresh -u $bam | \
-			samtools sort -n - $tmp_filt_bam_prefix       # Will produce name sorted BAM
+		//# Will produce name sorted BAM
+		sys samtools view -F 1804 -f 2 -q $mapq_thresh -u $bam | samtools sort -n - $tmp_filt_bam_prefix
 
 		//# Remove orphan reads (pair was removed)
 		//# and read pairs mapping to different chromosomes

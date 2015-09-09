@@ -18,8 +18,11 @@ string[] _trim_adapters( string fastq1, string fastq2, string out_dir, string in
 	p1 	:= "$prefix1.trim.fastq"
 	p2 	:= "$prefix2.trim.fastq"
 
+	p1_gz	:= "$p1.gz"
+	p2_gz 	:= "$p2.gz"
+
 	in 	:= [ fastq1, fastq2 ]
-	out 	:= [ p1, p2 ]
+	out 	:= [ p1_gz, p2_gz ]
 
 	task( taskName:= "trim_adapters "+info, \
 		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
@@ -29,6 +32,8 @@ string[] _trim_adapters( string fastq1, string fastq2, string out_dir, string in
 
 		sys cd $out_dir
 		sys python $(which $trim_adapters) -a $fastq1 -b $fastq2
+		sys gzip $p1
+		sys gzip $p2
 	}
 
 	return out
