@@ -1,8 +1,37 @@
 ATAC Seq Pipeline
 ===================================================
 
-### Installation instruction (Kundaje lab members)
+### Installation instruction
 
+Get BigDataScript (v0.9999).
+```
+$ git clone https://github.com/pcingola/BigDataScript
+$ cd BigDataScript
+$ git checkout tags/v0.9999
+$ cp distro/bds_Linux.tgz $HOME
+$ cd $HOME
+$ tar zxvf bds_Linux.tgz
+```
+
+Get the latest version of ATAC pipeline.
+```
+$ git clone https://github.com/kundajelab/pipelines/
+$ cd bds/atac
+$ mkdir -p $HOME/.bds
+$ cp bds.config $HOME/.bds/
+```
+
+Add the following lines to your $HOME/.bashrc or $HOME/.bash_profile:
+```
+export _JAVA_OPTIONS="-Xms256M -Xmx512M -XX:ParallelGCThreads=1"
+export MAX_JAVA_MEM="8G"
+export MALLOC_ARENA_MAX=4
+export PATH=$PATH:$HOME/.bds
+```
+
+### Installation instruction (for Kundaje lab members)
+
+For Kundaje lab members, BDS and all dependencies have already been installed on lab servers. Do not run install_dependencies.sh on Kundaje lab servers.
 ```
 $ mkdir -p ~/.bds
 $ cp bds.config ~/.bds
@@ -46,18 +75,17 @@ Add -mod, -addpath and -shcmd to set up enviroment variables for your jobs. This
 
 ### Processing multiple replicates IN PARALLEL
 
-For legacy input method, # replicates is limited to 1. If you are interested in multiple replicates, don't use the legacy input method.
+For legacy input method, # replicates is limited to 1. If you are interested in multiple replicates, don't use the legacy input method. Define fastqs with '-fastq[REP_NO]_[PAIR_NO]'.
 
 The following example is for 3 replicates.
+
 ```
 $ bds atac.bds \
--num_rep 3 \
--fastq1_1 [READ1_1] \
--fastq1_2 [READ1_2] \
--fastq2_1 [READ2_1] \
--fastq2_2 [READ2_2] \
--fastq3_1 [READ3_1] \
--fastq3_2 [READ3_2] \
+-num_rep 2 \
+-fastq1_1 [READ_REP1_PAIR1] \
+-fastq1_2 [READ_REP1_PAIR2] \
+-fastq2_1 [READ_REP2_PAIR1] \
+-fastq2_2 [READ_REP2_PAIR2] \
 -bwt2_idx [BOWTIE2_INDEX] -nth_bwt2 [NTHREADS_BWT2] \
 -gensz [GENOMESIZE] -chrsz [CHROMESIZES] -vplot_idx [VPLOT_INDEX]
 ```
@@ -67,7 +95,7 @@ ATAC seq for each repliacte will go IN PARALLEL!. Consider your computation reso
 max( [NTH_BWT2], [NTH_MACS2] ) x [NUM_REP]
 ```
 
-If you don't parallization add '-no_par_job'.
+If you don't want jobs to be parallelized (each job can use multiple threads though), add '-no_par_job'.
 
 
 ### Using Species file
