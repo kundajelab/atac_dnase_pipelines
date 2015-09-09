@@ -80,18 +80,6 @@ void init_shell_env() {
 		}
 	}
 
-	// check directories to add to PATH
-	script_file_paths := get_script_file_paths()
-
-	paths_to_find := concat( script_file_paths, init_paths )
-
-	for ( string _path : paths_to_find ) {
-		
-		if ( _path.exists() ) {
-			path = path + _path + ":"
-		}
-	}
-
 	if ( init_mod == "" ) {
 		print("\n\nInfo: Environments modules not found on your system (eg. /etc/profile.d/modules.sh). Ignoring shell env. parameters like '-mod'. \n")
 	}
@@ -142,6 +130,18 @@ void init_shell_env() {
 
 	if ( module !="" ) {
 		module = ". $init_mod; module add " + module + ";"
+	}
+
+	// check directories to add to PATH
+	script_file_paths := get_script_file_paths()
+
+	paths_to_find := concat( script_file_paths, init_paths )
+
+	for ( string _path : paths_to_find ) {
+		
+		if ( _path.exists() ) {
+			path = path + _path + ":"
+		}
 	}
 
 	if ( path !="" ) {
