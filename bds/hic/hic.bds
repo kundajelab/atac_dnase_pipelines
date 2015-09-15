@@ -1,0 +1,314 @@
+#!/usr/bin/env bds
+
+include "hic_fastq.bds"
+include "hic_map.bds"
+include "hic_modules.bds"
+
+help Replicates and libraries definition
+prefix 		:= "HiC" 	help Prefix for output file names (default: HiC).
+reps 		:= "" 		help List of replicate names (comma separated) (eg. 'R1,R2,R8', default: blank).
+libs  		:= ""		help List of library names (comma separated) (eg. 'SC,D3', default: blank).
+merge 		:= 1 		help Method for merging replicates and libraries (0: no merge, 1: merge reps only, 2: merge reps and libs, default: 1).
+
+num_rep 	:= 1		//help # replicates. (default: 1).
+num_lib 	:= 1		//help # libraries. (default: 1).
+
+string[] rep_names // replicate names
+string[] lib_names // library names
+
+string{} extracted_pairs // map of extracted mapped pairs (key=rep;lib)
+string{} cleaned_pairs // map of cleaned mapped pairs (key=rep;lib)
+string{} RE_sites // map of RE sites ( key=w(resolution) )
+string{} RE_sites_mid // map of RE sites mid ( key=w(resolution) )
+string{} biases // map of bias ( key=w(resolution) )
+
+
+
+help()
+
+init_hic()
+
+chk_input_data()
+
+set_shell_env()
+
+map()
+
+hic()
+
+
+
+void init_hic() {
+
+	if ( conf_file_exists() ) {
+		reps 	= get_conf_val( reps, 		["reps"] )
+		libs 	= get_conf_val( libs, 		["libs"] )
+	}
+
+	// convert name_rep and name_lib to arrays
+	rep_names = reps.trim().replace(":",",").replace(";",",").split(",")
+	lib_names = libs.trim().replace(":",",").replace(";",",").split(",")
+
+	num_rep = rep_names.size()
+	num_lib = lib_names.size()
+
+	if ( v ) { // verbose
+		print("\n")
+		print( "# replicates\t\t: $num_rep\n" )
+		print( "# libraries\t\t: $num_lib\n" )
+		print( "Replicate names\t: $reps\n" )
+		print( "Library names\t: $libs\n" )
+		print("\n")
+	}
+
+}
+
+void chk_input_data() {
+
+	string[] fastqs_all
+
+	for ( int lib=1; lib <= num_lib; lib++) {
+	
+		for ( int rep=1; rep <= num_rep; rep++) {
+
+			string read1, read2
+
+			fastqs := get_fastqs_hic( lib, rep )
+
+			id := get_id( lib, rep )
+			print("$id :\n")
+
+			for ( string s : fastqs ) {
+				print("\t$s\n")
+				if ( (s != "") && !(s.exists()) ) error("\t\tFile not found!\n")
+			}
+
+			// check any duplicate input filename
+			for ( string s : fastqs ) {
+				if ( is_in_array( get_basename( s ), get_basename( fastqs_all ) ) ) \
+					error( "\tFilename is duplicate for $id!\n")
+			}
+
+			fastqs_all = concat( fastqs_all, fastqs )
+		}
+	}
+}
+
+void map() {
+
+	for (int lib=1; lib<=num_lib; lib++) {
+
+		for (int rep=1; rep<=num_rep; rep++) {
+
+			if ( no_par_job )   _map( lib, rep )
+			else 		par _map( lib, rep )
+		}
+	}
+
+	wait
+}
+
+void _map( int lib, int rep ) {
+
+	id := get_id( lib, rep )
+
+	// create output dir
+	mapped_dir 	:= mkdir_path( "$out_dir/mapping/mappedReads/$id" )
+	srt_mapped_dir 	:= mkdir_path( "$out_dir/mapping/sortedMappedReads/$id" )
+	extracted_dir 	:= mkdir_path( "$out_dir/mapping/extractedPairs/$id" )
+	cleaned_dir 	:= mkdir_path( "$out_dir/mapping/cleanedPairs/$id" )
+
+	fastqs := get_fastqs_hic( lib, rep ) // get fastqs
+
+	sam1 := _map_step1_align( id + "_1", fastqs[0], mapped_dir )
+	sam2 := _map_step1_align( id + "_2", fastqs[1], mapped_dir )
+
+	wait // hold parallel
+
+	mapped1 := _map_step2_sort( id + "_1", sam1, srt_mapped_dir )
+	mapped2 := _map_step2_sort( id + "_2", sam2, srt_mapped_dir )
+
+	wait 
+
+	extracted := _map_step3_join_all_comb( id, mapped1, mapped2, extracted_dir )
+
+	wait
+
+	cleaned := _map_step4_remove_PCR_dups( id, extracted, cleaned_dir )
+
+	wait
+
+	// save to global list
+	extracted_pairs{ id }  	= extracted
+	cleaned_pairs{ id } 	= cleaned
+}
+
+void hic() {
+
+	for ( int w : resolution ) {
+
+		if ( no_par_job )   _hic_preprocess( w )
+		else 		par _hic_preprocess( w )
+	}
+
+	wait
+
+	for ( int w : resolution ) {
+
+		string{} clean_pairs_comb // key=id, val=comma-separated cleanedPairs files
+
+		// merge cleanedPairs
+		if ( merge == 0 ) { // no merge
+
+			clean_pairs_comb = cleaned_pairs
+		}
+		else if ( merge == 1 ) { // merge rep only
+
+			for (int lib=1;lib<=num_lib;lib++) {
+
+				new_id := get_id( lib )
+
+				for (int rep=1;rep<=num_rep;rep++) {
+
+					id := get_id( lib, rep )
+
+					if ( clean_pairs_comb.hasKey( new_id ) ) \
+						clean_pairs_comb{ new_id } = clean_pairs_comb{ new_id } + "," + cleaned_pairs{ id }
+					else \
+						clean_pairs_comb{ new_id } = cleaned_pairs{ id }
+				}
+			}
+		}
+		else if ( merge == 2 ) { // merge rep and lib
+
+			new_id := prefix
+
+			for (int lib=1;lib<=num_lib;lib++) {
+
+				for (int rep=1;rep<=num_rep;rep++) {
+
+					id := get_id( lib, rep )
+
+					if ( clean_pairs_comb.hasKey( new_id ) ) \
+						clean_pairs_comb{ new_id } = clean_pairs_comb{ new_id } + "," + cleaned_pairs{ id }
+					else \
+						clean_pairs_comb{ new_id } = cleaned_pairs{ id }
+				}
+			}
+		}
+
+		for( string id : clean_pairs_comb.keys() ) {
+
+			if ( no_par_job )   _hic_postprocess( id, clean_pairs_comb{ id }, w )
+			else 		par _hic_postprocess( id, clean_pairs_comb{ id }, w )
+
+		}
+
+		if ( no_par_job ) wait
+	}
+
+	wait
+}
+
+void _hic_preprocess( int w ) {
+
+	// create output dir
+	RE_site_dir 	:= mkdir_path( "$out_dir/RESites" )
+	Bias_dir 	:= mkdir_path( "$out_dir/preprocessedForBias" )
+
+	string RE_site, RE_site_mid
+
+	(RE_site, RE_site_mid) 	= _hic_step1( RE_file, w, RE_site_dir )
+	wait
+
+	bias 	:= _hic_step3( RE_site, w, Bias_dir )
+	wait
+
+	// save to global list
+	RE_sites{ "$w" } 	= RE_site
+	RE_sites_mid{ "$w" } 	= RE_site_mid	
+	biases{ "$w" } 		= bias
+}
+
+void _hic_postprocess( string id, string clean_pairs_comb, int w ) {
+	
+	// create output dirs
+	bfr_ice_dir	:= mkdir_path( "$out_dir/HiC/interactionCounts/beforeICE/RE$w")
+	raw_contact_dir := mkdir_path( "$out_dir/HiC/Plots")
+	aft_ice_dir	:= mkdir_path( "$out_dir/HiC/interactionCounts/afterICE/RE$w")
+	plot_dir	:= mkdir_path( "$out_dir/HiC/Plots/RE$w")
+	contact_dir	:= mkdir_path( "$out_dir/HiC/ContactsPerFragment/RE$w")
+
+	hic_bfr_ice_dir := mkdir_path( "$out_dir/HiC/fit-hi-c-results/RE$w/beforeICE/$id")
+	hic_aft_ice_dir := mkdir_path( "$out_dir/HiC/fit-hi-c-results/RE$w/afterICE/$id")
+
+	hic_bfr_ice_std_dir := mkdir_path( "$out_dir/HiC/fit-hi-c-results_std/RE$w/beforeICE/$id")
+	hic_aft_ice_std_dir := mkdir_path( "$out_dir/HiC/fit-hi-c-results_std/RE$w/afterICE/$id")
+
+
+	// parse clean_pairs_comb (comma separated cleanedPairs files)
+	cleaned := clean_pairs_comb.split(",")
+
+	list_contacts_bfr_ice 	:= _hic_step2( id, cleaned, RE_sites{"$w"}, w, bfr_ice_dir )
+	wait
+
+	raw_contact_cnts 	:= _hic_step2a( id, list_contacts_bfr_ice, w, raw_contact_dir )	
+	if ( no_par_job ) wait
+
+	list_contacts_aft_ice 	:= _hic_step4( id, list_contacts_bfr_ice, biases{"$w"}, aft_ice_dir )
+	wait
+
+	dist_bias 		:= _hic_step4a( id, list_contacts_aft_ice, w, plot_dir )
+	wait
+	
+	contacts_per_frag 	:= _hic_step5( id, list_contacts_bfr_ice, RE_sites_mid{"$w"}, contact_dir )
+	wait
+
+	_hic_step6( "beforeICE", id, list_contacts_bfr_ice, list_contacts_aft_ice, \
+			contacts_per_frag, w, hic_bfr_ice_dir )
+
+	_hic_step6( "afterICE", id, list_contacts_bfr_ice, list_contacts_aft_ice, \
+			contacts_per_frag, w, hic_aft_ice_dir )
+	wait
+
+	_hic_step6a( "beforeICE", id, list_contacts_bfr_ice, list_contacts_aft_ice, \
+			contacts_per_frag, w, hic_bfr_ice_std_dir )
+
+	_hic_step6a( "afterICE", id, list_contacts_bfr_ice, list_contacts_aft_ice, \
+			contacts_per_frag, w, hic_aft_ice_std_dir )
+}
+
+void set_shell_env() {
+	
+	// create output dir.
+	if ( kundaje_lab ) {
+
+		print("\n\nAutomatically adding environment variables... (kundaje_lab == true) \n\n")
+
+		SHCMD_INIT = SHCMD_INIT + " . /etc/profile.d/modules.sh; module add bwa/0.7.7 samtools/0.1.19 bedtools/2.21.0 r/3.1.1;" \
+					+ " export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='8G'; export MALLOC_ARENA_MAX=4"
+		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
+	}
+}
+
+void help() {
+
+	if ( is_cmd_line_arg_empty() ) {
+		print("\n")
+		print(" List of parameters\n")
+		print(" \n")
+		printHelp()
+
+		exit
+	}
+}
+
+string get_id( int lib, int rep ) {
+
+	return "$prefix"+"_"+lib_names[lib-1]+"_"+rep_names[rep-1]
+}
+
+string get_id( int lib ) {
+
+	return "$prefix"+"_"+lib_names[lib-1]
+}

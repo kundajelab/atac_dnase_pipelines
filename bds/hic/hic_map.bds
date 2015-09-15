@@ -1,0 +1,158 @@
+#!/usr/bin/env bds
+
+help HiC mapping settings
+num_mismatch 	:= 2		help # of mismatches (default: 2).
+nth_bwa 	:= 2 		help # threads for bwa (default: 2).
+wt_bwa 		:= "8G" 	help Max. memory for bwa (default: 8G)
+mem_bwa 	:= "40h" 	help Walltime for bwa (default: 40h, 40:00:00).
+
+init_hic_map()
+
+void init_hic_map() {
+
+	if ( conf_file_exists() ) {
+		num_mismatch 	= get_conf_val_int( num_mismatch, 	["num_mismatch", "nummismatch"] )
+		nth_bwa 	= get_conf_val_int( nth_bwa,		["nthreads_bwa", "nth_bwa", "cpu_bwa"] )
+		wt_bwa 		= get_conf_val( wt_bwa, 		["walltime_bwa", "wt_bwa", "timeout_bwa"] )
+		mem_bwa 	= get_conf_val( mem_bwa, 		["memory_bwa", "mem_bwa"] )
+	}
+
+	if ( v ) { // verbose
+		print("\n")
+		print( "# of mismatches\t\t: $num_mismatch\n" )
+		print( "# threads (bwa)\t\t: $nth_bwa\n")
+		print( "Walltime (bwa)\t\t: $wt_bwa\n")
+		print( "Max. memory (bwa)\t: $mem_bwa\n")
+	}
+
+	SHCMD_INIT = SHCMD_INIT + " LC_COLLATE=C; LC_ALL=C; LANG=C;" // for unix sorting and joining 
+}
+
+string _map_step1_align( string id, string fastq, string out_dir ) {
+
+	prefix 	:= "$out_dir/$id" //change_dir( remove_ext( fastq, "fastq" ), out_dir )
+
+	sai 	:= "$prefix.sai"
+	sam 	:= "$prefix.sam"
+	sam_gz 	:= "$sam.gz"
+
+	in 	:= fastq
+	out 	:= sam_gz
+
+	task( taskName := "map1_aln "+id, cpus := nth_bwa, timeout := parse_time(wt_bwa), mem := parse_mem(mem_bwa), \
+		out<-in ) {
+	
+		sys $SHCMD_INIT	
+
+		sys bwa aln $bwa_idx $fastq > $sai
+		sys bwa samse $bwa_idx $sai $fastq > $sam
+		sys gzip $sam
+		sys rm -f $sai
+	}
+
+	return out
+}
+
+string _map_step2_sort( string id, string sam_gz, string out_dir ) {
+
+	prefix 		:= "$out_dir/$id" //change_dir( remove_ext( sam_gz, "sam" ), out_dir )
+	mapped 		:= "$prefix.mapped"
+	non_mapped 	:= "$prefix.nonmapped"
+	mapped_gz	:= "$prefix.mapped.gz"
+	non_mapped_gz 	:= "$prefix.nonmapped.gz"
+	stat 		:= "$prefix.stat"
+
+	in 	:= sam_gz
+	out 	:= mapped_gz //, non_mapped_gz, stat]
+
+	task( taskName := "map2_srt "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+		out<-in) {
+
+		sys $SHCMD_INIT
+
+		sys zcat -f $sam_gz | samtools view -S -F 4 - \
+			| awk '$14=="X0:i:1" &&  $5>=30 && $12=="XT:A:U" {split($1,id,"#"); split($13,editDistField,":"); if (editDistField[3] <= $num_mismatch) {print id[1]"\t"$2"\t"$3"\t"$4"\t"$10}}' \
+			| sort -k 1,1 > $mapped
+		//#count the number of aligned pairs
+		sys f=`cat $mapped | wc -l `
+		sys gzip $mapped
+
+		//## perform the above for non-mapped pairs		
+		sys zcat -f $sam_gz | samtools view -S -f 4 - \
+			| awk '{split($1,id,"#"); print id[1]"\t"$2"\t"$3"\t"$4"\t"$10}' \
+			| sort -k 1,1 > $non_mapped 
+		sys n=`cat $non_mapped | wc -l `
+		sys gzip $non_mapped
+
+		//## mapped but not uniques or quality below 30s or mismatch above what we expect
+		sys m=`zcat -f $sam_gz | samtools view -S -F 4 - \
+			| awk '{split($13,editDistField,":"); if (editDistField[3] > $num_mismatch || $14!="X0:i:1" || $5<30 || $12!="XT:A:U") {print $1}}' \
+			|  wc -l `
+		sys total=$((${m}+${n}+${f}))
+		
+		//## write out the statistics of alignment 
+		sys echo "# Total\\tuniquelyMapped\\tnonMapped\\tmappedButNotQualified " > $stat 
+		sys echo -e "$id\t${total}\t${f}\t${n}\t${m} " >> $stat
+	}
+	return out
+}
+
+string _map_step3_join_all_comb( string id, string mapped1, string mapped2, string out_dir ) {
+
+	prefix 		:= "$out_dir/$id"//remove_ext( get_common_basename( mapped1, mapped2 ), "mapped" )
+
+	extracted  	:= "$prefix"+"_extractedPairs"
+	extracted_gz  	:= "$extracted.gz"
+
+	num_extracted 	:= "$prefix"+"_NumberOfExtractedPairs"
+
+	in 	:= [mapped1, mapped2]
+	out 	:= extracted_gz
+
+	task( taskName := "map3_join "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+		out<-in) {
+	
+		sys $SHCMD_INIT	
+
+		sys echo "Environment: LC_COLLATE=${LC_COLLATE}, LC_ALL = ${LC_ALL}, LANG = ${LANG}" 
+		sys join <(zcat -f $mapped1) <(zcat -f $mapped2) > $extracted
+		sys n=`cat $extracted | wc -l `
+		sys gzip $extracted
+		sys echo -e "$id\t${n} " > $num_extracted
+	}
+	return out
+}
+
+string _map_step4_remove_PCR_dups( string id, string extracted_gz, string out_dir ) {
+
+	prefix 		:= "$out_dir/$id"//change_dir( remove_ext( extracted_gz, "_extractedPairs" ), out_dir )
+
+	cleaned 	:= "$prefix"+"_cleanedPairs"
+	cleaned_gz 	:= "$cleaned.gz"
+
+	num_cleaned 	:= "$prefix"+"_NumberOfcleanedPairs"
+
+	in 	:= extracted_gz
+	out 	:= cleaned_gz
+
+	task( taskName := "map4_rm_PCR_dups "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+		out<-in) {
+
+		sys $SHCMD_INIT	
+
+		sys echo "Environment: LC_COLLATE=${LC_COLLATE}, LC_ALL = ${LC_ALL}, LANG = ${LANG}" 
+		sys countBefore=`zcat $extracted_gz | wc -l | awk '{print $1}' `
+			
+		sys zcat -f $extracted_gz | python $(which sort_loci.py) - 2 \
+			| awk '{s1="+"; s2="+"; if ($2=="16") {s1="-"}; if ($6=="16") {s2="-"}; printf("%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n", $3, $4, s1, $7, $8, s2, $5, $9, $1)}' \
+			| sort -u -k1,6 \
+			| awk '{ print $9 "\\t" $3 "\\t" $1 "\\t" $2 "\\t" $7 "\\t" $6 "\\t" $4 "\\t" $5 "\\t" $8}' >> $cleaned
+
+		sys countAfter=`wc -l $cleaned | awk '{print $1}' `
+		sys gzip $cleaned
+
+		sys echo -e "lib\\tpairsBeforePCR\\tpairsAfterPCR" > $num_cleaned
+		sys echo -e "$id\\t${countBefore}\\t${countAfter}" >> $num_cleaned
+	}
+	return out
+}

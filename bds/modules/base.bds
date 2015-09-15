@@ -97,6 +97,11 @@ string get_common_basename( string f1, string f2 ) {
 		if ( c1 == c2 ) common = common + c1
 		else break
 	}
+
+	common = rm_str_at_end( common, "_" )
+	common = rm_str_at_end( common, "." )
+	common = rm_str_at_end( common, "-" )
+
 	return common
 }
 

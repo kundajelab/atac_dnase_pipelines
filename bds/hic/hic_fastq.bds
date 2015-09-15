@@ -1,0 +1,49 @@
+#!/usr/bin/env bds
+
+include "../modules/species.bds"
+
+help Fastq (hiC) file path definition
+help         -fastq[Library_ID]_[Replicate_ID]_[Pair_ID] [FASTQ_FILE_PATH]
+help         or
+help         -fastq_L[Library_ID]_R[Replicate_ID]_P[Pair_ID] [FASTQ_FILE_PATH]
+
+
+string[] get_fastqs_hic( int lib, int rep ) {  // if paired-end return [PE1, PE2], elseif single-end else return [PE1], else []	
+
+	string[] ret
+	for ( int pe=1; pe<=2; pe++ ) {
+		str := get_fastq_hic( lib, rep, pe )
+		if ( str.length() > 0 ) { // if not null, append
+			ret.add( str )
+		}
+	}
+
+	return ret
+}
+
+string get_fastq_hic( int lib, int rep, int pe ) {
+
+	key := "fastq" + lib + "_" + rep + "_" + pe
+	key2 := "fastq_L" + lib + "_R" + rep + "_P" + pe
+	key3 := "fastq_R" + rep + "_L" + lib + "_P" + pe
+
+	if ( cmd_line_arg_has_key( key ) ) {
+		return get_cmd_line_arg_val( key )
+	}
+	else if ( cmd_line_arg_has_key( key2 ) ) {
+		return get_cmd_line_arg_val( key2 )
+	}	
+	else if ( cmd_line_arg_has_key( key3 ) ) {
+		return get_cmd_line_arg_val( key3 )
+	}	
+	else if ( conf.hasKey( key ) ) {
+		return get_path( conf{ key } )
+	}
+	else if ( conf.hasKey( key2 ) ) {
+		return get_path( conf{ key2 } )
+	}
+	else if ( conf.hasKey( key3 ) ) {
+		return get_path( conf{ key3 } )
+	}
+	return ""
+}
