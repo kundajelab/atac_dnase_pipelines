@@ -38,7 +38,7 @@ $ cp bds.config ~/.bds
 ```
 
 For Kundaje lab members, add the following to the command line instead of defining all species-specific parameters like BWA index.
-...
+```
 -kundaje_lab -species [SPECIES: hg19, mm9, ...]
 ```
 
