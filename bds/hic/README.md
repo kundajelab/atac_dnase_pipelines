@@ -46,12 +46,13 @@ For Kundaje lab members, add the following to the command line instead of defini
 
 There are two stages for HiC pipeline.
 
-```
 1) Mapping and sorting (hic_map.bds)
-2) HiC (hic.bds)
-```
+: Inputs are fastqs. Map, align and sort them to generate extracted/cleaned pairs.
 
-We have two indices for library (lib) and replicate (rep).
+2) HiC (hic.bds)
+: Using extracted/cleaned pairs from the stage 1), perform HiC analysis.
+
+Two stages share the same indices for librarie (lib) and replicates (rep).
 
 
 ### Usage (mapping and sorting)

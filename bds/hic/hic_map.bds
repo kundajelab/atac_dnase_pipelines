@@ -9,14 +9,10 @@ help         -fastq_L[Library_ID]_R[Replicate_ID]_P[Pair_ID] [FASTQ_FILE_PATH]
 
 help Mapping settings
 num_mismatch 	:= 2		help # of mismatches (default: 2).
-
 nth_bwa 	:= 2 		help # threads for bwa (default: 2).
 wt_bwa 		:= "10G" 	help Max. memory for bwa (default: 10G).
 mem_bwa 	:= "40h" 	help Walltime for bwa (default: 40h, 40:00:00).
-
 wt_map4		:= "20h"	help Walltime for hic map step4 (sorting cleaned pairs) (default: 20h, 20:00:00).
-
-//mem_sort 	:= "5G" 	help Max. memory for sorting cleaned pairs (default: 5G).
 
 
 help()
@@ -36,8 +32,6 @@ void init_hic_map() {
 
 	if ( conf_file_exists() ) {
 		num_mismatch 	= get_conf_val_int( num_mismatch, 	["num_mismatch", "nummismatch"] )
-
-		bwa_idx 	= get_conf_val( bwa_idx, 		["bwa_idx"] )
 		nth_bwa 	= get_conf_val_int( nth_bwa,		["nthreads_bwa", "nth_bwa", "cpu_bwa"] )
 		wt_bwa 		= get_conf_val( wt_bwa, 		["walltime_bwa", "wt_bwa", "timeout_bwa"] )
 		mem_bwa 	= get_conf_val( mem_bwa, 		["memory_bwa", "mem_bwa"] )
@@ -106,6 +100,8 @@ void map() {
 		for (int rep=1; rep<=num_rep; rep++) {
 
 			_map_step4( lib, rep )
+
+			wait
 		}
 	}
 }

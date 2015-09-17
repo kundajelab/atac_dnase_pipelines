@@ -31,6 +31,10 @@ org 		:= "human" 	help org (default: human).
 ref 		:= "hg19"	help ref (default: hg19).
 re 		:= "HindIII" 	help re (default: hindIII).
 
+mappabilityThres:= 1 		help minimum number of hits per locus that has to exist to call it mappable. DEFAULT is 1.
+noOfPasses 	:= 1 		help number of passes after the initial (before) fit. DEFAULT is 1 (after)
+residualFactor 	:= -1 		help how many times better residual is desired for splines compared to power-law fit. Default is 10
+
 wt_hic4		:= "20h"	help Walltime for hic step4 (normalize using ICE) (default: 20h, 20:00:00).
 
 int[] resolution
@@ -248,26 +252,25 @@ void _hic_postprocess( string id, string clean_pairs_comb, int w ) {
 	raw_contact_cnts 	:= _hic_step2a( id, list_contacts_bfr_ice, w, raw_contact_dir )	
 	if ( no_par_job ) wait
 
-	list_contacts_aft_ice 	:= _hic_step4( id, list_contacts_bfr_ice, biases{"$w"}, aft_ice_dir )
-	wait
+	list_contacts_aft_ice_biases 	:= _hic_step4( id, list_contacts_bfr_ice, biases{"$w"}, aft_ice_dir )
+	if ( no_par_job ) wait
 
-	dist_bias 		:= _hic_step4a( id, list_contacts_aft_ice, w, plot_dir )
-	wait
-	
 	contacts_per_frag 	:= _hic_step5( id, list_contacts_bfr_ice, RE_sites_mid{"$w"}, contact_dir )
 	wait
 
-	_hic_step6( "beforeICE", id, list_contacts_bfr_ice, list_contacts_aft_ice, \
+	dist_bias 		:= _hic_step4a( id, list_contacts_aft_ice_biases, w, plot_dir )
+	if ( no_par_job ) wait
+
+	_hic_step6( "beforeICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
 			contacts_per_frag, w, hic_bfr_ice_dir )
 
-	_hic_step6( "afterICE", id, list_contacts_bfr_ice, list_contacts_aft_ice, \
+	_hic_step6( "afterICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
 			contacts_per_frag, w, hic_aft_ice_dir )
-	wait
 
-	_hic_step6a( "beforeICE", id, list_contacts_bfr_ice, list_contacts_aft_ice, \
+	_hic_step6a( "beforeICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
 			contacts_per_frag, w, hic_bfr_ice_std_dir )
 
-	_hic_step6a( "afterICE", id, list_contacts_bfr_ice, list_contacts_aft_ice, \
+	_hic_step6a( "afterICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
 			contacts_per_frag, w, hic_aft_ice_std_dir )
 }
 
@@ -401,8 +404,7 @@ string _hic_step4( string id, string list_contacts_bfr_ice, string bias, string 
 
 	prefix 	:= "$out_dir/$id"
 
-	list_contacts_aft_ice 	:= "$prefix"+"_after_ICE"
-	list_contacts_aft_ice_gz:= "$prefix"+"_after_ICE.gz"
+	list_contacts_aft_ice 	:= "$prefix"+"_ListOfContacts_after_ICE"
 
 	list_contacts_aft_ice_biases 	:= "$list_contacts_aft_ice.biases"
 	list_contacts_aft_ice_biases_gz := "$list_contacts_aft_ice.biases.gz"
@@ -421,20 +423,21 @@ string _hic_step4( string id, string list_contacts_bfr_ice, string bias, string 
 		sys zcat $list_contacts_bfr_ice > $list_contacts_bfr_ice.temp
 		sys cat $bias  > $bias.temp
 		sys python $(which ICE-with-sparseMatrix.py) $list_contacts_bfr_ice.temp $bias.temp $norm $list_contacts_aft_ice $map_thres
-		sys gzip list_contacts_aft_ice
+		sys gzip $list_contacts_aft_ice $list_contacts_aft_ice_biases
 		sys rm -rf $list_contacts_bfr_ice.temp bias.temp
 	}
 
 	return out
 }
 
-string _hic_step4a( string id, string list_contacts_aft_ice, int w, string out_dir ) {
+string _hic_step4a( string id, string list_contacts_aft_ice_biases, int w, string out_dir ) {
 
 	prefix 		:= "$out_dir/$id"
 	dist_bias 	:= "$prefix"+"_DistOfBiases"
+	dist_bias_png 	:= "$prefix"+"_DistOfBiases.png"
 
-	in 	:= list_contacts_aft_ice
-	out 	:= dist_bias
+	in 	:= list_contacts_aft_ice_biases
+	out 	:= dist_bias_png
 
 	task( taskName := "hic4a "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
 		out<-in) {
@@ -442,9 +445,7 @@ string _hic_step4a( string id, string list_contacts_aft_ice, int w, string out_d
 		sys $SHCMD_INIT	
 
 		//sys echo $lib $ref $org $re		
-		sys zcat $list_contacts_aft_ice > $list_contacts_aft_ice.temp
-		sys python $(which plot_DistOfBiases.py) $list_contacts_aft_ice.temp $dist_bias $id $w
-		sys rm -f $list_contacts_aft_ice.temp
+		sys python $(which plot_DistOfBiases.py) $list_contacts_aft_ice_biases $dist_bias $id $w
 	}
 
 	return out
@@ -482,21 +483,17 @@ string _hic_step5( string id, string list_contacts_bfr_ice, string RE_site_mid, 
 }
 
 void _hic_step6( string before_after, string id, \
-		string list_contacts_bfr_ice, string list_contacts_aft_ice, string contacts_per_frag, int w, string out_dir ) {
+		string list_contacts_bfr_ice, string list_contacts_aft_ice_biases, string contacts_per_frag, int w, string out_dir ) {
 	//#  - perform fit-hi-c on data before and after ICE
 	//#  - places results into $PROJDIR/data/fit-hi-c-results
 	prefix 		:= "$out_dir/$id"
 
 	distLowThres := w*5000 //$(($w*5000))
 
-	mappabilityThres:= 1 //# minimum number of hits per locus that has to exist to call it mappable. DEFAULT is 1.
-	noOfPasses 	:= 1 //# number of passes after the initial (before) fit. DEFAULT is 1 (after)
-	residualFactor 	:= -1 //# how many times better residual is desired for splines compared to power-law fit. Default is 10
-
 	log := "$prefix"+"_log.conf.file"
 	html := "$prefix"+"_fithic.html"
 
-	in 	:= [list_contacts_bfr_ice, list_contacts_aft_ice, contacts_per_frag]
+	in 	:= [list_contacts_bfr_ice, list_contacts_aft_ice_biases, contacts_per_frag]
 	out 	:= [log, html]
 
 	task( taskName := "hic6 "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
@@ -511,81 +508,78 @@ void _hic_step6( string before_after, string id, \
 		sys echo w=$w num_bin=$num_bin mappabilityThres=$mappabilityThres noOfPasses=$noOfPasses dist_up_thres=$dist_up_thres distLowThres=$distLowThres discBinsize=${discBinsize} residualFactor=$residualFactor>> $log 
 		sys echo >> $log
 
-		sys echo \<html\> > $html
-		sys echo \<head\>\<meta http-equiv= \"content-type\" content=\"text/html; charset=UTF-8\"\>\<title\>\</title\>\</head\> >> $html
-		sys echo \<body\> >> $html
-		sys echo \<table  border=\"1\" \> >> $html
-		sys echo \<tbody\> >> $html
+		sys echo '<html>' > $html
+		sys echo '<head><meta http-equiv= "content-type" content="text/html; charset=UTF-8"><title></title></head>' >> $html
+		sys echo '<body>' >> $html
+		sys echo '<table  border="1" >' >> $html
+		sys echo '<tbody>' >> $html
 
-		sys echo \<tr\> >> $html
-		sys echo \<th scope=\"col\"\> Library label \</th\> >> $html
+		sys echo '<tr>' >> $html
+		sys echo '<th scope="col"> Library label </th>' >> $html
 
-		sys for t in `seq $(($noOfPasses+1))`;do \
-			#echo \<th scope=\"col\"\> Equal occupancy binning \</th\> >> $html \
-			echo \<th scope=\"col\"\> Fitting - power-law \</th\> >> $html \
-			echo \<th scope=\"col\"\> Fitting - spline \</th\> >> $html \
-			echo \<th scope=\"col\"\> Extract outliers - power-law \</th\> >> $html \
-			echo \<th scope=\"col\"\> Extract outliers - spline \</th\> >> $html \
-			echo \<th scope=\"col\"\> FDR - compare all \</th\> >> $html \
-			echo \<th scope=\"col\"\> FDR - spline \</th\> >> $html \
-			echo \<th scope=\"col\"\> Binning bias \</th\> >> $html \
-			done \
-		sys echo \</tr\> >> $html
+		sys for t in `seq $(($noOfPasses+1))`; do \
+			#echo '<th scope="col"> Equal occupancy binning </th>' >> $html; \
+			echo '<th scope="col"> Fitting - power-law </th>' >> $html; \
+			echo '<th scope="col"> Fitting - spline </th>' >> $html; \
+			echo '<th scope="col"> Extract outliers - power-law </th>' >> $html; \
+			echo '<th scope="col"> Extract outliers - spline </th>' >> $html; \
+			echo '<th scope="col"> FDR - compare all </th>' >> $html; \
+			echo '<th scope="col"> FDR - spline </th>' >> $html; \
+			echo '<th scope="col"> Binning bias </th>' >> $html; \
+			done
+
+		sys echo '</tr>' >> $html
 
 		sys noOfCols=$((($noOfPasses+1)*7))
-		sys echo \<tr\> >> $html
-		sys echo \<th\> \</th\> >> $html
+		sys echo '<tr>' >> $html
+		sys echo '<th> </th>' >> $html
 		sys for t in `seq ${noOfCols}`; do \
-			echo \<th\> ${t} \</th\> >> $html \
+			echo '<th> ${t} </th>' >> $html; \
 			done
-		sys echo \</tr\> >> $html
+		sys echo '</tr>' >> $html
 
 		sys if [[ $before_after == "afterICE" ]]; then \
 			# REMOVED -d and -r and comparisonMode \
-			python $(which fit-hic-LATEST.py) -l $id -t $list_contacts_aft_ice -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses -d ${discBinsize} -r $residualFactor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out \
-	  		#python $(which fit-hi-c.py) -l $id -t $list_contacts_aft_ice -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses  -o $out_dir  > $out_dir/$id.out \
+			python $(which fit-hic-LATEST.py) -l $id -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses -d ${discBinsize} -r $residualFactor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out \
+	  		#python $(which fit-hi-c.py) -l $id -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses  -o $out_dir  > $out_dir/$id.out; \
 			else \
 			python $(which fit-hic-LATEST.py) -l $id -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses -d ${discBinsize} -r $residualFactor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out \
-	  		#python $(which fit-hi-c.py) -l $id -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses  -o $out_dir > $out_dir/$id.out \
+	  		#python $(which fit-hi-c.py) -l $id -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses  -o $out_dir > $out_dir/$id.out; \
 			fi
 
-		sys echo \<tr\> >> $html
-		sys echo \<td\> $id \</td\> >> $html
-		sys for t in `seq $(($noOfPasses+1))`;do \
-			echo \<td\> \<a href=\"$id.plaw_pass${t}.png\"\>\<img src=\"$id.plaw_pass${t}.png\"  width=400\> \</a\>\</td\> >> $html \
-			echo \<td\> \<a href=\"$id.spline_pass${t}.png\"\>\<img src=\"$id.spline_pass${t}.png\"  width=400\> \</a\>\</td\> >> $html \
-			echo \<td\> \<a href=\"$id.plaw_pass${t}.extractOutliers.png\"\>\<img src=\"$id.plaw_pass${t}.extractOutliers.png\" width=400\> \</a\>\</td\> >> $html \
-			echo \<td\> \<a href=\"$id.spline_pass${t}.extractOutliers.png\"\>\<img src=\"$id.spline_pass${t}.extractOutliers.png\" width=400\> \</a\>\</td\> >> $html \
-			echo \<td\> \<a href=\"$id.comparison_pass${t}.png\"\>\<img src=\"$id.comparison_pass${t}.png\"  width=400\> \</a\>\</td\> >> $html \
-			#echo \<td\> \<a href=\"$id.plaw_pass${t}.qplot.png\"\>\<img src=\"$id.plaw_pass${t}.qplot.png\"  width=400\> \</a\>\</td\> >> $html \
-			#echo \<td\> \<a href=\"$id.spline_pass${t}.qplot.png\"\>\<img src=\"$id.spline_pass${t}.qplot.png\"  width=400\> \</a\>\</td\> >> $html \
-			echo \<td\> \<a href=\"$id.comparisonDisc_pass${t}.png\"\>\<img src=\"$id.comparisonDisc_pass${t}.png\"  width=400\> \</a\>\</td\> >> $html \
-			echo \<td\> \<a href=\"$id.comparisonFitDisc_pass${t}.png\"\>\<img src=\"$id.comparisonFitDisc_pass${t}.png\"  width=400\> \</a\>\</td\> >> $html \
+		sys echo '<tr>' >> $html
+		sys echo '<td> $id </td>' >> $html
+		sys for t in `seq $(($noOfPasses+1))`; do \
+			echo '<td> <a href="$id.plaw_pass${t}.png"><img src="$id.plaw_pass${t}.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.spline_pass${t}.png"><img src="$id.spline_pass${t}.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.plaw_pass${t}.extractOutliers.png"><img src="$id.plaw_pass${t}.extractOutliers.png" width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.spline_pass${t}.extractOutliers.png"><img src="$id.spline_pass${t}.extractOutliers.png" width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.comparison_pass${t}.png"><img src="$id.comparison_pass${t}.png"  width=400> </a></td>' >> $html; \
+			#echo '<td> <a href="$id.plaw_pass${t}.qplot.png"><img src="$id.plaw_pass${t}.qplot.png"  width=400> </a></td>' >> $html; \
+			#echo '<td> <a href="$id.spline_pass${t}.qplot.png"><img src="$id.spline_pass${t}.qplot.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.comparisonDisc_pass${t}.png"><img src="$id.comparisonDisc_pass${t}.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.comparisonFitDisc_pass${t}.png"><img src="$id.comparisonFitDisc_pass${t}.png"  width=400> </a></td>' >> $html; \
 			done
-		sys echo \<tr\> >> $html
-		sys echo \</tbody\>\</table\> >> $html
-		sys echo \</body\>\</html\> >> $html
 
+		sys echo '<tr>' >> $html
+		sys echo '</tbody></table>' >> $html
+		sys echo '</body></html>' >> $html
 	}
 }
 
 
 void _hic_step6a( string before_after, string id, \
-		string list_contacts_bfr_ice, string list_contacts_aft_ice, string contacts_per_frag, int w, string out_dir ) {
+		string list_contacts_bfr_ice, string list_contacts_aft_ice_biases, string contacts_per_frag, int w, string out_dir ) {
 	//#  - perform fit-hi-c on data before and after ICE
 	//#  - places results into $PROJDIR/data/fit-hi-c-results
 	prefix 		:= "$out_dir/$id"
 
 	distLowThres := w*5000 //$(($w*5000))
 
-	mappabilityThres:= 1 //# minimum number of hits per locus that has to exist to call it mappable. DEFAULT is 1.
-	noOfPasses 	:= 1 //# number of passes after the initial (before) fit. DEFAULT is 1 (after)
-	residualFactor 	:= -1 //# how many times better residual is desired for splines compared to power-law fit. Default is 10
-
 	log := "$prefix"+"_log.conf.file"
 	html := "$prefix"+"_fithic.html"
 
-	in 	:= [list_contacts_bfr_ice, list_contacts_aft_ice, contacts_per_frag]
+	in 	:= [list_contacts_bfr_ice, list_contacts_aft_ice_biases, contacts_per_frag]
 	out 	:= [log, html]
 
 	task( taskName := "hic6 "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
@@ -600,58 +594,59 @@ void _hic_step6a( string before_after, string id, \
 		sys echo w=$w num_bin=$num_bin mappabilityThres=$mappabilityThres noOfPasses=$noOfPasses dist_up_thres=$dist_up_thres distLowThres=$distLowThres discBinsize=${discBinsize} residualFactor=$residualFactor>> $log 
 		sys echo >> $log
 
-		sys echo \<html\> > $html
-		sys echo \<head\>\<meta http-equiv= \"content-type\" content=\"text/html; charset=UTF-8\"\>\<title\>\</title\>\</head\> >> $html
-		sys echo \<body\> >> $html
-		sys echo \<table  border=\"1\" \> >> $html
-		sys echo \<tbody\> >> $html
+		sys echo '<html>' > $html
+		sys echo '<head><meta http-equiv= "content-type" content="text/html; charset=UTF-8"><title></title></head>' >> $html
+		sys echo '<body>' >> $html
+		sys echo '<table  border="1" >' >> $html
+		sys echo '<tbody>' >> $html
 
-		sys echo \<tr\> >> $html
-		sys echo \<th scope=\"col\"\> Library label \</th\> >> $html
+		sys echo '<tr>' >> $html
+		sys echo '<th scope="col"> Library label </th>' >> $html
 
-		sys for t in `seq $(($noOfPasses+1))`;do \
-			#echo \<th scope=\"col\"\> Equal occupancy binning \</th\> >> $html \
-			echo \<th scope=\"col\"\> Fitting - power-law \</th\> >> $html \
-			echo \<th scope=\"col\"\> Fitting - spline \</th\> >> $html \
-			echo \<th scope=\"col\"\> Extract outliers - power-law \</th\> >> $html \
-			echo \<th scope=\"col\"\> Extract outliers - spline \</th\> >> $html \
-			echo \<th scope=\"col\"\> FDR - compare all \</th\> >> $html \
-			echo \<th scope=\"col\"\> FDR - spline \</th\> >> $html \
-			echo \<th scope=\"col\"\> Binning bias \</th\> >> $html \
-			done \
-		sys echo \</tr\> >> $html
+		sys for t in `seq $(($noOfPasses+1))`; do \
+			#echo '<th scope="col"> Equal occupancy binning </th>' >> $html; \
+			echo '<th scope="col"> Fitting - power-law </th>' >> $html; \
+			echo '<th scope="col"> Fitting - spline </th>' >> $html; \
+			echo '<th scope="col"> Extract outliers - power-law </th>' >> $html; \
+			echo '<th scope="col"> Extract outliers - spline </th>' >> $html; \
+			echo '<th scope="col"> FDR - compare all </th>' >> $html; \
+			echo '<th scope="col"> FDR - spline </th>' >> $html; \
+			echo '<th scope="col"> Binning bias </th>' >> $html; \
+			done
+
+		sys echo '</tr>' >> $html
 
 		sys noOfCols=$((($noOfPasses+1)*7))
-		sys echo \<tr\> >> $html
-		sys echo \<th\> \</th\> >> $html
+		sys echo '<tr>' >> $html
+		sys echo '<th> </th>' >> $html
 		sys for t in `seq ${noOfCols}`; do \
-			echo \<th\> ${t} \</th\> >> $html \
+			echo '<th> ${t} </th>' >> $html; \
 			done
-		sys echo \</tr\> >> $html
+		sys echo '</tr>' >> $html
 
 		sys if [[ $before_after == "afterICE" ]]; then \
-			python $(which fit-hic-LATEST_std.py) -l "$id" -t $list_contacts_aft_ice -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses -d ${discBinsize} -r $residualFactor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out \
+			python $(which fit-hic-LATEST_std.py) -l "$id" -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses -d ${discBinsize} -r $residualFactor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out; \
 			else \
-			python $(which fit-hic-LATEST_std.py) -l "$id" -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses -d ${discBinsize} -r $residualFactor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out \
+			python $(which fit-hic-LATEST_std.py) -l "$id" -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses -d ${discBinsize} -r $residualFactor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out; \
 			fi
 
-		sys echo \<tr\> >> $html
-		sys echo \<td\> $id \</td\> >> $html
-		sys for t in `seq $(($noOfPasses+1))`;do \
-			echo \<td\> \<a href=\"$id.plaw_pass${t}.png\"\>\<img src=\"$id.plaw_pass${t}.png\"  width=400\> \</a\>\</td\> >> $html \
-			echo \<td\> \<a href=\"$id.spline_pass${t}.png\"\>\<img src=\"$id.spline_pass${t}.png\"  width=400\> \</a\>\</td\> >> $html \
-			echo \<td\> \<a href=\"$id.plaw_pass${t}.extractOutliers.png\"\>\<img src=\"$id.plaw_pass${t}.extractOutliers.png\" width=400\> \</a\>\</td\> >> $html \
-			echo \<td\> \<a href=\"$id.spline_pass${t}.extractOutliers.png\"\>\<img src=\"$id.spline_pass${t}.extractOutliers.png\" width=400\> \</a\>\</td\> >> $html \
-			echo \<td\> \<a href=\"$id.comparison_pass${t}.png\"\>\<img src=\"$id.comparison_pass${t}.png\"  width=400\> \</a\>\</td\> >> $html \
-			#echo \<td\> \<a href=\"$id.plaw_pass${t}.qplot.png\"\>\<img src=\"$id.plaw_pass${t}.qplot.png\"  width=400\> \</a\>\</td\> >> $html \
-			#echo \<td\> \<a href=\"$id.spline_pass${t}.qplot.png\"\>\<img src=\"$id.spline_pass${t}.qplot.png\"  width=400\> \</a\>\</td\> >> $html \
-			echo \<td\> \<a href=\"$id.comparisonDisc_pass${t}.png\"\>\<img src=\"$id.comparisonDisc_pass${t}.png\"  width=400\> \</a\>\</td\> >> $html \
-			echo \<td\> \<a href=\"$id.comparisonFitDisc_pass${t}.png\"\>\<img src=\"$id.comparisonFitDisc_pass${t}.png\"  width=400\> \</a\>\</td\> >> $html \
+		sys echo '<tr>' >> $html
+		sys echo '<td> $id </td>' >> $html
+		sys for t in `seq $(($noOfPasses+1))`; do \
+			echo '<td> <a href="$id.plaw_pass${t}.png"><img src="$id.plaw_pass${t}.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.spline_pass${t}.png"><img src="$id.spline_pass${t}.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.plaw_pass${t}.extractOutliers.png"><img src="$id.plaw_pass${t}.extractOutliers.png" width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.spline_pass${t}.extractOutliers.png"><img src="$id.spline_pass${t}.extractOutliers.png" width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.comparison_pass${t}.png"><img src="$id.comparison_pass${t}.png"  width=400> </a></td>' >> $html; \
+			#echo '<td> <a href="$id.plaw_pass${t}.qplot.png"><img src="$id.plaw_pass${t}.qplot.png"  width=400> </a></td>' >> $html; \
+			#echo '<td> <a href="$id.spline_pass${t}.qplot.png"><img src="$id.spline_pass${t}.qplot.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.comparisonDisc_pass${t}.png"><img src="$id.comparisonDisc_pass${t}.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.comparisonFitDisc_pass${t}.png"><img src="$id.comparisonFitDisc_pass${t}.png"  width=400> </a></td>' >> $html; \
 			done
-		sys echo \<tr\> >> $html
-		sys echo \</tbody\>\</table\> >> $html
-		sys echo \</body\>\</html\> >> $html
 
+		sys echo '<tr>' >> $html
+		sys echo '</tbody></table>' >> $html
+		sys echo '</body></html>' >> $html
 	}
 }
 
