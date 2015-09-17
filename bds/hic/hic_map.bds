@@ -1,31 +1,146 @@
 #!/usr/bin/env bds
 
-help HiC mapping settings
+include "hic_base.bds"
+
+help Fastq paths
+help         -fastq[Library_ID]_[Replicate_ID]_[Pair_ID] [FASTQ_FILE_PATH]
+help         or
+help         -fastq_L[Library_ID]_R[Replicate_ID]_P[Pair_ID] [FASTQ_FILE_PATH]
+
+help Mapping settings
 num_mismatch 	:= 2		help # of mismatches (default: 2).
+
 nth_bwa 	:= 2 		help # threads for bwa (default: 2).
-wt_bwa 		:= "8G" 	help Max. memory for bwa (default: 8G)
+wt_bwa 		:= "10G" 	help Max. memory for bwa (default: 10G).
 mem_bwa 	:= "40h" 	help Walltime for bwa (default: 40h, 40:00:00).
 
+wt_map4		:= "20h"	help Walltime for hic map step4 (sorting cleaned pairs) (default: 20h, 20:00:00).
+
+//mem_sort 	:= "5G" 	help Max. memory for sorting cleaned pairs (default: 5G).
+
+
+help()
+
 init_hic_map()
+
+chk_input_data()
+
+set_shell_env()
+
+map()
+
+
+
 
 void init_hic_map() {
 
 	if ( conf_file_exists() ) {
 		num_mismatch 	= get_conf_val_int( num_mismatch, 	["num_mismatch", "nummismatch"] )
+
+		bwa_idx 	= get_conf_val( bwa_idx, 		["bwa_idx"] )
 		nth_bwa 	= get_conf_val_int( nth_bwa,		["nthreads_bwa", "nth_bwa", "cpu_bwa"] )
 		wt_bwa 		= get_conf_val( wt_bwa, 		["walltime_bwa", "wt_bwa", "timeout_bwa"] )
 		mem_bwa 	= get_conf_val( mem_bwa, 		["memory_bwa", "mem_bwa"] )
+
+		wt_map4 	= get_conf_val( wt_map4, 		["walltime_map4", "wt_map4", "timeout_map4"] )
 	}
 
 	if ( v ) { // verbose
 		print("\n")
 		print( "# of mismatches\t\t: $num_mismatch\n" )
+		print( "BWA index\t\t: $bwa_idx\n")
 		print( "# threads (bwa)\t\t: $nth_bwa\n")
 		print( "Walltime (bwa)\t\t: $wt_bwa\n")
 		print( "Max. memory (bwa)\t: $mem_bwa\n")
+		print( "Walltime (sort cln pairs)\t: $wt_map4\n")
 	}
 
-	SHCMD_INIT = SHCMD_INIT + " LC_COLLATE=C; LC_ALL=C; LANG=C;" // for unix sorting and joining 
+	// for unix sorting and joining 
+	SHCMD_INIT = SHCMD_INIT + " LC_COLLATE=C; LC_ALL=C; LANG=C;" 
+}
+
+
+void chk_input_data() {
+
+	string[] fastqs_all
+
+	for ( int lib=1; lib <= num_lib; lib++) {	
+		for ( int rep=1; rep <= num_rep; rep++) {
+
+			fastqs := get_fastqs_hic( lib, rep )
+
+			id := get_id( lib, rep )
+			print("$id :\n")
+
+			for ( string s : fastqs ) {
+				print("\t$s\n")
+				if ( (s != "") && !(s.exists()) ) error("\t\tFile not found!\n")
+			}
+
+			// check any duplicate input filename
+			for ( string s : fastqs ) {
+				if ( is_in_array( get_basename( s ), get_basename( fastqs_all ) ) ) \
+					error( "\tFilename is duplicate for $id!\n")
+			}
+
+			fastqs_all = concat( fastqs_all, fastqs )
+		}
+	}
+}
+
+void map() {
+
+	for (int lib=1; lib<=num_lib; lib++) {
+		for (int rep=1; rep<=num_rep; rep++) {
+
+			if ( no_par_job )   _map_wo_step4( lib, rep )
+			else 		par _map_wo_step4( lib, rep )
+		}
+	}
+
+	wait
+
+	// step 4 will not go in parallel due to high memory use for sorting and awking cleaned pairs
+
+	for (int lib=1; lib<=num_lib; lib++) {
+		for (int rep=1; rep<=num_rep; rep++) {
+
+			_map_step4( lib, rep )
+		}
+	}
+}
+
+void _map_wo_step4( int lib, int rep ) {
+
+	id := get_id( lib, rep )
+
+	// create output dir
+	mapped_dir 	:= mkdir_path( "$out_dir/mappedReads/$id" )
+	srt_mapped_dir 	:= mkdir_path( "$out_dir/sortedMappedReads/$id" )
+	extracted_dir 	:= mkdir_path( "$out_dir/extractedPairs/$id" )			
+
+	fastqs := get_fastqs_hic( lib, rep ) // get fastqs
+
+	sam1 := _map_step1_align( id + "_1", fastqs[0], mapped_dir )
+	sam2 := _map_step1_align( id + "_2", fastqs[1], mapped_dir )
+
+	wait // hold parallel
+
+	mapped1 := _map_step2_sort( id + "_1", sam1, srt_mapped_dir )
+	mapped2 := _map_step2_sort( id + "_2", sam2, srt_mapped_dir )
+
+	wait 
+
+	extracted_pairs{ id } = _map_step3_join_all_comb( id, mapped1, mapped2, extracted_dir )
+}
+
+void _map_step4( int lib, int rep ) {
+
+	id := get_id( lib, rep )
+
+	cleaned_dir := mkdir_path( "$out_dir/cleanedPairs/$id" )
+
+	cleaned_pairs{ id } = _map_step4_remove_PCR_dups( id, extracted_pairs{ id }, cleaned_dir )
 }
 
 string _map_step1_align( string id, string fastq, string out_dir ) {
@@ -44,7 +159,7 @@ string _map_step1_align( string id, string fastq, string out_dir ) {
 	
 		sys $SHCMD_INIT	
 
-		sys bwa aln $bwa_idx $fastq > $sai
+		sys bwa aln $bwa_idx -t $nth_bwa $fastq > $sai
 		sys bwa samse $bwa_idx $sai $fastq > $sam
 		sys gzip $sam
 		sys rm -f $sai
@@ -62,6 +177,8 @@ string _map_step2_sort( string id, string sam_gz, string out_dir ) {
 	non_mapped_gz 	:= "$prefix.nonmapped.gz"
 	stat 		:= "$prefix.stat"
 
+	sam 		:= "$prefix.sam"// temp file 
+
 	in 	:= sam_gz
 	out 	:= mapped_gz //, non_mapped_gz, stat]
 
@@ -70,7 +187,10 @@ string _map_step2_sort( string id, string sam_gz, string out_dir ) {
 
 		sys $SHCMD_INIT
 
-		sys zcat -f $sam_gz | samtools view -S -F 4 - \
+		sys gzip -d -c $sam_gz > $sam
+
+		//sys zcat -f $sam_gz | samtools view -S -F 4 - \
+		sys samtools view -S -F 4 $sam \
 			| awk '$14=="X0:i:1" &&  $5>=30 && $12=="XT:A:U" {split($1,id,"#"); split($13,editDistField,":"); if (editDistField[3] <= $num_mismatch) {print id[1]"\t"$2"\t"$3"\t"$4"\t"$10}}' \
 			| sort -k 1,1 > $mapped
 		//#count the number of aligned pairs
@@ -78,14 +198,16 @@ string _map_step2_sort( string id, string sam_gz, string out_dir ) {
 		sys gzip $mapped
 
 		//## perform the above for non-mapped pairs		
-		sys zcat -f $sam_gz | samtools view -S -f 4 - \
+		//sys zcat -f $sam_gz | samtools view -S -f 4 - \
+		sys samtools view -S -f 4 $sam \
 			| awk '{split($1,id,"#"); print id[1]"\t"$2"\t"$3"\t"$4"\t"$10}' \
 			| sort -k 1,1 > $non_mapped 
 		sys n=`cat $non_mapped | wc -l `
 		sys gzip $non_mapped
 
 		//## mapped but not uniques or quality below 30s or mismatch above what we expect
-		sys m=`zcat -f $sam_gz | samtools view -S -F 4 - \
+		//sys m=`zcat -f $sam_gz | samtools view -S -F 4 - \
+		sys m=`samtools view -S -F 4 $sam \
 			| awk '{split($13,editDistField,":"); if (editDistField[3] > $num_mismatch || $14!="X0:i:1" || $5<30 || $12!="XT:A:U") {print $1}}' \
 			|  wc -l `
 		sys total=$((${m}+${n}+${f}))
@@ -93,6 +215,8 @@ string _map_step2_sort( string id, string sam_gz, string out_dir ) {
 		//## write out the statistics of alignment 
 		sys echo "# Total\\tuniquelyMapped\\tnonMapped\\tmappedButNotQualified " > $stat 
 		sys echo -e "$id\t${total}\t${f}\t${n}\t${m} " >> $stat
+
+		sys rm -f $sam
 	}
 	return out
 }
@@ -114,7 +238,6 @@ string _map_step3_join_all_comb( string id, string mapped1, string mapped2, stri
 	
 		sys $SHCMD_INIT	
 
-		sys echo "Environment: LC_COLLATE=${LC_COLLATE}, LC_ALL = ${LC_ALL}, LANG = ${LANG}" 
 		sys join <(zcat -f $mapped1) <(zcat -f $mapped2) > $extracted
 		sys n=`cat $extracted | wc -l `
 		sys gzip $extracted
@@ -128,22 +251,28 @@ string _map_step4_remove_PCR_dups( string id, string extracted_gz, string out_di
 	prefix 		:= "$out_dir/$id"//change_dir( remove_ext( extracted_gz, "_extractedPairs" ), out_dir )
 
 	cleaned 	:= "$prefix"+"_cleanedPairs"
-	cleaned_gz 	:= "$cleaned.gz"
+	cleaned_gz 	:= "$prefix"+"_cleanedPairs.gz"
+
+	extracted_tmp 	:= "$prefix"+"_extractedPairs.tmp"
 
 	num_cleaned 	:= "$prefix"+"_NumberOfcleanedPairs"
 
 	in 	:= extracted_gz
 	out 	:= cleaned_gz
 
-	task( taskName := "map4_rm_PCR_dups "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "map4_rm_PCR_dups "+id, cpus := nth, timeout := parse_time(wt_map4), mem := parse_mem(mem), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
+		
+		sys gzip -d -c $extracted_gz > $extracted_tmp
 
-		sys echo "Environment: LC_COLLATE=${LC_COLLATE}, LC_ALL = ${LC_ALL}, LANG = ${LANG}" 
-		sys countBefore=`zcat $extracted_gz | wc -l | awk '{print $1}' `
+		//sys countBefore=`zcat $extracted_gz | wc -l | awk '{print $1}' `
+		sys countBefore=`wc -l $extracted_tmp | awk '{print $1}' `
 			
-		sys zcat -f $extracted_gz | python $(which sort_loci.py) - 2 \
+		//sys zcat -f $extracted_gz | python $(which sort_loci.py) - 2 \
+		//	| sort -u -k1,6 -S $mem_sort \
+		sys python $(which sort_loci.py) $extracted_tmp 2 \
 			| awk '{s1="+"; s2="+"; if ($2=="16") {s1="-"}; if ($6=="16") {s2="-"}; printf("%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n", $3, $4, s1, $7, $8, s2, $5, $9, $1)}' \
 			| sort -u -k1,6 \
 			| awk '{ print $9 "\\t" $3 "\\t" $1 "\\t" $2 "\\t" $7 "\\t" $6 "\\t" $4 "\\t" $5 "\\t" $8}' >> $cleaned
@@ -153,6 +282,49 @@ string _map_step4_remove_PCR_dups( string id, string extracted_gz, string out_di
 
 		sys echo -e "lib\\tpairsBeforePCR\\tpairsAfterPCR" > $num_cleaned
 		sys echo -e "$id\\t${countBefore}\\t${countAfter}" >> $num_cleaned
+
+		sys rm -f $extracted_tmp
 	}
 	return out
 }
+
+string[] get_fastqs_hic( int lib, int rep ) {  // if paired-end return [PE1, PE2], elseif single-end else return [PE1], else []	
+
+	string[] ret
+	for ( int pe=1; pe<=2; pe++ ) {
+		str := get_fastq_hic( lib, rep, pe )
+		if ( str.length() > 0 ) { // if not null, append
+			ret.add( str )
+		}
+	}
+
+	return ret
+}
+
+string get_fastq_hic( int lib, int rep, int pe ) {
+
+	key := "fastq" + lib + "_" + rep + "_" + pe
+	key2 := "fastq_L" + lib + "_R" + rep + "_P" + pe
+	key3 := "fastq_R" + rep + "_L" + lib + "_P" + pe
+
+	if ( cmd_line_arg_has_key( key ) ) {
+		return get_cmd_line_arg_val( key )
+	}
+	else if ( cmd_line_arg_has_key( key2 ) ) {
+		return get_cmd_line_arg_val( key2 )
+	}	
+	else if ( cmd_line_arg_has_key( key3 ) ) {
+		return get_cmd_line_arg_val( key3 )
+	}	
+	else if ( conf.hasKey( key ) ) {
+		return get_path( conf{ key } )
+	}
+	else if ( conf.hasKey( key2 ) ) {
+		return get_path( conf{ key2 } )
+	}
+	else if ( conf.hasKey( key3 ) ) {
+		return get_path( conf{ key3 } )
+	}
+	return ""
+}
+

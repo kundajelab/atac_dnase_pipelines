@@ -13,7 +13,7 @@ no_par_job	:= false	help Add it to serialize all jobs for desktops with limited 
 help General cluster resource settings
 
 nth		:= 1 		help # threads for all cluster jobs (default: 1).
-wt 		:= "6h"		help Walltime for all cluster jobs (example: 8:10:00, 3h, 3600, default: 6h, 6:00:00).
+wt 		:= "11h"	help Walltime for all cluster jobs (example: 8:10:00, 3h, 3600, default: 11h, 11:00:00).
 mem 		:= "4G"		help Max. memory for all cluster jobs (example: 4G, 1000MB, default: 4G).
 
 help Shell environment settings
@@ -28,7 +28,7 @@ addpath 	:= "" 		help Path separated by ; to be PREPENDED to \$PATH. Paths are  
 init_mods 	:= ["/etc/profile.d/modules.sh", "/etc/profile.d/modules.bash", "$MODULESHOME/init/bash"]
 
 // basic unix paths and BigDataScript bin path (pick all)
-init_paths 	:= ["/bin","/usr/bin"]
+init_paths 	:= ["/bin","/usr/bin","/usr/local/bin"]
 
 SHCMD_INIT 	:= ""  // IMPORTANT! Shell command executed prior to all BigDataScript tasks (use this for setting environemts)
 

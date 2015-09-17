@@ -1,0 +1,84 @@
+#!/usr/bin/env bds
+
+include "../modules/species.bds"
+
+help Replicates and libraries definition
+prefix 		:= "HiC" 	help Prefix for output file names (default: HiC).
+reps 		:= "" 		help List of replicate names (comma separated) (eg. 'R1,R2,R8', default: blank).
+libs  		:= ""		help List of library names (comma separated) (eg. 'SC,D3', default: blank).
+
+
+num_rep 	:= 1		//help # replicates. (default: 1).
+num_lib 	:= 1		//help # libraries. (default: 1).
+
+string[] rep_names // replicate names
+string[] lib_names // library names
+
+string{} extracted_pairs // map of extracted mapped pairs (key=rep;lib)
+string{} cleaned_pairs // map of cleaned mapped pairs (key=rep;lib)
+
+
+
+init_hic_base()
+
+
+void init_hic_base() {
+
+	if ( conf_file_exists() ) {
+		prefix 	= get_conf_val( prefix, ["prefix"] )
+		reps 	= get_conf_val( reps, 	["reps"] )
+		libs 	= get_conf_val( libs, 	["libs"] )
+	}
+
+	// convert name_rep and name_lib to arrays
+	rep_names = reps.trim().replace(":",",").replace(";",",").split(",")
+	lib_names = libs.trim().replace(":",",").replace(";",",").split(",")
+
+	num_rep = rep_names.size()
+	num_lib = lib_names.size()
+
+	if ( v ) { // verbose
+		print("\n")
+		print( "Prefix\t\t\t: $prefix\n" )
+		print( "# replicates\t\t: $num_rep\n" )
+		print( "# libraries\t\t: $num_lib\n" )
+		print( "Replicate names\t: $reps\n" )
+		print( "Library names\t: $libs\n" )
+		print("\n")
+	}
+}
+
+void set_shell_env() {
+	
+	// create output dir.
+	if ( kundaje_lab ) {
+
+		print("\n\nAutomatically adding environment variables... (kundaje_lab == true) \n\n")
+
+		SHCMD_INIT = SHCMD_INIT + " . /etc/profile.d/modules.sh; module add bwa/0.7.7 samtools/0.1.19 bedtools/2.21.0 r/3.2.0;" \
+					+ " export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='8G'; export MALLOC_ARENA_MAX=4"
+		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
+	}
+}
+
+void help() {
+
+	if ( is_cmd_line_arg_empty() ) {
+		print("\n")
+		print(" List of parameters\n")
+		print(" \n")
+		printHelp()
+
+		exit
+	}
+}
+
+string get_id( int lib, int rep ) {
+
+	return "$prefix"+"_"+lib_names[lib-1]+"_"+rep_names[rep-1]
+}
+
+string get_id( int lib ) {
+
+	return "$prefix"+"_"+lib_names[lib-1]
+}
