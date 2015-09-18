@@ -2,40 +2,42 @@
 
 include "hic_base.bds"
 
-
-help There are two ways to define paths for mapped data (cleaned/extracted pairs)
-
+help HiC settings (mapped data)
+help   There are two ways to define paths for mapped data (cleaned pairs)
 help   1) Using Root directory of mapped data
 root_mapped 	:= ""		help Root path for mapped data ('out_dir' of hic_map.bds) (default: blank).
 
-help   2) Using paths for individual cleaned/extracted pairs
+help   2) Using paths for individual cleaned pairs
 help      Cleaned pair paths
 help         -cln_pair[Library_ID]_[Replicate_ID] [CLEANED_PAIR_FILE_PATH]
 help         or
 help         -cln_pair_L[Library_ID]_R[Replicate_ID] [CLEANED_PAIR_FILE_PATH]
-help      Extracted pair paths
-help         -extr_pair[Library_ID]_[Replicate_ID] [EXTRACTED_PAIR_FILE_PATH]
-help         or
-help         -extr_pair_L[Library_ID]_R[Replicate_ID] [EXTRACTED_PAIR_FILE_PATH]
 
-help HiC settings
+help HiC settings (merge method and resolution)
 merge 		:= 1 		help Method for merging replicates and libraries (0: no merge, 1: merge reps only, 2: merge reps and libs, default: 1).
 res 		:= ""		help Resolution (comma separated integers) (eg. '10,8,5' , default: 10)
-blacklist 	:= ""		help Blacklist (default: blank).
+
+help HiC settings (step 1)
 RE_file 	:= "" 		help RE file (default: blank).
+
+help HiC settings (step 2 and 3)
+blacklist 	:= ""		help Blacklist (default: blank).
 read_len 	:= 51 		help Read Length (default: 51).
-map_thres  	:= "0.5"	help Mappability threshold in step 4 (default: 0.5).
-num_bin		:= 200		help Number of bins (default: 200).
+
+help HiC settings (step 4)
+mapp_thres  	:= "0.5"	help Mappability threshold in step 4 (default: 0.5).
+wt_hic4		:= "30h"	help Walltime for hic step4 (normalizing with using ICE) (default: 30h, 30:00:00).
+
+help HiC settings (step 6)
+no_of_bins	:= 200		help Number of bins (default: 200).
 dist_up_thres 	:= 10000000 	help Dist up threshold (default: 10000000).
+mapp_thres_hic6	:= 1 		help Minimum number of hits per locus that has to exist to call it mappable. (default: 1).
+no_of_passes 	:= 1 		help Number of passes after the initial (before) fit. (default: 1) (after).
+residual_factor := -1 		help How many times better residual is desired for splines compared to power-law fit. (default: -1).
 org 		:= "human" 	help org (default: human).
 ref 		:= "hg19"	help ref (default: hg19).
 re 		:= "HindIII" 	help re (default: hindIII).
 
-mappabilityThres:= 1 		help minimum number of hits per locus that has to exist to call it mappable. DEFAULT is 1.
-noOfPasses 	:= 1 		help number of passes after the initial (before) fit. DEFAULT is 1 (after)
-residualFactor 	:= -1 		help how many times better residual is desired for splines compared to power-law fit. Default is 10
-
-wt_hic4		:= "20h"	help Walltime for hic step4 (normalize using ICE) (default: 20h, 20:00:00).
 
 int[] resolution
 
@@ -64,12 +66,16 @@ void init_hic() {
 		root_mapped 	= get_conf_val( root_mapped, 		["root_mapped"] )
 		merge 		= get_conf_val_int( merge, 		["merge"] )
 		res 		= get_conf_val( res, 			["res"] ) 
-		blacklist 	= get_conf_val( blacklist, 		["blacklist"] ) 
 		RE_file 	= get_conf_val( RE_file, 		["RE_file","REfile"] )
+		blacklist 	= get_conf_val( blacklist, 		["blacklist"] ) 
 		read_len 	= get_conf_val_int( read_len, 		["read_len", "read_length", "readlen", "readlength"] )
-		map_thres  	= get_conf_val( map_thres, 		["map_thres"] ) 
-		num_bin		= get_conf_val_int( num_bin, 		["num_bin", "numbin"] )
+		mapp_thres  	= get_conf_val( mapp_thres, 		["mapp_thres", "mapp_thres_hic4"] ) 
+		no_of_bins	= get_conf_val_int( no_of_bins, 	["no_of_bins", "num_bin", "no_bin"] )
 		dist_up_thres 	= get_conf_val_int( dist_up_thres, 	["dist_up_thres"] )
+
+		mapp_thres_hic6	= get_conf_val_int( mapp_thres_hic6, 	["mapp_thres_hic6"] )
+		no_of_passes 	= get_conf_val_int( no_of_passes, 	["no_of_passes"] )
+		residual_factor = get_conf_val_int( residual_factor, 	["residual_factor"] )
 
 		org 		= get_conf_val( org, 			["org"] )
 		ref 		= get_conf_val( ref, 			["ref"] )
@@ -83,12 +89,15 @@ void init_hic() {
 		print( "Root for mapped data\t: $root_mapped\n" )
 		print( "Merge method\t\t: $merge ( " + get_merge_method() + " )\n" )
 		print( "Resolution\t\t: $res\n" )
-		print( "Blacklist\t\t: $blacklist\n" )
 		print( "RE file\t\t\t: $RE_file\n" )
+		print( "Blacklist\t\t: $blacklist\n" )
 		print( "Read Length\t\t: $read_len\n" )
-		print( "Mappability threshold in step 4\t: $map_thres\n" )
-		print( "Number of bins\t\t: $num_bin\n" )
-		print( "10Mb?\t\t\t: $dist_up_thres\n" )
+		print( "Mappability threshold in step 4\t: $mapp_thres\n" )
+		print( "Number of bins\t\t: $no_of_bins\n" )
+		print( "Dist. up threshold\t: $dist_up_thres\n" )
+		print( "Mappability threshold in step 6\t: $mapp_thres_hic6\n" )
+		print( "Number of passes\t: $no_of_passes\n" )
+		print( "Residual factor\t\t: $residual_factor\n" )
 		print( "org\t\t\t: $org\n" )
 		print( "ref\t\t\t: $ref\n" )
 		print( "re\t\t\t: $re\n" )
@@ -112,10 +121,10 @@ void init_hic() {
 void find_mapped_data() {
 
 	if ( root_mapped != "" ) {
-		print("\n\nReading extracted/cleaned pairs from root of mapped directory...\n\n")
+		print("\n\nReading cleaned pairs from root of mapped directory...\n\n")
 	}
 	else {
-		print("\n\nReading extracted/cleaned pairs from command line or configuration file...\n\n")
+		print("\n\nReading cleaned pairs from command line or configuration file...\n\n")
 	}
 
 	for (int lib=1; lib<=num_lib; lib++) {
@@ -123,29 +132,24 @@ void find_mapped_data() {
 
 			id := get_id( lib, rep )
 
-			string extracted, cleaned
+			string cleaned
 
 			if ( root_mapped != "" ) {
-				extracted 	= "$root_mapped/extractedPairs/$id/$id"+"_extractedPairs.gz"
 				cleaned 	= "$root_mapped/cleanedPairs/$id/$id"+"_cleanedPairs.gz"
 			}
 			else {
-				extracted 	= get_extr_pair( lib, rep )
 				cleaned 	= get_cln_pair( lib, rep )
 			}
 
-			print("\tExtracted pairs: $extracted\n")
-			if ( !extracted.exists() ) error("\t\tFile doesn't exists!\n")
-
-			print("\tCleaned pairs: $cleaned\n")
+			print("\t$id: $cleaned\n")
 			if ( !cleaned.exists() ) error("\t\tFile doesn't exists!\n")
 
-			extracted_pairs{ id } 	= extracted
 			cleaned_pairs{ id } 	= cleaned
 		}
 	}
 }
 
+/*
 void hic() {
 
 	for ( int w : resolution ) {
@@ -212,21 +216,100 @@ void hic() {
 
 	wait
 }
+*/
+
+void hic() {
+
+	for ( int w : resolution ) {
+
+		if ( no_par_job )   _hic( w )
+		else 		par _hic( w )
+	}
+}
+
+void _hic( int w ) {
+
+	// HiC_preprocess first (step 1 and 3)
+	_hic_preprocess( w )
+
+	wait
+
+	// merge cleaned pairs
+	clean_pairs_comb := _merge_cleaned_pairs()
+
+	// HiC_postprocess (step 2, 4, 5, 6)
+	for( string id : clean_pairs_comb.keys() ) {
+
+		if ( no_par_job )    _hic_postprocess( id, clean_pairs_comb{ id }, w )
+		else 		 par _hic_postprocess( id, clean_pairs_comb{ id }, w )
+	}
+
+	if ( no_par_job ) wait
+}
 
 void _hic_preprocess( int w ) {
+
+	info := "RE$w"
 
 	// create output dir
 	RE_site_dir 	:= mkdir_path( "$out_dir/RESites" )
 	Bias_dir 	:= mkdir_path( "$out_dir/preprocessedForBias" )
 
-	(RE_sites{"$w"}, RE_sites_mid{"$w"}) = _hic_step1( RE_file, w, RE_site_dir )
+	(RE_sites{"$w"}, RE_sites_mid{"$w"}) = _hic_step1( RE_file, w, RE_site_dir, info )
 	wait
 
-	biases{"$w"} = _hic_step3( RE_sites{"$w"}, w, Bias_dir )
-	wait
+	biases{"$w"} = _hic_step3( RE_sites{"$w"}, w, Bias_dir, info )
+}
+
+string{} _merge_cleaned_pairs() {  // return: key=id, val=comma-separated cleanedPairs files
+	
+	string{} clean_pairs_comb
+
+	if ( merge == 0 ) { // no merge
+
+		clean_pairs_comb = cleaned_pairs
+	}
+	else if ( merge == 1 ) { // merge rep only
+
+		for (int lib=1;lib<=num_lib;lib++) {
+
+			new_id := get_id( lib )
+
+			for (int rep=1;rep<=num_rep;rep++) {
+
+				id := get_id( lib, rep )
+
+				if ( clean_pairs_comb.hasKey( new_id ) ) \
+					clean_pairs_comb{ new_id } = clean_pairs_comb{ new_id } + "," + cleaned_pairs{ id }
+				else \
+					clean_pairs_comb{ new_id } = cleaned_pairs{ id }
+			}
+		}
+	}
+	else if ( merge == 2 ) { // merge rep and lib
+
+		new_id := prefix
+
+		for (int lib=1;lib<=num_lib;lib++) {
+
+			for (int rep=1;rep<=num_rep;rep++) {
+
+				id := get_id( lib, rep )
+
+				if ( clean_pairs_comb.hasKey( new_id ) ) \
+					clean_pairs_comb{ new_id } = clean_pairs_comb{ new_id } + "," + cleaned_pairs{ id }
+				else \
+					clean_pairs_comb{ new_id } = cleaned_pairs{ id }
+			}
+		}
+	}
+
+	return clean_pairs_comb
 }
 
 void _hic_postprocess( string id, string clean_pairs_comb, int w ) {
+
+	info := "RE$w $id"
 
 	merge_meth := get_merge_method()
 	
@@ -246,35 +329,35 @@ void _hic_postprocess( string id, string clean_pairs_comb, int w ) {
 	// parse clean_pairs_comb (comma separated cleanedPairs files)
 	cleaned := clean_pairs_comb.split(",")
 
-	list_contacts_bfr_ice 	:= _hic_step2( id, cleaned, RE_sites{"$w"}, w, bfr_ice_dir )
+	list_contacts_bfr_ice 	:= _hic_step2( id, cleaned, RE_sites{"$w"}, w, bfr_ice_dir, info )
 	wait
 
-	raw_contact_cnts 	:= _hic_step2a( id, list_contacts_bfr_ice, w, raw_contact_dir )	
+	raw_contact_cnts 	:= _hic_step2a( id, list_contacts_bfr_ice, w, raw_contact_dir, info )	
 	if ( no_par_job ) wait
 
-	list_contacts_aft_ice_biases 	:= _hic_step4( id, list_contacts_bfr_ice, biases{"$w"}, aft_ice_dir )
+	list_contacts_aft_ice_biases 	:= _hic_step4( id, list_contacts_bfr_ice, biases{"$w"}, aft_ice_dir, info )
 	if ( no_par_job ) wait
 
-	contacts_per_frag 	:= _hic_step5( id, list_contacts_bfr_ice, RE_sites_mid{"$w"}, contact_dir )
+	contacts_per_frag 	:= _hic_step5( id, list_contacts_bfr_ice, RE_sites_mid{"$w"}, contact_dir, info )
 	wait
 
-	dist_bias 		:= _hic_step4a( id, list_contacts_aft_ice_biases, w, plot_dir )
+	dist_bias 		:= _hic_step4a( id, list_contacts_aft_ice_biases, w, plot_dir, info )
 	if ( no_par_job ) wait
 
 	_hic_step6( "beforeICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
-			contacts_per_frag, w, hic_bfr_ice_dir )
+			contacts_per_frag, w, hic_bfr_ice_dir, info )
 
 	_hic_step6( "afterICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
-			contacts_per_frag, w, hic_aft_ice_dir )
+			contacts_per_frag, w, hic_aft_ice_dir, info )
 
 	_hic_step6a( "beforeICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
-			contacts_per_frag, w, hic_bfr_ice_std_dir )
+			contacts_per_frag, w, hic_bfr_ice_std_dir, info )
 
 	_hic_step6a( "afterICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
-			contacts_per_frag, w, hic_aft_ice_std_dir )
+			contacts_per_frag, w, hic_aft_ice_std_dir, info )
 }
 
-string _hic_step1( string REfile, int w, string out_dir ) {
+string _hic_step1( string REfile, int w, string out_dir, string info ) {
 	//# write out file with RE fragments @ RE-resolution
 
 	RE_site 	:= "$out_dir/REFrags.RE$w"
@@ -283,7 +366,7 @@ string _hic_step1( string REfile, int w, string out_dir ) {
 	in 	:= REfile
 	out 	:= [RE_site, RE_site_mid]
 
-	task( taskName := "hic1 RE$w", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic1 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
@@ -295,10 +378,12 @@ string _hic_step1( string REfile, int w, string out_dir ) {
 }
 
 
-string _hic_step2( string id, string[] cleaned_pairs, string RE_site, int w, string out_dir ) {
+string _hic_step2( string id, string[] cleaned_pairs, string RE_site, int w, string out_dir, string info ) {
 	//# step 2 operations:
 	//#  - get contacts at fixed window size 
 	prefix := "$out_dir/$id"
+
+	cleaned_tmp 	:= prefix+"_cleanedPairs.tmp"
 
 	IntrachrThres 	:= w*5000 //$(($w*5000)) # distance threshold for calculating intrachromosomal interactions
 
@@ -317,20 +402,29 @@ string _hic_step2( string id, string[] cleaned_pairs, string RE_site, int w, str
 
 	cleaned_pairs_all := array_to_str( cleaned_pairs, " " )
 
-	task( taskName := "hic2 "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic2 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
 
 		//# remove pairs separated closer than threshold, remove chrM
+		//sys zcat $cleaned_pairs_all \
+		//	| awk 'length($3)<=5 && length($7)<=5 {print}' | grep -v chrM \
+		//	| awk '$3!=$7 || ($3==$7 && ($4-$8> t || $8-$4> t)) {print $3,$4,$4+$read_len,$1}' t=$IntrachrThres \
+		//	| /usr/bin/perl -p -i -e 's/ /\t/g' > $IntSite1Temp
+		//sys zcat $cleaned_pairs_all \
+		//	| awk 'length($3)<=5 && length($7)<=5 {print}' | grep -v chrM \
+		//	| awk '$3!=$7 || ($3==$7 && ($4-$8> t || $8-$4> t)) {print $7, $8, $8+$read_len, $1}' t=$IntrachrThres \
+		//	| /usr/bin/perl -p -i -e 's/ /\t/g' > $IntSite2Temp
+
 		sys zcat $cleaned_pairs_all \
-			| awk 'length($3)<=5 && length($7)<=5 {print}' | grep -v chrM \
-			| awk '$3!=$7 || ($3==$7 && ($4-$8> t || $8-$4> t)) {print $3,$4,$4+$read_len,$1}' t=$IntrachrThres \
+			| grep -v chrM | awk 'length($3)<=5 && length($7)<=5 {print}' \
+			| awk '$3!=$7 || ($3==$7 && ($4-$8> t || $8-$4> t)) {print}' t=$IntrachrThres > $cleaned_tmp
+		sys cat $cleaned_tmp | awk '{print $3,$4,$4+$read_len,$1}' \
 			| /usr/bin/perl -p -i -e 's/ /\t/g' > $IntSite1Temp
-		sys zcat $cleaned_pairs_all \
-			| awk 'length($3)<=5 && length($7)<=5 {print}' | grep -v chrM \
-			| awk '$3!=$7 || ($3==$7 && ($4-$8> t || $8-$4> t)) {print $7, $8, $8+$read_len, $1}' t=$IntrachrThres \
+		sys cat $cleaned_tmp | awk '{print $7,$8,$8+$read_len,$1}' \
 			| /usr/bin/perl -p -i -e 's/ /\t/g' > $IntSite2Temp
+		sys rm -f $cleaned_tmp
 
 		//# remove reads that overlap with Black list 
 		sys bedtools intersect -v -a $IntSite1Temp -b $blacklist > $Site1NoBlack
@@ -358,7 +452,7 @@ string _hic_step2( string id, string[] cleaned_pairs, string RE_site, int w, str
 	return out
 }
 
-string _hic_step2a( string id, string list_contacts_bfr_ice, int w, string out_dir ) {
+string _hic_step2a( string id, string list_contacts_bfr_ice, int w, string out_dir, string info ) {
 	
 	prefix 		:= "$out_dir/$id"
 	raw_contact_cnts := "$prefix"+"_RawContactCounts_RE$w"
@@ -366,7 +460,7 @@ string _hic_step2a( string id, string list_contacts_bfr_ice, int w, string out_d
 	in 	:= list_contacts_bfr_ice
 	out 	:= raw_contact_cnts
 
-	task( taskName := "hic2a "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic2a $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
 		out<-in) {
 
 		sys $SHCMD_INIT
@@ -377,7 +471,7 @@ string _hic_step2a( string id, string list_contacts_bfr_ice, int w, string out_d
 	return out
 }
 
-string _hic_step3( string RE_site, int w, string out_dir ) {
+string _hic_step3( string RE_site, int w, string out_dir, string info ) {
 	//# preprocess the genome to get mappability per window. Note: needs to be run only once for a particular resolution
 
         bias 	:= "$out_dir/$org-$ref.$re.RE$w"
@@ -385,7 +479,7 @@ string _hic_step3( string RE_site, int w, string out_dir ) {
         in 	:= RE_site
         out 	:= bias
 
-	task( taskName := "hic3 RE$w", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic3 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
@@ -397,7 +491,7 @@ string _hic_step3( string RE_site, int w, string out_dir ) {
 	return out
 }
 
-string _hic_step4( string id, string list_contacts_bfr_ice, string bias, string out_dir ) {
+string _hic_step4( string id, string list_contacts_bfr_ice, string bias, string out_dir, string info ) {
 	//# step 4 operations:
 	//#  - normalizes each library using sparse ICE implementation
 	//#  - calculate biases for each window.
@@ -415,22 +509,22 @@ string _hic_step4( string id, string list_contacts_bfr_ice, string bias, string 
 	//#additional variables: 
 	norm := "l1" // # l1 or l2 norm
 
-	task( taskName := "hic4 "+id, cpus := nth, timeout := parse_time(wt_hic4), mem := parse_mem(mem), \
+	task( taskName := "hic4 $info", cpus := nth, timeout := parse_time(wt_hic4), mem := parse_mem(mem), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
 
 		sys zcat $list_contacts_bfr_ice > $list_contacts_bfr_ice.temp
 		sys cat $bias  > $bias.temp
-		sys python $(which ICE-with-sparseMatrix.py) $list_contacts_bfr_ice.temp $bias.temp $norm $list_contacts_aft_ice $map_thres
+		sys python $(which ICE-with-sparseMatrix.py) $list_contacts_bfr_ice.temp $bias.temp $norm $list_contacts_aft_ice $mapp_thres
 		sys gzip $list_contacts_aft_ice $list_contacts_aft_ice_biases
-		sys rm -rf $list_contacts_bfr_ice.temp bias.temp
+		sys rm -rf $list_contacts_bfr_ice.temp $bias.temp
 	}
 
 	return out
 }
 
-string _hic_step4a( string id, string list_contacts_aft_ice_biases, int w, string out_dir ) {
+string _hic_step4a( string id, string list_contacts_aft_ice_biases, int w, string out_dir, string info ) {
 
 	prefix 		:= "$out_dir/$id"
 	dist_bias 	:= "$prefix"+"_DistOfBiases"
@@ -439,7 +533,7 @@ string _hic_step4a( string id, string list_contacts_aft_ice_biases, int w, strin
 	in 	:= list_contacts_aft_ice_biases
 	out 	:= dist_bias_png
 
-	task( taskName := "hic4a "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic4a $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
@@ -451,7 +545,7 @@ string _hic_step4a( string id, string list_contacts_aft_ice_biases, int w, strin
 	return out
 }
 
-string _hic_step5( string id, string list_contacts_bfr_ice, string RE_site_mid, string out_dir ) {
+string _hic_step5( string id, string list_contacts_bfr_ice, string RE_site_mid, string out_dir, string info ) {
 	//#  - calculate total numbmer of contacts coming out of each window.
 
 	prefix 		:= "$out_dir/$id"
@@ -463,7 +557,7 @@ string _hic_step5( string id, string list_contacts_bfr_ice, string RE_site_mid, 
 	in 	:= [list_contacts_bfr_ice, RE_site_mid]
 	out 	:= contacts_per_frag_gz
 
-	task( taskName := "hic5 "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic5 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
@@ -483,7 +577,7 @@ string _hic_step5( string id, string list_contacts_bfr_ice, string RE_site_mid, 
 }
 
 void _hic_step6( string before_after, string id, \
-		string list_contacts_bfr_ice, string list_contacts_aft_ice_biases, string contacts_per_frag, int w, string out_dir ) {
+		string list_contacts_bfr_ice, string list_contacts_aft_ice_biases, string contacts_per_frag, int w, string out_dir, string info ) {
 	//#  - perform fit-hi-c on data before and after ICE
 	//#  - places results into $PROJDIR/data/fit-hi-c-results
 	prefix 		:= "$out_dir/$id"
@@ -496,16 +590,16 @@ void _hic_step6( string before_after, string id, \
 	in 	:= [list_contacts_bfr_ice, list_contacts_aft_ice_biases, contacts_per_frag]
 	out 	:= [log, html]
 
-	task( taskName := "hic6 "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic6 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
 
-		sys discBinsize=$(($(($dist_up_thres-$distLowThres))/$num_bin))
+		sys discBinsize=$(($(($dist_up_thres-$distLowThres))/$no_of_bins))
 		sys echo ${discBinsize}
 
 		sys date >> $log
-		sys echo w=$w num_bin=$num_bin mappabilityThres=$mappabilityThres noOfPasses=$noOfPasses dist_up_thres=$dist_up_thres distLowThres=$distLowThres discBinsize=${discBinsize} residualFactor=$residualFactor>> $log 
+		sys echo w=$w no_of_bins=$no_of_bins mapp_thres_hic6=$mapp_thres_hic6 no_of_passes=$no_of_passes dist_up_thres=$dist_up_thres distLowThres=$distLowThres discBinsize=${discBinsize} residual_factor=$residual_factor>> $log 
 		sys echo >> $log
 
 		sys echo '<html>' > $html
@@ -517,7 +611,7 @@ void _hic_step6( string before_after, string id, \
 		sys echo '<tr>' >> $html
 		sys echo '<th scope="col"> Library label </th>' >> $html
 
-		sys for t in `seq $(($noOfPasses+1))`; do \
+		sys for t in `seq $(($no_of_passes+1))`; do \
 			#echo '<th scope="col"> Equal occupancy binning </th>' >> $html; \
 			echo '<th scope="col"> Fitting - power-law </th>' >> $html; \
 			echo '<th scope="col"> Fitting - spline </th>' >> $html; \
@@ -530,7 +624,7 @@ void _hic_step6( string before_after, string id, \
 
 		sys echo '</tr>' >> $html
 
-		sys noOfCols=$((($noOfPasses+1)*7))
+		sys noOfCols=$((($no_of_passes+1)*7))
 		sys echo '<tr>' >> $html
 		sys echo '<th> </th>' >> $html
 		sys for t in `seq ${noOfCols}`; do \
@@ -540,16 +634,16 @@ void _hic_step6( string before_after, string id, \
 
 		sys if [[ $before_after == "afterICE" ]]; then \
 			# REMOVED -d and -r and comparisonMode \
-			python $(which fit-hic-LATEST.py) -l $id -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses -d ${discBinsize} -r $residualFactor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out \
-	  		#python $(which fit-hi-c.py) -l $id -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses  -o $out_dir  > $out_dir/$id.out; \
+			python $(which fit-hic-LATEST.py) -l $id -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $mapp_thres_hic6 -p $no_of_passes -d ${discBinsize} -r $residual_factor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out \
+	  		#python $(which fit-hi-c.py) -l $id -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $mapp_thres_hic6 -p $no_of_passes  -o $out_dir  > $out_dir/$id.out; \
 			else \
-			python $(which fit-hic-LATEST.py) -l $id -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses -d ${discBinsize} -r $residualFactor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out \
-	  		#python $(which fit-hi-c.py) -l $id -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses  -o $out_dir > $out_dir/$id.out; \
+			python $(which fit-hic-LATEST.py) -l $id -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $mapp_thres_hic6 -p $no_of_passes -d ${discBinsize} -r $residual_factor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out \
+	  		#python $(which fit-hi-c.py) -l $id -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $mapp_thres_hic6 -p $no_of_passes  -o $out_dir > $out_dir/$id.out; \
 			fi
 
 		sys echo '<tr>' >> $html
 		sys echo '<td> $id </td>' >> $html
-		sys for t in `seq $(($noOfPasses+1))`; do \
+		sys for t in `seq $(($no_of_passes+1))`; do \
 			echo '<td> <a href="$id.plaw_pass${t}.png"><img src="$id.plaw_pass${t}.png"  width=400> </a></td>' >> $html; \
 			echo '<td> <a href="$id.spline_pass${t}.png"><img src="$id.spline_pass${t}.png"  width=400> </a></td>' >> $html; \
 			echo '<td> <a href="$id.plaw_pass${t}.extractOutliers.png"><img src="$id.plaw_pass${t}.extractOutliers.png" width=400> </a></td>' >> $html; \
@@ -569,7 +663,7 @@ void _hic_step6( string before_after, string id, \
 
 
 void _hic_step6a( string before_after, string id, \
-		string list_contacts_bfr_ice, string list_contacts_aft_ice_biases, string contacts_per_frag, int w, string out_dir ) {
+		string list_contacts_bfr_ice, string list_contacts_aft_ice_biases, string contacts_per_frag, int w, string out_dir, string info ) {
 	//#  - perform fit-hi-c on data before and after ICE
 	//#  - places results into $PROJDIR/data/fit-hi-c-results
 	prefix 		:= "$out_dir/$id"
@@ -582,16 +676,16 @@ void _hic_step6a( string before_after, string id, \
 	in 	:= [list_contacts_bfr_ice, list_contacts_aft_ice_biases, contacts_per_frag]
 	out 	:= [log, html]
 
-	task( taskName := "hic6 "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic6 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
 
-		sys discBinsize=$(($(($dist_up_thres-$distLowThres))/$num_bin))
+		sys discBinsize=$(($(($dist_up_thres-$distLowThres))/$no_of_bins))
 		sys echo ${discBinsize}
 
 		sys date >> $log
-		sys echo w=$w num_bin=$num_bin mappabilityThres=$mappabilityThres noOfPasses=$noOfPasses dist_up_thres=$dist_up_thres distLowThres=$distLowThres discBinsize=${discBinsize} residualFactor=$residualFactor>> $log 
+		sys echo w=$w no_of_bins=$no_of_bins mapp_thres_hic6=$mapp_thres_hic6 no_of_passes=$no_of_passes dist_up_thres=$dist_up_thres distLowThres=$distLowThres discBinsize=${discBinsize} residual_factor=$residual_factor>> $log 
 		sys echo >> $log
 
 		sys echo '<html>' > $html
@@ -603,7 +697,7 @@ void _hic_step6a( string before_after, string id, \
 		sys echo '<tr>' >> $html
 		sys echo '<th scope="col"> Library label </th>' >> $html
 
-		sys for t in `seq $(($noOfPasses+1))`; do \
+		sys for t in `seq $(($no_of_passes+1))`; do \
 			#echo '<th scope="col"> Equal occupancy binning </th>' >> $html; \
 			echo '<th scope="col"> Fitting - power-law </th>' >> $html; \
 			echo '<th scope="col"> Fitting - spline </th>' >> $html; \
@@ -616,7 +710,7 @@ void _hic_step6a( string before_after, string id, \
 
 		sys echo '</tr>' >> $html
 
-		sys noOfCols=$((($noOfPasses+1)*7))
+		sys noOfCols=$((($no_of_passes+1)*7))
 		sys echo '<tr>' >> $html
 		sys echo '<th> </th>' >> $html
 		sys for t in `seq ${noOfCols}`; do \
@@ -625,14 +719,14 @@ void _hic_step6a( string before_after, string id, \
 		sys echo '</tr>' >> $html
 
 		sys if [[ $before_after == "afterICE" ]]; then \
-			python $(which fit-hic-LATEST_std.py) -l "$id" -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses -d ${discBinsize} -r $residualFactor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out; \
+			python $(which fit-hic-LATEST_std.py) -l "$id" -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $mapp_thres_hic6 -p $no_of_passes -d ${discBinsize} -r $residual_factor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out; \
 			else \
-			python $(which fit-hic-LATEST_std.py) -l "$id" -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $num_bin -m $mappabilityThres -p $noOfPasses -d ${discBinsize} -r $residualFactor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out; \
+			python $(which fit-hic-LATEST_std.py) -l "$id" -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $mapp_thres_hic6 -p $no_of_passes -d ${discBinsize} -r $residual_factor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out; \
 			fi
 
 		sys echo '<tr>' >> $html
 		sys echo '<td> $id </td>' >> $html
-		sys for t in `seq $(($noOfPasses+1))`; do \
+		sys for t in `seq $(($no_of_passes+1))`; do \
 			echo '<td> <a href="$id.plaw_pass${t}.png"><img src="$id.plaw_pass${t}.png"  width=400> </a></td>' >> $html; \
 			echo '<td> <a href="$id.spline_pass${t}.png"><img src="$id.spline_pass${t}.png"  width=400> </a></td>' >> $html; \
 			echo '<td> <a href="$id.plaw_pass${t}.extractOutliers.png"><img src="$id.plaw_pass${t}.extractOutliers.png" width=400> </a></td>' >> $html; \
@@ -655,33 +749,6 @@ string get_cln_pair( int lib, int rep ) {
 	key := "cln_pair" + lib + "_" + rep
 	key2 := "cln_pair_L" + lib + "_R" + rep
 	key3 := "cln_pair_R" + rep + "_L" + lib
-
-	if ( cmd_line_arg_has_key( key ) ) {
-		return get_cmd_line_arg_val( key )
-	}
-	else if ( cmd_line_arg_has_key( key2 ) ) {
-		return get_cmd_line_arg_val( key2 )
-	}	
-	else if ( cmd_line_arg_has_key( key3 ) ) {
-		return get_cmd_line_arg_val( key3 )
-	}	
-	else if ( conf.hasKey( key ) ) {
-		return get_path( conf{ key } )
-	}
-	else if ( conf.hasKey( key2 ) ) {
-		return get_path( conf{ key2 } )
-	}
-	else if ( conf.hasKey( key3 ) ) {
-		return get_path( conf{ key3 } )
-	}
-	return ""
-}
-
-string get_extr_pair( int lib, int rep ) {
-
-	key := "extr_pair" + lib + "_" + rep
-	key2 := "extr_pair_L" + lib + "_R" + rep
-	key3 := "extr_pair_R" + rep + "_L" + lib
 
 	if ( cmd_line_arg_has_key( key ) ) {
 		return get_cmd_line_arg_val( key )

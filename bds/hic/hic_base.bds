@@ -42,8 +42,8 @@ void init_hic_base() {
 		print( "Prefix\t\t\t: $prefix\n" )
 		print( "# replicates\t\t: $num_rep\n" )
 		print( "# libraries\t\t: $num_lib\n" )
-		print( "Replicate names\t: $reps\n" )
-		print( "Library names\t: $libs\n" )
+		print( "Replicate names\t\t: $reps\n" )
+		print( "Library names\t\t: $libs\n" )
 		print("\n")
 	}
 }

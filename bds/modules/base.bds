@@ -402,12 +402,18 @@ string mkdir_path( string str ) {
 	if ( path.exists() ) {		
 		return path
 	}
+	else {
+		path.mkdir()
+		return path
+	}
+/*	
 	else if ( path.mkdir() ) {
 		return path
 	}
 	else {
 		error("Could not make for $path\n")
 	}
+*/	
 }
 
 string[] get_script_file_paths( string suffix ) {
