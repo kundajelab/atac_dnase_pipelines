@@ -37,7 +37,7 @@ $ mkdir -p ~/.bds
 $ cp bds.config ~/.bds
 ```
 
-For Kundaje lab members, add the following to the command line instead of defining all species-specific parameters like BWA index.
+For Kundaje lab members, add the following to the command line instead of defining all species-specific parameters like BWA index and umap path.
 ```
 -kundaje_lab -species [SPECIES: hg19, mm9, ...]
 ```
@@ -47,10 +47,10 @@ For Kundaje lab members, add the following to the command line instead of defini
 There are two stages for HiC pipeline.
 
 1) Mapping and sorting (hic_map.bds)
-: Inputs are fastqs. Map, align and sort them to generate extracted/cleaned pairs.
+: Inputs are fastqs. Map, align and sort them to generate cleaned pairs.
 
 2) HiC (hic.bds)
-: Using extracted/cleaned pairs from the stage 1), perform HiC analysis.
+: Using cleaned pairs from the stage 1), perform HiC analysis.
 
 Two stages share the same indices for librarie (lib) and replicates (rep).
 
@@ -67,6 +67,7 @@ $ bds hic_map.bds \
 -fastq_L[Lib_ID]_R[Rep_ID]_P[Pair_ID] [FASTQ_FOR_LIB1_REP1_PAIR1] \
 ...
 -bwa_idx [BWA_INDEX]
+-nth_bwa [# THREADS FOR BWA]
 ```
 
 2) Define parameters in configuration file.
@@ -79,6 +80,7 @@ reps = R2,R8
 fastq_L[Lib_ID]_R[Rep_ID]_P[Pair_ID] = [FASTQ_FOR_LIB1_REP1_PAIR1]
 ...
 bwa_idx = [BWA_INDEX]
+nth_bwa = [# THREADS FOR BWA]
 ```
 
 
@@ -98,13 +100,12 @@ $ bds hic.bds \
 -umap [MAPPABILITY_DATA]
 ```
 
-2) Using paths for individual cleaned/extracted pairs
+2) Using paths for individual cleaned pairs
 ```
 $ bds hic.bds \
 -libs D3,D6,SC \
 -reps R2,R8 \
 -cln_pair_L1_R1 [CLEANED_PAIR_FOR_LIB1_REP1] \
--extr_pair_L1_R1 [EXTRACTED_PAIR_FOR_LIB1_REP1] \
 ...
 -merge [MERGE_METHOD; 0:no_merge, 1:merge_replicates_only, 2:merge_libraries_and_replicates] \
 -res [COMMA-SEPERATED RESOLUTIONS; Example: 100,200,1000] \
@@ -177,6 +178,8 @@ $ bds hic.bds
 Add "-s sge" to the command line.
 
 ```
+$ bds -s sge hic_map.bds [...]
+
 $ bds -s sge hic.bds [...]
 ```
 
