@@ -45,6 +45,7 @@ string{} RE_sites // map of RE sites ( key=w(resolution) )
 string{} RE_sites_mid // map of RE sites mid ( key=w(resolution) )
 string{} biases // map of bias ( key=w(resolution) )
 
+string{} clean_pairs_comb // merged and combined clean pairs
 
 
 help()
@@ -54,6 +55,8 @@ init_hic()
 find_mapped_data()
 
 set_shell_env()
+
+merge_cleaned_pairs()
 
 hic()
 
@@ -149,121 +152,7 @@ void find_mapped_data() {
 	}
 }
 
-/*
-void hic() {
-
-	for ( int w : resolution ) {
-
-		if ( no_par_job )   _hic_preprocess( w )
-		else 		par _hic_preprocess( w )
-	}
-
-	wait
-
-	for ( int w : resolution ) {
-
-		string{} clean_pairs_comb // key=id, val=comma-separated cleanedPairs files
-
-		// merge cleanedPairs
-		if ( merge == 0 ) { // no merge
-
-			clean_pairs_comb = cleaned_pairs
-		}
-		else if ( merge == 1 ) { // merge rep only
-
-			for (int lib=1;lib<=num_lib;lib++) {
-
-				new_id := get_id( lib )
-
-				for (int rep=1;rep<=num_rep;rep++) {
-
-					id := get_id( lib, rep )
-
-					if ( clean_pairs_comb.hasKey( new_id ) ) \
-						clean_pairs_comb{ new_id } = clean_pairs_comb{ new_id } + "," + cleaned_pairs{ id }
-					else \
-						clean_pairs_comb{ new_id } = cleaned_pairs{ id }
-				}
-			}
-		}
-		else if ( merge == 2 ) { // merge rep and lib
-
-			new_id := prefix
-
-			for (int lib=1;lib<=num_lib;lib++) {
-
-				for (int rep=1;rep<=num_rep;rep++) {
-
-					id := get_id( lib, rep )
-
-					if ( clean_pairs_comb.hasKey( new_id ) ) \
-						clean_pairs_comb{ new_id } = clean_pairs_comb{ new_id } + "," + cleaned_pairs{ id }
-					else \
-						clean_pairs_comb{ new_id } = cleaned_pairs{ id }
-				}
-			}
-		}
-
-		for( string id : clean_pairs_comb.keys() ) {
-
-			if ( no_par_job )   _hic_postprocess( id, clean_pairs_comb{ id }, w )
-			else 		par _hic_postprocess( id, clean_pairs_comb{ id }, w )
-
-		}
-
-		if ( no_par_job ) wait
-	}
-
-	wait
-}
-*/
-
-void hic() {
-
-	for ( int w : resolution ) {
-
-		if ( no_par_job )   _hic( w )
-		else 		par _hic( w )
-	}
-}
-
-void _hic( int w ) {
-
-	// HiC_preprocess first (step 1 and 3)
-	_hic_preprocess( w )
-
-	wait
-
-	// merge cleaned pairs
-	clean_pairs_comb := _merge_cleaned_pairs()
-
-	// HiC_postprocess (step 2, 4, 5, 6)
-	for( string id : clean_pairs_comb.keys() ) {
-
-		if ( no_par_job )    _hic_postprocess( id, clean_pairs_comb{ id }, w )
-		else 		 par _hic_postprocess( id, clean_pairs_comb{ id }, w )
-	}
-
-	if ( no_par_job ) wait
-}
-
-void _hic_preprocess( int w ) {
-
-	info := "RE$w"
-
-	// create output dir
-	RE_site_dir 	:= mkdir_path( "$out_dir/RESites" )
-	Bias_dir 	:= mkdir_path( "$out_dir/preprocessedForBias" )
-
-	(RE_sites{"$w"}, RE_sites_mid{"$w"}) = _hic_step1( RE_file, w, RE_site_dir, info )
-	wait
-
-	biases{"$w"} = _hic_step3( RE_sites{"$w"}, w, Bias_dir, info )
-}
-
-string{} _merge_cleaned_pairs() {  // return: key=id, val=comma-separated cleanedPairs files
-	
-	string{} clean_pairs_comb
+void merge_cleaned_pairs() {  // return: key=id, val=comma-separated cleanedPairs files
 
 	if ( merge == 0 ) { // no merge
 
@@ -304,7 +193,53 @@ string{} _merge_cleaned_pairs() {  // return: key=id, val=comma-separated cleane
 		}
 	}
 
-	return clean_pairs_comb
+	print("\nMerge method: "+get_merge_method()+"\n")
+
+	print("\nMerged cleaned pairs:\n\n")
+
+	for( string id : clean_pairs_comb.keys() ) {
+		print("\t$id: "+clean_pairs_comb{ id }+"\n")
+	}
+}
+
+void hic() {
+
+	for ( int w : resolution ) {
+
+		if ( no_par_job )   _hic( w )
+		else 		par _hic( w )
+	}
+}
+
+void _hic( int w ) {
+
+	// HiC_preprocess first (step 1 and 3)
+	_hic_preprocess( w )
+
+	wait
+
+	// HiC_postprocess (step 2, 4, 5, 6)
+	for( string id : clean_pairs_comb.keys() ) {
+
+		if ( no_par_job )    _hic_postprocess( id, clean_pairs_comb{ id }, w )
+		else 		 par _hic_postprocess( id, clean_pairs_comb{ id }, w )
+	}
+
+	if ( no_par_job ) wait
+}
+
+void _hic_preprocess( int w ) {
+
+	info := "RE$w"
+
+	// create output dir
+	RE_site_dir 	:= mkdir_path( "$out_dir/RESites" )
+	Bias_dir 	:= mkdir_path( "$out_dir/preprocessedForBias" )
+
+	(RE_sites{"$w"}, RE_sites_mid{"$w"}) = _hic_step1( RE_file, w, RE_site_dir, info )
+	wait
+
+	biases{"$w"} = _hic_step3( RE_sites{"$w"}, w, Bias_dir, info )
 }
 
 void _hic_postprocess( string id, string clean_pairs_comb, int w ) {

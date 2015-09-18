@@ -24,6 +24,7 @@ set_shell_env()
 
 map()
 
+stat() // gather all stats in stat directory
 
 
 
@@ -100,7 +101,7 @@ void _map( int lib, int rep ) {
 	mapped_dir 	:= mkdir_path( "$out_dir/mappedReads/$id" )
 	srt_mapped_dir 	:= mkdir_path( "$out_dir/sortedMappedReads/$id" )
 	extracted_dir 	:= mkdir_path( "$out_dir/extractedPairs/$id" )			
-	cleaned_dir := mkdir_path( "$out_dir/cleanedPairs/$id" )
+	cleaned_dir 	:= mkdir_path( "$out_dir/cleanedPairs/$id" )
 
 	fastqs := get_fastqs_hic( lib, rep ) // get fastqs
 
@@ -188,7 +189,7 @@ string _map_step2_sort( string id, string sam_gz, string out_dir ) {
 		sys total=$((${m}+${n}+${f}))
 		
 		//## write out the statistics of alignment 
-		sys echo "# Total\\tuniquelyMapped\\tnonMapped\\tmappedButNotQualified " > $stat 
+		sys echo -e "# Total\tuniquelyMapped\tnonMapped\tmappedButNotQualified " > $stat 
 		sys echo -e "$id\t${total}\t${f}\t${n}\t${m} " >> $stat
 
 		sys rm -f $sam
@@ -230,7 +231,7 @@ string _map_step4_remove_PCR_dups( string id, string extracted_gz, string out_di
 
 	extracted_tmp 	:= "$prefix"+"_extractedPairs.tmp"
 
-	num_cleaned 	:= "$prefix"+"_NumberOfcleanedPairs"
+	num_cleaned 	:= "$prefix"+"_NumberOfCleanedPairs"
 
 	in 	:= extracted_gz
 	out 	:= cleaned_gz
@@ -269,6 +270,23 @@ string _map_step4_remove_PCR_dups( string id, string extracted_gz, string out_di
 		sys rm -f $extracted_tmp
 	}
 	return out
+}
+
+void stat() {
+
+	stat_out_dir 	:= mkdir_path( "$out_dir/stat" )
+
+	map_stat_file 		:= "$stat_out_dir/SortedAlignment"
+	extracted_stat_file 	:= "$stat_out_dir/NumberOfExtractedPairs"
+	cleaned_stat_file 	:= "$stat_out_dir/NumberOfCleanedPairs"
+
+	sys find $out_dir/extractedPairs/ -name "*NumberOfExtractedPairs" -type f -exec cat {} \; | sort -u > $extracted_stat_file || true
+
+	sys find $out_dir/cleanedPairs/ -name "*NumberOfCleanedPairs" -type f -exec cat {} \; | sort -u | grep "pairsBeforePCR" > $cleaned_stat_file || true
+	sys find $out_dir/cleanedPairs/ -name "*NumberOfCleanedPairs" -type f -exec cat {} \; | sort -u | grep -v "pairsBeforePCR" >> $cleaned_stat_file || true
+
+	sys find $out_dir/sortedMappedReads/ -name "*.stat" -type f -exec cat {} \; | sort -u | grep "uniquely" > $map_stat_file || true
+	sys find $out_dir/sortedMappedReads/ -name "*.stat" -type f -exec cat {} \; | sort -u | grep -v "uniquely" >> $map_stat_file || true
 }
 
 string[] get_fastqs_hic( int lib, int rep ) {  // if paired-end return [PE1, PE2], elseif single-end else return [PE1], else []	
