@@ -48,6 +48,7 @@ string{} biases // map of bias ( key=w(resolution) )
 string{} clean_pairs_comb // merged and combined clean pairs
 
 
+
 help()
 
 init_hic()
@@ -246,8 +247,6 @@ void _hic_postprocess( string id, string clean_pairs_comb, int w ) {
 
 	info := "RE$w $id"
 
-	merge_meth := get_merge_method()
-	
 	// create output dirs
 	bfr_ice_dir	:= mkdir_path( "$out_dir/interactionCounts/beforeICE/RE$w")
 	raw_contact_dir := mkdir_path( "$out_dir/Plots")

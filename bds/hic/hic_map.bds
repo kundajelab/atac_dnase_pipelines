@@ -165,7 +165,6 @@ string _map_step2_sort( string id, string sam_gz, string out_dir ) {
 
 		sys zcat $sam_gz > $sam
 
-		//sys zcat -f $sam_gz | samtools view -S -F 4 - \
 		sys samtools view -S -F 4 $sam \
 			| awk '$14=="X0:i:1" &&  $5>=30 && $12=="XT:A:U" {split($1,id,"#"); split($13,editDistField,":"); if (editDistField[3] <= $num_mismatch) {print id[1]"\t"$2"\t"$3"\t"$4"\t"$10}}' \
 			| sort -k 1,1 > $mapped
@@ -174,7 +173,6 @@ string _map_step2_sort( string id, string sam_gz, string out_dir ) {
 		sys gzip $mapped
 
 		//## perform the above for non-mapped pairs		
-		//sys zcat -f $sam_gz | samtools view -S -f 4 - \
 		sys samtools view -S -f 4 $sam \
 			| awk '{split($1,id,"#"); print id[1]"\t"$2"\t"$3"\t"$4"\t"$10}' \
 			| sort -k 1,1 > $non_mapped 
@@ -182,7 +180,6 @@ string _map_step2_sort( string id, string sam_gz, string out_dir ) {
 		sys gzip $non_mapped
 
 		//## mapped but not uniques or quality below 30s or mismatch above what we expect
-		//sys m=`zcat -f $sam_gz | samtools view -S -F 4 - \
 		sys m=`samtools view -S -F 4 $sam \
 			| awk '{split($13,editDistField,":"); if (editDistField[3] > $num_mismatch || $14!="X0:i:1" || $5<30 || $12!="XT:A:U") {print $1}}' \
 			|  wc -l `
@@ -243,23 +240,12 @@ string _map_step4_remove_PCR_dups( string id, string extracted_gz, string out_di
 		
 		sys zcat $extracted_gz > $extracted_tmp
 
-		//sys countBefore=`zcat $extracted_gz | wc -l | awk '{print $1}' `
 		sys countBefore=`wc -l $extracted_tmp | awk '{print $1}' `
-			
-		//sys zcat -f $extracted_gz | python $(which sort_loci.py) - 2 \
-		//sys python $(which sort_loci.py) $extracted_tmp 2 \
-		//	| awk '{s1="+"; s2="+"; if ($2=="16") {s1="-"}; if ($6=="16") {s2="-"}; printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $3, $4, s1, $7, $8, s2, $5, $9, $1)}' \
-		//	| sort -u -k1,6 \
-		//	| awk '{ print $9 "\t" $3 "\t" $1 "\t" $2 "\t" $7 "\t" $6 "\t" $4 "\t" $5 "\t" $8}' > $cleaned
 
 		sys python $(which sort_loci.py) $extracted_tmp 2 \
 			| awk 'OFS="\t" {s1="+"; s2="+"; if ($2=="16") {s1="-"}; if ($6=="16") {s2="-"}; print $3, $4, s1, $7, $8, s2, $5, $9, $1}' \
 			| sort -u -k1,6 \
 			| awk 'OFS="\t" { print $9, $3, $1, $2, $7, $6, $4, $5, $8}' > $cleaned
-
-		//sys python $(which sort_loci.py) $extracted_tmp 2 \
-		//	| awk 'OFS="\t" {s1="+"; s2="+"; if ($2=="16") {s1="-"}; if ($6=="16") {s2="-"}; print $1, s1, $3, $4, $5, s2, $7, $8, $9}' \
-		//	| sort -u -k3,3 -k4,4 -k2,2 -k7,7 -k8,8 -k6,6 > $cleaned
 
 		sys countAfter=`wc -l $cleaned | awk '{print $1}' `
 		sys gzip $cleaned
