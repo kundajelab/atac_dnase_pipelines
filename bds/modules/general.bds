@@ -154,6 +154,6 @@ void init_shell_env() {
 	SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
 
 	if ( v ) { // verbose
-		print_if_not_null( "Shell cmd. for init.", "$SHCMD_INIT" )		
+		print( "Shell cmd. for init.\t: $SHCMD_INIT\n" )
 	}		
 }
