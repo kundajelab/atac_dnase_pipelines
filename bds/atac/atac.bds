@@ -183,7 +183,7 @@ string[] _report_atac( string pdf, string png, string out_dir, string info ) {
 	in 	:= [pdf, png]
 	out 	:= [tex_file, pdf_file]
 
-	task( taskName:= "bwa_aln "+info, \
+	task( taskName:= "report "+info, \
 		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
 		out<-in ) {
 

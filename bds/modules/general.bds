@@ -25,7 +25,7 @@ addpath 	:= "" 		help Path separated by ; to be PREPENDED to \$PATH. Paths are  
 
 
 // environment modules (bash) initialization file paths (pick from the first if exists)
-init_mods 	:= ["/etc/profile.d/modules.sh", "/etc/profile.d/modules.bash", "$MODULESHOME/init/bash"]
+init_mods 	:= ["/etc/profile.d/modules.sh", "/etc/profile.d/modules.bash"]
 
 // basic unix paths and BigDataScript bin path (pick all)
 init_paths 	:= ["/bin","/usr/bin","/usr/local/bin"]
@@ -67,6 +67,18 @@ void init_base() {
 }
 
 void init_shell_env() {	
+
+	// get shell var MODULESHOME if exists
+
+	var_MODULESHOME := "var_MODULESHOME"
+	sys echo "${MODULESHOME}" > $var_MODULESHOME
+	MODULESHOME := var_MODULESHOME.read().replace("\n","")
+	var_MODULESHOME.delete()
+
+	if (MODULESHOME!="") init_mods.add("$MODULESHOME/init/bash")
+
+
+	// init shell environments
 
 	string shellcmd, module, path
 
