@@ -70,6 +70,10 @@ void init_atac() {
 
 void chk_input_data() {
 
+	if ( !("$bwt2_idx.1.bt2").exists() ) error("\nBowtie2 index doesn't exists! ($bwt2_idx.1.bt2)\n")
+	if ( !vplot_idx.exists() ) error("\nVPlot index doesn't exists! ($vplot_idx) \n")	
+	if ( !chrsz.exists() ) error("\nChrome sizes file doesn't exists! ($chrsz)\n")	
+
 	string[] fastqs_all
 
 	for ( int rep=1; rep <= num_rep; rep++) {

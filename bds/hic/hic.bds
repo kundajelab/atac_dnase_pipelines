@@ -53,6 +53,8 @@ help()
 
 init_hic()
 
+chk_input_data()
+
 find_mapped_data()
 
 set_shell_env()
@@ -122,6 +124,13 @@ void init_hic() {
 	}
 }
 
+void chk_input_data() {
+	
+	if ( !RE_file.exists() ) error("\nRE file doesn't exists! ($RE_file) \n")	
+	if ( !blacklist.exists() ) error("\nBlacklist file doesn't exists! ($blacklist)\n")	
+	if ( !umap.exists() ) error("\nUmap directory doesn't exists! ($umap)\n")	
+}
+
 void find_mapped_data() {
 
 	if ( root_mapped != "" ) {
@@ -139,10 +148,10 @@ void find_mapped_data() {
 			string cleaned
 
 			if ( root_mapped != "" ) {
-				cleaned 	= "$root_mapped/cleanedPairs/$id/$id"+"_cleanedPairs.gz"
+				cleaned = "$root_mapped/cleanedPairs/$id/$id"+"_cleanedPairs.gz"
 			}
 			else {
-				cleaned 	= get_cln_pair( lib, rep )
+				cleaned = get_cln_pair( lib, rep )
 			}
 
 			print("\t$id: $cleaned\n")

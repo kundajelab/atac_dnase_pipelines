@@ -53,6 +53,8 @@ void init_hic_map() {
 
 void chk_input_data() {
 
+	if ( !("$bwa_idx.bwt").exists() ) error("\nBWA index doesn't exists!\n")
+
 	print("\nChecking fastqs...\n\n")
 
 	string[] fastqs_all
