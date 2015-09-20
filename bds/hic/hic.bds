@@ -610,7 +610,7 @@ void _hic_step6a( string before_after, string id, \
 	in 	:= [list_contacts_bfr_ice, list_contacts_aft_ice_biases, contacts_per_frag]
 	out 	:= [log, html]
 
-	task( taskName := "hic6 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic6a $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
