@@ -16,6 +16,8 @@ help ATAC-Seq Pipeline setting : fragment length, # replicates
 
 fraglen 	:= 75 		help Read fragment length (default: 75).
 num_rep 	:= 1		help # replicates. ATAC seq for each replicate will go IN PARALLEL. (default: 1).
+no_vplot	:= false 	help Add it to bypass V plot generation (default: false).
+no_preseq 	:= false 	help Add it to bypass preseq analysis (default: false).
 
 help()
 
@@ -32,7 +34,10 @@ void init_atac() {
 
 	if ( conf_file_exists() ) {
 
-		fraglen 	= get_conf_val_int( fraglen,		["FRAGLEN", "FRAG_LEN"] )
+		fraglen 	= get_conf_val_int( fraglen,		["fraglen", "frag_len"] )
+		num_rep 	= get_conf_val_int( num_rep,		["num_rep", "numrep"] )
+		no_vplot 	= get_conf_val_bool( no_vplot,		["no_vplot"] )
+		no_preseq 	= get_conf_val_bool( no_preseq,		["no_preseq"] )
 	}
 	else if ( is_legacy_input() ) { // legacy input method taking first 8 parameters from cmd. line (num_rep=1)
 
@@ -64,14 +69,19 @@ void init_atac() {
 
 	if ( v ) { // verbose
 		print("\n")
-		print( "Fragment length\t: $fraglen\n")
+		print( "Fragment length\t\t: $fraglen\n")
+		print( "# Replicates\t\t: $num_rep\n")
+		print( "No vplot generation\t: $no_vplot\n")
+		print( "No preseq analysis\t: $no_preseq\n")
 	}
 }
 
 void chk_input_data() {
 
 	if ( !("$bwt2_idx.1.bt2").exists() ) error("\nBowtie2 index doesn't exists! ($bwt2_idx.1.bt2)\n")
-	if ( !vplot_idx.exists() ) error("\nVPlot index doesn't exists! ($vplot_idx) \n")	
+
+	if ( !no_vplot && !vplot_idx.exists() ) error("\nVPlot index doesn't exists! ($vplot_idx) \n")	
+
 	if ( !chrsz.exists() ) error("\nChrome sizes file doesn't exists! ($chrsz)\n")	
 
 	string[] fastqs_all
@@ -138,16 +148,19 @@ void _atac( int rep ) {
 	}
 
 	string p1, p2
+
 	( p1, p2 ) = _trim_adapters( fastqs[0], fastqs[1], atac_out_dir, info )
 
 	wait // hold parallel
 
 	string bam, log
+
 	( bam, log ) = _bowtie2( p1, p2, atac_out_dir, info )
 
 	wait
 
 	string nodup_bam, nodup_bam_idx
+
 	( nodup_bam, nodup_bam_idx ) = _bam_to_nodup_bam_PE( bam, atac_out_dir, info )
 
 	wait
@@ -157,24 +170,35 @@ void _atac( int rep ) {
 	wait
 
 	string npeakfile, fc_bw, pval_bw
+
 	( npeakfile, fc_bw, pval_bw ) = _macs2_bed( bed, "$fraglen", atac_out_dir, info )
 
 	if ( no_par_job ) wait
 
 	string srt_bam, srt_bai 
+
 	( srt_bam, srt_bai ) = _bam_to_srt_bam( bam, atac_out_dir, info )
 
 	wait
-	
-	png := _vplot( srt_bam, atac_out_dir, info )
 
-	if ( no_par_job ) wait
+	string png, pdf
 
-	pdf := _preseq( srt_bam, atac_out_dir, info )
+	if ( !no_vplot ) {
+		png = _vplot( srt_bam, atac_out_dir, info )
 
-	wait
+		if ( no_par_job ) wait
+	}
 
-	_report_atac( pdf, png, atac_out_dir, info )
+	if ( !no_preseq ) {
+		pdf = _preseq( srt_bam, atac_out_dir, info )
+
+		wait
+	}
+
+	if ( !no_vplot && !no_preseq ) {
+
+		_report_atac( pdf, png, atac_out_dir, info )
+	}
 }
 
 string[] _report_atac( string pdf, string png, string out_dir, string info ) {
