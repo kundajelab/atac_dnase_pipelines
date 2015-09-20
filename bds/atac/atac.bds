@@ -148,26 +148,25 @@ void _atac( int rep ) {
 
 	wait
 
-	string srt_bam, srt_bai 
-	( srt_bam, srt_bai ) = _bam_to_srt_bam( bam, atac_out_dir, info )
-
-	wait
-
-	// jobs go in parallel
-	pdf := _preseq( srt_bam, atac_out_dir, info )
-
-	if ( no_par_job ) wait
-	
-	png := _vplot( srt_bam, atac_out_dir, info )
-
-	if ( no_par_job ) wait
-
 	bed := _bam_to_bed_non_chrM( nodup_bam, atac_out_dir, info )
 
 	wait
 
 	string npeakfile, fc_bw, pval_bw
 	( npeakfile, fc_bw, pval_bw ) = _macs2_bed( bed, "$fraglen", atac_out_dir, info )
+
+	if ( no_par_job ) wait
+
+	string srt_bam, srt_bai 
+	( srt_bam, srt_bai ) = _bam_to_srt_bam( bam, atac_out_dir, info )
+
+	wait
+	
+	png := _vplot( srt_bam, atac_out_dir, info )
+
+	if ( no_par_job ) wait
+
+	pdf := _preseq( srt_bam, atac_out_dir, info )
 
 	wait
 
