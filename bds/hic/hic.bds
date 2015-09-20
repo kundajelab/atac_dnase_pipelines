@@ -128,7 +128,7 @@ void chk_input_data() {
 	
 	if ( !RE_file.exists() ) error("\nRE file doesn't exists! ($RE_file) \n")	
 	if ( !blacklist.exists() ) error("\nBlacklist file doesn't exists! ($blacklist)\n")	
-	if ( !umap.exists() ) error("\nUmap directory doesn't exists! ($umap)\n")	
+	if ( !umap.exists() ) error("\nUmap directory doesn't exists! ($umap)\n")
 }
 
 void find_mapped_data() {
