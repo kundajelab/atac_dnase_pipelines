@@ -98,6 +98,21 @@ max( [NTH_BWT2], [NTH_MACS2] ) x [NUM_REP]
 If you don't want jobs to be parallelized (each job can use multiple threads though), add '-no_par_job'.
 
 
+### If you don't want V plot 
+
+Add the following flag to the command line.
+```
+-no_vplot
+```
+
+### If you don't want preseq analysis
+
+Add the following flag to the command line.
+```
+-no_preseq
+```
+
+
 ### Using Species file
 
 For the pipeline, there are many species specific parameters like indices (bwa, bowtie, ...), chrome sizes, sequence file and genome size. If you have multiple pipelines, it's a hard job to individually define all parameters for each pipeline. However, if you have a species file with all species specific parameters defined, then you define less parameters and share the species file with all other pipelines.
