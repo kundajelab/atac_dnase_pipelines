@@ -137,12 +137,12 @@ If -kundaje_lab is defined.
 
 You can override any parameters defined in the species file by adding them to command line argument or configuration file.
 ```
-$ bds chipseq.bds ... -species [SPECIES] -species_file [SPECIES_FILE] ... [ANY_PARAMETETRS_TO_BE_OVERRIDEN]
+$ bds hic.bds ... -species [SPECIES] -species_file [SPECIES_FILE] ... [ANY_PARAMETETRS_TO_BE_OVERRIDEN]
 ```
 
 For example, if you want to override parameters for BWA index and umap:
 ```
-$ bds chipseq.bds ... -species [SPECIES] -species_file [SPECIES_FILE] ... -bwa_idx [YOUR_OWN_BWA_IDX] -umap [YOUR_OWN_UMAP]
+$ bds hic.bds ... -species [SPECIES] -species_file [SPECIES_FILE] ... -bwa_idx [YOUR_OWN_BWA_IDX] -umap [YOUR_OWN_UMAP]
 ```
 
 Example species file:
