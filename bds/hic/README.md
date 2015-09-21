@@ -41,6 +41,11 @@ For Kundaje lab members, add the following to the command line instead of defini
 ```
 -kundaje_lab -species [SPECIES: hg19, mm9, ...]
 ```
+Add the following too if your species is hg19. HiC pipeline doesn't work with wider range of umap (eg. globalmap_k1tok1000)
+```
+-umap /mnt/data/ENCODE/umap/hg19_allmappable/globalmap_k20tok54
+```
+
 
 ### How does HiC pipeline works?
 

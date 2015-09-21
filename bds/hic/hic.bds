@@ -260,7 +260,8 @@ void _hic_postprocess( string id, string clean_pairs_comb, int w ) {
 	bfr_ice_dir	:= mkdir_path( "$out_dir/interactionCounts/beforeICE/RE$w")
 	raw_contact_dir := mkdir_path( "$out_dir/Plots")
 	aft_ice_dir	:= mkdir_path( "$out_dir/interactionCounts/afterICE/RE$w")
-	plot_dir	:= mkdir_path( "$out_dir/Plots/RE$w")
+	//plot_dir	:= mkdir_path( "$out_dir/Plots/RE$w")
+	plot_dir	:= mkdir_path( "$out_dir/Plots/bias/RE$w")
 	contact_dir	:= mkdir_path( "$out_dir/ContactsPerFragment/RE$w")
 
 	hic_bfr_ice_dir := mkdir_path( "$out_dir/fit-hi-c-results/RE$w/beforeICE/$id")
@@ -398,10 +399,11 @@ string _hic_step2( string id, string[] cleaned_pairs, string RE_site, int w, str
 string _hic_step2a( string id, string list_contacts_bfr_ice, int w, string out_dir, string info ) {
 	
 	prefix 		:= "$out_dir/$id"
-	raw_contact_cnts := "$prefix"+"_RawContactCounts_RE$w"
+	raw_contact_cnts 	:= "$prefix"+"_RawContactCounts_RE$w"
+	raw_contact_cnts_png 	:= "$prefix"+"_RawContactCounts_RE$w.png"
 
 	in 	:= list_contacts_bfr_ice
-	out 	:= raw_contact_cnts
+	out 	:= raw_contact_cnts_png
 
 	task( taskName := "hic2a $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
 		out<-in) {
@@ -409,6 +411,7 @@ string _hic_step2a( string id, string list_contacts_bfr_ice, int w, string out_d
 		sys $SHCMD_INIT
 
 		sys python $(which plot_ScatterContactCounts.py) $list_contacts_bfr_ice $id $w $raw_contact_cnts
+		sys rm -f $raw_contact_cnts
 	}
 
 	return out
@@ -571,7 +574,7 @@ void _hic_step6( string before_after, string id, \
 		sys echo '<tr>' >> $html
 		sys echo '<th> </th>' >> $html
 		sys for t in `seq ${noOfCols}`; do \
-			echo '<th> ${t} </th>' >> $html; \
+			echo '<th> '${t}' </th>' >> $html; \
 			done
 		sys echo '</tr>' >> $html
 
@@ -587,15 +590,15 @@ void _hic_step6( string before_after, string id, \
 		sys echo '<tr>' >> $html
 		sys echo '<td> $id </td>' >> $html
 		sys for t in `seq $(($no_of_passes+1))`; do \
-			echo '<td> <a href="$id.plaw_pass${t}.png"><img src="$id.plaw_pass${t}.png"  width=400> </a></td>' >> $html; \
-			echo '<td> <a href="$id.spline_pass${t}.png"><img src="$id.spline_pass${t}.png"  width=400> </a></td>' >> $html; \
-			echo '<td> <a href="$id.plaw_pass${t}.extractOutliers.png"><img src="$id.plaw_pass${t}.extractOutliers.png" width=400> </a></td>' >> $html; \
-			echo '<td> <a href="$id.spline_pass${t}.extractOutliers.png"><img src="$id.spline_pass${t}.extractOutliers.png" width=400> </a></td>' >> $html; \
-			echo '<td> <a href="$id.comparison_pass${t}.png"><img src="$id.comparison_pass${t}.png"  width=400> </a></td>' >> $html; \
-			#echo '<td> <a href="$id.plaw_pass${t}.qplot.png"><img src="$id.plaw_pass${t}.qplot.png"  width=400> </a></td>' >> $html; \
-			#echo '<td> <a href="$id.spline_pass${t}.qplot.png"><img src="$id.spline_pass${t}.qplot.png"  width=400> </a></td>' >> $html; \
-			echo '<td> <a href="$id.comparisonDisc_pass${t}.png"><img src="$id.comparisonDisc_pass${t}.png"  width=400> </a></td>' >> $html; \
-			echo '<td> <a href="$id.comparisonFitDisc_pass${t}.png"><img src="$id.comparisonFitDisc_pass${t}.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.plaw_pass'${t}'.png"><img src="$id.plaw_pass'${t}'.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.spline_pass'${t}'.png"><img src="$id.spline_pass'${t}'.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.plaw_pass'${t}'.extractOutliers.png"><img src="$id.plaw_pass'${t}'.extractOutliers.png" width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.spline_pass'${t}'.extractOutliers.png"><img src="$id.spline_pass'${t}'.extractOutliers.png" width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.comparison_pass'${t}'.png"><img src="$id.comparison_pass'${t}'.png"  width=400> </a></td>' >> $html; \
+			#echo '<td> <a href="$id.plaw_pass'${t}'.qplot.png"><img src="$id.plaw_pass'${t}'.qplot.png"  width=400> </a></td>' >> $html; \
+			#echo '<td> <a href="$id.spline_pass'${t}'.qplot.png"><img src="$id.spline_pass'${t}'.qplot.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.comparisonDisc_pass'${t}'.png"><img src="$id.comparisonDisc_pass'${t}'.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.comparisonFitDisc_pass'${t}'.png"><img src="$id.comparisonFitDisc_pass'${t}'.png"  width=400> </a></td>' >> $html; \
 			done
 
 		sys echo '<tr>' >> $html
@@ -657,7 +660,7 @@ void _hic_step6a( string before_after, string id, \
 		sys echo '<tr>' >> $html
 		sys echo '<th> </th>' >> $html
 		sys for t in `seq ${noOfCols}`; do \
-			echo '<th> ${t} </th>' >> $html; \
+			echo '<th> '${t}' </th>' >> $html; \
 			done
 		sys echo '</tr>' >> $html
 
@@ -670,15 +673,15 @@ void _hic_step6a( string before_after, string id, \
 		sys echo '<tr>' >> $html
 		sys echo '<td> $id </td>' >> $html
 		sys for t in `seq $(($no_of_passes+1))`; do \
-			echo '<td> <a href="$id.plaw_pass${t}.png"><img src="$id.plaw_pass${t}.png"  width=400> </a></td>' >> $html; \
-			echo '<td> <a href="$id.spline_pass${t}.png"><img src="$id.spline_pass${t}.png"  width=400> </a></td>' >> $html; \
-			echo '<td> <a href="$id.plaw_pass${t}.extractOutliers.png"><img src="$id.plaw_pass${t}.extractOutliers.png" width=400> </a></td>' >> $html; \
-			echo '<td> <a href="$id.spline_pass${t}.extractOutliers.png"><img src="$id.spline_pass${t}.extractOutliers.png" width=400> </a></td>' >> $html; \
-			echo '<td> <a href="$id.comparison_pass${t}.png"><img src="$id.comparison_pass${t}.png"  width=400> </a></td>' >> $html; \
-			#echo '<td> <a href="$id.plaw_pass${t}.qplot.png"><img src="$id.plaw_pass${t}.qplot.png"  width=400> </a></td>' >> $html; \
-			#echo '<td> <a href="$id.spline_pass${t}.qplot.png"><img src="$id.spline_pass${t}.qplot.png"  width=400> </a></td>' >> $html; \
-			echo '<td> <a href="$id.comparisonDisc_pass${t}.png"><img src="$id.comparisonDisc_pass${t}.png"  width=400> </a></td>' >> $html; \
-			echo '<td> <a href="$id.comparisonFitDisc_pass${t}.png"><img src="$id.comparisonFitDisc_pass${t}.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.plaw_pass'${t}'.png"><img src="$id.plaw_pass'${t}'.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.spline_pass'${t}'.png"><img src="$id.spline_pass'${t}'.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.plaw_pass'${t}'.extractOutliers.png"><img src="$id.plaw_pass'${t}'.extractOutliers.png" width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.spline_pass'${t}'.extractOutliers.png"><img src="$id.spline_pass'${t}'.extractOutliers.png" width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.comparison_pass'${t}'.png"><img src="$id.comparison_pass'${t}'.png"  width=400> </a></td>' >> $html; \
+			#echo '<td> <a href="$id.plaw_pass'${t}'.qplot.png"><img src="$id.plaw_pass'${t}'.qplot.png"  width=400> </a></td>' >> $html; \
+			#echo '<td> <a href="$id.spline_pass'${t}'.qplot.png"><img src="$id.spline_pass'${t}'.qplot.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.comparisonDisc_pass'${t}'.png"><img src="$id.comparisonDisc_pass'${t}'.png"  width=400> </a></td>' >> $html; \
+			echo '<td> <a href="$id.comparisonFitDisc_pass'${t}'.png"><img src="$id.comparisonFitDisc_pass'${t}'.png"  width=400> </a></td>' >> $html; \
 			done
 
 		sys echo '<tr>' >> $html
