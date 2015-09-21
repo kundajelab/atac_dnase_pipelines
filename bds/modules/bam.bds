@@ -52,7 +52,7 @@ void init_bam() {
 	}	
 }
 
-string[] _bam_to_nodup_bam( string bam, string out_dir, string info ) {
+string _bam_to_nodup_bam( string bam, string out_dir, string info ) {
 
 	prefix 		:= change_dir( remove_ext( bam, "bam" ), out_dir )
 
@@ -65,7 +65,7 @@ string[] _bam_to_nodup_bam( string bam, string out_dir, string info ) {
 	tmp_filt_bam 	:= "$prefix.dupmark.bam"
 
 	in 		:= [ bam ]
-	out 		:= [ nodup_bam, nodup_bam_idx, dup_qc, map_qc, pbc_qc ]
+	out 		:= nodup_bam
 
 	task( taskName:= "bam_to_nodup_bam "+info, \
 		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
@@ -127,7 +127,7 @@ string[] _bam_to_nodup_bam( string bam, string out_dir, string info ) {
 	return out
 }
 
-string[] _bam_to_nodup_bam_PE( string bam, string out_dir, string info ) {
+string _bam_to_nodup_bam_PE( string bam, string out_dir, string info ) {
 
 	prefix 		:= change_dir( remove_ext( bam, "bam" ), out_dir )
 
@@ -145,7 +145,7 @@ string[] _bam_to_nodup_bam_PE( string bam, string out_dir, string info ) {
 	tmp_filt_bam_prefix := "$prefix.dupmark"
 
 	in 		:= [ bam ]
-	out 		:= [ nodup_bam, nodup_bam_idx, dup_qc, map_qc, pbc_qc ]
+	out 		:= nodup_bam
 
 	task( taskName:= "bam_to_nodup_bam_PE "+info, \
 		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
@@ -248,7 +248,7 @@ string _bam_to_nmsrt_bam( string bam, string out_dir, string info ) {
 	return out	
 }
 
-string[] _bam_to_srt_bam( string bam, string out_dir, string info ) {
+string _bam_to_srt_bam( string bam, string out_dir, string info ) {
 
 	prefix 		:= change_dir( remove_ext( bam, "bam" ), out_dir )
 
@@ -257,7 +257,7 @@ string[] _bam_to_srt_bam( string bam, string out_dir, string info ) {
 	srt_bam_idx 	:= "$prefix.srt.bai"
 
 	in 		:= [ bam ]
-	out 		:= [ srt_bam, srt_bam_idx ]
+	out 		:= srt_bam
 
 	task( taskName:= "bam_to_srt_bam "+info, \
 		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \

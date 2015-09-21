@@ -41,14 +41,14 @@ void init_atac() {
 	}
 	else if ( is_legacy_input() ) { // legacy input method taking first 8 parameters from cmd. line (num_rep=1)
 
-		bwt2_idx 	= chk_file( args[0], ".1.bt2" )
-		fastq1_1	= chk_file( args[1], "" )
-		fastq1_2	= chk_file( args[2], "" )
-		nth_bwt2	= args[3].parseInt()
-		gensz		= args[4]
-		chrsz		= chk_file( args[5], "" )
-		vplot_idx 	= chk_file( args[6], "" )
-		out_dir 	= mkdir_path( args[7] )
+		bwt2_idx 	= args[0].trim()
+		fastq1_1	= args[1].trim()
+		fastq1_2	= args[2].trim()
+		nth_bwt2	= args[3].trim().parseInt()
+		gensz		= args[4].trim()
+		chrsz		= args[5].trim()
+		vplot_idx 	= args[6].trim()
+		out_dir 	= args[7].trim()
 
 		if ( v ) { // verbose
 			print("\n\n")
@@ -134,34 +134,20 @@ void _atac( int rep ) {
 
 	fastqs := get_fastqs( 0, rep )
 
-	if ( (num_rep==1) && (fastqs.size()<2) ) {
-		fastqs.add( get_fastq( 0, 2, 1 ) )
-	}
+	if ( (num_rep==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
 
-	string atac_out_dir
-
-	if ( num_rep == 1 ) { // if only one replicate
-		atac_out_dir = mkdir_path( out_dir )
-	}
-	else {
-		atac_out_dir = mkdir_path( "$out_dir/$info" )			
-	}
+	atac_out_dir := mkdir_path( (num_rep==1) ? out_dir : "$out_dir/$info" )
 
 	string p1, p2
-
 	( p1, p2 ) = _trim_adapters( fastqs[0], fastqs[1], atac_out_dir, info )
 
 	wait // hold parallel
 
-	string bam, log
-
-	( bam, log ) = _bowtie2( p1, p2, atac_out_dir, info )
+	bam := _bowtie2( p1, p2, atac_out_dir, info )
 
 	wait
 
-	string nodup_bam, nodup_bam_idx
-
-	( nodup_bam, nodup_bam_idx ) = _bam_to_nodup_bam_PE( bam, atac_out_dir, info )
+	nodup_bam := _bam_to_nodup_bam_PE( bam, atac_out_dir, info )
 
 	wait
 
@@ -169,15 +155,11 @@ void _atac( int rep ) {
 
 	wait
 
-	string npeakfile, fc_bw, pval_bw
-
-	( npeakfile, fc_bw, pval_bw ) = _macs2_bed( bed, "$fraglen", atac_out_dir, info )
+	_macs2_bed( bed, "$fraglen", atac_out_dir, info )
 
 	if ( no_par_job ) wait
 
-	string srt_bam, srt_bai 
-
-	( srt_bam, srt_bai ) = _bam_to_srt_bam( bam, atac_out_dir, info )
+	srt_bam := _bam_to_srt_bam( bam, atac_out_dir, info )
 
 	wait
 

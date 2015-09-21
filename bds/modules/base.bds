@@ -307,14 +307,6 @@ string rm_comment( string str ) { // remove substring after double slash "//"
 	return trimmed
 }
 
-string chk_slash( string str ) { // if slash found, error
-	trimmed := rm_comment( str )
-	if ( trimmed.indexOf("/")>=0 ) {
-		error("Path including '/' not allowed for $str\n")
-	}
-	return trimmed
-}
-
 string rm_str_at_end( string str, string rm ) {
 	trimmed := rm_comment( str )
 	
@@ -375,26 +367,6 @@ string get_path( string str ) {
 	return base
 }
 
-// file/ disk IO functions
-
-string chk_file( string str, string ext ) {
-	path := get_path( str )
-	path_ext := path + ext
-
-	if ( !path_ext.exists() ) {
-		error("File does not exist for $path_ext\n")
-	}
-	else if ( path_ext.isDir() ) {
-		error("Needs file instead of dir for $path_ext\n")
-	}
-	else if ( path_ext.isFile() ) {
-		return path
-	}
-	else {
-		error("Unknown error for $path_ext\n")
-	}
-}
-
 string mkdir_path( string str ) { 
 	// make filename full path and mkdir -p
 	path := get_path( str )
@@ -453,38 +425,32 @@ string[] load_data( string file ) {
 	return file.read().split(";")
 }
 
-// print
+/*
+bool assert_in_out( string in, string out ) {
 
-void print_a_tab_colon_b( string a, string b ) {
-	print( a + "\t: " + b + "\n")
+	if ( !in.exists() ) error ("$in does not exist!\n\n")
+	return out<-in
 }
 
-void print_if_not_null( string a, string b ) {
-	if ( b!="" && b!="false" ) print_a_tab_colon_b( a, b )
+bool assert_in_out( string in, string[] out ) {
+
+	if ( !in.exists() ) error ("$in does not exist!\n\n")
+	return out<-in
 }
 
-void print_if_not_default( string a, string b, string default ) {
-	if ( b.toLower()!=default.toLower() ) print_a_tab_colon_b( a, b )
+bool assert_in_out( string[] in, string out ) {
+
+	for( string path : in ) {
+		if ( !path.exists() ) error ("$path does not exist!\n\n")
+	}
+	return out<-in
 }
 
-// math functions
+bool assert_in_out( string[] in, string[] out ) {
 
-int round( real f ) {
-	string s = f
-	arr := s.split('\.')
-	int a = arr[0].parseInt()
-	int b = arr[1].parseInt()
-	if ( b >= 5 ) return a+1
-	else return a
+	for( string path : in ) {
+		if ( !path.exists() ) error ("$path does not exist!\n\n")
+	}
+	return out<-in
 }
-
-int min( int a, int b ) {
-	if ( a > b ) return b
-	else return a
-}
-
-int max( int a, int b ) {
-	if ( a > b ) return a
-	else return b
-}
-
+*/
