@@ -2,7 +2,7 @@ ATAC Seq Pipeline
 ===================================================
 
 test link to submoduled repo (chipseq help)
-<a href="../chipseq/README.md">CHIPSEQ HELP</a>
+<a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README.md">CHIPSEQ HELP</a>
 
 
 ### Installation instruction
