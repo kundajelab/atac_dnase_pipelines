@@ -1,6 +1,10 @@
 ATAC Seq Pipeline
 ===================================================
 
+test link to submoduled repo (chipseq help)
+<a href="../chipseq/README.md">CHIPSEQ HELP</a>
+
+
 ### Installation instruction
 
 Get BigDataScript (v0.9999).
