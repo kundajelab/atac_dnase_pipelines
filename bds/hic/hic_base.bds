@@ -1,6 +1,6 @@
 #!/usr/bin/env bds
 
-include "../modules/species.bds"
+include "../chipseq/modules/species.bds"
 
 
 help Replicates and libraries definition

@@ -1,0 +1,3 @@
+[submodule "bds/chipseq"]
+	path = bds/chipseq
+	url = https://github.com/kundajelab/ENCODE_chipseq_pipeline

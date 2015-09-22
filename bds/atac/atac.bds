@@ -1,15 +1,15 @@
 #!/usr/bin/env bds
 
-include "../modules/fastq.bds"
-include "../modules/bam.bds"
+include "../chipseq/modules/fastq.bds"
+include "../chipseq/modules/bam.bds"
 
-include "../modules/align_etc.bds"
-include "../modules/align_bowtie2.bds"
+include "../chipseq/modules/align_etc.bds"
+include "../chipseq/modules/align_bowtie2.bds"
 
-include "../modules/peakcall_macs2.bds"
+include "../chipseq/modules/peakcall_macs2.bds"
 
-include "../modules/preseq.bds"
-include "../modules/report.bds"
+include "../chipseq/modules/preseq.bds"
+include "../chipseq/modules/report.bds"
 
 
 help ATAC-Seq Pipeline setting : fragment length, # replicates
