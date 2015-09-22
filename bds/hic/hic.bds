@@ -2,6 +2,7 @@
 
 include "hic_base.bds"
 
+
 help HiC settings (mapped data)
 help   There are two ways to define paths for mapped data (cleaned pairs)
 help   1) Using Root directory of mapped data
@@ -40,11 +41,9 @@ re 		:= "HindIII" 	help re (default: hindIII).
 
 
 int[] resolution
-
 string{} RE_sites // map of RE sites ( key=w(resolution) )
 string{} RE_sites_mid // map of RE sites mid ( key=w(resolution) )
 string{} biases // map of bias ( key=w(resolution) )
-
 string{} clean_pairs_comb // merged and combined clean pairs
 
 

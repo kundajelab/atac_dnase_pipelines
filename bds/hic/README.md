@@ -18,7 +18,7 @@ Get the latest version of HiC pipeline.
 $ git clone https://github.com/kundajelab/pipelines/
 $ cd bds/hic
 $ mkdir -p $HOME/.bds
-$ cp bds.config $HOME/.bds/
+$ cp ../bds.config $HOME/.bds/
 ```
 
 Add the following lines to your $HOME/.bashrc or $HOME/.bash_profile:
@@ -41,9 +41,14 @@ For Kundaje lab members, add the following to the command line instead of defini
 ```
 -kundaje_lab -species [SPECIES: hg19, mm9, ...]
 ```
-Add the following too if your species is hg19. HiC pipeline doesn't work with wider range of umap (eg. globalmap_k1tok1000)
+
+Add the following line if your species is hg19. HiC pipeline doesn't work with wider range of umap (eg. globalmap_k1tok1000)
 ```
--umap /mnt/data/ENCODE/umap/hg19_allmappable/globalmap_k20tok54
+-kundaje_lab -species hg19_hic
+```
+or
+```
+-kundaje_lab -species hg19 -umap /mnt/data/ENCODE/umap/hg19_allmappable/globalmap_k20tok54
 ```
 
 

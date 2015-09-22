@@ -2,6 +2,7 @@
 
 include "../modules/species.bds"
 
+
 help Replicates and libraries definition
 prefix 		:= "HiC" 	help Prefix for output file names (default: HiC).
 reps 		:= "" 		help List of replicate names (comma separated) (eg. 'R1,R2,R8', default: blank).
@@ -10,10 +11,8 @@ libs  		:= ""		help List of library names (comma separated) (eg. 'SC,D3', defaul
 
 num_rep 	:= 1		//help # replicates. (default: 1).
 num_lib 	:= 1		//help # libraries. (default: 1).
-
 string[] rep_names // replicate names
 string[] lib_names // library names
-
 string{} extracted_pairs // map of extracted mapped pairs (key=rep;lib)
 string{} cleaned_pairs // map of cleaned mapped pairs (key=rep;lib)
 

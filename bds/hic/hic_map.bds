@@ -2,6 +2,7 @@
 
 include "hic_base.bds"
 
+
 help Fastq paths
 help         -fastq[Library_ID]_[Replicate_ID]_[Pair_ID] [FASTQ_FILE_PATH]
 help         or
@@ -12,6 +13,7 @@ num_mismatch 	:= 2		help # of mismatches (default: 2).
 nth_bwa 	:= 2 		help # threads for bwa (default: 2).
 wt_bwa 		:= "10G" 	help Max. memory for bwa (default: 10G).
 mem_bwa 	:= "40h" 	help Walltime for bwa (default: 40h, 40:00:00).
+
 
 
 help()

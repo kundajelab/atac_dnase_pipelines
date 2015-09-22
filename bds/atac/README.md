@@ -18,7 +18,7 @@ Get the latest version of ATAC pipeline.
 $ git clone https://github.com/kundajelab/pipelines/
 $ cd bds/atac
 $ mkdir -p $HOME/.bds
-$ cp bds.config $HOME/.bds/
+$ cp ../bds.config $HOME/.bds/
 ```
 
 Add the following lines to your $HOME/.bashrc or $HOME/.bash_profile:
