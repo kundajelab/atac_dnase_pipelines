@@ -14,30 +14,33 @@ help         -cln_pair[Library_ID]_[Replicate_ID] [CLEANED_PAIR_FILE_PATH]
 help         or
 help         -cln_pair_L[Library_ID]_R[Replicate_ID] [CLEANED_PAIR_FILE_PATH]
 
-help HiC settings (merge method and resolution)
-merge 		:= 1 		help Method for merging replicates and libraries (0: no merge, 1: merge reps only, 2: merge reps and libs, default: 1).
-res 		:= ""		help Resolution (comma separated integers) (eg. '10,8,5' , default: 10)
+help HiC settings (analysis method, merge method and resolution)
+method 			:= "re"		help Analysis method (re: using RE Windows, fixed: using Fixed Windows, default: re)
+merge 			:= 1 		help Method for merging replicates and libraries (0: no merge, 1: merge reps only, 2: merge reps and libs, default: 1).
+res 			:= ""		help Resolution (comma separated integers) (eg. '10,8,5' , default: 10)
 
 help HiC settings (step 1)
-RE_file 	:= "" 		help RE file (default: blank).
+RE_file 		:= "" 		help RE file (default: blank).
 
 help HiC settings (step 2 and 3)
-blacklist 	:= ""		help Blacklist (default: blank).
-read_len 	:= 51 		help Read Length (default: 51).
+blacklist 		:= ""		help Blacklist (default: blank).
+read_len 		:= 0 		help Read Length (default: none).
+intra_chr_thres_mltpl 	:= 0		help Intra chr. threshold multiplier (x resolution) (default: none).
 
 help HiC settings (step 4)
-mapp_thres  	:= "0.5"	help Mappability threshold in step 4 (default: 0.5).
-wt_hic4		:= "30h"	help Walltime for hic step4 (normalizing with using ICE) (default: 30h, 30:00:00).
+mapp_thres  		:= "0.0"	help Mappability threshold in step 4 (default: none).
+wt_hic4			:= "30h"	help Walltime for hic step4 (normalizing with using ICE) (default: 30h, 30:00:00).
 
 help HiC settings (step 6)
-no_of_bins	:= 200		help Number of bins (default: 200).
-dist_up_thres 	:= 10000000 	help Dist up threshold (default: 10000000).
-mapp_thres_hic6	:= 1 		help Minimum number of hits per locus that has to exist to call it mappable. (default: 1).
-no_of_passes 	:= 1 		help Number of passes after the initial (before) fit. (default: 1) (after).
-residual_factor := -1 		help How many times better residual is desired for splines compared to power-law fit. (default: -1).
-org 		:= "human" 	help org (default: human).
-ref 		:= "hg19"	help ref (default: hg19).
-re 		:= "HindIII" 	help re (default: hindIII).
+no_of_bins		:= 200		help Number of bins (default: 200).
+dist_up_thres 		:= 10000000	help Dist up threshold (default: 10000000).
+dist_low_thres_mltpl 	:= 0		help Dist. low threshold multiplier (x resolution) (default: none).
+fit_mapp		:= 1 		help Minimum number of hits per locus that has to exist to call it mappable. (default: 1).
+no_of_passes 		:= 1 		help Number of passes after the initial (before) fit. (default: 1) (after).
+residual_factor 	:= -1 		help How many times better residual is desired for splines compared to power-law fit. (default: -1).
+org 			:= "human" 	help org (default: human).
+ref 			:= "hg19"	help ref (default: hg19).
+re 			:= "HindIII" 	help re (default: hindIII).
 
 
 int[] resolution
@@ -78,7 +81,7 @@ void init_hic() {
 		no_of_bins	= get_conf_val_int( no_of_bins, 	["no_of_bins", "num_bin", "no_bin"] )
 		dist_up_thres 	= get_conf_val_int( dist_up_thres, 	["dist_up_thres"] )
 
-		mapp_thres_hic6	= get_conf_val_int( mapp_thres_hic6, 	["mapp_thres_hic6"] )
+		fit_mapp	= get_conf_val_int( fit_mapp, 	["fit_mapp"] )
 		no_of_passes 	= get_conf_val_int( no_of_passes, 	["no_of_passes"] )
 		residual_factor = get_conf_val_int( residual_factor, 	["residual_factor"] )
 
@@ -100,7 +103,7 @@ void init_hic() {
 		print( "Mappability threshold in step 4\t: $mapp_thres\n" )
 		print( "Number of bins\t\t: $no_of_bins\n" )
 		print( "Dist. up threshold\t: $dist_up_thres\n" )
-		print( "Mappability threshold in step 6\t: $mapp_thres_hic6\n" )
+		print( "Mappability threshold in step 6\t: $fit_mapp\n" )
 		print( "Number of passes\t: $no_of_passes\n" )
 		print( "Residual factor\t\t: $residual_factor\n" )
 		print( "org\t\t\t: $org\n" )
@@ -124,7 +127,14 @@ void init_hic() {
 }
 
 void chk_input_data() {
+
+	// check values
+	if ( read_len == 0 ) error("Define read length (with -read_len [])! \n\n") // 50
+	if ( mapp_thres == "0.0" ) error("Define mappability threshold (with -mapp_thres [])! \n\n") // 0.5
+	if ( dist_low_thres_mltpl == 0 ) error("Define dist. low threshold multiplier (with -dist_low_thres_mltpl [])! \n\n") // 10000000
+	if ( intra_chr_thres_mltpl == 0 ) error("Define dist. intra chr. threshold multiplier (with -intra_chr_thres_mltpl [])! \n\n") // 10000000
 	
+	// check paths
 	if ( !RE_file.exists() ) error("\nRE file doesn't exists! ($RE_file) \n")	
 	if ( !blacklist.exists() ) error("\nBlacklist file doesn't exists! ($blacklist)\n")	
 	if ( !umap.exists() ) error("\nUmap directory doesn't exists! ($umap)\n")
@@ -328,7 +338,8 @@ string _hic_step2( string id, string[] cleaned_pairs, string RE_site, int w, str
 
 	cleaned_tmp 	:= prefix+"_cleanedPairs.tmp"
 
-	IntrachrThres 	:= w*5000 //$(($w*5000)) # distance threshold for calculating intrachromosomal interactions
+	//IntrachrThres := w*5000 //$(($w*5000)) # distance threshold for calculating intrachromosomal interactions
+	IntrachrThres 	:= w*intra_chr_thres_mltpl //$(($w*5000)) # distance threshold for calculating intrachromosomal interactions
 
 	IntSite1Temp := prefix+"_IntSite1Temp"
 	IntSite2Temp := prefix+"_IntSite2Temp"
@@ -527,7 +538,8 @@ void _hic_step6( string before_after, string id, \
 	//#  - places results into $PROJDIR/data/fit-hi-c-results
 	prefix 		:= "$out_dir/$id"
 
-	distLowThres := w*5000 //$(($w*5000))
+	//distLowThres := w*5000 //$(($w*5000))
+	distLowThres := w*dist_low_thres_mltpl //$(($w*5000))
 
 	log := "$prefix"+"_log.conf.file"
 	html := "$prefix"+"_fithic.html"
@@ -544,7 +556,7 @@ void _hic_step6( string before_after, string id, \
 		sys echo ${discBinsize}
 
 		sys date >> $log
-		sys echo w=$w no_of_bins=$no_of_bins mapp_thres_hic6=$mapp_thres_hic6 no_of_passes=$no_of_passes dist_up_thres=$dist_up_thres distLowThres=$distLowThres discBinsize=${discBinsize} residual_factor=$residual_factor>> $log 
+		sys echo w=$w no_of_bins=$no_of_bins fit_mapp=$fit_mapp no_of_passes=$no_of_passes dist_up_thres=$dist_up_thres distLowThres=$distLowThres discBinsize=${discBinsize} residual_factor=$residual_factor>> $log 
 		sys echo >> $log
 
 		sys echo '<html>' > $html
@@ -579,11 +591,11 @@ void _hic_step6( string before_after, string id, \
 
 		sys if [[ $before_after == "afterICE" ]]; then \
 			# REMOVED -d and -r and comparisonMode \
-			python $(which fit-hic-LATEST.py) -l $id -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $mapp_thres_hic6 -p $no_of_passes -d ${discBinsize} -r $residual_factor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out \
-	  		#python $(which fit-hi-c.py) -l $id -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $mapp_thres_hic6 -p $no_of_passes  -o $out_dir  > $out_dir/$id.out; \
+			python $(which fit-hic-LATEST.py) -l $id -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $fit_mapp -p $no_of_passes -d ${discBinsize} -r $residual_factor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out \
+	  		#python $(which fit-hi-c.py) -l $id -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $fit_mapp -p $no_of_passes  -o $out_dir  > $out_dir/$id.out; \
 			else \
-			python $(which fit-hic-LATEST.py) -l $id -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $mapp_thres_hic6 -p $no_of_passes -d ${discBinsize} -r $residual_factor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out \
-	  		#python $(which fit-hi-c.py) -l $id -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $mapp_thres_hic6 -p $no_of_passes  -o $out_dir > $out_dir/$id.out; \
+			python $(which fit-hic-LATEST.py) -l $id -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $fit_mapp -p $no_of_passes -d ${discBinsize} -r $residual_factor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out \
+	  		#python $(which fit-hi-c.py) -l $id -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $fit_mapp -p $no_of_passes  -o $out_dir > $out_dir/$id.out; \
 			fi
 
 		sys echo '<tr>' >> $html
@@ -630,7 +642,7 @@ void _hic_step6a( string before_after, string id, \
 		sys echo ${discBinsize}
 
 		sys date >> $log
-		sys echo w=$w no_of_bins=$no_of_bins mapp_thres_hic6=$mapp_thres_hic6 no_of_passes=$no_of_passes dist_up_thres=$dist_up_thres distLowThres=$distLowThres discBinsize=${discBinsize} residual_factor=$residual_factor>> $log 
+		sys echo w=$w no_of_bins=$no_of_bins fit_mapp=$fit_mapp no_of_passes=$no_of_passes dist_up_thres=$dist_up_thres distLowThres=$distLowThres discBinsize=${discBinsize} residual_factor=$residual_factor>> $log 
 		sys echo >> $log
 
 		sys echo '<html>' > $html
@@ -664,9 +676,9 @@ void _hic_step6a( string before_after, string id, \
 		sys echo '</tr>' >> $html
 
 		sys if [[ $before_after == "afterICE" ]]; then \
-			python $(which fit-hic-LATEST_std.py) -l "$id" -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $mapp_thres_hic6 -p $no_of_passes -d ${discBinsize} -r $residual_factor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out; \
+			python $(which fit-hic-LATEST_std.py) -l "$id" -t $list_contacts_aft_ice_biases -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $fit_mapp -p $no_of_passes -d ${discBinsize} -r $residual_factor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out; \
 			else \
-			python $(which fit-hic-LATEST_std.py) -l "$id" -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $mapp_thres_hic6 -p $no_of_passes -d ${discBinsize} -r $residual_factor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out; \
+			python $(which fit-hic-LATEST_std.py) -l "$id" -f $contacts_per_frag -i $list_contacts_bfr_ice -L $distLowThres -U $dist_up_thres -b $no_of_bins -m $fit_mapp -p $no_of_passes -d ${discBinsize} -r $residual_factor -o $out_dir --comparisonMode --usebinning > $out_dir/$id.out; \
 			fi
 
 		sys echo '<tr>' >> $html
