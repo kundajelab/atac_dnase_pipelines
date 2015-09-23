@@ -73,7 +73,8 @@ $ bds hic.bds \
 -merge [MERGE_METHOD; 0:no_merge, 1:merge_replicates_only, 2:merge_libraries_and_replicates] \
 -res [COMMA-SEPERATED RESOLUTIONS; Example: 100,200,1000] \
 -blacklist [BLACKLIST_FILE] \
--umap [MAPPABILITY_DATA]
+-umap [MAPPABILITY_DATA] \
+-chrsz [CHR_SIZES_FILE]
 ```
 
 2) Using paths for individual cleaned pairs
@@ -88,7 +89,8 @@ $ bds hic.bds \
 -merge [MERGE_METHOD; 0:no_merge, 1:merge_replicates_only, 2:merge_libraries_and_replicates] \
 -res [COMMA-SEPERATED RESOLUTIONS; Example: 100,200,1000] \
 -blacklist [BLACKLIST_FILE] \
--umap [MAPPABILITY_DATA]
+-umap [MAPPABILITY_DATA] \
+-chrsz [CHR_SIZES_FILE]
 ```
 
 
