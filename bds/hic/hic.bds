@@ -17,20 +17,20 @@ help         -cln_pair_L[Library_ID]_R[Replicate_ID] [CLEANED_PAIR_FILE_PATH]
 help HiC settings (analysis method, merge method and resolution)
 method 			:= "re"		help Analysis method (re: using RE Windows, fixed: using Fixed Windows, default: re)
 merge 			:= 1 		help Method for merging replicates and libraries (0: no merge, 1: merge reps only, 2: merge reps and libs, default: 1).
-res 			:= ""		help Resolution, comma separated integers – Number of consecutive RE sites for RE windows, eg. '5,10,100', or bases for fixed windows, eg. '100000, 500000, 1000000' (default: blank).
+res 			:= ""		help Resolution, comma separated integers – Number of consecutive RE sites for RE windows, eg. '5,10,100', or bases for fixed windows, eg. '100000, 500000, 1000000'.
 
 help HiC settings (step 1)
-RE_file 		:= "" 		help Bed file with restriction enzyme cut sites (default: blank).
+RE_file 		:= "" 		help Bed file with restriction enzyme cut sites.
 
 help HiC settings (step 2 and 3)
-blacklist 		:= ""		help Blacklist file path (default: blank).
-read_len 		:= 0 		help Read Length (default: black).
+blacklist 		:= ""		help Blacklist file path.
+read_len 		:= 0 		help Read Length.
 intra_chr_thres_mltpl 	:= 0		help Intra-Chromosomal Threshold Multiplier, integer (x resolution) - A multiplication parameter, when multiplied by resolution, defines a lower bound on mid-range distances. The rule of thumb here is to avoid distances lower than a resolution window or lower than an average meta-fragment length. When 10 consecutive RE fragments are used per meta-fragment use at least 5000 (10x5000=50000bp). When fixed-sizes windows are used, use at least 1 (length of 1 fixed-size window). In order to have no lower bound simply set this argument to 0 (default: 5000 for meta-fragments or 2 for fixed-size windows).
-wt_hic2			:= "30h"	help Walltime for hic step2 (default: 30h, 30:00:00).
+wt_hic2			:= "40h"	help Walltime for hic step2 (default: 40h, 40:00:00).
 
 help HiC settings (step 4)
 mapp_thres  		:= "0.5"	help Mappability, float - Filters out loci that are less mappable than the threshold (default: 0.5).
-wt_hic4			:= "30h"	help Walltime for hic step4 (default: 30h, 30:00:00).
+wt_hic4			:= "70h"	help Walltime for hic step4 (default: 70h, 70:00:00).
 
 help HiC settings (step 6)
 no_of_bins		:= 200		help Number of equal-occupancy (count) bins (default: 200).
