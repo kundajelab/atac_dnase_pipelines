@@ -80,11 +80,11 @@ void init_atac() {
 
 void chk_input_data() {
 
-	if ( !("$bwt2_idx.1.bt2").exists() ) error("\nBowtie2 index doesn't exists! ($bwt2_idx.1.bt2)\n")
+	if ( !path_exists("$bwt2_idx.1.bt2") ) error("\nBowtie2 index doesn't exists! ($bwt2_idx.1.bt2)\n")
 
-	if ( !no_vplot && !vplot_idx.exists() ) error("\nVPlot index doesn't exists! ($vplot_idx) \n")	
+	if ( !no_vplot && !path_exists( vplot_idx ) ) error("\nVPlot index doesn't exists! ($vplot_idx) \n")	
 
-	if ( !chrsz.exists() ) error("\nChrome sizes file doesn't exists! ($chrsz)\n")	
+	if ( !path_exists( chrsz ) ) error("\nChrome sizes file doesn't exists! ($chrsz)\n")	
 
 	string[] fastqs_all
 
@@ -101,7 +101,7 @@ void chk_input_data() {
 
 		for ( string s : fastqs ) {
 			print("\t$s\n")
-			if ( (s != "") && !(s.exists()) ) error("\t\tFile not found!\n")
+			if ( (s != "") && !path_exists(s) ) error("\t\tFile not found!\n")
 		}
 
 		// check any duplicate input filename
