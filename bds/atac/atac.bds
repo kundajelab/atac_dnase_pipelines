@@ -14,6 +14,7 @@ include "../chipseq/modules/report.bds"
 
 help ATAC-Seq Pipeline setting : fragment length, # replicates
 
+trimmed_fastq 	:= false	help Add it to skip fastq-trimming stage (default: false).
 fraglen 	:= 75 		help Read fragment length (default: 75).
 num_rep 	:= 1		help # replicates. ATAC seq for each replicate will go IN PARALLEL. (default: 1).
 no_vplot	:= false 	help Add it to bypass V plot generation (default: false).
@@ -34,6 +35,7 @@ void init_atac() {
 
 	if ( conf_file_exists() ) {
 
+		trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
 		fraglen 	= get_conf_val_int( fraglen,		["fraglen", "frag_len"] )
 		num_rep 	= get_conf_val_int( num_rep,		["num_rep", "numrep"] )
 		no_vplot 	= get_conf_val_bool( no_vplot,		["no_vplot"] )
@@ -69,6 +71,7 @@ void init_atac() {
 
 	if ( v ) { // verbose
 		print("\n")
+		print( "Fasqts are trimmed?\t: $trimmed_fastq\n")
 		print( "Fragment length\t\t: $fraglen\n")
 		print( "# Replicates\t\t: $num_rep\n")
 		print( "No vplot generation\t: $no_vplot\n")
@@ -92,9 +95,7 @@ void chk_input_data() {
 
 		fastqs := get_fastqs( 0, rep )
 
-		if ( (num_rep==1) && (fastqs.size()<2) ) {
-			fastqs.add( get_fastq( 0, 2, 1 ) )
-		}
+		if ( (num_rep==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
 
 		prefix := "Rep$rep fastq"
 		print("$prefix :\n")
@@ -139,7 +140,16 @@ void _atac( int rep ) {
 	atac_out_dir := mkdir_path( (num_rep==1) ? out_dir : "$out_dir/$info" )
 
 	string p1, p2
-	( p1, p2 ) = _trim_adapters( fastqs[0], fastqs[1], atac_out_dir, info )
+
+	if ( trimmed_fastq ) {
+		print("\nSkipping trimming fastqs (-trimmed_fastq flag is on)\n\n")
+
+		p1 = fastqs[0]
+		p2 = fastqs[1]
+	}
+	else {
+		( p1, p2 ) = _trim_adapters( fastqs[0], fastqs[1], atac_out_dir, info )
+	}
 
 	wait // hold parallel
 

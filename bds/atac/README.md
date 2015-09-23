@@ -42,6 +42,14 @@ $ bds atac.bds -fastq1 [READ1] -fastq2 [READ2] -kundaje_lab -species [hg19 or mm
 Add -mod, -addpath and -shcmd to set up enviroment variables for your jobs. This is explained later in this file.
 
 
+### Skipping trimming fastqs
+
+If your fastqs are already trimmed, add the following to the commandline to skip trimming stage.
+```
+-trimmed_fastq
+```
+
+
 ### Processing multiple replicates IN PARALLEL
 
 For legacy input method, # replicates is limited to 1. If you are interested in multiple replicates, don't use the legacy input method. Define fastqs with '-fastq[REP_NO]_[PAIR_NO]'.
