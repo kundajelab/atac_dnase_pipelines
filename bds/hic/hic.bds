@@ -15,7 +15,7 @@ help         or
 help         -cln_pair_L[Library_ID]_R[Replicate_ID] [CLEANED_PAIR_FILE_PATH]
 
 help HiC settings (analysis method, merge method and resolution)
-method 			:= "re"		help Analysis method (re: using RE Windows, fixed: using Fixed Windows, default: re)
+method 			:= "re"		help Analysis method (re: using RE Windows, fixed: using Fixed Windows, default: re).
 merge 			:= 1 		help Method for merging replicates and libraries (0: no merge, 1: merge reps only, 2: merge reps and libs, default: 1).
 res 			:= ""		help Resolution, comma separated integers – Number of consecutive RE sites for RE windows, eg. '5,10,100', or bases for fixed windows, eg. '100000, 500000, 1000000'.
 
@@ -25,11 +25,13 @@ RE_file 		:= "" 		help Bed file with restriction enzyme cut sites.
 help HiC settings (step 2 and 3)
 blacklist 		:= ""		help Blacklist file path.
 read_len 		:= 0 		help Read Length.
-intra_chr_thres_mltpl 	:= 0		help Intra-Chromosomal Threshold Multiplier, integer (x resolution) - A multiplication parameter, when multiplied by resolution, defines a lower bound on mid-range distances. The rule of thumb here is to avoid distances lower than a resolution window or lower than an average meta-fragment length. When 10 consecutive RE fragments are used per meta-fragment use at least 5000 (10x5000=50000bp). When fixed-sizes windows are used, use at least 1 (length of 1 fixed-size window). In order to have no lower bound simply set this argument to 0 (default: 5000 for meta-fragments or 2 for fixed-size windows).
+intra_chr_thres_mltpl 	:= 0		help Intra-Chromosomal Threshold Multiplier, integer (x resolution) - A multiplication parameter, when multiplied by resolution, defines a lower bound on mid-range distances. The rule of thumb here is to avoid distances lower than a resolution window or lower than an average meta-fragment length. When 10 consecutive RE fragments are used per meta-fragment use at least 5000 (10x5000=50000bp). When fixed-sizes windows are used, use at least 1 (length of 1 fixed-size window). In order to have no lower bound simply set this argument to 0 (default: 5000 for meta-fragments or 1 for fixed-size windows).
+mem_hic2 		:= "20G"	help Max. memory for hic step2 (default: 20G).
 wt_hic2			:= "40h"	help Walltime for hic step2 (default: 40h, 40:00:00).
 
 help HiC settings (step 4)
 mapp_thres  		:= "0.5"	help Mappability, float - Filters out loci that are less mappable than the threshold (default: 0.5).
+mem_hic4 		:= "20G"	help Max. memory for hic step4 (default: 20G).
 wt_hic4			:= "70h"	help Walltime for hic step4 (default: 70h, 70:00:00).
 
 help HiC settings (step 6)
@@ -98,6 +100,10 @@ void init_hic() {
 
 		wt_hic2 		= get_conf_val( wt_hic2, 		["walltime_hic2", "wt_hic2", "timeout_hic2"] )
 		wt_hic4 		= get_conf_val( wt_hic4, 		["walltime_hic4", "wt_hic4", "timeout_hic4"] )
+
+		mem_hic2 		= get_conf_val( mem_hic2, 		["memory_hic2","mem_hic2"] )
+		mem_hic4 		= get_conf_val( mem_hic4, 		["memory_hic4","mem_hic4"] )
+
 	}
 	
 	if ( !is_method_RE() && !is_method_fixed() ) error("Method (-method []) must be 're' or 'fixed'! \n\n")
@@ -107,7 +113,7 @@ void init_hic() {
 		if ( dist_low_thres_mltpl == 0 ) 	dist_low_thres_mltpl  = 5000
 	}
 	else {
-		if ( intra_chr_thres_mltpl == 0 ) 	intra_chr_thres_mltpl = 2
+		if ( intra_chr_thres_mltpl == 0 ) 	intra_chr_thres_mltpl = 1
 		if ( dist_low_thres_mltpl == 0 ) 	dist_low_thres_mltpl  = 2
 	}
 
@@ -125,13 +131,15 @@ void init_hic() {
 
 	if ( read_len == 0 ) error("Define read length (with -read_len [])! \n\n") // 50
 
-	if ( is_method_RE() && !RE_file.exists() ) error("\nRE file doesn't exists! ($RE_file) \n")	
+	if ( is_method_RE() && !path_exists( RE_file ) ) error("\nRE file doesn't exists! ($RE_file) \n")	
 
-	if ( !blacklist.exists() ) error("\nBlacklist file doesn't exists! ($blacklist)\n")	
+	if ( is_method_fixed() && !path_exists( chrsz ) ) error("\nChrome sizes file doesn't exists! ($chrsz) \n")	
+
+	if ( !path_exists( blacklist ) ) error("\nBlacklist file doesn't exists! ($blacklist)\n")	
 
 	if ( umap_hic != "" ) umap = umap_hic
 
-	if ( !umap.exists() ) error("\nUmap or umap_hic directory doesn't exists! (umap: $umap, umap_hic: $umap_hic)\n")
+	if ( !path_exists( umap) ) error("\nUmap or umap_hic directory doesn't exists! (umap: $umap, umap_hic: $umap_hic)\n")
 
 	if ( v ) { // verbose
 		print("\n")
@@ -152,8 +160,11 @@ void init_hic() {
 		print( "org\t\t\t\t: $org\n" )
 		print( "ref\t\t\t\t: $ref\n" )
 		print( "re\t\t\t\t: $re\n" )
-		print( "Walltime for hic step2\t: $wt_hic2\n")
-		print( "Walltime for hic step4\t: $wt_hic4\n")
+		print( "Walltime for hic step2\t\t: $wt_hic2\n")
+		print( "Walltime for hic step4\t\t: $wt_hic4\n")
+		print( "Max. memory (hic step2)\t\t: $mem_hic2\n" )
+		print( "Max. memory (hic step4)\t\t: $mem_hic4\n" )
+		print( "Umap dir.\t\t\t: $umap\n")
 	}
 }
 
@@ -181,7 +192,7 @@ void find_mapped_data() {
 			}
 
 			print("\t$id: $cleaned\n")
-			if ( !cleaned.exists() ) error("\t\tFile doesn't exists!\n")
+			if ( !path_exists( cleaned ) ) error("\t\tFile doesn't exists!\n")
 
 			cleaned_pairs{ id } 	= cleaned
 		}
@@ -395,10 +406,10 @@ string _hic_step1_fixed_win( int w, string out_dir, string info ) {
 
 		sys $SHCMD_INIT	
 
-		sys python $(which generate_binned_midpoints.py) $w <(grep -v _ $chrsz) $mid_point
+		sys python $(which generate_binned_midpoints.py) $w <(grep -P -v '_|chrM' $chrsz) $mid_point
 	}
 
-	return out	
+	return out
 }
 
 string _hic_step1a_fixed_win( int w, string out_dir, string info ) {
@@ -588,7 +599,7 @@ string _hic_step3_fixed_win( int w, string out_dir, string info ) {
 
 		sys $SHCMD_INIT	
 
-		sys bedtools makewindows -i winnum -w $w -g <(grep -v _ $chrsz) | awk '{wend=$4*$w}{print $1"\t"$2"\t"wend}' > $window_file
+		sys bedtools makewindows -i winnum -w $w -g <(grep -P -v '_|chrM' $chrsz) | awk '{wend=$4*$w}{print $1"\t"$2"\t"wend}' > $window_file
 		//#intersect to count REs
 		sys cat $window_file | sort -k1,1 -k2,2n > "$window_file"_withNumREsites.bed
 
