@@ -6,7 +6,7 @@ include "hic_base.bds"
 help HiC settings (mapped data)
 help   There are two ways to define paths for mapped data (cleaned pairs)
 help   1) Using Root directory of mapped data
-root_mapped 	:= ""		help Root path for mapped data ('out_dir' of hic_map.bds) (default: blank).
+root_mapped 		:= ""		help Root path for mapped data ('out_dir' of hic_map.bds) (default: blank).
 
 help   2) Using paths for individual cleaned pairs
 help      Cleaned pair paths
@@ -17,24 +17,25 @@ help         -cln_pair_L[Library_ID]_R[Replicate_ID] [CLEANED_PAIR_FILE_PATH]
 help HiC settings (analysis method, merge method and resolution)
 method 			:= "re"		help Analysis method (re: using RE Windows, fixed: using Fixed Windows, default: re)
 merge 			:= 1 		help Method for merging replicates and libraries (0: no merge, 1: merge reps only, 2: merge reps and libs, default: 1).
-res 			:= ""		help Resolution (comma separated integers) (eg. '10,8,5' , default: 10)
+res 			:= ""		help Resolution, comma separated integers – Number of consecutive RE sites for RE windows, eg. '5,10,100', or bases for fixed windows, eg. '100000, 500000, 1000000' (default: blank).
 
 help HiC settings (step 1)
-RE_file 		:= "" 		help RE file (default: blank).
+RE_file 		:= "" 		help Bed file with restriction enzyme cut sites (default: blank).
 
 help HiC settings (step 2 and 3)
-blacklist 		:= ""		help Blacklist (default: blank).
-read_len 		:= 0 		help Read Length (default: none).
-intra_chr_thres_mltpl 	:= 0		help Intra chr. threshold multiplier (x resolution) (default: none).
+blacklist 		:= ""		help Blacklist file path (default: blank).
+read_len 		:= 0 		help Read Length (default: black).
+intra_chr_thres_mltpl 	:= 0		help Intra-Chromosomal Threshold Multiplier, integer (x resolution) - A multiplication parameter, when multiplied by resolution, defines a lower bound on mid-range distances. The rule of thumb here is to avoid distances lower than a resolution window or lower than an average meta-fragment length. When 10 consecutive RE fragments are used per meta-fragment use at least 5000 (10x5000=50000bp). When fixed-sizes windows are used, use at least 1 (length of 1 fixed-size window). In order to have no lower bound simply set this argument to 0 (default: 5000 for meta-fragments or 2 for fixed-size windows).
+wt_hic2			:= "30h"	help Walltime for hic step2 (default: 30h, 30:00:00).
 
 help HiC settings (step 4)
-mapp_thres  		:= "0.0"	help Mappability threshold in step 4 (default: none).
-wt_hic4			:= "30h"	help Walltime for hic step4 (normalizing with using ICE) (default: 30h, 30:00:00).
+mapp_thres  		:= "0.5"	help Mappability, float - Filters out loci that are less mappable than the threshold (default: 0.5).
+wt_hic4			:= "30h"	help Walltime for hic step4 (default: 30h, 30:00:00).
 
 help HiC settings (step 6)
-no_of_bins		:= 200		help Number of bins (default: 200).
-dist_up_thres 		:= 10000000	help Dist up threshold (default: 10000000).
-dist_low_thres_mltpl 	:= 0		help Dist. low threshold multiplier (x resolution) (default: none).
+no_of_bins		:= 200		help Number of equal-occupancy (count) bins (default: 200).
+dist_up_thres 		:= 10000000	help Upper bound on the intra-chromosomal distance range (default: 10000000).
+dist_low_thres_mltpl 	:= 0		help Lower Bound Multiplier, integer (x resolution). A multiplication parameter, when multiplied by resolution, defines a lower bound on the intra-chromosomal distance range (default: 5000 for meta-fragments or 2 for fixed-size windows).
 fit_mapp		:= 1 		help Minimum number of hits per locus that has to exist to call it mappable. (default: 1).
 no_of_passes 		:= 1 		help Number of passes after the initial (before) fit. (default: 1) (after).
 residual_factor 	:= -1 		help How many times better residual is desired for splines compared to power-law fit. (default: -1).
@@ -44,18 +45,21 @@ re 			:= "HindIII" 	help re (default: hindIII).
 
 
 int[] resolution
-string{} RE_sites // map of RE sites ( key=w(resolution) )
-string{} RE_sites_mid // map of RE sites mid ( key=w(resolution) )
-string{} biases // map of bias ( key=w(resolution) )
-string{} clean_pairs_comb // merged and combined clean pairs
 
+// ugly global variables (key==w (resolution))
+
+string{} mid_points // mid points
+
+string{} RE_sites // RE sites (for method 'RE')
+string{} binned_blacklists // binned blacklists (for method 'fixed')
+
+string{} biases // biases
+string{} clean_pairs_comb // merged and combined clean pairs
 
 
 help()
 
 init_hic()
-
-chk_input_data()
 
 find_mapped_data()
 
@@ -71,49 +75,43 @@ void init_hic() {
 
 	if ( conf_file_exists() ) {
 
-		root_mapped 	= get_conf_val( root_mapped, 		["root_mapped"] )
-		merge 		= get_conf_val_int( merge, 		["merge"] )
-		res 		= get_conf_val( res, 			["res"] ) 
-		RE_file 	= get_conf_val( RE_file, 		["RE_file","REfile"] )
-		blacklist 	= get_conf_val( blacklist, 		["blacklist"] ) 
-		read_len 	= get_conf_val_int( read_len, 		["read_len", "read_length", "readlen", "readlength"] )
-		mapp_thres  	= get_conf_val( mapp_thres, 		["mapp_thres", "mapp_thres_hic4"] ) 
-		no_of_bins	= get_conf_val_int( no_of_bins, 	["no_of_bins", "num_bin", "no_bin"] )
-		dist_up_thres 	= get_conf_val_int( dist_up_thres, 	["dist_up_thres"] )
+		root_mapped 		= get_conf_val( root_mapped, 		["root_mapped"] )
+		method 			= get_conf_val( method, 		["method"] ) 
+		merge 			= get_conf_val_int( merge, 		["merge"] )
+		res 			= get_conf_val( res, 			["res"] ) 
+		RE_file 		= get_conf_val( RE_file, 		["RE_file","REfile"] )
+		blacklist 		= get_conf_val( blacklist, 		["blacklist"] ) 
+		read_len 		= get_conf_val_int( read_len, 		["read_len", "read_length", "readlen", "readlength"] )
+		intra_chr_thres_mltpl	= get_conf_val_int( intra_chr_thres_mltpl,	["intra_chr_thres_mltpl"] )
+		mapp_thres  		= get_conf_val( mapp_thres, 		["mapp_thres", "mapp_thres_hic4"] ) 
+		no_of_bins		= get_conf_val_int( no_of_bins, 	["no_of_bins", "num_bin", "no_bin"] )
+		dist_up_thres 		= get_conf_val_int( dist_up_thres, 	["dist_up_thres"] )
+		dist_low_thres_mltpl 	= get_conf_val_int( dist_low_thres_mltpl,	["dist_low_thres_mltpl"] )
+		
+		fit_mapp		= get_conf_val_int( fit_mapp, 		["fit_mapp"] )
+		no_of_passes 		= get_conf_val_int( no_of_passes, 	["no_of_passes"] )
+		residual_factor 	= get_conf_val_int( residual_factor, 	["residual_factor"] )
 
-		fit_mapp	= get_conf_val_int( fit_mapp, 	["fit_mapp"] )
-		no_of_passes 	= get_conf_val_int( no_of_passes, 	["no_of_passes"] )
-		residual_factor = get_conf_val_int( residual_factor, 	["residual_factor"] )
+		org 			= get_conf_val( org, 			["org"] )
+		ref 			= get_conf_val( ref, 			["ref"] )
+		re 			= get_conf_val( re, 			["re"] ) 
 
-		org 		= get_conf_val( org, 			["org"] )
-		ref 		= get_conf_val( ref, 			["ref"] )
-		re 		= get_conf_val( re, 			["re"] ) 
-
-		wt_hic4 	= get_conf_val( wt_hic4, 		["walltime_hic4", "wt_hic4", "timeout_hic4"] )		
+		wt_hic2 		= get_conf_val( wt_hic2, 		["walltime_hic2", "wt_hic2", "timeout_hic2"] )
+		wt_hic4 		= get_conf_val( wt_hic4, 		["walltime_hic4", "wt_hic4", "timeout_hic4"] )
 	}
-
-	if ( v ) { // verbose
-		print("\n")
-		print( "Root for mapped data\t: $root_mapped\n" )
-		print( "Merge method\t\t: $merge ( " + get_merge_method() + " )\n" )
-		print( "Resolution\t\t: $res\n" )
-		print( "RE file\t\t\t: $RE_file\n" )
-		print( "Blacklist\t\t: $blacklist\n" )
-		print( "Read Length\t\t: $read_len\n" )
-		print( "Mappability threshold in step 4\t: $mapp_thres\n" )
-		print( "Number of bins\t\t: $no_of_bins\n" )
-		print( "Dist. up threshold\t: $dist_up_thres\n" )
-		print( "Mappability threshold in step 6\t: $fit_mapp\n" )
-		print( "Number of passes\t: $no_of_passes\n" )
-		print( "Residual factor\t\t: $residual_factor\n" )
-		print( "org\t\t\t: $org\n" )
-		print( "ref\t\t\t: $ref\n" )
-		print( "re\t\t\t: $re\n" )
-		print( "Walltime (sort cln pairs)\t: $wt_hic4\n")
+	
+	if ( !is_method_RE() && !is_method_fixed() ) error("Method (-method []) must be 're' or 'fixed'! \n\n")
+	
+	if ( is_method_RE() ) { // set default values for multipliers
+		if ( intra_chr_thres_mltpl == 0 ) 	intra_chr_thres_mltpl = 5000
+		if ( dist_low_thres_mltpl == 0 ) 	dist_low_thres_mltpl  = 5000
+	}
+	else {
+		if ( intra_chr_thres_mltpl == 0 ) 	intra_chr_thres_mltpl = 2
+		if ( dist_low_thres_mltpl == 0 ) 	dist_low_thres_mltpl  = 2
 	}
 
 	if ( res == "" ) {
-
 		error("Define resolution array with '-res [COMMA_SEPARATED_INTEGERS]'. Example: '-res 10,100,200'\n\n")
 	}
 	else {
@@ -124,20 +122,37 @@ void init_hic() {
 			resolution.add( w.parseInt() )
 		}
 	}
-}
 
-void chk_input_data() {
-
-	// check values
 	if ( read_len == 0 ) error("Define read length (with -read_len [])! \n\n") // 50
-	if ( mapp_thres == "0.0" ) error("Define mappability threshold (with -mapp_thres [])! \n\n") // 0.5
-	if ( dist_low_thres_mltpl == 0 ) error("Define dist. low threshold multiplier (with -dist_low_thres_mltpl [])! \n\n") // 10000000
-	if ( intra_chr_thres_mltpl == 0 ) error("Define dist. intra chr. threshold multiplier (with -intra_chr_thres_mltpl [])! \n\n") // 10000000
-	
-	// check paths
-	if ( !RE_file.exists() ) error("\nRE file doesn't exists! ($RE_file) \n")	
+
+	if ( is_method_RE() && !RE_file.exists() ) error("\nRE file doesn't exists! ($RE_file) \n")	
+
 	if ( !blacklist.exists() ) error("\nBlacklist file doesn't exists! ($blacklist)\n")	
+
 	if ( !umap.exists() ) error("\nUmap directory doesn't exists! ($umap)\n")
+
+	if ( v ) { // verbose
+		print("\n")
+		print( "Root for mapped data\t: $root_mapped\n" )
+		print( "Merge method\t\t: $merge ( " + get_merge_name() + " )\n" )
+		print( "Resolution\t\t: $res\n" )
+		print( "RE file\t\t\t: $RE_file\n" )
+		print( "Blacklist\t\t: $blacklist\n" )
+		print( "Read Length\t\t: $read_len\n" )
+		print( "Intra chr. threshold multiplier\t: $intra_chr_thres_mltpl\n" )
+		print( "Mappability threshold\t\t: $mapp_thres\n" )
+		print( "Number of bins\t\t\t: $no_of_bins\n" )
+		print( "Dist. up threshold\t\t: $dist_up_thres\n" )
+		print( "Dist. low threshold multiplier\t: $dist_low_thres_mltpl\n" )
+		print( "Fit. mappability threshold\t: $fit_mapp\n" )
+		print( "Number of passes\t\t: $no_of_passes\n" )
+		print( "Residual factor\t\t\t: $residual_factor\n" )
+		print( "org\t\t\t\t: $org\n" )
+		print( "ref\t\t\t\t: $ref\n" )
+		print( "re\t\t\t\t: $re\n" )
+		print( "Walltime for hic step2\t: $wt_hic2\n")
+		print( "Walltime for hic step4\t: $wt_hic4\n")
+	}
 }
 
 void find_mapped_data() {
@@ -212,7 +227,7 @@ void merge_cleaned_pairs() {  // return: key=id, val=comma-separated cleanedPair
 		}
 	}
 
-	print("\nMerge method: "+get_merge_method()+"\n")
+	print("\nMerge method: "+get_merge_name()+"\n")
 
 	print("\nMerged cleaned pairs:\n\n")
 
@@ -232,12 +247,12 @@ void hic() {
 
 void _hic( int w ) {
 
-	// HiC_preprocess first (step 1 and 3)
+	// HiC_preprocess first (step 1, 1a and 3)
 	_hic_preprocess( w )
 
 	wait
 
-	// HiC_postprocess (step 2, 4, 5, 6)
+	// HiC_postprocess (step 2, 2a, 4, 5, 6, 6a)
 	for( string id : clean_pairs_comb.keys() ) {
 
 		if ( no_par_job )    _hic_postprocess( id, clean_pairs_comb{ id }, w )
@@ -249,74 +264,110 @@ void _hic( int w ) {
 
 void _hic_preprocess( int w ) {
 
-	info := "RE$w"
+	info := get_res_prefix()+"$w"
 
 	// create output dir
-	RE_site_dir 	:= mkdir_path( "$out_dir/RESites" )
-	Bias_dir 	:= mkdir_path( "$out_dir/preprocessedForBias" )
+	bias_dir 	:= mkdir_path( "$out_dir/preprocessedForBias" )
 
-	(RE_sites{"$w"}, RE_sites_mid{"$w"}) = _hic_step1( RE_file, w, RE_site_dir, info )
-	wait
+	if ( is_method_RE() ) {
 
-	biases{"$w"} = _hic_step3( RE_sites{"$w"}, w, Bias_dir, info )
+		RE_site_dir 	:= mkdir_path( "$out_dir/RESites" )
+
+		( RE_sites{"$w"}, mid_points{"$w"} ) = _hic_step1( w, RE_site_dir, info )
+		wait
+
+		biases{"$w"} = _hic_step3( RE_sites{"$w"}, w, bias_dir, info )
+	}
+	else {
+		mid_point_dir 	:= mkdir_path( "$out_dir/FixedWindowsMidpoints")
+		blacklist_dir	:= mkdir_path( "$out_dir/Blacklist")
+
+		mid_points{"$w"} = _hic_step1_fixed_win( w, mid_point_dir, info )
+		if ( no_par_job ) wait
+
+		binned_blacklists{"$w"} = _hic_step1a_fixed_win( w, blacklist_dir, info )
+		if ( no_par_job ) wait
+
+		biases{"$w"} = _hic_step3_fixed_win( w, bias_dir, info )	
+	}
 }
 
 void _hic_postprocess( string id, string clean_pairs_comb, int w ) {
 
-	info := "RE$w $id"
+	RE 	:= get_res_prefix()
+	info 	:= "$RE$w $id"
 
 	// create output dirs
-	bfr_ice_dir	:= mkdir_path( "$out_dir/interactionCounts/beforeICE/RE$w")
+	bfr_ice_dir	:= mkdir_path( "$out_dir/interactionCounts/beforeICE/$RE$w")
 	raw_contact_dir := mkdir_path( "$out_dir/Plots")
-	aft_ice_dir	:= mkdir_path( "$out_dir/interactionCounts/afterICE/RE$w")
-	//plot_dir	:= mkdir_path( "$out_dir/Plots/RE$w")
-	plot_dir	:= mkdir_path( "$out_dir/Plots/bias/RE$w")
-	contact_dir	:= mkdir_path( "$out_dir/ContactsPerFragment/RE$w")
+	aft_ice_dir	:= mkdir_path( "$out_dir/interactionCounts/afterICE/$RE$w")
+	plot_dir	:= mkdir_path( "$out_dir/Plots/bias/$RE$w")
+	contact_dir	:= mkdir_path( "$out_dir/ContactsPerFragment/$RE$w")
+	
+	hic_bfr_ice_dir := mkdir_path( "$out_dir/fit-hi-c-results/$RE$w/beforeICE/$id")
+	hic_aft_ice_dir := mkdir_path( "$out_dir/fit-hi-c-results/$RE$w/afterICE/$id")
 
-	hic_bfr_ice_dir := mkdir_path( "$out_dir/fit-hi-c-results/RE$w/beforeICE/$id")
-	hic_aft_ice_dir := mkdir_path( "$out_dir/fit-hi-c-results/RE$w/afterICE/$id")
-
-	hic_bfr_ice_std_dir := mkdir_path( "$out_dir/fit-hi-c-results_std/RE$w/beforeICE/$id")
-	hic_aft_ice_std_dir := mkdir_path( "$out_dir/fit-hi-c-results_std/RE$w/afterICE/$id")
+	hic_bfr_ice_std_dir := mkdir_path( "$out_dir/fit-hi-c-results_std/$RE$w/beforeICE/$id")
+	hic_aft_ice_std_dir := mkdir_path( "$out_dir/fit-hi-c-results_std/$RE$w/afterICE/$id")
 
 	// parse clean_pairs_comb (comma separated cleanedPairs files)
 	cleaned := clean_pairs_comb.split(",")
 
-	list_contacts_bfr_ice 	:= _hic_step2( id, cleaned, RE_sites{"$w"}, w, bfr_ice_dir, info )
+	string list_contacts_bfr_ice
+
+	if ( is_method_RE() ) {
+		list_contacts_bfr_ice 	= _hic_step2( id, cleaned, RE_sites{"$w"}, w, bfr_ice_dir, info )
+	}
+	else {
+		list_contacts_bfr_ice 	= _hic_step2_fixed_win( id, cleaned, binned_blacklists{"$w"}, w, bfr_ice_dir, info )	
+	}
+
 	wait
 
-	raw_contact_cnts 	:= _hic_step2a( id, list_contacts_bfr_ice, w, raw_contact_dir, info )	
+	raw_contact_cnts 		:= _hic_step2a( id, list_contacts_bfr_ice, w, raw_contact_dir, info )	
+
 	if ( no_par_job ) wait
 
 	list_contacts_aft_ice_biases 	:= _hic_step4( id, list_contacts_bfr_ice, biases{"$w"}, aft_ice_dir, info )
+
 	if ( no_par_job ) wait
 
-	contacts_per_frag 	:= _hic_step5( id, list_contacts_bfr_ice, RE_sites_mid{"$w"}, contact_dir, info )
+	contacts_per_frag 		:= _hic_step5( id, list_contacts_bfr_ice, mid_points{"$w"}, contact_dir, info )
+
 	wait
 
-	dist_bias 		:= _hic_step4a( id, list_contacts_aft_ice_biases, w, plot_dir, info )
+	dist_bias 			:= _hic_step4a( id, list_contacts_aft_ice_biases, w, plot_dir, info )
+
 	if ( no_par_job ) wait
 
 	_hic_step6( "beforeICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
 			contacts_per_frag, w, hic_bfr_ice_dir, info )
 
+	if ( no_par_job ) wait
+
 	_hic_step6( "afterICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
 			contacts_per_frag, w, hic_aft_ice_dir, info )
 
+	if ( no_par_job ) wait
+
 	_hic_step6a( "beforeICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
 			contacts_per_frag, w, hic_bfr_ice_std_dir, info )
+
+	if ( no_par_job ) wait
 
 	_hic_step6a( "afterICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
 			contacts_per_frag, w, hic_aft_ice_std_dir, info )
 }
 
-string _hic_step1( string REfile, int w, string out_dir, string info ) {
+string _hic_step1( int w, string out_dir, string info ) {
 	//# write out file with RE fragments @ RE-resolution
 
-	RE_site 	:= "$out_dir/REFrags.RE$w"
-	RE_site_mid 	:= "$out_dir/REFragsMid.RE$w"
+	RE 		:= get_res_prefix()
 
-	in 	:= REfile
+	RE_site 	:= "$out_dir/REFrags.$RE$w"
+	RE_site_mid 	:= "$out_dir/REFragsMid.$RE$w"
+
+	in 	:= [RE_file]
 	out 	:= [RE_site, RE_site_mid]
 
 	task( taskName := "hic1 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
@@ -324,12 +375,47 @@ string _hic_step1( string REfile, int w, string out_dir, string info ) {
 
 		sys $SHCMD_INIT	
 
-		sys python $(which get-contactCounts-atRESize.py) $REfile $w $RE_site $RE_site_mid
+		sys python $(which get-contactCounts-atRESize.py) $RE_file $w $RE_site $RE_site_mid
 	}
 
 	return out	
 }
 
+string _hic_step1_fixed_win( int w, string out_dir, string info ) {
+
+	RE 	  := get_res_prefix()
+	mid_point := "$out_dir/$org-$ref.$RE$w"
+
+	out 	  := mid_point
+
+	task( taskName := "hic1_fixwin $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+		!out.exists() ) {
+
+		sys $SHCMD_INIT	
+
+		sys python $(which generate_binned_midpoints.py) $w <(grep -v _ $chrsz) $mid_point
+	}
+
+	return out	
+}
+
+string _hic_step1a_fixed_win( int w, string out_dir, string info ) {
+
+	RE 	  := get_res_prefix()
+	binned_blacklist := "$out_dir/BlackList.$RE$w"
+
+	out := binned_blacklist
+
+	task( taskName := "hic1_fixwin $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+		!out.exists() ) {
+
+		sys $SHCMD_INIT	
+
+		sys python $(which generate_binned_blacklist.py) $w $blacklist $binned_blacklist
+	}
+
+	return out	
+}
 
 string _hic_step2( string id, string[] cleaned_pairs, string RE_site, int w, string out_dir, string info ) {
 	//# step 2 operations:
@@ -356,7 +442,7 @@ string _hic_step2( string id, string[] cleaned_pairs, string RE_site, int w, str
 
 	cleaned_pairs_all := array_to_str( cleaned_pairs, " " )
 
-	task( taskName := "hic2 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic2 $info", cpus := nth, timeout := parse_time(wt_hic2), mem := parse_mem(mem), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
@@ -406,11 +492,50 @@ string _hic_step2( string id, string[] cleaned_pairs, string RE_site, int w, str
 	return out
 }
 
+
+string _hic_step2_fixed_win( string id, string[] cleaned_pairs, string binned_blacklist, int w, string out_dir, string info ) {
+	//# step 2 operations:
+	//#  - get contacts at fixed window size 
+	prefix := "$out_dir/$id"
+
+	IntrachrThres 	:= w*intra_chr_thres_mltpl //$(($w*1))
+
+	list_contacts_bfr_ice 	:= prefix+"_ListOfContacts"
+	list_contacts_bfr_ice_gz:= prefix+"_ListOfContacts.gz"
+
+	list_contacts_bfr_ice_black 	:= prefix+"_ListOfContacts_withBlackList"
+	list_contacts_bfr_ice_black_gz	:= prefix+"_ListOfContacts_withBlackList.gz"
+
+	in  	:= [binned_blacklist];	for ( string file : cleaned_pairs ) in.add( file )
+	out 	:= list_contacts_bfr_ice_gz
+
+	cleaned_pairs_all := array_to_str( cleaned_pairs, " " )
+
+	task( taskName := "hic2_fixwin $info", cpus := nth, timeout := parse_time(wt_hic2), mem := parse_mem(mem), \
+		out<-in) {
+
+		sys $SHCMD_INIT	
+
+	        sys zcat $cleaned_pairs_all \
+	        	| awk 'length($3)<=5 && length($7)<=5 {print}' | grep -v chrM \
+	        	| awk '$3!=$7 || ($3==$7 && ($4-$8> t || $8-$4> t)) {print}' t=$IntrachrThres \
+	        	| awk '{print $3,int($4/r)*r,$7,int($8/r)*r}' r=$w \
+	        	| awk '{if($1<$3 || ($1==$3 && $2<=$4)) print $1,$2,$3,$4; else print $3,$4,$1,$2}' | sort | uniq -c \
+	        	| awk 'OFS="\t"{print $2,$3+r/2,$4,$5+r/2,$1}' r=$w > $list_contacts_bfr_ice_black
+	        //#remove black list contacts
+	        sys python $(which Remove-Blacklist-Bins.py) $w $list_contacts_bfr_ice_black $binned_blacklist $list_contacts_bfr_ice $id
+	        sys gzip $list_contacts_bfr_ice $list_contacts_bfr_ice_black
+	}
+
+	return out
+}
+
 string _hic_step2a( string id, string list_contacts_bfr_ice, int w, string out_dir, string info ) {
 	
-	prefix 		:= "$out_dir/$id"
-	raw_contact_cnts 	:= "$prefix"+"_RawContactCounts_RE$w"
-	raw_contact_cnts_png 	:= "$prefix"+"_RawContactCounts_RE$w.png"
+	RE 	:= get_res_prefix()
+	prefix 	:= "$out_dir/$id"
+	raw_contact_cnts 	:= "$prefix"+"_RawContactCounts_$RE$w"
+	raw_contact_cnts_png 	:= "$prefix"+"_RawContactCounts_$RE$w.png"
 
 	in 	:= list_contacts_bfr_ice
 	out 	:= raw_contact_cnts_png
@@ -430,7 +555,7 @@ string _hic_step2a( string id, string list_contacts_bfr_ice, int w, string out_d
 string _hic_step3( string RE_site, int w, string out_dir, string info ) {
 	//# preprocess the genome to get mappability per window. Note: needs to be run only once for a particular resolution
 
-        bias 	:= "$out_dir/$org-$ref.$re.RE$w"
+        bias 	:= "$out_dir/$org-$ref.$re."+get_res_prefix()+"$w"
 
         in 	:= RE_site
         out 	:= bias
@@ -440,8 +565,35 @@ string _hic_step3( string RE_site, int w, string out_dir, string info ) {
 
 		sys $SHCMD_INIT	
 
-		//sys python $(which mappability_from_bed.py) --regions $RE_site --read_length $read_len --out $bias
 		sys python $(which mappability_from_bed.py) --regions $RE_site --read_length $read_len --out $bias --map_prefix $umap"/chr"
+	}
+
+	return out
+}
+
+string _hic_step3_fixed_win( int w, string out_dir, string info ) {
+	//# preprocess the genome to get mappability per window. Note: needs to be run only once for a particular resolution
+
+	RE 	:= get_res_prefix()
+
+	window_file 	:= "$out_dir/$org-$ref.$re.$RE$w"+"_windowFile.bed"
+        bias 	:= "$out_dir/$org-$ref.$re.$RE$w"
+
+        out 	:= bias
+
+	task( taskName := "hic3_fixwin $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+		!out.exists() ) {
+
+		sys $SHCMD_INIT	
+
+		sys bedtools makewindows -i winnum -w $w -g <(grep -v _ $chrsz) | awk '{wend=$4*$w}{print $1"\t"$2"\t"wend}' > $window_file
+		//#intersect to count REs
+		sys cat $window_file | sort -k1,1 -k2,2n > "$window_file"_withNumREsites.bed
+
+		//##run mappability on the bed-like file
+		sys python $(which mappability_from_bed.py) --regions "$window_file"_withNumREsites.bed --read_length $read_len --out $bias --map_prefix $umap"/chr"
+		sys rm -f $window_file "$window_file"_withNumREsites.bed
+		//# Output will look like ${biasdir}/human-hg19.HindIII.w40000
 	}
 
 	return out
@@ -501,7 +653,7 @@ string _hic_step4a( string id, string list_contacts_aft_ice_biases, int w, strin
 	return out
 }
 
-string _hic_step5( string id, string list_contacts_bfr_ice, string RE_site_mid, string out_dir, string info ) {
+string _hic_step5( string id, string list_contacts_bfr_ice, string mid_point, string out_dir, string info ) {
 	//#  - calculate total numbmer of contacts coming out of each window.
 
 	prefix 		:= "$out_dir/$id"
@@ -510,7 +662,7 @@ string _hic_step5( string id, string list_contacts_bfr_ice, string RE_site_mid, 
 	contacts_per_frag_gz 	:= "$prefix"+"_ContactsPerFragment.gz"
 	srt_contacts 		:= "$prefix"+"_SortedContacts"
 
-	in 	:= [list_contacts_bfr_ice, RE_site_mid]
+	in 	:= [list_contacts_bfr_ice, mid_point]
 	out 	:= contacts_per_frag_gz
 
 	task( taskName := "hic5 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
@@ -525,7 +677,7 @@ string _hic_step5( string id, string list_contacts_bfr_ice, string RE_site_mid, 
 		sys sort -k1,1 -k2n,2 $contacts_per_frag.tmp > $srt_contacts
 		sys echo >> $srt_contacts
 		sys cat $srt_contacts | gawk '($1==key1 && $2==key2) { sum+=$3} ($1 != key1 || $2 != key2) {if (NR>1){print key1, key2, sum} key1=$1; key2=$2; sum=$3}' > $contacts_per_frag.tmp
-		sys python $(which MergeCounts.py) $RE_site_mid $contacts_per_frag.tmp $contacts_per_frag
+		sys python $(which MergeCounts.py) $mid_point $contacts_per_frag.tmp $contacts_per_frag
 		sys gzip $contacts_per_frag
 		sys rm -f $contacts_per_frag.tmp $srt_contacts
 	}
@@ -738,7 +890,7 @@ string get_id( int lib ) {
 	return "$prefix"+"_"+lib_names[lib-1]
 }
 
-string get_merge_method() {
+string get_merge_name() {
 
 	if ( merge == 0 ) {
 		return "no_merge"
@@ -749,4 +901,22 @@ string get_merge_method() {
 	else if ( merge == 2 ) {
 		return "all_merged"		
 	}
+}
+
+string get_res_prefix() {
+
+	if ( method.toLower() == "re" ) {
+		return "RE"
+	}
+	else {
+		return "w"
+	}
+}
+
+bool is_method_RE() {
+	return method.toLower() == "re"
+}
+
+bool is_method_fixed() {
+	return method.toLower() == "fixed"	
 }
