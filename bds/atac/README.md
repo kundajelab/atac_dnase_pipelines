@@ -4,7 +4,9 @@ ATAC Seq Pipeline
 
 ### Installation instruction
 
+Please read this README first!
 <a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">README_PIPELINE.md</a>
+
 
 ### Usage
 
@@ -39,14 +41,15 @@ Environment variables and species specific files will be automatically set in Ku
 $ bds atac.bds -fastq1 [READ1] -fastq2 [READ2] -kundaje_lab -species [hg19 or mm9]
 ```
 
-Add -mod, -addpath and -shcmd to set up enviroment variables for your jobs. This is explained later in this file.
+5) For other clusters or computers
+Add -mod, -addpath and -shcmd to set up enviroment variables for your jobs. This is explained later in <a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">README_PIPELINE.md</a>.
 
 
 ### Skipping trimming fastqs
 
 If your fastqs are already trimmed, add the following to the commandline to skip trimming stage.
 ```
--trimmed_fastq
+$ bds atac.bds ... -trimmed_fastq
 ```
 
 
@@ -72,21 +75,23 @@ ATAC seq for each repliacte will go IN PARALLEL!. Consider your computation reso
 max( [NTH_BWT2], [NTH_MACS2] ) x [NUM_REP]
 ```
 
-If you don't want jobs to be parallelized (each job can use multiple threads though), add '-no_par_job'.
+If you don't want any jobs to be parallelized (each job can use multiple threads though), add '-no_par_job'.
+
 
 
 ### If you don't want V plot 
 
 Add the following flag to the command line.
 ```
--no_vplot
+$ bds atac.bds ... -no_vplot
 ```
+
 
 ### If you don't want preseq analysis
 
 Add the following flag to the command line.
 ```
--no_preseq
+$ bds atac.bds ... -no_preseq
 ```
 
 

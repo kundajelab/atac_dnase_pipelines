@@ -3,6 +3,7 @@ HiC Pipeline
 
 ### Installation instruction
 
+Please read this README first!
 <a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">README_PIPELINE.md</a>
 
 
@@ -21,9 +22,9 @@ Two stages share the same indices for librarie (lib) and replicates (rep).
 
 ### Using species file
 
-On Kundaje lab cluster, add the following to the command line, then you don't have to define species specific parameters like bwa index, chromosome sizes file and umap. DO NOT USE hg19. Use hg19_hic (umap is different) 
+On Kundaje lab cluster, add the following to the command line, then you don't have to define species specific parameters like bwa index, chromosome sizes file and umap.
 ```
--kundaje_lab -species hg19_hic
+-kundaje_lab -species hg19
 ```
 
 
@@ -58,7 +59,7 @@ nth_bwa = [# THREADS FOR BWA]
 
 ### Usage (HiC)
 
-There are two methods (using RE_file or fixed windows). RE_file path must be defined for method 're'.
+There are two methods (using RE_file or fixed windows). RE_file path must be defined for method 're'. DO NOT USE all-mappable umap (starting from 1bp) for HiC analysis. Detailed information about umap is found on <a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">README_PIPELINE.md</a>.
 
 1) Using Root directory of mapped data
 ```

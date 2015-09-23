@@ -2,23 +2,21 @@
 
 include "../chipseq/modules/fastq.bds"
 include "../chipseq/modules/bam.bds"
-
 include "../chipseq/modules/align_etc.bds"
 include "../chipseq/modules/align_bowtie2.bds"
-
 include "../chipseq/modules/peakcall_macs2.bds"
-
 include "../chipseq/modules/preseq.bds"
 include "../chipseq/modules/report.bds"
 
 
 help ATAC-Seq Pipeline setting : fragment length, # replicates
-
 trimmed_fastq 	:= false	help Add it to skip fastq-trimming stage (default: false).
 fraglen 	:= 75 		help Read fragment length (default: 75).
 num_rep 	:= 1		help # replicates. ATAC seq for each replicate will go IN PARALLEL. (default: 1).
 no_vplot	:= false 	help Add it to bypass V plot generation (default: false).
 no_preseq 	:= false 	help Add it to bypass preseq analysis (default: false).
+
+
 
 help()
 
@@ -29,6 +27,7 @@ chk_input_data()
 set_shell_env()
 
 atac()
+
 
 
 void init_atac() {
@@ -71,7 +70,7 @@ void init_atac() {
 
 	if ( v ) { // verbose
 		print("\n")
-		print( "Fasqts are trimmed?\t: $trimmed_fastq\n")
+		print( "Fastqs are trimmed?\t: $trimmed_fastq\n")
 		print( "Fragment length\t\t: $fraglen\n")
 		print( "# Replicates\t\t: $num_rep\n")
 		print( "No vplot generation\t: $no_vplot\n")

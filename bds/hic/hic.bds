@@ -129,7 +129,9 @@ void init_hic() {
 
 	if ( !blacklist.exists() ) error("\nBlacklist file doesn't exists! ($blacklist)\n")	
 
-	if ( !umap.exists() ) error("\nUmap directory doesn't exists! ($umap)\n")
+	if ( umap_hic != "" ) umap = umap_hic
+
+	if ( !umap.exists() ) error("\nUmap or umap_hic directory doesn't exists! (umap: $umap, umap_hic: $umap_hic)\n")
 
 	if ( v ) { // verbose
 		print("\n")
