@@ -3,7 +3,7 @@ HiC Pipeline
 
 ### Installation instruction
 
-<a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">CHIPSEQ HELP</a>
+<a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">README_PIPELINE.md</a>
 
 
 ### How does HiC pipeline works?
