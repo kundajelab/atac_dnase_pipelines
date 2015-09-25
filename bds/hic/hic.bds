@@ -35,7 +35,7 @@ mem_hic4 		:= "20G"	help Max. memory for hic step4 (default: 20G).
 wt_hic4			:= "70h"	help Walltime for hic step4 (default: 70h, 70:00:00).
 
 help HiC settings (step 6)
-no_of_bins		:= 200		help Number of equal-occupancy (count) bins (default: 200).
+no_of_bins		:= 0		help Number of equal-occupancy (count) bins (default: 200 for method 're' and 100 for method 'fixed' ).
 dist_up_thres 		:= 10000000	help Upper bound on the intra-chromosomal distance range (default: 10000000).
 dist_low_thres_mltpl 	:= 0		help Lower Bound Multiplier, integer (x resolution). A multiplication parameter, when multiplied by resolution, defines a lower bound on the intra-chromosomal distance range (default: 5000 for meta-fragments or 2 for fixed-size windows).
 fit_mapp		:= 1 		help Minimum number of hits per locus that has to exist to call it mappable. (default: 1).
@@ -111,10 +111,12 @@ void init_hic() {
 	if ( is_method_RE() ) { // set default values for multipliers
 		if ( intra_chr_thres_mltpl == 0 ) 	intra_chr_thres_mltpl = 5000
 		if ( dist_low_thres_mltpl == 0 ) 	dist_low_thres_mltpl  = 5000
+		if ( no_of_bins == 0 ) 			no_of_bins 	      = 200
 	}
 	else {
 		if ( intra_chr_thres_mltpl == 0 ) 	intra_chr_thres_mltpl = 1
 		if ( dist_low_thres_mltpl == 0 ) 	dist_low_thres_mltpl  = 2
+		if ( no_of_bins == 0 ) 			no_of_bins 	      = 100
 	}
 
 	if ( res == "" ) {
@@ -402,7 +404,7 @@ string _hic_step1_fixed_win( int w, string out_dir, string info ) {
 	out 	  := mid_point
 
 	task( taskName := "hic1_fixwin $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
-		!out.exists() ) {
+		!path_exists( out ) ) {
 
 		sys $SHCMD_INIT	
 
@@ -420,7 +422,7 @@ string _hic_step1a_fixed_win( int w, string out_dir, string info ) {
 	out := binned_blacklist
 
 	task( taskName := "hic1_fixwin $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
-		!out.exists() ) {
+		!path_exists( out ) ) {
 
 		sys $SHCMD_INIT	
 
@@ -498,7 +500,7 @@ string _hic_step2( string id, string[] cleaned_pairs, string RE_site, int w, str
 			| sort | uniq -c \
 			| awk 'OFS="\t"{print $2,$3,$4,$5,$1}' > $list_contacts_bfr_ice
 
-		sys gzip $list_contacts_bfr_ice
+		sys gzip -f $list_contacts_bfr_ice
 		sys rm -f $IntSite1Temp $IntSite2Temp $Site1NoBlack $Site2NoBlack $Read1 $Read2
 	}
 
@@ -537,7 +539,7 @@ string _hic_step2_fixed_win( string id, string[] cleaned_pairs, string binned_bl
 	        	| awk 'OFS="\t"{print $2,$3+r/2,$4,$5+r/2,$1}' r=$w > $list_contacts_bfr_ice_black
 	        //#remove black list contacts
 	        sys python $(which Remove-Blacklist-Bins.py) $w $list_contacts_bfr_ice_black $binned_blacklist $list_contacts_bfr_ice $id
-	        sys gzip $list_contacts_bfr_ice $list_contacts_bfr_ice_black
+	        sys gzip -f $list_contacts_bfr_ice $list_contacts_bfr_ice_black
 	}
 
 	return out
@@ -595,7 +597,7 @@ string _hic_step3_fixed_win( int w, string out_dir, string info ) {
         out 	:= bias
 
 	task( taskName := "hic3_fixwin $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
-		!out.exists() ) {
+		!path_exists( out ) ) {
 
 		sys $SHCMD_INIT	
 
@@ -638,7 +640,7 @@ string _hic_step4( string id, string list_contacts_bfr_ice, string bias, string 
 		sys zcat $list_contacts_bfr_ice > $list_contacts_bfr_ice.temp
 		sys cat $bias  > $bias.temp
 		sys python $(which ICE-with-sparseMatrix.py) $list_contacts_bfr_ice.temp $bias.temp $norm $list_contacts_aft_ice $mapp_thres
-		sys gzip $list_contacts_aft_ice $list_contacts_aft_ice_biases
+		sys gzip -f $list_contacts_aft_ice $list_contacts_aft_ice_biases
 		sys rm -rf $list_contacts_bfr_ice.temp $bias.temp
 	}
 
@@ -691,7 +693,7 @@ string _hic_step5( string id, string list_contacts_bfr_ice, string mid_point, st
 		sys echo >> $srt_contacts
 		sys cat $srt_contacts | gawk '($1==key1 && $2==key2) { sum+=$3} ($1 != key1 || $2 != key2) {if (NR>1){print key1, key2, sum} key1=$1; key2=$2; sum=$3}' > $contacts_per_frag.tmp
 		sys python $(which MergeCounts.py) $mid_point $contacts_per_frag.tmp $contacts_per_frag
-		sys gzip $contacts_per_frag
+		sys gzip -f $contacts_per_frag
 		sys rm -f $contacts_per_frag.tmp $srt_contacts
 	}
 	return out
@@ -706,6 +708,8 @@ void _hic_step6( string before_after, string id, \
 	//distLowThres := w*5000 //$(($w*5000))
 	distLowThres := w*dist_low_thres_mltpl //$(($w*5000))
 
+	disc_bin_size := is_method_RE() ? "\$((\$(($dist_up_thres-$distLowThres))/$no_of_bins))" : "$w"
+
 	log := "$prefix"+"_log.conf.file"
 	html := "$prefix"+"_fithic.html"
 
@@ -717,7 +721,8 @@ void _hic_step6( string before_after, string id, \
 
 		sys $SHCMD_INIT	
 
-		sys discBinsize=$(($(($dist_up_thres-$distLowThres))/$no_of_bins))
+		//sys discBinsize=$(($(($dist_up_thres-$distLowThres))/$no_of_bins))
+		sys discBinsize=$disc_bin_size
 		sys echo ${discBinsize}
 
 		sys date >> $log
@@ -790,7 +795,10 @@ void _hic_step6a( string before_after, string id, \
 	//#  - places results into $PROJDIR/data/fit-hi-c-results
 	prefix 		:= "$out_dir/$id"
 
-	distLowThres := w*5000 //$(($w*5000))
+	//distLowThres := w*5000 //$(($w*5000))
+	distLowThres := w*dist_low_thres_mltpl //$(($w*5000))
+
+	disc_bin_size := is_method_RE() ? "\$((\$(($dist_up_thres-$distLowThres))/$no_of_bins))" : "$w"
 
 	log := "$prefix"+"_log.conf.file"
 	html := "$prefix"+"_fithic.html"
@@ -803,7 +811,8 @@ void _hic_step6a( string before_after, string id, \
 
 		sys $SHCMD_INIT	
 
-		sys discBinsize=$(($(($dist_up_thres-$distLowThres))/$no_of_bins))
+		//sys discBinsize=$(($(($dist_up_thres-$distLowThres))/$no_of_bins))
+		sys discBinsize=$disc_bin_size
 		sys echo ${discBinsize}
 
 		sys date >> $log

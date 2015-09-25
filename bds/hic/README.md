@@ -64,11 +64,11 @@ There are two methods (using RE_file or fixed windows). RE_file path must be def
 1) Using Root directory of mapped data
 ```
 $ bds hic.bds \
+-root_mapped [ROOT_OF_MAPPED_DATA: OUT_DIR OF MAPPING STAGE] \
 -method [METHOD; re: using RE_file, fixed: fixed windows] \
 -RE_file [RE_FILE_PATH] \
 -libs D3,D6,SC \
 -reps R2,R8 \
--root_mapped [ROOT_OF_MAPPED_DATA: OUT_DIR OF MAPPING STAGE] \
 -read_len [READ_LENGTH] \
 ...
 -merge [MERGE_METHOD; 0:no_merge, 1:merge_replicates_only, 2:merge_libraries_and_replicates] \
@@ -81,19 +81,14 @@ $ bds hic.bds \
 2) Using paths for individual cleaned pairs
 ```
 $ bds hic.bds \
--method [METHOD; re: using RE_file, fixed: fixed windows] \
--RE_file [RE_FILE_PATH] \
--libs D3,D6,SC \
--reps R2,R8 \
 -cln_pair_L1_R1 [CLEANED_PAIR_FOR_LIB1_REP1] \
 ...
--merge [MERGE_METHOD; 0:no_merge, 1:merge_replicates_only, 2:merge_libraries_and_replicates] \
--res [COMMA-SEPERATED RESOLUTIONS; Example: 100,200,1000] \
--blacklist [BLACKLIST_FILE] \
--umap [MAPPABILITY_DATA] \
--chrsz [CHR_SIZES_FILE]
 ```
 
+For low resolution (<=50), you will need very long walltime (timeout) for hic step2 and step4. Add the following to the command line (for example: 200 hours for step2 and 150 hours for step4)
+```
+-wt_hic2 200h -wt_hic4 150h
+```
 
 ### Contributors
 

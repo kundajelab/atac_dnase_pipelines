@@ -141,7 +141,7 @@ string _map_step1_align( string id, string fastq, string out_dir ) {
 
 		sys bwa aln $bwa_idx -t $nth_bwa $fastq > $sai
 		sys bwa samse $bwa_idx $sai $fastq > $sam
-		sys gzip $sam
+		sys gzip -f $sam
 		sys rm -f $sai
 	}
 
@@ -174,14 +174,14 @@ string _map_step2_sort( string id, string sam_gz, string out_dir ) {
 			| sort -k 1,1 > $mapped
 		//#count the number of aligned pairs
 		sys f=`cat $mapped | wc -l `
-		sys gzip $mapped
+		sys gzip -f $mapped
 
 		//## perform the above for non-mapped pairs		
 		sys samtools view -S -f 4 $sam \
 			| awk '{split($1,id,"#"); print id[1]"\t"$2"\t"$3"\t"$4"\t"$10}' \
 			| sort -k 1,1 > $non_mapped 
 		sys n=`cat $non_mapped | wc -l `
-		sys gzip $non_mapped
+		sys gzip -f $non_mapped
 
 		//## mapped but not uniques or quality below 30s or mismatch above what we expect
 		sys m=`samtools view -S -F 4 $sam \
@@ -217,7 +217,7 @@ string _map_step3_join_all_comb( string id, string mapped1, string mapped2, stri
 
 		sys join <(zcat -f $mapped1) <(zcat -f $mapped2) > $extracted
 		sys n=`cat $extracted | wc -l `
-		sys gzip $extracted
+		sys gzip -f $extracted
 		sys echo -e "$id\t${n} " > $num_extracted
 	}
 	return out
@@ -252,7 +252,7 @@ string _map_step4_remove_PCR_dups( string id, string extracted_gz, string out_di
 			| awk 'OFS="\t" { print $9, $3, $1, $2, $7, $6, $4, $5, $8}' > $cleaned
 
 		sys countAfter=`wc -l $cleaned | awk '{print $1}' `
-		sys gzip $cleaned
+		sys gzip -f $cleaned
 
 		sys echo -e "lib\\tpairsBeforePCR\\tpairsAfterPCR" > $num_cleaned
 		sys echo -e "$id\\t${countBefore}\\t${countAfter}" >> $num_cleaned
