@@ -242,6 +242,20 @@ $ bds [PIPELINE_BDS] -mod 'bwa/0.7.3; samtools/1.2' -shcmd 'export PATH=${PATH}:
 ```
 
 
+
+### Troubleshooting
+
+If see the following error when you submit jobs to Sun Grid Enginee,
+```
+/bin/bash: module: line 1: syntax error: unexpected end of file
+```
+
+Remove the following line in you module initialization scripts ($MODULESHOME/init/bash or /etc/profile.d/modules.sh).
+```
+export -f module
+```
+
+
 ### Contributors
 
 * Jin wook Lee - PhD Student, Mechanical Engineering Dept., Stanford University
