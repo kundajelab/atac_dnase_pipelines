@@ -6,7 +6,7 @@ include "../chipseq/modules/species.bds"
 help Alignment settings : bowtie2
 
 nth_bwt2	:= 2 			help # threads for bowtie2 (default: 2).
-wt_bwt2		:= "10h"		help Walltime for bowtie2 (default: 10h, 10:00:00).
+wt_bwt2		:= "20h"		help Walltime for bowtie2 (default: 20h, 20:00:00).
 mem_bwt2	:= "12G"	 	help Max. memory for bowtie2 (default: 8G).
 
 
