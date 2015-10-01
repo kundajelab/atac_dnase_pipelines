@@ -11,16 +11,29 @@ Taking advandatge of the powerful pipeline language BigDataScript (http://pcingo
 ```
 
 
+### Cloning/pulling this repo
+
+When cloning, don't forget to FULLY clone including submodules.
+```
+$ git clone https://github.com/kundajelab/pipelines --recursive
+```
+
+When pulling,
+```
+$ git pull && git submodule update --init --recursive
+```
+
+
 ### Installation instruction for BDS
 
 Get BigDataScript (v0.9999 is stable and doesn't require high java version).
 ```
-git clone https://github.com/pcingola/BigDataScript
-cd BigDataScript
-git checkout tags/v0.9999
-cp distro/bds_Linux.tgz $HOME
-cd $HOME
-tar zxvf bds_Linux.tgz
+$ git clone https://github.com/pcingola/BigDataScript
+$ cd BigDataScript
+$ git checkout tags/v0.9999
+$ cp distro/bds_Linux.tgz $HOME
+$ cd $HOME
+$ tar zxvf bds_Linux.tgz
 ```
 
 Add the following lines to your $HOME/.bashrc or $HOME/.bash_profile:
