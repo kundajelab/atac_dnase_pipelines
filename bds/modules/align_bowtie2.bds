@@ -44,9 +44,11 @@ string _bowtie2( string fastq1, string fastq2, string out_dir, string info ) {
 		out<-in ) {
 
 		sys $SHCMD_INIT
+			
+		// -1 $fastq1 -2 $fastq2 \
 
 		sys bowtie2 -X2000 --mm --threads $nth_bwt2 -x $bwt2_idx \
-			-1 $fastq1 -2 $fastq2 \
+			-1 <(zcat -f $fastq1) -2 <(zcat -f $fastq2) \
 			2>$log | \
 			samtools view -bS - > $bam
 	}
