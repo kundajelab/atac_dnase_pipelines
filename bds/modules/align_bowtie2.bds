@@ -36,7 +36,7 @@ string _bowtie2( string fastq1, string fastq2, string out_dir, string info ) {
 	bam 	:= "$prefix.bam"
 	log 	:= "$prefix.align.log"
 
-	in 	:= [ fastq1, fastq2, bwt2_idx ]
+	in 	:= [ fastq1, fastq2 ]
 	out 	:= bam
 
 	task( taskName:= "bowtie2 "+info, \
