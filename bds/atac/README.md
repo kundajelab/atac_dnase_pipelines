@@ -95,6 +95,14 @@ $ bds atac.bds ... -no_preseq
 ```
 
 
+### If you don't want MAC2 peak calling
+
+Add the following flag to the command line.
+```
+$ bds atac.bds ... -no_peakcall
+```
+
+
 ### Contributors
 
 * Jin wook Lee - PhD Student, Mechanical Engineering Dept., Stanford University

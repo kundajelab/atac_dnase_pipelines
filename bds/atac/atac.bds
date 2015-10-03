@@ -15,7 +15,7 @@ fraglen 	:= 75 		help Read fragment length (default: 75).
 num_rep 	:= 1		help # replicates. ATAC seq for each replicate will go IN PARALLEL. (default: 1).
 no_vplot	:= false 	help Add it to bypass V plot generation (default: false).
 no_preseq 	:= false 	help Add it to bypass preseq analysis (default: false).
-
+no_peakcall 	:= false	help Add it to skip MACS2 peak calling (default: false).
 
 
 help()
@@ -39,6 +39,7 @@ void init_atac() {
 		num_rep 	= get_conf_val_int( num_rep,		["num_rep", "numrep"] )
 		no_vplot 	= get_conf_val_bool( no_vplot,		["no_vplot"] )
 		no_preseq 	= get_conf_val_bool( no_preseq,		["no_preseq"] )
+		no_peakcall 	= get_conf_val_bool( no_peakcall,	["no_peakcall"] )
 	}
 	else if ( is_legacy_input() ) { // legacy input method taking first 8 parameters from cmd. line (num_rep=1)
 
@@ -75,6 +76,7 @@ void init_atac() {
 		print( "# Replicates\t\t: $num_rep\n")
 		print( "No vplot generation\t: $no_vplot\n")
 		print( "No preseq analysis\t: $no_preseq\n")
+		print( "No MACS2 peak calling\t: $no_peakcall\n")
 	}
 }
 
@@ -164,11 +166,15 @@ void _atac( int rep ) {
 
 	wait
 
-	_macs2_bed( bed, "$fraglen", atac_out_dir, info )
+	if ( !no_peakcall ) {
+		_macs2_bed( bed, "$fraglen", atac_out_dir, info )
 
-	if ( no_par_job ) wait
+		if ( no_par_job ) wait
+	}
 
-	srt_bam := _bam_to_srt_bam( bam, atac_out_dir, info )
+	string srt_bam
+
+	if ( !no_vplot || !no_preseq ) srt_bam = _bam_to_srt_bam( bam, atac_out_dir, info )
 
 	wait
 
@@ -182,14 +188,11 @@ void _atac( int rep ) {
 
 	if ( !no_preseq ) {
 		pdf = _preseq( srt_bam, atac_out_dir, info )
-
-		wait
 	}
 
-	if ( !no_vplot && !no_preseq ) {
+	wait
 
-		_report_atac( pdf, png, atac_out_dir, info )
-	}
+	_report_atac( pdf, png, atac_out_dir, info )
 }
 
 string[] _report_atac( string pdf, string png, string out_dir, string info ) {
@@ -294,12 +297,19 @@ string[] _report_atac( string pdf, string png, string out_dir, string info ) {
 		sys echo "\begin{multicols}{2}" >> $tex_file
 		sys echo "\subsection{Genome Model}" >> $tex_file
 		sys echo "${MODEL//_/\\_}" >> $tex_file
-		sys echo "\subsection{V-Plot}" >> $tex_file
-		sys echo "From ${vPlot//_/\\_}:\\\\" >> $tex_file
-		sys echo "\includegraphics[width=0.5\textwidth]{${vPlot}}" >> $tex_file
-		sys echo "\subsection{preseq lc\_extrap Yield Predicion}" >> $tex_file
-		sys echo "From ${preseqGraph//_/\\_}:\\\\" >> $tex_file
-		sys echo "\includegraphics[width=0.5\textwidth]{${preseqGraph}}" >> $tex_file
+
+		sys if [[ $no_vplot == "false" ]]; then \
+			echo "\subsection{V-Plot}" >> $tex_file; \
+			echo "From ${vPlot//_/\\_}:\\\\" >> $tex_file; \
+			echo "\includegraphics[width=0.5\textwidth]{${vPlot}}" >> $tex_file; \
+			fi
+
+		sys if [[ $no_preseq == "false" ]]; then \
+			echo "\subsection{preseq lc\_extrap Yield Predicion}" >> $tex_file; \
+			echo "From ${preseqGraph//_/\\_}:\\\\" >> $tex_file; \
+			echo "\includegraphics[width=0.5\textwidth]{${preseqGraph}}" >> $tex_file; \
+			fi
+
 		sys echo "\subsection{Library Complexity}" >> $tex_file
 		sys echo "From ${bpcQCFile//_/\\_}:\\\\" >> $tex_file
 		sys echo "\centerline{" >> $tex_file
