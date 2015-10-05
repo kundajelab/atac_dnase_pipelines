@@ -50,13 +50,27 @@ void init_hic_base() {
 void set_shell_env() {
 	
 	// create output dir.
-	if ( kundaje_lab ) {
+	if ( is_kundaje_lab() ) {
 
-		print("\n\nAutomatically adding environment variables... (kundaje_lab == true) \n\n")
+		print("\n\nAutomatically adding environment variables... (kundaje_lab: $hostname) \n\n")
 
-		SHCMD_INIT = SHCMD_INIT + " . /etc/profile.d/modules.sh; module add bwa/0.7.7 samtools/0.1.19 bedtools/2.21.0 r/3.2.0;" \
-					+ " export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='8G'; export MALLOC_ARENA_MAX=4"
+		print("DEBUG: init_mod=$init_mod\n")
+		if ( SHCMD_INIT.indexOf( init_mod ) < 0  ) { // if not module init. cmd found, then add it
+			SHCMD_INIT = SHCMD_INIT + " . /etc/profile.d/modules.sh;"
+		}
+
+		if ( is_scg3() ) { // if on SCG3
+		}
+		else {
+		}
+
+		SHCMD_INIT = SHCMD_INIT + " module add bwa/0.7.7 samtools/0.1.19 bedtools/2.21.0 r/3.2.0;"
+		SHCMD_INIT = SHCMD_INIT + " export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='8G'; export MALLOC_ARENA_MAX=4"
 		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
+
+		if ( v ) { // verbose
+			print( "Final shell cmd. for init.\t: $SHCMD_INIT\n" )
+		}
 	}
 }
 

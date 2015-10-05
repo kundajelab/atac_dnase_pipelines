@@ -349,11 +349,19 @@ void set_shell_env() {
 	
 	// create output dir.	
 
-	if ( kundaje_lab ) {
+	if ( is_kundaje_lab() ) {
 
-		print("\n\nAutomatically adding environment variables... (kundaje_lab == true) \n\n")
+		print("\n\nAutomatically adding environment variables... (kundaje_lab: $hostname) \n\n")
 
-		SHCMD_INIT = SHCMD_INIT + " . /etc/profile.d/modules.sh; module add bowtie/2.2.4 samtools/1.2 bedtools/2.21.0;" \
+		if ( SHCMD_INIT.indexOf( init_mod ) < 0  ) { // if not module init. cmd found, then add it
+			SHCMD_INIT = SHCMD_INIT + " . /etc/profile.d/modules.sh;"
+		}
+
+		if ( is_scg3() ) { // if on SCG3		
+			SHCMD_INIT = SHCMD_INIT + " module add gnuplot/5.0 python/2.7;" \
+		}
+
+		SHCMD_INIT = SHCMD_INIT + " module add bowtie/2.2.4 samtools/1.2 bedtools/2.21.0;" \
 					+ " module add picard-tools/1.129 ucsc_tools/3.0.9 MACS2/2.1.0 java/latest;" \
 					+ " module add preseq/1.0.2 texlive/2013;" \
 					+ " export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='8G'; export MALLOC_ARENA_MAX=4"
