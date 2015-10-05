@@ -64,6 +64,9 @@ string _preseq( string srt_bam, string out_dir, string info ) {
 		sys echo "set title \"PRESEQ Results for ${titleName}\"" >> $preseq_gnu
 		sys echo "plot '$preseq_data' using (\$1/1000000):(\$2/1000000) with lines linestyle 1 notitle, '' using (\$1/1000000):(\$3/1000000) with lines linestyle 2 notitle, '' using (\$1/1000000):(\$4/1000000) with lines linestyle 2 title '+/- 95% confidence interval' " >> $preseq_gnu
 
+		sys echo "DEBUG: $SHCMD_INIT"		
+		sys which gnuplot
+
 		sys gnuplot $preseq_gnu
 	}
 	

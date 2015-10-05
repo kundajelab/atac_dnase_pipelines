@@ -358,7 +358,7 @@ void set_shell_env() {
 		}
 
 		if ( is_scg3() ) { // if on SCG3		
-			SHCMD_INIT = SHCMD_INIT + " module add gnuplot/5.0 python/2.7;" \
+			SHCMD_INIT = SHCMD_INIT + " module add gnuplot/5.0 python/2.7.6;" \
 		}
 
 		SHCMD_INIT = SHCMD_INIT + " module add bowtie/2.2.4 samtools/1.2 bedtools/2.21.0;" \
