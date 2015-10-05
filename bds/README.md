@@ -7,7 +7,8 @@ Taking advandatge of the powerful pipeline language BigDataScript (http://pcingo
 1) One command line (or one configuration file) to run the whole pipeline.
 2) Resuming from the point of failure without re-doing finished stages.
 3) All stages in the pipeline are parallelized in the most efficient way (using UNIX threads or Sun Grid Engine).
-4) Realtime HTML Progress reports to monitor pipeline jobs.
+4) One species file to define all species specific parameters. 
+5) Realtime HTML Progress reports to monitor pipeline jobs.
 ```
 
 
@@ -24,6 +25,7 @@ $ git pull && git submodule update --init --recursive
 ```
 
 
+
 ### Installation instruction for BDS
 
 Get BigDataScript (v0.9999 is stable and doesn't require high java version).
@@ -36,7 +38,7 @@ $ cd $HOME
 $ tar zxvf bds_Linux.tgz
 ```
 
-Add the following lines to your $HOME/.bashrc or $HOME/.bash_profile:
+(Recommended if you don't know what these are) Add the following lines to your $HOME/.bashrc or $HOME/.bash_profile:
 ```
 export _JAVA_OPTIONS="-Xms256M -Xmx512M -XX:ParallelGCThreads=1"
 export MAX_JAVA_MEM="8G"
@@ -44,24 +46,49 @@ export MALLOC_ARENA_MAX=4
 export PATH=$PATH:$HOME/.bds
 ```
 
-
-### Installation instruction for BDS (on Kundaje lab clusters)
-
-For Kundaje lab members, BDS and all dependencies have already been installed on lab servers. Do not run install_dependencies.sh on Kundaje lab servers. Get the latest version of pipelines. Don't forget to move bds.config to BigDataScript (BDS) directory
+Find bds.config anywhere (pipelines/bds/ or pipelines/bds/chipseq/) in the pipeline repo and copy it to $HOME/.bds/.
 ```
 $ mkdir -p $HOME/.bds
-$ cp ../bds.config $HOME/.bds/
+$ cp bds.config $HOME/.bds/
 ```
 
-For Kundaje lab servers (mitra, nandi, durga, kali, amold and wotan), the pipeline provides a flag to automatically set shell environments and species database.
+
+
+### Installation instruction for BDS on SCG3 clusters (scg3, carmack and crick)
+
+Follow the instruction in the above section.
+
+
+
+### Installation instruction for BDS on Kundaje lab clusters (mitra, nandi, vayu, kali, durga, wotan and amold)
+
+For Kundaje lab members, BDS and all dependencies have already been installed on lab servers. Do not run install_dependencies.sh on Kundaje lab servers. Find bds.config anywhere (pipelines/bds/ or pipelines/bds/chipseq/) in the pipeline repo and copy it to $HOME/.bds/.
 ```
-$ bds [PIPELINE_BDS] [...] -kundaje_lab -species [SPECIES: hg19, mm9, ...]
+$ mkdir -p $HOME/.bds
+$ cp bds.config $HOME/.bds/
+```
+
+
+
+### How to deal with BDS pipeline errors?
+
+```
+1) Take a look at HTML report (which contains all STDERR/STDOUT for all jobs in the pipeline). It tells you everything about its jobs. Find out which step is errorneous.
+
+2) Correct errors.
+   2-1) Lack of memory: increase memory for all jobs (e.g. add -mem 20G) or a specific problematic job (e.g. add -mem_macs2 20G).
+   2-2) Timeout: increase walltime for all jobs (e.g. add -wt 24h) or a specific long job (e.g. add -wt_macs2 200h).
+                 (Warning! Most clusters have limit for walltime. Make it as shortest as you can to get your jobs queued quickly.)
+   2-3) Wrong input: check all input files are available.
+   2-4) Software error: use recommended software versions
+
+3) Resume pipeline with the same command line that you used to start the pipeline with. Previous steps will be automatically skipped.
 ```
 
 
 ### How to resume pipeline from the point of failure?
 
-Pipelines automatically determine if each stage has finished or not (comparing timestamps of input/output files for each stage). To run the pipeline from the point of failure, correct error first and then just run the pipeline with the same command that you started the pipeline with. There is no additional parameter for restarting the pipeline.
+Pipelines automatically determine if each stage has finished or not (comparing timestamps of input/output files for each stage). To run the pipeline from the point of failure, take a look at BDS HTML reports check stdoutcorrect error first and then just run the pipeline with the same command that you started the pipeline with. There is no additional parameter for restarting the pipeline.
 
 
 
@@ -73,12 +100,14 @@ $ bds [PIPELINE_BDS]
 ```
 
 
+
 ### How to run pipelines with Sun Grid Engine?
 
 Run the pipeline without additional command line argument.
 ```
 $ bds -s sge [PIPELINE_BDS]
 ```
+
 
 
 ### How to define parameters?
@@ -115,7 +144,19 @@ bwa_idx= /INDEX/encodeHg19Male_bwa-0.7.3.fa
 ```
 
 
-### Using Species file
+
+### Using species file on SCG3 and Kundaje lab clusters (IMPORTANT)
+
+Add the following to the command line and that's it.
+```
+-species [SPECIES; hg19, mm9, ...]
+```
+
+hg19 and mm9 are available for both SCG3 and Kundaje lab clusters. If you are interested in other species, modify pipelines/bds/chipseq/species/species*.conf and share with lab members or create your own species file.
+
+
+
+### Using species file (IMPORTANT)
 
 There are many species specific parameters like indices (bwa, bowtie, ...), chromosome sizes and sequence files (chr*.fa). If you have multiple pipelines, it's hard to individually define all parameters in a command line argument (or in a configruation file) for each pipeline run. However, if you have a species file with all species specific parameters defined, then you define less parameters and share the species file with all other pipelines.
 
