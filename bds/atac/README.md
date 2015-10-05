@@ -78,6 +78,25 @@ max( [NTH_BWT2], [NTH_MACS2] ) x [NUM_REP]
 If you don't want any jobs to be parallelized (each job can use multiple threads though), add '-no_par_job'.
 
 
+### If you want to run pipeline on SCG3 cluster (for Kundaje lab members)
+
+Add the following to the command line: (example for hg19):
+```
+$ bds -s sge atac.bds ... -kundaje_lab -species hg19_scg3 -mod "python/2.7 gnuplot/5.0"
+```
+
+Check if paths for chrsz, bwt2_idx and vplot_idx in ../chipseq/species/species_kundaje_lab.conf are valid. 
+If not, 
+
+1) modify that species file to have correct paths for them.
+
+or
+
+2) add the following commandline
+```
+-chrsz [PATH_FOR_CHRSZ_FILE] -bwt2_idx [PATH_FOR_BWT2_IDX] -vplot_idx [PATH_FOR_VPLOT_IDX]
+```
+
 
 ### If you don't want V plot 
 
