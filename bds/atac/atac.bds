@@ -366,6 +366,10 @@ void set_shell_env() {
 					+ " module add preseq/1.0.2 texlive/2013;" \
 					+ " export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='8G'; export MALLOC_ARENA_MAX=4"
 		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
+
+		if ( v ) { // verbose
+			print( "Final shell cmd. for init.\t: $SHCMD_INIT\n" )
+		}
 	}
 }
 
