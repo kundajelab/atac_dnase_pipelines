@@ -377,7 +377,7 @@ void set_shell_env() {
 		SHCMD_INIT = SHCMD_INIT + " module add bowtie/2.2.4 samtools/1.2 bedtools/2.21.0;" \
 					+ " module add picard-tools/1.129 ucsc_tools/3.0.9 MACS2/2.1.0 java/latest;" \
 					+ " module add preseq/1.0.2 texlive/2013;" \
-					+ " export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='8G'; export MALLOC_ARENA_MAX=4"
+					+ " export _JAVA_OPTIONS='-Xms256M -Xmx2048M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='16G'; export MALLOC_ARENA_MAX=4"
 		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
 
 		if ( v ) { // verbose
