@@ -50,6 +50,11 @@ To change resource settings (# of processor, max memory and walltime) for bowtie
 -nth_bwt2 [NTHREADS_BWT2] -mem_bwt2 [MEMORY_BWT2; e.g. 20G] -wt_bwt2 [WALLTIME_BWT2; e.g. 20h]
 ```
 
+For MACS2 peak calling:
+```
+-nth_macs2 [NTHREADS_MACS2] -mem_macs2 [MEMORY_MACS2; e.g. 20G] -wt_macs2 [WALLTIME_MACS@; e.g. 20h]
+```
+
 For Kundaje lab cluster and SCG3, skip parameters (bwt2_idx, chrsz, gensz and vplot_idx) and just specify species.
 ```
 $ bds atac.bds -fastq1 [READ1] -fastq2 [READ2] -species [hg19 or mm9]
