@@ -13,14 +13,14 @@ Please read this README first!
 1) Define parameters in command line argument (legacy method)
 This input method does not support multiple replicates and always generate V plot and perform preseq analysis.
 ```
-$ bds atac.bds [BOWTIE2_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE] [CHROMSIZES] [VPLOT_INDEX] [OUTPUT_DIR]
+$ bds atac.bds [BOWTIE2_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE; hs for human, mm for mouse] [CHROMSIZES_FILE] [VPLOT_INDEX] [OUTPUT_DIR]
 ```
 
 2) Define parameters in command line argument.
 For general use, use the following command line:
 ```
-$ bds atac.bds -fastq1 [READ1] -fastq2 [READ2] -bwt2_idx [BOWTIE2_INDEX] -nth_bwt2 [NTHREADS_BWT2] \
--gensz [GENOMESIZE] -chrsz [CHROMESIZES]
+$ bds atac.bds -fastq1 [READ1] -fastq2 [READ2] -bwt2_idx [BOWTIE2_INDEX] \
+-gensz [GENOMESIZE; hs for human, mm for mouse] -chrsz [CHROMESIZES_FILE]
 ```
 
 If your fastqs are already trimmed, add the following to the command line to skip trimming stage.
@@ -50,12 +50,22 @@ To change resource settings (# of processor, max memory and walltime) for bowtie
 -nth_bwt2 [NTHREADS_BWT2] -mem_bwt2 [MEMORY_BWT2; e.g. 20G] -wt_bwt2 [WALLTIME_BWT2; e.g. 20h]
 ```
 
+For MACS2 peak calling:
+```
+-nth_macs2 [NTHREADS_MACS2] -mem_macs2 [MEMORY_MACS2; e.g. 20G] -wt_macs2 [WALLTIME_MACS@; e.g. 20h]
+```
+
 For Kundaje lab cluster and SCG3, skip parameters (bwt2_idx, chrsz, gensz and vplot_idx) and just specify species.
 ```
 $ bds atac.bds -fastq1 [READ1] -fastq2 [READ2] -species [hg19 or mm9]
 ```
 
 For other clusters, add -mod, -addpath and -shcmd to set up enviroment variables for your jobs. This is explained in <a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">README_PIPELINE.md</a>.
+
+To list all parameters and default values for them,
+```
+$ bds atac.bds
+```
 
 
 
