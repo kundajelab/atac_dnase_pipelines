@@ -73,7 +73,7 @@ $ cp bds.config $HOME/.bds/
 ### How to deal with BDS pipeline errors?
 
 ```
-1) Take a look at HTML report (which contains all STDERR/STDOUT for all jobs in the pipeline). It tells you everything about its jobs. Find out which step is errorneous.
+1) Take a look at HTML report (which contains all STDERR/STDOUT for all jobs in the pipeline). It tells you everything about all jobs. Find out which step is errorneous. Carefully look at messages (STDERR and STDOUT).
 
 2) Correct errors.
    2-1) Lack of memory: increase memory for all jobs (e.g. add -mem 20G) or a specific problematic job (e.g. add -mem_macs2 20G).
@@ -156,7 +156,7 @@ hg19 and mm9 are available for both SCG3 and Kundaje lab clusters. If you are in
 
 
 
-### Using species file (IMPORTANT)
+### Using species file
 
 There are many species specific parameters like indices (bwa, bowtie, ...), chromosome sizes and sequence files (chr*.fa). If you have multiple pipelines, it's hard to individually define all parameters in a command line argument (or in a configruation file) for each pipeline run. However, if you have a species file with all species specific parameters defined, then you define less parameters and share the species file with all other pipelines.
 

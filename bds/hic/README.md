@@ -20,13 +20,6 @@ There are two stages for HiC pipeline.
 Two stages share the same indices for librarie (lib) and replicates (rep).
 
 
-### Using species file
-
-On Kundaje lab cluster, add the following to the command line, then you don't have to define species specific parameters like bwa index, chromosome sizes file and umap.
-```
--kundaje_lab -species hg19
-```
-
 
 ### Usage (mapping and sorting)
 
@@ -40,20 +33,29 @@ $ bds hic_map.bds \
 -fastq_L[Lib_ID]_R[Rep_ID]_P[Pair_ID] [FASTQ_FOR_LIB1_REP1_PAIR1] \
 ...
 -bwa_idx [BWA_INDEX]
--nth_bwa [# THREADS FOR BWA]
 ```
 
+For Kundaje lab cluster and SCG3, skip parameters (bwa_idx) and just specify species.
+```
+$ bds hic_map.bds ... -species [hg19 or mm9]
+```
+
+To change resource settings (# of processor, max memory and walltime) for bwa align, add the following to command line:
+```
+-nth_bwa_aln [NTHREADS_BWA_ALN] -mem_bwa_aln [MEMORY_BWA_ALN; e.g. 10G] -wt_bwa_aln [WALLTIME_BWA_ALN; e.g. 100h]
+```
+
+
 2) Define parameters in configuration file.
+
+Key names in a configruation file are identical to parameter names on command line. 
 ```
 $ bds hic_map.bds [CONF_FILE]
 
 $ cat [CONF_FILE]
 libs = D3,D6,SC
 reps = R2,R8
-fastq_L[Lib_ID]_R[Rep_ID]_P[Pair_ID] = [FASTQ_FOR_LIB1_REP1_PAIR1]
 ...
-bwa_idx = [BWA_INDEX]
-nth_bwa = [# THREADS FOR BWA]
 ```
 
 
@@ -83,6 +85,13 @@ $ bds hic.bds \
 $ bds hic.bds \
 -cln_pair_L1_R1 [CLEANED_PAIR_FOR_LIB1_REP1] \
 ...
+-method [METHOD; re: using RE_file, fixed: fixed windows] \
+...
+```
+
+For Kundaje lab cluster and SCG3, skip parameters (umap and chrsz) and just specify species.
+```
+$ bds hic.bds ... -species [hg19 or mm9]
 ```
 
 For low resolution (<=50), you will need very long walltime (timeout) for hic step2 and step4. Add the following to the command line (for example: 200 hours for step2 and 150 hours for step4)
