@@ -60,11 +60,28 @@ void set_shell_env() {
 		}
 
 		if ( is_scg3() ) { // if on SCG3
+
+			dir_sw_BDS := "/srv/gsfs0/scratch/leepc12/software"
+
+			path := " export PATH=" \
+				+ "$dir_sw_BDS/python2.7/bin:" \
+				+ "$dir_sw_BDS/R-3.2.0/bin:" \
+				+ "\${PATH}"
+
+			shellcmd := "export LAPACK=$dir_sw_BDS/blas/lapack-*/liblapack.a; " \
+					+ "export R_HOME=$dir_sw_BDS/R-3.2.0; "\
+					+ "export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$dir_sw_BDS/R-3.2.0/lib; "
+
+			SHCMD_INIT = SHCMD_INIT + ";" + path + ";" + shellcmd
+			SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
+
+			SHCMD_INIT = SHCMD_INIT + ""
 		}
 		else {
+			SHCMD_INIT = SHCMD_INIT + " module add r/3.2.0;"
 		}
 
-		SHCMD_INIT = SHCMD_INIT + " module add bwa/0.7.7 samtools/0.1.19 bedtools/2.21.0 r/3.2.0;"
+		SHCMD_INIT = SHCMD_INIT + " module add bwa/0.7.7 samtools/0.1.19 bedtools/2.21.0"
 		SHCMD_INIT = SHCMD_INIT + " export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='8G'; export MALLOC_ARENA_MAX=4"
 		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
 
