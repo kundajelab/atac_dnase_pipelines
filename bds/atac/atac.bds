@@ -9,13 +9,15 @@ include "../chipseq/modules/peakcall_macs2.bds"
 include "../chipseq/modules/report.bds"
 
 
-help ATAC-Seq Pipeline setting : fragment length, # replicates
+help ATAC-Seq Pipeline setting
 trimmed_fastq 	:= false	help Add it to skip fastq-trimming stage (default: false).
 fraglen 	:= 75 		help Read fragment length (default: 75).
 num_rep 	:= 1		help # replicates. ATAC seq for each replicate will go IN PARALLEL. (default: 1).
-no_vplot	:= false 	help Add it to bypass V plot generation (default: false).
-no_preseq 	:= false 	help Add it to bypass preseq analysis (default: false).
-no_peakcall 	:= false	help Add it to skip MACS2 peak calling (default: false).
+
+mapping	 	:= false	help Add it to perform mapping only (no MACS2 peak.
+vplot 		:= false 	help Add it to create V plot (default: false).
+preseq 		:= false 	help Add it to perform preseq analysis (default: false).
+
 
 
 help()
@@ -37,9 +39,11 @@ void init_atac() {
 		trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
 		fraglen 	= get_conf_val_int( fraglen,		["fraglen", "frag_len"] )
 		num_rep 	= get_conf_val_int( num_rep,		["num_rep", "numrep"] )
-		no_vplot 	= get_conf_val_bool( no_vplot,		["no_vplot"] )
-		no_preseq 	= get_conf_val_bool( no_preseq,		["no_preseq"] )
-		no_peakcall 	= get_conf_val_bool( no_peakcall,	["no_peakcall"] )
+
+		mapping		= get_conf_val_bool( mapping,		["mapping"] )
+
+		vplot 		= get_conf_val_bool( vplot,		["vplot"] )
+		preseq 		= get_conf_val_bool( preseq,		["preseq"] )
 	}
 	else if ( is_legacy_input() ) { // legacy input method taking first 8 parameters from cmd. line (num_rep=1)
 
@@ -52,6 +56,11 @@ void init_atac() {
 		vplot_idx 	= args[6].trim()
 		out_dir 	= args[7].trim()
 
+		vplot 		= true
+		preseq 		= true
+
+		mapping 	= false
+	
 		if ( v ) { // verbose
 			print("\n\n")
 			print("Legacy input method found (8 parameters)\n")
@@ -74,9 +83,9 @@ void init_atac() {
 		print( "Fastqs are trimmed?\t: $trimmed_fastq\n")
 		print( "Fragment length\t\t: $fraglen\n")
 		print( "# Replicates\t\t: $num_rep\n")
-		print( "No vplot generation\t: $no_vplot\n")
-		print( "No preseq analysis\t: $no_preseq\n")
-		print( "No MACS2 peak calling\t: $no_peakcall\n")
+		print( "Vplot generation\t\t: $vplot\n")
+		print( "Preseq analysis\t\t: $preseq\n")
+		print( "MACS2 peak calling\t: " + !mapping + "\n")
 	}
 }
 
@@ -84,17 +93,21 @@ void chk_input_data() {
 
 	if ( !path_exists("$bwt2_idx.1.bt2") ) error("\nBowtie2 index doesn't exists! ($bwt2_idx.1.bt2)\n")
 
-	if ( !no_vplot && !path_exists( vplot_idx ) ) error("\nVPlot index doesn't exists! ($vplot_idx) \n")	
+	if ( vplot && !path_exists( vplot_idx ) ) error("\nVPlot index doesn't exists! ($vplot_idx) \n")	
 
-	if ( !path_exists( chrsz ) ) error("\nChrome sizes file doesn't exists! ($chrsz)\n")	
+	if ( !mapping && !path_exists( chrsz ) ) error("\nChrome sizes file doesn't exists! ($chrsz)\n")	
+
+	print("\n")
 
 	string[] fastqs_all
-
+	
 	for ( int rep=1; rep <= num_rep; rep++) {
 
 		string read1, read2
 
 		fastqs := get_fastqs( 0, rep )
+
+		if ( fastqs.size()==0 ) error("No fastq defined for replicate $rep\n")
 
 		if ( (num_rep==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
 
@@ -166,7 +179,7 @@ void _atac( int rep ) {
 
 	wait
 
-	if ( !no_peakcall ) {
+	if ( !mapping ) {
 		_macs2_bed( bed, "$fraglen", atac_out_dir, info )
 
 		if ( no_par_job ) wait
@@ -174,19 +187,19 @@ void _atac( int rep ) {
 
 	string srt_bam
 
-	if ( !no_vplot || !no_preseq ) srt_bam = _bam_to_srt_bam( bam, atac_out_dir, info )
+	if ( vplot || preseq ) srt_bam = _bam_to_srt_bam( bam, atac_out_dir, info )
 
 	wait
 
 	string png, pdf
 
-	if ( !no_vplot ) {
+	if ( vplot ) {
 		png = _vplot( srt_bam, atac_out_dir, info )
 
 		if ( no_par_job ) wait
 	}
 
-	if ( !no_preseq ) {
+	if ( preseq ) {
 		pdf = _preseq( srt_bam, atac_out_dir, info )
 	}
 
@@ -298,13 +311,13 @@ string[] _report_atac( string pdf, string png, string out_dir, string info ) {
 		sys echo "\subsection{Genome Model}" >> $tex_file
 		sys echo "${MODEL//_/\\_}" >> $tex_file
 
-		sys if [[ $no_vplot == "false" ]]; then \
+		sys if [[ $vplot == "true" ]]; then \
 			echo "\subsection{V-Plot}" >> $tex_file; \
 			echo "From ${vPlot//_/\\_}:\\\\" >> $tex_file; \
 			echo "\includegraphics[width=0.5\textwidth]{${vPlot}}" >> $tex_file; \
 			fi
 
-		sys if [[ $no_preseq == "false" ]]; then \
+		sys if [[ $preseq == "true" ]]; then \
 			echo "\subsection{preseq lc\_extrap Yield Predicion}" >> $tex_file; \
 			echo "From ${preseqGraph//_/\\_}:\\\\" >> $tex_file; \
 			echo "\includegraphics[width=0.5\textwidth]{${preseqGraph}}" >> $tex_file; \
@@ -390,8 +403,16 @@ void help() {
 		print("\t\t -nth_bwt2 [NTHREADS_BWT2] \\ \n")
 		print("\t\t -gensz [GENOMESIZE] \\ \n")
 		print("\t\t -chrsz [CHROMSIZES] \\ \n")
-		print("\t\t -vplot_idx [VPLOT_INDEX] \\ \n")
 		print("\t\t -out_dir [OUTPUT_DIR] \n")
+		print("\n")
+		print("\tIf you want V plot generation add the following:\n")
+		print("\t\t -vplot -vplot_idx [VPLOT_INDEX]\n")
+		print("\n")
+		print("\tIf you want preseq analysis add the following:\n")
+		print("\t\t -preseq\n")
+		print("\n")
+		print("\tIf you don't want MACS2 peak calling add the following:\n")
+		print("\t\t -mapping\n")
 		print("\n")
 		print(" Usage 3 (configruation file): \n")
 		print("\n")
@@ -404,8 +425,10 @@ void help() {
 		print("\tnth_bwt2= [NTHREADS_BWT2]\n")
 		print("\tgensz= [GENOMESIZE]\n")
 		print("\tchrsz= [CHROMSIZES]\n")
-		print("\tvplot_idx= [VPLOT_INDEX]\n")
 		print("\tout_dir= [OUTPUT_DIR]\n")
+		print("\tvplot= [NEED_VPLOT_GENERATION]\n")
+		print("\tvplot_idx= [VPLOT_INDEX]\n")
+		print("\tpreseq= [NEED_PRESEQ_ANALYSIS]\n")
 		print("\n")
 		print(" Usage 4 (command line argument, multiple replicates): \n")
 		print("\n")
@@ -419,8 +442,9 @@ void help() {
 		print("\t\t -nth_bwt2 [NTHREADS_BWT2] \\ \n")
 		print("\t\t -gensz [GENOMESIZE] \\ \n")
 		print("\t\t -chrsz [CHROMSIZES] \\ \n")
-		print("\t\t -vplot_idx [VPLOT_INDEX] \\ \n")
 		print("\t\t -out_dir [OUTPUT_DIR] \n")
+		print("\t\t -vplot -vplot_idx [VPLOT_INDEX] \\ \n")
+		print("\t\t -preseq \\ \n")
 		print("\n")
 		print(" For Sun Grid Engine (SGE) cluster use\n")
 		print("\n")
