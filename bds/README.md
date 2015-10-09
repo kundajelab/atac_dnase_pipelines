@@ -69,6 +69,30 @@ $ cp bds.config $HOME/.bds/
 ```
 
 
+### Running pipelines on SCG3 ###
+
+You always need to submit pipeline jobs to Sun Grid Engine on SCG3 by using:
+```
+$ bds -s sge pipeline.bds ...
+```
+
+You need to carefully define resources settings (parameters like -wt, -memory, -wt_* -mem_*). -wt and -memory defines general walltime/max. memory for all jobs. On SCG3, if it's over 6 hours, jobs will be queued in a longer queue which makes you wait longer to get jobs actually executed. By default walltime is 11 hours. Change it to shorter than 6h if you want to get your pipeline faster.
+```
+-wt 5:59:59
+```
+
+You can also change resource settings of specific tasks (e.g. bwa aln, bowtie2, mac2 ...). For example,
+```
+-wt_macs2 100h
+```
+
+
+### Running pipelines on Kundaje lab cluster ###
+
+You have two options `$ bds -s sge pipeline.bds ...` (running on SGE) or `$ bds pipeline.bds ...` (running with UNIX thread). For both, there is no limit for walltime and max. memory.
+
+
+
 
 ### How to deal with BDS pipeline errors?
 
