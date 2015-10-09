@@ -14,7 +14,7 @@ void init_peakcall_etc() {
 
 	if ( conf_file_exists() ) {
 
-		xmax 		= get_conf_val_int( xmax,		["XMAX", "X_MAX"] )
+		xmax 		= get_conf_val_int( xmax,		["xmax", "x_max"] )
 	}
 
 	if ( v ) { // verbose
