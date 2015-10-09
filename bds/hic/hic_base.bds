@@ -50,7 +50,7 @@ void init_hic_base() {
 void set_shell_env() {
 	
 	// create output dir.
-	if ( is_kundaje_lab() ) {
+	if ( is_kundaje_lab() || is_scg3() ) {
 
 		print("\n\nAutomatically adding environment variables... (kundaje_lab: $hostname) \n\n")
 
