@@ -218,7 +218,7 @@ string[] _report_atac( string pdf, string png, string out_dir, string info ) {
 	out 	:= [tex_file, pdf_file]
 
 	task( taskName:= "report "+info, \
-		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		cpus:=nth, mem:=parse_mem_or_skip(memory), timeout:=parse_time_or_skip(wt), \
 		out<-in ) {
 
 		sys $SHCMD_INIT

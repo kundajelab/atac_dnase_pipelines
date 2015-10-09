@@ -40,7 +40,7 @@ string _bowtie2( string fastq1, string fastq2, string out_dir, string info ) {
 	out 	:= bam
 
 	task( taskName:= "bowtie2 "+info, \
-		cpus:=nth_bwt2, mem:=parse_mem(mem_bwt2), timeout:=parse_time(wt_bwt2), \
+		cpus:=nth_bwt2, mem:=parse_mem_or_skip(mem_bwt2), timeout:=parse_time_or_skip(wt_bwt2), \
 		out<-in ) {
 
 		sys $SHCMD_INIT

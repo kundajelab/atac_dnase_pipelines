@@ -385,7 +385,7 @@ string _hic_step1( int w, string out_dir, string info ) {
 	in 	:= [RE_file]
 	out 	:= [RE_site, RE_site_mid]
 
-	task( taskName := "hic1 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic1 $info", cpus := nth, timeout := parse_time_or_skip(wt), mem := parse_mem_or_skip(memory), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
@@ -403,7 +403,7 @@ string _hic_step1_fixed_win( int w, string out_dir, string info ) {
 
 	out 	  := mid_point
 
-	task( taskName := "hic1_fixwin $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic1_fixwin $info", cpus := nth, timeout := parse_time_or_skip(wt), mem := parse_mem_or_skip(memory), \
 		!path_exists( out ) ) {
 
 		sys $SHCMD_INIT	
@@ -421,7 +421,7 @@ string _hic_step1a_fixed_win( int w, string out_dir, string info ) {
 
 	out := binned_blacklist
 
-	task( taskName := "hic1_fixwin $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic1_fixwin $info", cpus := nth, timeout := parse_time_or_skip(wt), mem := parse_mem_or_skip(memory), \
 		!path_exists( out ) ) {
 
 		sys $SHCMD_INIT	
@@ -457,7 +457,7 @@ string _hic_step2( string id, string[] cleaned_pairs, string RE_site, int w, str
 
 	cleaned_pairs_all := array_to_str( cleaned_pairs, " " )
 
-	task( taskName := "hic2 $info", cpus := nth, timeout := parse_time(wt_hic2), mem := parse_mem(mem), \
+	task( taskName := "hic2 $info", cpus := nth, timeout := parse_time_or_skip(wt_hic2), mem := parse_mem_or_skip(memory), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
@@ -526,7 +526,7 @@ string _hic_step2_fixed_win( string id, string[] cleaned_pairs, string binned_bl
 
 	cleaned_pairs_all := array_to_str( cleaned_pairs, " " )
 
-	task( taskName := "hic2_fixwin $info", cpus := nth, timeout := parse_time(wt_hic2), mem := parse_mem(mem), \
+	task( taskName := "hic2_fixwin $info", cpus := nth, timeout := parse_time_or_skip(wt_hic2), mem := parse_mem_or_skip(memory), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
@@ -555,7 +555,7 @@ string _hic_step2a( string id, string list_contacts_bfr_ice, int w, string out_d
 	in 	:= list_contacts_bfr_ice
 	out 	:= raw_contact_cnts_png
 
-	task( taskName := "hic2a $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic2a $info", cpus := nth, timeout := parse_time_or_skip(wt), mem := parse_mem_or_skip(memory), \
 		out<-in) {
 
 		sys $SHCMD_INIT
@@ -575,7 +575,7 @@ string _hic_step3( string RE_site, int w, string out_dir, string info ) {
         in 	:= RE_site
         out 	:= bias
 
-	task( taskName := "hic3 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic3 $info", cpus := nth, timeout := parse_time_or_skip(wt), mem := parse_mem_or_skip(memory), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
@@ -596,7 +596,7 @@ string _hic_step3_fixed_win( int w, string out_dir, string info ) {
 
         out 	:= bias
 
-	task( taskName := "hic3_fixwin $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic3_fixwin $info", cpus := nth, timeout := parse_time_or_skip(wt), mem := parse_mem_or_skip(memory), \
 		!path_exists( out ) ) {
 
 		sys $SHCMD_INIT	
@@ -632,7 +632,7 @@ string _hic_step4( string id, string list_contacts_bfr_ice, string bias, string 
 	//#additional variables: 
 	norm := "l1" // # l1 or l2 norm
 
-	task( taskName := "hic4 $info", cpus := nth, timeout := parse_time(wt_hic4), mem := parse_mem(mem), \
+	task( taskName := "hic4 $info", cpus := nth, timeout := parse_time_or_skip(wt_hic4), mem := parse_mem_or_skip(memory), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
@@ -656,7 +656,7 @@ string _hic_step4a( string id, string list_contacts_aft_ice_biases, int w, strin
 	in 	:= list_contacts_aft_ice_biases
 	out 	:= dist_bias_png
 
-	task( taskName := "hic4a $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic4a $info", cpus := nth, timeout := parse_time_or_skip(wt), mem := parse_mem_or_skip(memory), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
@@ -680,7 +680,7 @@ string _hic_step5( string id, string list_contacts_bfr_ice, string mid_point, st
 	in 	:= [list_contacts_bfr_ice, mid_point]
 	out 	:= contacts_per_frag_gz
 
-	task( taskName := "hic5 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic5 $info", cpus := nth, timeout := parse_time_or_skip(wt), mem := parse_mem_or_skip(memory), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
@@ -716,7 +716,7 @@ void _hic_step6( string before_after, string id, \
 	in 	:= [list_contacts_bfr_ice, list_contacts_aft_ice_biases, contacts_per_frag]
 	out 	:= [log, html]
 
-	task( taskName := "hic6 $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic6 $info", cpus := nth, timeout := parse_time_or_skip(wt), mem := parse_mem_or_skip(memory), \
 		out<-in) {
 
 		sys $SHCMD_INIT	
@@ -806,7 +806,7 @@ void _hic_step6a( string before_after, string id, \
 	in 	:= [list_contacts_bfr_ice, list_contacts_aft_ice_biases, contacts_per_frag]
 	out 	:= [log, html]
 
-	task( taskName := "hic6a $info", cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "hic6a $info", cpus := nth, timeout := parse_time_or_skip(wt), mem := parse_mem_or_skip(memory), \
 		out<-in) {
 
 		sys $SHCMD_INIT	

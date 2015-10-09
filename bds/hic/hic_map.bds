@@ -134,7 +134,7 @@ string _map_step1_align( string id, string fastq, string out_dir ) {
 	in 	:= fastq
 	out 	:= sam_gz
 
-	task( taskName := "map1_aln "+id, cpus := nth_bwa, timeout := parse_time(wt_bwa), mem := parse_mem(mem_bwa), \
+	task( taskName := "map1_aln "+id, cpus := nth_bwa, timeout := parse_time_or_skip(wt_bwa), mem := parse_mem_or_skip(mem_bwa), \
 		out<-in ) {
 	
 		sys $SHCMD_INIT	
@@ -162,7 +162,7 @@ string _map_step2_sort( string id, string sam_gz, string out_dir ) {
 	in 	:= sam_gz
 	out 	:= mapped_gz //, non_mapped_gz, stat]
 
-	task( taskName := "map2_srt "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "map2_srt "+id, cpus := nth, timeout := parse_time_or_skip(wt), mem := parse_mem_or_skip(memory), \
 		out<-in) {
 
 		sys $SHCMD_INIT
@@ -210,7 +210,7 @@ string _map_step3_join_all_comb( string id, string mapped1, string mapped2, stri
 	in 	:= [mapped1, mapped2]
 	out 	:= extracted_gz
 
-	task( taskName := "map3_join "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "map3_join "+id, cpus := nth, timeout := parse_time_or_skip(wt), mem := parse_mem_or_skip(memory), \
 		out<-in) {
 	
 		sys $SHCMD_INIT	
@@ -237,7 +237,7 @@ string _map_step4_remove_PCR_dups( string id, string extracted_gz, string out_di
 	in 	:= extracted_gz
 	out 	:= cleaned_gz
 
-	task( taskName := "map4_rm_PCR_dups "+id, cpus := nth, timeout := parse_time(wt), mem := parse_mem(mem), \
+	task( taskName := "map4_rm_PCR_dups "+id, cpus := nth, timeout := parse_time_or_skip(wt), mem := parse_mem_or_skip(memory), \
 		out<-in) {
 
 		sys $SHCMD_INIT	

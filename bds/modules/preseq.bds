@@ -36,7 +36,7 @@ string _preseq( string srt_bam, string out_dir, string info ) {
 	in 	:= [srt_bam]
 	out 	:= preseq_file
 
-	task( taskName:= "preseq "+info, cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), out<-in ) {
+	task( taskName:= "preseq "+info, cpus:=nth, mem:=parse_mem_or_skip(memory), timeout:=parse_time_or_skip(wt), out<-in ) {
 
 		sys $SHCMD_INIT
 

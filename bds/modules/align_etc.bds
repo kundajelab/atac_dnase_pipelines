@@ -19,7 +19,7 @@ string[] _trim_adapters( string fastq1, string fastq2, string out_dir, string in
 	out 	:= [ p1_gz, p2_gz ]
 
 	task( taskName:= "trim_adapters "+info, \
-		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		cpus:=nth, mem:=parse_mem_or_skip(memory), timeout:=parse_time_or_skip(wt), \
 		out<-in ) {
 
 		sys $SHCMD_INIT
@@ -44,7 +44,7 @@ string _vplot( string srt_bam, string out_dir, string info ) {
 	out 	:= vplot
 
 	task( taskName:= "v_plot"+info, \
-		cpus:=nth, mem:=parse_mem(mem), timeout:=parse_time(wt), \
+		cpus:=nth, mem:=parse_mem_or_skip(memory), timeout:=parse_time_or_skip(wt), \
 		out<-in ) {
 
 		sys $SHCMD_INIT
