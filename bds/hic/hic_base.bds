@@ -81,7 +81,7 @@ void set_shell_env() {
 			SHCMD_INIT = SHCMD_INIT + " module add r/3.2.0;"
 		}
 
-		SHCMD_INIT = SHCMD_INIT + " module add bwa/0.7.7 samtools/0.1.19 bedtools/2.21.0"
+		SHCMD_INIT = SHCMD_INIT + " module add bwa/0.7.7 samtools/0.1.19 bedtools/2.21.0;"
 		SHCMD_INIT = SHCMD_INIT + " export _JAVA_OPTIONS='-Xms256M -Xmx512M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='8G'; export MALLOC_ARENA_MAX=4"
 		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
 

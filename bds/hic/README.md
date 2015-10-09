@@ -99,6 +99,17 @@ For low resolution (<=50), you will need very long walltime (timeout) for hic st
 -wt_hic2 200h -wt_hic4 150h
 ```
 
+To skip steps related to ICE (step4 and step6 afterICE case),
+```
+-skip_ICE
+```
+
+You can start from step6 with using outputs of other pipeline runs.
+```
+-path_before_step6 [OUTPUT_DIR_OF_OTHER_PIPELINE]/before_step6
+```
+
+
 ### Contributors
 
 * Jin wook Lee - PhD Student, Mechanical Engineering Dept., Stanford University
