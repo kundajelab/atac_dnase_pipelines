@@ -87,6 +87,7 @@ You can also change resource settings of specific tasks (e.g. bwa aln, bowtie2, 
 ```
 
 
+
 ### Running pipelines on Kundaje lab cluster ###
 
 You have two options `$ bds -s sge pipeline.bds ...` (running on SGE) or `$ bds pipeline.bds ...` (running with UNIX thread). For both, there is no limit for walltime and max. memory.
@@ -100,7 +101,7 @@ You have two options `$ bds -s sge pipeline.bds ...` (running on SGE) or `$ bds 
 1) Take a look at HTML report (which contains all STDERR/STDOUT for all jobs in the pipeline). It tells you everything about all jobs. Find out which step is errorneous. Carefully look at messages (STDERR and STDOUT).
 
 2) Correct errors.
-   2-1) Lack of memory: increase memory for all jobs (e.g. add -mem 20G) or a specific problematic job (e.g. add -mem_macs2 20G).
+   2-1) Lack of memory: increase memory for all jobs (e.g. add -memory 20G) or a specific problematic job (e.g. add -mem_macs2 20G).
    2-2) Timeout: increase walltime for all jobs (e.g. add -wt 24h) or a specific long job (e.g. add -wt_macs2 200h).
                  (Warning! Most clusters have limit for walltime. Make it as shortest as you can to get your jobs queued quickly.)
    2-3) Wrong input: check all input files are available.
@@ -130,6 +131,20 @@ $ bds [PIPELINE_BDS]
 Run the pipeline without additional command line argument.
 ```
 $ bds -s sge [PIPELINE_BDS]
+```
+
+When you run pipelines with SGE, default walltime and max. memory settings will be used if walltime and max. memory settings are not explicted defined.
+
+If you SGE allows infinite walltime and max. memory, add the following to your command line.
+```
+-skip_wt_memory
+```
+
+Otherwise, carefully define walltime and max. memory for each jobs.
+
+For example, if you want to generally use 6hours and 10G for all jobs and 20 hours and 20G specifically for MACS2 peak calling
+```
+-memory 10G -wt 6h -mem_macs2 30G -wt_macs2 20h
 ```
 
 
@@ -328,10 +343,14 @@ If see the following error when you submit jobs to Sun Grid Enginee,
 /bin/bash: module: line 1: syntax error: unexpected end of file
 ```
 
+Check your $HOME/.bashrc if it has any errorneous lines.
+
 Remove the following line in you module initialization scripts ($MODULESHOME/init/bash or /etc/profile.d/modules.sh).
 ```
 export -f module
 ```
+
+
 
 
 ### Contributors
