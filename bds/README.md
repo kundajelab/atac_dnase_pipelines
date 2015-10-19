@@ -18,7 +18,7 @@ $ git pull && git submodule update --init --recursive
 
 ### Pipelines
 
-Read <a href="./chipseq/README_PIPELINE.md">README</a> first to understand the basics of BDS pipelines.
+Read <a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">README</a> first to understand the basics of BDS pipelines.
 
 1) <a href="./chipseq">ChIP-Seq pipeline</a>
 2) <a href="./atac">ATAC-Seq pipeline</a>
