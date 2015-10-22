@@ -75,7 +75,7 @@ void init_atac() {
 			print( "Read 2\t\t\t: $fastq1_2\n" )
 			print( "# threads (bowtie2)\t: $nth_bwt2\n")
 			print( "Genome size (hs,mm)\t: $gensz\n" )
-			print( "Chromesizes file\t: $chrsz\n" )
+			print( "Chromosome sizes file\t: $chrsz\n" )
 			print( "V-Plot index\t\t: $vplot_idx\n" )
 			print( "Output dir.\t\t: $out_dir\n" )
 		}
@@ -108,7 +108,7 @@ void chk_input_data() {
 
 	if ( vplot && !path_exists( vplot_idx ) ) error("\nVPlot index doesn't exists! ($vplot_idx) \n")	
 
-	if ( !mapping && !path_exists( chrsz ) ) error("\nChrome sizes file doesn't exists! ($chrsz)\n")	
+	if ( !mapping && !path_exists( chrsz ) ) error("\nChromosome sizes file doesn't exists! ($chrsz)\n")	
 
 	print("\n")
 
