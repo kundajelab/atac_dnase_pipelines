@@ -94,6 +94,14 @@ max( [NTH_BWT2], [NTH_MACS2] ) x [NUM_REP]
 ```
 
 
+### Troubleshooting
+
+1) [main_samview] random alignment retrieval only works for indexed BAM or CRAM files.
+
+If your pipeline starts from BAM files, make sure that bam index (.bam.bai) exists together with BAM file. If not, build index with `samtools index [YOUR_BAM_FILE]`. BAM and BAI should be in the same directory.
+
+
+
 ### Contributors
 
 * Jin wook Lee - PhD Student, Mechanical Engineering Dept., Stanford University
