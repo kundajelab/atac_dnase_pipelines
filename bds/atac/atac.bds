@@ -2,6 +2,7 @@
 
 include "../chipseq/modules/fastq.bds"
 include "../chipseq/modules/bam.bds"
+include "../chipseq/modules/tagalign.bds"
 include "../modules/align_etc.bds"
 include "../modules/align_bowtie2.bds"
 include "../modules/preseq.bds"
@@ -10,6 +11,8 @@ include "../chipseq/modules/report.bds"
 
 
 help ATAC-Seq Pipeline setting
+input 		:= ""		help Input file type (automatically determined if not specified) (default: blank).
+
 trimmed_fastq 	:= false	help Add it to skip fastq-trimming stage (default: false).
 fraglen 	:= 75 		help Read fragment length (default: 75).
 num_rep 	:= 1		help # replicates. ATAC seq for each replicate will go IN PARALLEL. (default: 1).
@@ -17,7 +20,7 @@ num_rep 	:= 1		help # replicates. ATAC seq for each replicate will go IN PARALLE
 mapping	 	:= false	help Add it to perform mapping only (no MACS2 peak.
 vplot 		:= false 	help Add it to create V plot (default: false).
 preseq 		:= false 	help Add it to perform preseq analysis (default: false).
-
+make_tag 	:= false 	help Add it to create tagalign and pseudo replicates for it (default: false).
 
 
 help()
@@ -36,6 +39,7 @@ void init_atac() {
 
 	if ( conf_file_exists() ) {
 
+		input 		= get_conf_val( input, 			["input_type", "input"] )
 		trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
 		fraglen 	= get_conf_val_int( fraglen,		["fraglen", "frag_len"] )
 		num_rep 	= get_conf_val_int( num_rep,		["num_rep", "numrep"] )
@@ -44,6 +48,7 @@ void init_atac() {
 
 		vplot 		= get_conf_val_bool( vplot,		["vplot"] )
 		preseq 		= get_conf_val_bool( preseq,		["preseq"] )
+		make_tag	= get_conf_val_bool( make_tag,		["make_tag"] )
 	}
 	else if ( is_legacy_input() ) { // legacy input method taking first 8 parameters from cmd. line (num_rep=1)
 
@@ -78,20 +83,28 @@ void init_atac() {
 		num_rep = 1
 	}
 
+
+	if ( input == "" ) {  // determine input type if input is not defined
+		if ( get_bam(0,1) != "" ) 	input = "bam"
+		if ( get_fastq(0,1,1) != "" ) 	input = "fastq"
+	}
+
 	if ( v ) { // verbose
 		print("\n")
+		print( "Input data type\t\t\t: $input\n")		
 		print( "Fastqs are trimmed?\t: $trimmed_fastq\n")
 		print( "Fragment length\t\t: $fraglen\n")
 		print( "# Replicates\t\t: $num_rep\n")
 		print( "Vplot generation\t\t: $vplot\n")
 		print( "Preseq analysis\t\t: $preseq\n")
+		print( "Tagalign generation\t\t: $make_tag\n")
 		print( "MACS2 peak calling\t: " + !mapping + "\n")
 	}
 }
 
 void chk_input_data() {
 
-	if ( !path_exists("$bwt2_idx.1.bt2") ) error("\nBowtie2 index doesn't exists! ($bwt2_idx.1.bt2)\n")
+	if ( is_input_fastq() && !path_exists("$bwt2_idx.1.bt2") ) error("\nBowtie2 index doesn't exists! ($bwt2_idx.1.bt2)\n")
 
 	if ( vplot && !path_exists( vplot_idx ) ) error("\nVPlot index doesn't exists! ($vplot_idx) \n")	
 
@@ -99,33 +112,58 @@ void chk_input_data() {
 
 	print("\n")
 
-	string[] fastqs_all
-	
-	for ( int rep=1; rep <= num_rep; rep++) {
+	if ( is_input_fastq() ) {
 
-		string read1, read2
+		string[] fastqs_all
 
-		fastqs := get_fastqs( 0, rep )
+		for ( int rep=1; rep <= num_rep; rep++) {
 
-		if ( fastqs.size()==0 ) error("No fastq defined for replicate $rep\n")
+			string read1, read2
 
-		if ( (num_rep==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
+			fastqs := get_fastqs( 0, rep )
 
-		prefix := "Rep$rep fastq"
-		print("$prefix :\n")
+			if ( fastqs.size()==0 ) error("No fastq defined for replicate $rep\n")
 
-		for ( string s : fastqs ) {
-			print("\t$s\n")
-			if ( (s != "") && !path_exists(s) ) error("\t\tFile not found!\n")
+			if ( (num_rep==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
+
+			prefix := "Rep$rep fastq"
+			print("$prefix :\n")
+
+			for ( string s : fastqs ) {
+				print("\t$s\n")
+				if ( (s != "") && !path_exists(s) ) error("\t\tFile not found!\n")
+			}
+
+			// check any duplicate input filename
+			for ( string s : fastqs ) {
+				if ( is_in_array( get_basename( s ), get_basename( fastqs_all ) ) ) \
+					error( "\tFilename is duplicate for $prefix!\n")
+			}
+
+			fastqs_all = concat( fastqs_all, fastqs )
 		}
+	}
+	else {
+		string[] bams_all
 
-		// check any duplicate input filename
-		for ( string s : fastqs ) {
-			if ( is_in_array( get_basename( s ), get_basename( fastqs_all ) ) ) \
+		for ( int rep=1; rep <= num_rep; rep++) {
+
+			bam := get_bam( 0, rep )
+
+			if ( bam == "" ) error("No bam defined for replicate $rep\n")
+
+			prefix := "Rep$rep bam"
+			print("$prefix :\n")
+
+			print("\t$bam\n")
+			if ( !path_exists(bam) ) error("\t\tFile not found!\n")
+
+			// check any duplicate input filename
+			if ( is_in_array( get_basename( bam ), get_basename( bams_all ) ) ) \
 				error( "\tFilename is duplicate for $prefix!\n")
-		}
 
-		fastqs_all = concat( fastqs_all, fastqs )
+			bams_all.add( bam )
+		}
 	}
 }
 
@@ -147,33 +185,52 @@ void _atac( int rep ) {
 
 	info := get_task_info( 0, rep ) // no info needed for atac
 
-	fastqs := get_fastqs( 0, rep )
-
-	if ( (num_rep==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
-
 	atac_out_dir := mkdir_path( (num_rep==1) ? out_dir : "$out_dir/$info" )
 
-	string p1, p2
+	string bam, nodup_bam
 
-	if ( trimmed_fastq ) {
-		print("\nSkipping trimming fastqs (-trimmed_fastq flag is on)\n\n")
+	if ( is_input_fastq() ) {
 
-		p1 = fastqs[0]
-		p2 = fastqs[1]
+		fastqs := get_fastqs( 0, rep )
+		if ( (num_rep==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
+
+		string p1, p2
+
+		if ( trimmed_fastq ) {
+			print("\nSkipping trimming fastqs (-trimmed_fastq flag is on)\n\n")
+
+			p1 = fastqs[0]
+			p2 = fastqs[1]
+		}
+		else {
+			( p1, p2 ) = _trim_adapters( fastqs[0], fastqs[1], atac_out_dir, info )
+		}
+
+		wait // hold parallel
+
+		bam = _bowtie2( p1, p2, atac_out_dir, info )
+
+		wait
+
+		nodup_bam = _bam_to_nodup_bam_PE( bam, atac_out_dir, info )
+
 	}
 	else {
-		( p1, p2 ) = _trim_adapters( fastqs[0], fastqs[1], atac_out_dir, info )
+		bam = get_bam( 0, rep )
+		nodup_bam = bam
 	}
 
-	wait // hold parallel
-
-	bam := _bowtie2( p1, p2, atac_out_dir, info )
-
 	wait
 
-	nodup_bam := _bam_to_nodup_bam_PE( bam, atac_out_dir, info )
+	if ( !make_tag ) {
+		tag := _bam_to_tag( nodup_bam, atac_out_dir, info )
 
-	wait
+		wait
+
+		_spr( tag, atac_out_dir, info )
+
+		if ( no_par_job ) wait
+	}
 
 	bed := _bam_to_bed_non_chrM( nodup_bam, atac_out_dir, info )
 
@@ -480,4 +537,14 @@ bool is_legacy_input() {
 	}
 
 	return ret
+}
+
+bool is_input_fastq() {
+
+	return input.toLower() == "fastq"
+}
+
+bool is_input_bam() {
+
+	return input.toLower() == "bam"
 }
