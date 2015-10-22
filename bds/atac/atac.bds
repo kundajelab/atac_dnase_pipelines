@@ -91,13 +91,13 @@ void init_atac() {
 
 	if ( v ) { // verbose
 		print("\n")
-		print( "Input data type\t\t\t: $input\n")		
+		print( "Input data type\t\t: $input\n")		
 		print( "Fastqs are trimmed?\t: $trimmed_fastq\n")
 		print( "Fragment length\t\t: $fraglen\n")
 		print( "# Replicates\t\t: $num_rep\n")
-		print( "Vplot generation\t\t: $vplot\n")
+		print( "Vplot generation\t: $vplot\n")
 		print( "Preseq analysis\t\t: $preseq\n")
-		print( "Tagalign generation\t\t: $make_tag\n")
+		print( "Tagalign generation\t: $make_tag\n")
 		print( "MACS2 peak calling\t: " + !mapping + "\n")
 	}
 }
@@ -222,7 +222,7 @@ void _atac( int rep ) {
 
 	wait
 
-	if ( !make_tag ) {
+	if ( make_tag ) {
 		tag := _bam_to_tag( nodup_bam, atac_out_dir, info )
 
 		wait
