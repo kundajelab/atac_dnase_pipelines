@@ -305,47 +305,38 @@ string[] _report_atac( string pdf, string png, string out_dir, string info ) {
 		sys vPlot="$(echo *.vect.png)"
 
 		//# Picard duplicate log file name
-		sys dupQCFile=$(echo *.dup.qc)
-		sys dupQCHeadings=$(sed -n 7p ${dupQCFile})
-		sys dupQCHeadings=${dupQCHeadings//_/\\\\_} #moar reformatting
-		sys IFS=$'\t' read -a dupQCHeadings <<< "${dupQCHeadings}"
-
-		sys dupQCData=$(sed -n 8p ${dupQCFile})
-		sys IFS=$'\t' read -a dupQCData <<< "${dupQCData}"
-
-		sys START=0
-		sys END=${#dupQCHeadings[@]}
-		sys DUPTABLE=""
-
-		//## here we build up the tex styled table contents
-		sys for (( c=${START}; c<${END}; c++ )) do \
+		sys if [[ $input == "fastq" ]]; then \
+			dupQCFile=$(echo *.dup.qc); \
+			dupQCHeadings=$(sed -n 7p ${dupQCFile}); \
+			dupQCHeadings=${dupQCHeadings//_/\\\\_}; \
+			IFS=$'\t' read -a dupQCHeadings <<< "${dupQCHeadings}"; \
+			dupQCData=$(sed -n 8p ${dupQCFile}); \
+			IFS=$'\t' read -a dupQCData <<< "${dupQCData}"; \
+			START=0; \
+			END=${#dupQCHeadings[@]}; \
+			DUPTABLE=""; \
+			for (( c=${START}; c<${END}; c++ )) do \
 				if [ "${c}" = "$((END-1))" ]; then \
 					DUPTABLE="${DUPTABLE}${dupQCHeadings[${c}]}& ${dupQCData[${c}]} \\\\ \bottomrule"; \
 				else \
 					DUPTABLE="${DUPTABLE}${dupQCHeadings[${c}]}& ${dupQCData[${c}]} \\\\ \midrule "; \
 				fi \
-			done
-
-		//# library complexity data file name
-		sys bpcQCFile=$(echo *.pbc.qc)
-
-		//# library complexity data file contents
-		sys declare -a bpcLabels=("TotalReadPairs" "DistinctReadPairs" "OneReadPair" "TwoReadPairs" "NRF=Distinct/Total" "PBC1=OnePair/Distinct" "PBC2=OnePair/TwoPair")
-		sys bpcQC=$(cat ${bpcQCFile})
-		sys IFS=$'\t' read -a bpcData <<< "${bpcQC}"
-
-		sys START=0
-		sys END=${#bpcLabels[@]}
-		sys BPCTABLE=""
-
-		//## here we build up the tex styled table contents
-		sys for (( c=${START}; c<${END}; c++ )) do \
+			done; \
+			bpcQCFile=$(echo *.pbc.qc); \
+			declare -a bpcLabels=("TotalReadPairs" "DistinctReadPairs" "OneReadPair" "TwoReadPairs" "NRF=Distinct/Total" "PBC1=OnePair/Distinct" "PBC2=OnePair/TwoPair"); \
+			bpcQC=$(cat ${bpcQCFile}); \
+			IFS=$'\t' read -a bpcData <<< "${bpcQC}"; \
+			START=0; \
+			END=${#bpcLabels[@]}; \
+			BPCTABLE=""; \
+			for (( c=${START}; c<${END}; c++ )) do \
 				if [ "${c}" = "$((END-1))" ]; then \
 					BPCTABLE="${BPCTABLE}${bpcLabels[${c}]}& ${bpcData[${c}]} \\\\ \bottomrule"; \
 				else \
 					BPCTABLE="${BPCTABLE}${bpcLabels[${c}]}& ${bpcData[${c}]} \\\\ \midrule "; \
 				fi \
-			done			
+			done; \
+			fi
 
 		//# Now we generate the tex language file that defines the report
 		//# warning! two layers of command interpretaion in here (bash&tex),
@@ -382,25 +373,24 @@ string[] _report_atac( string pdf, string png, string out_dir, string info ) {
 			echo "\includegraphics[width=0.5\textwidth]{${preseqGraph}}" >> $tex_file; \
 			fi
 
-		sys echo "\subsection{Library Complexity}" >> $tex_file
-		sys echo "From ${bpcQCFile//_/\\_}:\\\\" >> $tex_file
-		sys echo "\centerline{" >> $tex_file
-		sys echo "\begin{tabular}{l|c}" >> $tex_file
-		sys echo "\toprule" >> $tex_file
-		sys echo "${BPCTABLE}" >> $tex_file
-		sys echo "\end{tabular}" >> $tex_file
-		sys echo "}" >> $tex_file
-		sys echo "\subsection{Insert size histogram}" >> $tex_file
-		sys echo "From ${insertSizeHist//_/\\_}:\\\\" >> $tex_file
-		sys echo "\includegraphics[width=0.5\textwidth]{${insertSizeHist}}" >> $tex_file
-		sys echo "\subsection{Picard Duplication Metrics}" >> $tex_file
-		sys echo "From ${dupQCFile//_/\\_}:\\\\" >> $tex_file
-		sys echo "\begin{tabular}{l|c}" >> $tex_file
-		sys echo "\toprule" >> $tex_file
-		sys echo "${DUPTABLE}" >> $tex_file
-		sys echo "\end{tabular}" >> $tex_file
-
 		sys if [[ $input == "fastq" ]]; then \
+			echo "\subsection{Library Complexity}" >> $tex_file; \
+			echo "From ${bpcQCFile//_/\\_}:\\\\" >> $tex_file; \
+			echo "\centerline{" >> $tex_file; \
+			echo "\begin{tabular}{l|c}" >> $tex_file; \
+			echo "\toprule" >> $tex_file; \
+			echo "${BPCTABLE}" >> $tex_file; \
+			echo "\end{tabular}" >> $tex_file; \
+			echo "}" >> $tex_file; \
+			echo "\subsection{Insert size histogram}" >> $tex_file; \
+			echo "From ${insertSizeHist//_/\\_}:\\\\" >> $tex_file; \
+			echo "\includegraphics[width=0.5\textwidth]{${insertSizeHist}}" >> $tex_file; \
+			echo "\subsection{Picard Duplication Metrics}" >> $tex_file; \
+			echo "From ${dupQCFile//_/\\_}:\\\\" >> $tex_file; \
+			echo "\begin{tabular}{l|c}" >> $tex_file; \
+			echo "\toprule" >> $tex_file; \
+			echo "${DUPTABLE}" >> $tex_file; \
+			echo "\end{tabular}" >> $tex_file; \
 			echo "\subsection{bowtie2 Alignment Log}" >> $tex_file; \
 			echo "\textbf{${alignLogLastLine//'%'/'\%'}}\\\\" >> $tex_file; \
 			echo "From ${alignLog//_/\\_}:\\\\" >> $tex_file; \
