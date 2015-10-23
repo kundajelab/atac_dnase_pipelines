@@ -293,8 +293,10 @@ string[] _report_atac( string pdf, string png, string out_dir, string info ) {
 		sys preseqGraph="$(echo *.preseq.pdf)"
 
 		//# bowtie2 alignment log file name
-		sys alignLog="$(echo *.align.log)"
-		sys alignLogLastLine=$(tail -n 1 ${alignLog})
+		sys if [[ $input == "fastq" ]]; then \
+			alignLog="$(echo *.align.log)"; \
+			alignLogLastLine=$(tail -n 1 ${alignLog}); \
+			fi
 
 		//# preseq log file name
 		sys preseqLog="$(echo *.preseq.log)"
@@ -397,11 +399,15 @@ string[] _report_atac( string pdf, string png, string out_dir, string info ) {
 		sys echo "\toprule" >> $tex_file
 		sys echo "${DUPTABLE}" >> $tex_file
 		sys echo "\end{tabular}" >> $tex_file
-		sys echo "\subsection{bowtie2 Alignment Log}" >> $tex_file
-		sys echo "\textbf{${alignLogLastLine//'%'/'\%'}}\\\\" >> $tex_file
-		sys echo "From ${alignLog//_/\\_}:\\\\" >> $tex_file
-		sys echo "\scalebox{.6}{" >> $tex_file
-		sys echo "\lstinputlisting{${alignLog}}" >> $tex_file
+
+		sys if [[ $input == "fastq" ]]; then \
+			echo "\subsection{bowtie2 Alignment Log}" >> $tex_file; \
+			echo "\textbf{${alignLogLastLine//'%'/'\%'}}\\\\" >> $tex_file; \
+			echo "From ${alignLog//_/\\_}:\\\\" >> $tex_file; \
+			echo "\scalebox{.6}{" >> $tex_file; \
+			echo "\lstinputlisting{${alignLog}}" >> $tex_file; \
+			fi
+
 		sys echo "}" >> $tex_file
 		sys echo "\end{multicols}  " >> $tex_file
 		sys echo "%\pagebreak" >> $tex_file
