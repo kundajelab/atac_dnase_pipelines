@@ -271,7 +271,8 @@ string[] _report_atac( string pdf, string png, string out_dir, string info ) {
 	pdf_file := "$out_dir/report.pdf"
 
 	// a lot of inputs so I picked up just two
-	in 	:= [pdf, png]
+	//in 	:= [pdf, png]
+	in 	:= ""
 	out 	:= [tex_file, pdf_file]
 
 	task( taskName:= "report "+info, \
@@ -396,9 +397,9 @@ string[] _report_atac( string pdf, string png, string out_dir, string info ) {
 			echo "From ${alignLog//_/\\_}:\\\\" >> $tex_file; \
 			echo "\scalebox{.6}{" >> $tex_file; \
 			echo "\lstinputlisting{${alignLog}}" >> $tex_file; \
+			echo "}" >> $tex_file; \
 			fi
 
-		sys echo "}" >> $tex_file
 		sys echo "\end{multicols}  " >> $tex_file
 		sys echo "%\pagebreak" >> $tex_file
 		sys echo "\end{document}" >> $tex_file		
