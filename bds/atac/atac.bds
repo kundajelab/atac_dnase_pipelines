@@ -20,7 +20,7 @@ num_rep 	:= 1		help # replicates. ATAC seq for each replicate will go IN PARALLE
 mapping	 	:= false	help Add it to perform mapping only (no MACS2 peak.
 vplot 		:= false 	help Add it to create V plot (default: false).
 preseq 		:= false 	help Add it to perform preseq analysis (default: false).
-make_tag 	:= false 	help Add it to create tagalign and pseudo replicates for it (default: false).
+subsample 	:= false 	help Add it if you want to subsample and call peaks on psedu-replicates on subsampled one (default: false).
 
 
 help()
@@ -48,7 +48,7 @@ void init_atac() {
 
 		vplot 		= get_conf_val_bool( vplot,		["vplot"] )
 		preseq 		= get_conf_val_bool( preseq,		["preseq"] )
-		make_tag	= get_conf_val_bool( make_tag,		["make_tag"] )
+		subsample	= get_conf_val_bool( subsample, 	["subsample"] )
 	}
 	else if ( is_legacy_input() ) { // legacy input method taking first 8 parameters from cmd. line (num_rep=1)
 
@@ -97,8 +97,8 @@ void init_atac() {
 		print( "# Replicates\t\t: $num_rep\n")
 		print( "Vplot generation\t: $vplot\n")
 		print( "Preseq analysis\t\t: $preseq\n")
-		print( "Tagalign generation\t: $make_tag\n")
 		print( "MACS2 peak calling\t: " + !mapping + "\n")
+		print( "Subsampling and pseudo-reps\t: $subsample\n")
 	}
 }
 
@@ -222,24 +222,50 @@ void _atac( int rep ) {
 
 	wait
 
-	if ( make_tag ) {
-		tag := _bam_to_tag( nodup_bam, atac_out_dir, info )
-
-		wait
-
-		_spr( tag, atac_out_dir, info )
-
-		if ( no_par_job ) wait
-	}
-
-	bed := _bam_to_bed_non_chrM( nodup_bam, atac_out_dir, info )
-
-	wait
-
 	if ( !mapping ) {
-		_macs2_bed( bed, "$fraglen", atac_out_dir, info )
 
-		if ( no_par_job ) wait
+		if ( subsample ) {
+
+			print("\nSubsampling bam...\n")
+
+			nmsrt_bam := _bam_to_nmsrt_bam( nodup_bam, atac_out_dir, info )
+			wait
+
+			bedpe := _bam_to_bedpe( nmsrt_bam, atac_out_dir, info )
+			wait 
+
+			subsampled_bedpe := _subsample_bedpe( bedpe, atac_out_dir, info )		
+			wait
+
+			string tag_pr1, tag_pr2
+			(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info )
+			wait
+
+			tag := _bedpe_to_tag( subsampled_bedpe, atac_out_dir, info )
+			wait
+
+			shifted_tag 	:= _shift_tag( tag, atac_out_dir, info )
+			shifted_tag_pr1 := _shift_tag( tag_pr1, atac_out_dir, info )
+			shifted_tag_pr2 := _shift_tag( tag_pr2, atac_out_dir, info )
+			wait
+
+			_macs2_bed( shifted_tag, "$fraglen", atac_out_dir, info )
+			if ( no_par_job ) wait
+
+			_macs2_bed( shifted_tag_pr1, "$fraglen", atac_out_dir, info )
+			if ( no_par_job ) wait
+
+			_macs2_bed( shifted_tag_pr2, "$fraglen", atac_out_dir, info )
+			if ( no_par_job ) wait
+		}
+		else {
+
+			bed := _bam_to_bed_non_chrM( nodup_bam, atac_out_dir, info )
+			wait
+
+			_macs2_bed( bed, "$fraglen", atac_out_dir, info )
+			if ( no_par_job ) wait
+		}
 	}
 
 	string srt_bam
