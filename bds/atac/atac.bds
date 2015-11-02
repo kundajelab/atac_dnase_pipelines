@@ -20,7 +20,8 @@ num_rep 	:= 1		help # replicates. ATAC seq for each replicate will go IN PARALLE
 mapping	 	:= false	help Add it to perform mapping only (no MACS2 peak.
 vplot 		:= false 	help Add it to create V plot (default: false).
 preseq 		:= false 	help Add it to perform preseq analysis (default: false).
-subsample 	:= false 	help Add it if you want to subsample and call peaks on psedu-replicates on subsampled one (default: false).
+subsample 	:= false 	help Add it if you want to subsample replicates (default: false).
+make_pseudoreps := false 	help Add it if you want to generate and call peaks on psedu-replicates (default: false).
 
 
 help()
@@ -49,6 +50,7 @@ void init_atac() {
 		vplot 		= get_conf_val_bool( vplot,		["vplot"] )
 		preseq 		= get_conf_val_bool( preseq,		["preseq"] )
 		subsample	= get_conf_val_bool( subsample, 	["subsample"] )
+		make_pseudoreps	= get_conf_val_bool( make_pseudoreps, 	["make_pseudoreps"] )
 	}
 	else if ( is_legacy_input() ) { // legacy input method taking first 8 parameters from cmd. line (num_rep=1)
 
@@ -98,7 +100,8 @@ void init_atac() {
 		print( "Vplot generation\t: $vplot\n")
 		print( "Preseq analysis\t\t: $preseq\n")
 		print( "MACS2 peak calling\t: " + !mapping + "\n")
-		print( "Subsampling and pseudo-reps\t: $subsample\n")
+		print( "Subsample replicates\t: $subsample\n")
+		print( "Create/call peaks on pseudo replicates\t: $make_pseudoreps\n")
 	}
 }
 
@@ -224,9 +227,7 @@ void _atac( int rep ) {
 
 	if ( !mapping ) {
 
-		if ( subsample ) {
-
-			print("\nSubsampling bam...\n")
+		if ( subsample || make_pseudoreps ) {
 
 			nmsrt_bam := _bam_to_nmsrt_bam( nodup_bam, atac_out_dir, info )
 			wait
@@ -234,29 +235,44 @@ void _atac( int rep ) {
 			bedpe := _bam_to_bedpe( nmsrt_bam, atac_out_dir, info )
 			wait 
 
-			subsampled_bedpe := _subsample_bedpe( bedpe, atac_out_dir, info )		
+			string subsampled_bedpe
+			if ( subsample ) {
+				print("\n\nSubsampling $info...\n")
+				subsampled_bedpe = _subsample_bedpe( bedpe, atac_out_dir, info )		
+			}
+			else {
+				subsampled_bedpe = bedpe
+			}
 			wait
 
-			string tag_pr1, tag_pr2
-			(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info )
+			tag := _bedpe_to_tag( subsampled_bedpe, atac_out_dir, info )			
 			wait
 
-			tag := _bedpe_to_tag( subsampled_bedpe, atac_out_dir, info )
+			shifted_tag := _shift_tag( tag, atac_out_dir, info )
 			wait
 
-			shifted_tag 	:= _shift_tag( tag, atac_out_dir, info )
-			shifted_tag_pr1 := _shift_tag( tag_pr1, atac_out_dir, info )
-			shifted_tag_pr2 := _shift_tag( tag_pr2, atac_out_dir, info )
+			string shifted_tag_pr1, shifted_tag_pr2
+			if ( make_pseudoreps ) {
+				print("\n\nCreating pseudo replicates for $info...\n")
+				string tag_pr1, tag_pr2
+				(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info )
+				wait
+
+				shifted_tag_pr1 = _shift_tag( tag_pr1, atac_out_dir, info )
+				shifted_tag_pr2 = _shift_tag( tag_pr2, atac_out_dir, info )
+			}
 			wait
 
 			_macs2_bed( shifted_tag, "$fraglen", atac_out_dir, info )
 			if ( no_par_job ) wait
 
-			_macs2_bed( shifted_tag_pr1, "$fraglen", atac_out_dir, info + "_pr1" )
-			if ( no_par_job ) wait
+			if ( make_pseudoreps ) {
+				_macs2_bed( shifted_tag_pr1, "$fraglen", atac_out_dir, info + "_pr1" )
+				if ( no_par_job ) wait
 
-			_macs2_bed( shifted_tag_pr2, "$fraglen", atac_out_dir, info + "_pr2")
-			if ( no_par_job ) wait
+				_macs2_bed( shifted_tag_pr2, "$fraglen", atac_out_dir, info + "_pr2")
+				if ( no_par_job ) wait
+			}
 		}
 		else {
 
