@@ -237,7 +237,7 @@ void _atac( int rep ) {
 
 			string subsampled_bedpe
 			if ( subsample ) {
-				print("\n\nSubsampling $info...\n")
+				print("\n\nSubsampling $info... (# reads for subsampling = $nreads)\n")
 				subsampled_bedpe = _subsample_bedpe( bedpe, atac_out_dir, info )		
 			}
 			else {
