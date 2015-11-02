@@ -252,10 +252,10 @@ void _atac( int rep ) {
 			_macs2_bed( shifted_tag, "$fraglen", atac_out_dir, info )
 			if ( no_par_job ) wait
 
-			_macs2_bed( shifted_tag_pr1, "$fraglen", atac_out_dir, info )
+			_macs2_bed( shifted_tag_pr1, "$fraglen", atac_out_dir, info + "_pr1" )
 			if ( no_par_job ) wait
 
-			_macs2_bed( shifted_tag_pr2, "$fraglen", atac_out_dir, info )
+			_macs2_bed( shifted_tag_pr2, "$fraglen", atac_out_dir, info + "_pr2")
 			if ( no_par_job ) wait
 		}
 		else {
