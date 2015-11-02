@@ -93,6 +93,17 @@ max( [NTH_BWT2], [NTH_MACS2] ) x [NUM_REP]
 -no_par_job
 ```
 
+### Requirements (python 2.x >= 2.7)
+
+Python modules:
+- numpy
+- matplotlib
+- pysam
+- python-Levenshtein
+- pybedtools
+- trimgalore
+
+
 
 ### Troubleshooting
 
