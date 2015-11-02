@@ -11,8 +11,6 @@ import sys
 import gzip
 import string
 import Levenshtein
-from Bio import SeqIO
-from Bio import AlignIO
 from optparse import OptionParser
 
 ##### DEFINE FUNCTIONS #####

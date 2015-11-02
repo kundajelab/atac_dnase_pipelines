@@ -19,7 +19,6 @@ For paired-end pipeline:
 - numpy
 - matplotlib
 - pysam
-- BioPython
 - python-Levenshtein 
 
 For single-end pipeline:
