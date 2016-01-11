@@ -173,12 +173,9 @@ void chk_input_data() {
 void atac() {
 
 	for (int rep=1; rep<=num_rep; rep++) {
-		if ( no_par_job ) {
-			_atac( rep )
-		}
-		else {
-			par _atac( rep )
-		}
+		
+		if ( no_par_job ) _atac( rep )
+		else 		par _atac( rep )
 	}
 
 	wait
@@ -236,8 +233,11 @@ void _atac( int rep ) {
 			wait 
 
 			string subsampled_bedpe
+
 			if ( subsample ) {
+
 				print("\n\nSubsampling $info... (# reads for subsampling = $nreads)\n")
+
 				subsampled_bedpe = _subsample_bedpe( bedpe, atac_out_dir, info )		
 			}
 			else {
@@ -249,11 +249,13 @@ void _atac( int rep ) {
 			wait
 
 			shifted_tag := _shift_tag( tag, atac_out_dir, info )
-			if ( no_par_job ) wait
 
 			string shifted_tag_pr1, shifted_tag_pr2
+
 			if ( make_pseudoreps ) {
+
 				print("\n\nCreating pseudo replicates for $info...\n")
+
 				string tag_pr1, tag_pr2
 				(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info )
 				wait
@@ -264,14 +266,10 @@ void _atac( int rep ) {
 			wait
 
 			_macs2_bed( shifted_tag, "$fraglen", atac_out_dir, info )
-			if ( no_par_job ) wait
 
 			if ( make_pseudoreps ) {
 				_macs2_bed( shifted_tag_pr1, "$fraglen", atac_out_dir, info + "_pr1" )
-				if ( no_par_job ) wait
-
 				_macs2_bed( shifted_tag_pr2, "$fraglen", atac_out_dir, info + "_pr2")
-				if ( no_par_job ) wait
 			}
 		}
 		else {
@@ -280,7 +278,6 @@ void _atac( int rep ) {
 			wait
 
 			_macs2_bed( bed, "$fraglen", atac_out_dir, info )
-			if ( no_par_job ) wait
 		}
 	}
 
@@ -292,15 +289,9 @@ void _atac( int rep ) {
 
 	string png, pdf
 
-	if ( vplot ) {
-		png = _vplot( srt_bam, atac_out_dir, info )
-
-		if ( no_par_job ) wait
-	}
-
-	if ( preseq ) {
-		pdf = _preseq( srt_bam, atac_out_dir, info )
-	}
+	if ( vplot ) png = _vplot( srt_bam, atac_out_dir, info )
+	
+	if ( preseq ) pdf = _preseq( srt_bam, atac_out_dir, info )
 
 	wait
 

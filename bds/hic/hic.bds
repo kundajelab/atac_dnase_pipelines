@@ -298,8 +298,6 @@ void _hic( int w ) {
 		if ( no_par_job )    _hic_postprocess( id, clean_pairs_comb{ id }, w )
 		else 		 par _hic_postprocess( id, clean_pairs_comb{ id }, w )
 	}
-
-	if ( no_par_job ) wait
 }
 
 void _hic_preprocess( int w ) {
@@ -323,10 +321,8 @@ void _hic_preprocess( int w ) {
 		blacklist_dir	:= mkdir_path( "$out_dir/$dir_name_before_step6/Blacklist")
 
 		mid_points{"$w"} = _hic_step1_fixed_win( w, mid_point_dir, info )
-		if ( no_par_job ) wait
 
 		binned_blacklists{"$w"} = _hic_step1a_fixed_win( w, blacklist_dir, info )
-		if ( no_par_job ) wait
 
 		if ( !skip_ICE ) biases{"$w"} = _hic_step3_fixed_win( w, bias_dir, info )	
 	}
@@ -363,13 +359,9 @@ void _hic_postprocess( string id, string clean_pairs_comb, int w ) {
 
 	raw_contact_cnts := _hic_step2a( id, list_contacts_bfr_ice, w, raw_contact_dir, info )	
 
-	if ( no_par_job ) wait
-
 	string list_contacts_aft_ice_biases
 
 	if ( !skip_ICE ) list_contacts_aft_ice_biases = _hic_step4( id, list_contacts_bfr_ice, biases{"$w"}, aft_ice_dir, info )
-
-	if ( no_par_job ) wait
 
 	contacts_per_frag := _hic_step5( id, list_contacts_bfr_ice, mid_points{"$w"}, contact_dir, info )
 
@@ -379,12 +371,8 @@ void _hic_postprocess( string id, string clean_pairs_comb, int w ) {
 
 	if ( !skip_ICE ) dist_bias = _hic_step4a( id, list_contacts_aft_ice_biases, w, plot_dir, info )
 
-	if ( no_par_job ) wait
-
 	_hic_step6( "beforeICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
 			contacts_per_frag, w, hic_bfr_ice_dir, info )
-
-	if ( no_par_job ) wait
 
 	if ( !skip_ICE ) _hic_step6( "afterICE", id, list_contacts_bfr_ice, list_contacts_aft_ice_biases, \
 			contacts_per_frag, w, hic_aft_ice_dir, info )
