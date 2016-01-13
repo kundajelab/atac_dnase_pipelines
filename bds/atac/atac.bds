@@ -7,6 +7,7 @@ include "../modules/align_etc.bds"
 include "../modules/align_bowtie2.bds"
 include "../modules/preseq.bds"
 include "../chipseq/modules/peakcall_macs2.bds"
+include "../chipseq/modules/idr.bds"
 include "../chipseq/modules/report.bds"
 
 
@@ -17,11 +18,18 @@ trimmed_fastq 	:= false	help Add it to skip fastq-trimming stage (default: false
 fraglen 	:= 75 		help Read fragment length (default: 75).
 num_rep 	:= 1		help # replicates. ATAC seq for each replicate will go IN PARALLEL. (default: 1).
 
-mapping	 	:= false	help Add it to perform mapping only (no MACS2 peak.
+mapping	 	:= false	help Add it to perform mapping only (no MACS2 peak calling, default: false).
 vplot 		:= false 	help Add it to create V plot (default: false).
 preseq 		:= false 	help Add it to perform preseq analysis (default: false).
 subsample 	:= false 	help Add it if you want to subsample replicates (default: false).
 make_pseudoreps := false 	help Add it if you want to generate and call peaks on psedu-replicates (default: false).
+idr 		:= false 	help Add it to perform IDR analysis (default: false).
+
+
+// global variable for IDR
+string{} peaks, peaks_pr1, peaks_pr2
+string{} shifted_tags, shifted_tags_pr1, shifted_tags_pr2
+
 
 
 help()
@@ -34,6 +42,7 @@ set_shell_env()
 
 atac()
 
+do_idr()
 
 
 void init_atac() {
@@ -51,6 +60,8 @@ void init_atac() {
 		preseq 		= get_conf_val_bool( preseq,		["preseq"] )
 		subsample	= get_conf_val_bool( subsample, 	["subsample"] )
 		make_pseudoreps	= get_conf_val_bool( make_pseudoreps, 	["make_pseudoreps"] )
+
+		idr 		= get_conf_val_bool( idr, 		["idr"] )
 	}
 	else if ( is_legacy_input() ) { // legacy input method taking first 8 parameters from cmd. line (num_rep=1)
 
@@ -67,6 +78,8 @@ void init_atac() {
 		preseq 		= true
 
 		mapping 	= false
+
+		idr 		= false
 	
 		if ( v ) { // verbose
 			print("\n\n")
@@ -102,6 +115,7 @@ void init_atac() {
 		print( "MACS2 peak calling\t: " + !mapping + "\n")
 		print( "Subsample replicates\t: $subsample\n")
 		print( "Create/call peaks on pseudo replicates\t: $make_pseudoreps\n")
+		print( "Perform IDR analysis on peaks\t: $idr\n")
 	}
 }
 
@@ -248,10 +262,8 @@ void _atac( int rep ) {
 			tag := _bedpe_to_tag( subsampled_bedpe, atac_out_dir, info )			
 			wait
 
-			shifted_tag := _shift_tag( tag, atac_out_dir, info )
-
-			string shifted_tag_pr1, shifted_tag_pr2
-
+			shifted_tags{rep} = _shift_tag( tag, atac_out_dir, info )			 
+			
 			if ( make_pseudoreps ) {
 
 				print("\n\nCreating pseudo replicates for $info...\n")
@@ -260,24 +272,25 @@ void _atac( int rep ) {
 				(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info )
 				wait
 
-				shifted_tag_pr1 = _shift_tag( tag_pr1, atac_out_dir, info )
-				shifted_tag_pr2 = _shift_tag( tag_pr2, atac_out_dir, info )
+				shifted_tags_pr1{rep} = _shift_tag( tag_pr1, atac_out_dir, info )
+				shifted_tags_pr2{rep} = _shift_tag( tag_pr2, atac_out_dir, info )
 			}
 			wait
 
-			_macs2_bed( shifted_tag, "$fraglen", atac_out_dir, info )
-
+			peaks{rep} = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
+			
 			if ( make_pseudoreps ) {
-				_macs2_bed( shifted_tag_pr1, "$fraglen", atac_out_dir, info + "_pr1" )
-				_macs2_bed( shifted_tag_pr2, "$fraglen", atac_out_dir, info + "_pr2")
+
+				peaks_pr1{rep} = _macs2_atac( shifted_tags_pr1{rep}, "$fraglen", atac_out_dir, info + "_pr1" )
+				peaks_pr2{rep} = _macs2_atac( shifted_tags_pr2{rep}, "$fraglen", atac_out_dir, info + "_pr2")
 			}
 		}
 		else {
 
-			bed := _bam_to_bed_non_chrM( nodup_bam, atac_out_dir, info )
+			shifted_tags{rep} = _bam_to_bed_non_chrM( nodup_bam, atac_out_dir, info )
 			wait
 
-			_macs2_bed( bed, "$fraglen", atac_out_dir, info )
+			peaks{rep} = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
 		}
 	}
 
@@ -296,6 +309,53 @@ void _atac( int rep ) {
 	wait
 
 	_report_atac( pdf, png, atac_out_dir, info )
+}
+
+void do_idr() {
+	
+	if ( !idr || num_rep != 2 ) return
+
+	idr_out_dir := mkdir_path( use_idr1 ? "$out_dir/idr1" : "$out_dir/idr2" )
+
+	shifted_tag_pooled := _pool_tag( shifted_tags{1}, shifted_tags{2}, idr_out_dir, "" )
+	wait
+	
+	////////////////////// NEED SORTING AFTER POOLING? NO
+
+	peak_pooled := _macs2_atac( shifted_tag_pooled, "$fraglen", idr_out_dir, "pooled" )
+	wait
+
+	// IDR for true reps
+	idr_Nt := _idr( peaks{1}, peaks{2}, peak_pooled, idr_out_dir, "true_rep_Rep1_vs_Rep2" )
+
+	if ( make_pseudoreps ) {
+
+		// IDR on pseudo reps
+		idr_N1 := _idr( peaks_pr1{1}, peaks_pr2{1}, peaks{1}, idr_out_dir, "pseudo_rep_Rep1_PR1_vs_Rep1_PR2" )
+		idr_N2 := _idr( peaks_pr1{2}, peaks_pr2{2}, peaks{2}, idr_out_dir, "pseudo_rep_Rep2_PR1_vs_Rep2_PR2" )
+
+		// Make shifted tags for pooled pseudo rep (ppr).
+		string shifted_tag_pooled, shifted_tag_ppr1, shifted_tag_ppr2
+
+		( shifted_tag_pooled, shifted_tag_ppr1, shifted_tag_ppr2 ) = \
+			_ppr( 	shifted_tags{1}, shifted_tags_pr1{1}, shifted_tags_pr2{1}, \
+				shifted_tags{2}, shifted_tags_pr1{2}, shifted_tags_pr2{2}, idr_out_dir, "" )
+		wait
+
+		// call peaks on ppr
+		peak_ppr1 := _macs2_atac( shifted_tag_ppr1, "$fraglen", idr_out_dir, "ppr1" )
+		peak_ppr2 := _macs2_atac( shifted_tag_ppr2, "$fraglen", idr_out_dir, "ppr2" )
+		wait
+
+		// IDR on ppr
+		idr_Np := _idr( peak_ppr1, peak_ppr2, peak_pooled, idr_out_dir, "pooled_pseudo_rep_PPR1_vs_PPR2" )
+		wait
+
+		// second entry of output from function _idr() is narrowpeak.gz, get final idr qc score
+		idr_final_score := _idr_final_qc( idr_Nt[1], idr_N1[1], idr_N2[1], idr_Np[1], idr_out_dir, "" )
+	}
+
+	wait
 }
 
 string[] _report_atac( string pdf, string png, string out_dir, string info ) {
