@@ -38,11 +38,28 @@ For preseq analysis, add the following to command line:
 -preseq
 ```
 
-For multiple replicates, define fastqs with '-fastq[REP_NO]_[PAIR_NO]'. Add -num_rep and -fastq[]_[] for each replicate and pair to the command line. The following example is for 2 replicates.
+If you have single replicate, define fastqs with '-fastq[PAIR_NO]'.
 ```
--num_rep 2 \
+-fastq1 [READ_PAIR1] -fastq2 [READ_PAIR2] \
+```
+
+For multiple replicates, define fastqs with '-fastq[REP_NO]_[PAIR_NO]'. Add -fastq[]_[] for each replicate and pair to the command line. The following example is for 2 replicates.
+```
 -fastq1_1 [READ_REP1_PAIR1] -fastq1_2 [READ_REP1_PAIR2] \
 -fastq2_1 [READ_REP2_PAIR1] -fastq2_2 [READ_REP2_PAIR2]
+...
+```
+
+You can also start from bam files. There are two kinds of bam files (raw or deduped) and you need to explicitly choose between raw bam (bam) and deduped one (nodup_bam) with '-input [BAM_TYPE]'.
+
+For raw bams,
+```
+-input bam -bam1 [RAW_BAM_REP1] -bam2 [RWA_BAM_REP1] ...
+```
+
+For deduped bams, preseq analysis and v plot will not be available since they need sorted raw bam.
+```
+-input nodup_bam -bam1 [NODUP_BAM_REP1] -bam2 [NODUP_BAM_REP1] ...
 ```
 
 To change resource settings (# of processor, max memory and walltime) for bowtie2, add the following to command line:

@@ -16,17 +16,16 @@ input 		:= ""		help Input file type (automatically determined if not specified) 
 
 trimmed_fastq 	:= false	help Add it to skip fastq-trimming stage (default: false).
 fraglen 	:= 75 		help Read fragment length (default: 75).
-num_rep 	:= 1		help # replicates. ATAC seq for each replicate will go IN PARALLEL. (default: 1).
 
 mapping	 	:= false	help Add it to perform mapping only (no MACS2 peak calling, default: false).
 vplot 		:= false 	help Add it to create V plot (default: false).
 preseq 		:= false 	help Add it to perform preseq analysis (default: false).
 subsample 	:= false 	help Add it if you want to subsample replicates (default: false).
-make_pseudoreps := false 	help Add it if you want to generate and call peaks on psedu-replicates (default: false).
+make_pseudoreps := false 	help Add it if you want to generate pseudo-replicates and call peaks on them (default: false).
 idr 		:= false 	help Add it to perform IDR analysis (default: false).
 
 
-// global variable for IDR
+// global variables for IDR
 string{} peaks, peaks_pr1, peaks_pr2
 string{} shifted_tags, shifted_tags_pr1, shifted_tags_pr2
 
@@ -52,7 +51,6 @@ void init_atac() {
 		input 		= get_conf_val( input, 			["input_type", "input"] )
 		trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
 		fraglen 	= get_conf_val_int( fraglen,		["fraglen", "frag_len"] )
-		num_rep 	= get_conf_val_int( num_rep,		["num_rep", "numrep"] )
 
 		mapping		= get_conf_val_bool( mapping,		["mapping"] )
 
@@ -63,7 +61,7 @@ void init_atac() {
 
 		idr 		= get_conf_val_bool( idr, 		["idr"] )
 	}
-	else if ( is_legacy_input() ) { // legacy input method taking first 8 parameters from cmd. line (num_rep=1)
+	else if ( is_input_legacy() ) { // legacy input method taking first 8 parameters from cmd. line
 
 		bwt2_idx 	= args[0].trim()
 		fastq1_1	= args[1].trim()
@@ -93,14 +91,13 @@ void init_atac() {
 			print( "Chromosome sizes file\t: $chrsz\n" )
 			print( "V-Plot index\t\t: $vplot_idx\n" )
 			print( "Output dir.\t\t: $out_dir\n" )
-		}
-
-		num_rep = 1
+		}		
 	}
 
-
 	if ( input == "" ) {  // determine input type if input is not defined
-		if ( get_bam(0,1) != "" ) 	input = "bam"
+		if ( get_bam(0,1) != "" ) 	{
+			error("Please explicitly define bam type ('-input nodup_bam' for deduped bam, '-input bam' for raw bam). No preseq and vplot for deduped bam!\n") 
+		}
 		if ( get_fastq(0,1,1) != "" ) 	input = "fastq"
 	}
 
@@ -109,7 +106,7 @@ void init_atac() {
 		print( "Input data type\t\t: $input\n")		
 		print( "Fastqs are trimmed?\t: $trimmed_fastq\n")
 		print( "Fragment length\t\t: $fraglen\n")
-		print( "# Replicates\t\t: $num_rep\n")
+		print( "# Replicates\t\t: "+ get_num_rep() + "\n")
 		print( "Vplot generation\t: $vplot\n")
 		print( "Preseq analysis\t\t: $preseq\n")
 		print( "MACS2 peak calling\t: " + !mapping + "\n")
@@ -133,7 +130,7 @@ void chk_input_data() {
 
 		string[] fastqs_all
 
-		for ( int rep=1; rep <= num_rep; rep++) {
+		for ( int rep=1; rep <= get_num_rep(); rep++) {
 
 			string read1, read2
 
@@ -141,7 +138,7 @@ void chk_input_data() {
 
 			if ( fastqs.size()==0 ) error("No fastq defined for replicate $rep\n")
 
-			if ( (num_rep==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
+			if ( (get_num_rep()==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
 
 			prefix := "Rep$rep fastq"
 			print("$prefix :\n")
@@ -160,10 +157,11 @@ void chk_input_data() {
 			fastqs_all = concat( fastqs_all, fastqs )
 		}
 	}
-	else {
+	else if ( is_input_bam() || is_input_nodup_bam ) {
+
 		string[] bams_all
 
-		for ( int rep=1; rep <= num_rep; rep++) {
+		for ( int rep=1; rep <= get_num_rep(); rep++) {
 
 			bam := get_bam( 0, rep )
 
@@ -182,56 +180,72 @@ void chk_input_data() {
 			bams_all.add( bam )
 		}
 	}
+	else {
+		error("Unsupported file type!\n")
+	}
+
+	if ( is_input_nodup_bam() ) {
+
+		print("\n\nPreseq analysis and vplot are not available when pipeline starts from deduped bam files (with '-input nodup_bam')!\n")
+
+		vplot 	= false
+		preseq 	= false
+	}
 }
 
 void atac() {
 
-	for (int rep=1; rep<=num_rep; rep++) {
+	for (int rep=1; rep<=get_num_rep(); rep++) {
 		
 		if ( no_par_job ) _atac( rep )
 		else 		par _atac( rep )
 	}
-
 	wait
 }
 
 void _atac( int rep ) {
 
-	info := get_task_info( 0, rep ) // no info needed for atac
+	info := get_task_info( 0, rep )
 
-	atac_out_dir := mkdir_path( (num_rep==1) ? out_dir : "$out_dir/$info" )
+	atac_out_dir := mkdir_path( (get_num_rep()==1) ? out_dir : "$out_dir/$info" )
 
 	string bam, nodup_bam
 
 	if ( is_input_fastq() ) {
 
 		fastqs := get_fastqs( 0, rep )
-		if ( (num_rep==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
+
+		// correct if user skipped replicate id (-fastq[PAIR]) in fastq input (-fastq[REP]_[PAIR])
+		if ( (get_num_rep()==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
 
 		string p1, p2
 
 		if ( trimmed_fastq ) {
-			print("\nSkipping trimming fastqs (-trimmed_fastq flag is on)\n\n")
 
 			p1 = fastqs[0]
 			p2 = fastqs[1]
 		}
 		else {
+
 			( p1, p2 ) = _trim_adapters( fastqs[0], fastqs[1], atac_out_dir, info )
 		}
 
-		wait // hold parallel
-
-		bam = _bowtie2( p1, p2, atac_out_dir, info )
-
 		wait
 
-		nodup_bam = _bam_to_nodup_bam_PE( bam, atac_out_dir, info )
+		bam = _bowtie2( p1, p2, atac_out_dir, info )
+		wait
 
+		nodup_bam = _dedup_bam_PE( bam, atac_out_dir, info )
 	}
-	else {
+	else if ( is_input_bam() ) {
+
 		bam = get_bam( 0, rep )
-		nodup_bam = bam
+
+		nodup_bam = _dedup_bam_PE( bam, atac_out_dir, info )
+	}
+	else if ( is_input_nodup_bam() ) {
+
+		nodup_bam = get_bam( 0, rep )
 	}
 
 	wait
@@ -240,7 +254,7 @@ void _atac( int rep ) {
 
 		if ( subsample || make_pseudoreps ) {
 
-			nmsrt_bam := _bam_to_nmsrt_bam( nodup_bam, atac_out_dir, info )
+			nmsrt_bam := _nmsrt_bam( nodup_bam, atac_out_dir, info )
 			wait
 
 			bedpe := _bam_to_bedpe( nmsrt_bam, atac_out_dir, info )
@@ -249,8 +263,6 @@ void _atac( int rep ) {
 			string subsampled_bedpe
 
 			if ( subsample ) {
-
-				print("\n\nSubsampling $info... (# reads for subsampling = $nreads)\n")
 
 				subsampled_bedpe = _subsample_bedpe( bedpe, atac_out_dir, info )		
 			}
@@ -265,8 +277,6 @@ void _atac( int rep ) {
 			shifted_tags{rep} = _shift_tag( tag, atac_out_dir, info )			 
 			
 			if ( make_pseudoreps ) {
-
-				print("\n\nCreating pseudo replicates for $info...\n")
 
 				string tag_pr1, tag_pr2
 				(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info )
@@ -287,25 +297,23 @@ void _atac( int rep ) {
 		}
 		else {
 
-			shifted_tags{rep} = _bam_to_bed_non_chrM( nodup_bam, atac_out_dir, info )
+			shifted_tags{rep} = _bam_to_bed_atac( nodup_bam, atac_out_dir, info )
 			wait
 
 			peaks{rep} = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
 		}
 	}
 
-	string srt_bam
+	string sorted_bam
 
-	if ( vplot || preseq ) srt_bam = _bam_to_srt_bam( bam, atac_out_dir, info )
-
+	if ( vplot || preseq ) sorted_bam = _srt_bam( bam, atac_out_dir, info )
 	wait
 
 	string png, pdf
 
-	if ( vplot ) png = _vplot( srt_bam, atac_out_dir, info )
+	if ( vplot ) png = _vplot( sorted_bam, atac_out_dir, info )
 	
-	if ( preseq ) pdf = _preseq( srt_bam, atac_out_dir, info )
-
+	if ( preseq ) pdf = _preseq( sorted_bam, atac_out_dir, info )
 	wait
 
 	_report_atac( pdf, png, atac_out_dir, info )
@@ -313,14 +321,12 @@ void _atac( int rep ) {
 
 void do_idr() {
 	
-	if ( !idr || num_rep != 2 ) return
+	if ( !idr || get_num_rep() != 2 ) return
 
 	idr_out_dir := mkdir_path( use_idr1 ? "$out_dir/idr1" : "$out_dir/idr2" )
 
 	shifted_tag_pooled := _pool_tag( shifted_tags{1}, shifted_tags{2}, idr_out_dir, "" )
 	wait
-	
-	////////////////////// NEED SORTING AFTER POOLING? NO
 
 	peak_pooled := _macs2_atac( shifted_tag_pooled, "$fraglen", idr_out_dir, "pooled" )
 	wait
@@ -610,7 +616,7 @@ string get_task_info( int ctl, int rep ) {
 	return ( (ctl>0) ? "ctl_" : "") + "rep" + rep
 }
 
-bool is_legacy_input() {
+bool is_input_legacy() {
 
 	bool ret
 
@@ -637,4 +643,18 @@ bool is_input_fastq() {
 bool is_input_bam() {
 
 	return input.toLower() == "bam"
+}
+
+bool is_input_nodup_bam() {
+
+	return input.toLower() == "nodup_bam"
+}
+
+int get_num_rep() {
+
+	if ( is_input_legacy() ) 	return 1
+	else if ( is_input_fastq() ) 	return get_num_rep_fastq()
+	else if ( is_input_bam() || is_input_nodup_bam() ) 	return get_num_rep_bam()
+
+	return 0
 }
