@@ -72,6 +72,14 @@ For MACS2 peak calling:
 -nth_macs2 [NTHREADS_MACS2] -mem_macs2 [MEMORY_MACS2; e.g. 20G] -wt_macs2 [WALLTIME_MACS@; e.g. 20h]
 ```
 
+For IDR analysis on peaks:
+```
+-idr
+```
+
+By default, IDR will be done for true replicates, but if you have `-make_pseudoreps` in the command line, you will also get IDR on pseudo replicates and pooled pseudo replicates.
+
+
 For Kundaje lab cluster and SCG3, skip parameters (bwt2_idx, chrsz, gensz and vplot_idx) and just specify species.
 ```
 $ bds atac.bds -fastq1 [READ1] -fastq2 [READ2] -species [hg19 or mm9]
