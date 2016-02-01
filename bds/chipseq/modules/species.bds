@@ -1,0 +1,133 @@
+#!/usr/bin/env bds
+
+include "general.bds"
+
+
+help Species settings
+
+species			:= "" 		help Species. If not on kundaje lab servers, specify '-species_file' too.
+species_file		:= ""		help Species file path.
+
+chrsz 			:= "" 		help Chrome sizes file path (use fetchChromSizes from UCSC tools).
+seq 			:= ""		help Reference genome sequence directory path (where chr*.fa exist).
+gensz 			:= "hs"		help Genome size; hs for human, mm for mouse (default: hs).
+umap 			:= "" 		help Unique mappability tracks directory path (https://sites.google.com/site/anshulkundaje/projects/mappability).
+umap_hic		:= "" 		help Unique mappability tracks directory path (for HiC, DO NOT USE all-mappable umap track starting from 1bp)
+
+bwa_idx 		:= ""		help BWA index (full path prefix of [].bwt file) .
+bwt_idx			:= ""		help Bowtie index (full path prefix of [].1.ebwt file).
+bwt2_idx		:= ""		help Bowtie2 index (full path prefix of [].1.bt2 file).
+vplot_idx 		:= "" 		help V plot index (full path for bed file).
+
+blacklist_idr 		:= "" 		help Blacklist for IDR peaks (full path for bed file).
+
+species_basename 		:= "species.conf"
+species_basename_kundaje_lab  	:= "species_kundaje_lab.conf"
+
+
+init_species()
+read_species() // read it if exists
+
+
+void init_species() {
+
+	if ( conf_file_exists() ) {
+		species 	= get_conf_val( species, 	["SPECIES"] )
+		species_file 	= get_conf_val( species_file, 	["SPECIES_FILE", "SPECIES_CONF_FILE", "SPECIES_CONF"] )
+	}
+
+	if ( v ) { // verbose
+		print("\n")		
+		print( "Species\t: $species\n" )
+		print( "Species file\t: $species_file\n" )
+	}
+}
+
+void read_species() { // check for species configruation files
+
+	// value for key will be overriden as loop goes. so the last element in species_paths has the priority
+	string[] species_paths
+
+	// add bds script path
+	species_paths = concat( species_paths, get_species_file_paths( "/" + species_basename ) )
+
+	// add kundaje lab species file
+	if ( is_kundaje_lab() || is_scg3() ) \
+		species_paths = concat( species_paths, get_species_file_paths( "/" + species_basename_kundaje_lab ) )
+
+	// add default species file on working directory
+	species_paths.add( species_basename ) 
+
+	// add conf file
+	if ( c != "" ) \
+		species_paths.add( c ) 
+
+	// add conf file
+	if ( species_file != "" ) \
+		species_paths.add( species_file )
+
+
+	for ( string path : species_paths ) {
+
+		if ( path.exists() ) {
+
+			loop := (path==c) ? 2 : 1 // look in configuration file two times
+
+			for (int i=1; i<=loop; i++) {
+
+				string{} _conf
+
+				if ( i==2 ) {
+					_conf = read_conf( path, "" ) // read configuration file
+				}
+				else {
+					_conf = read_conf( path, species ) // read species file
+
+					if ( is_scg3() && !species.toLower().endsWith("_scg3") ) { // if on scg3, check if SPECIES_scg3 exists.
+
+						_conf2 := read_conf( path, species+"_scg3" )
+
+						if ( _conf2.size() > 0 ) {
+							print("Found section $species"+"_scg3, use this instead of $species\n")
+							_conf = _conf2
+						}
+					}
+				}
+
+				print("\nSpecies (or configuration) file found ($path,$i).\n")
+
+				//print("\nDEBUG: $path\t$species\n")
+				if ( _conf.size() == 0 ) continue // no species section (like [hg19], [mm9], ...) found, keep going with next
+
+				gensz		= get_conf_val( gensz, 		["gensz", "genomesize", "genome_size", "genome_sz", "gen_sz"], _conf )
+				chrsz		= get_conf_val( chrsz, 		["chromsize","chromsizes","chrom_sizes", "chrsz", "chr_sz"], _conf )
+				seq 		= get_conf_val( seq, 		["seq_dir", "seq"], _conf )
+
+				umap		= get_conf_val( umap, 		["umap_dir", "umap"], _conf )
+				umap_hic	= get_conf_val( umap_hic,	["umap_dir_hic", "umap_hic"], _conf )
+
+				bwa_idx 	= get_conf_val( bwa_idx, 	["bwa_index_name", "bwa_idx", "bwa_idx_name"], _conf )
+
+				bwt_idx 	= get_conf_val( bwt_idx, 	["bwt_index_name", "bwt_idx", "bwt_idx_name", "bowtie_idx", "bowtie_index"], _conf )
+				bwt2_idx 	= get_conf_val( bwt2_idx, 	["bwt2_index_name", "bwt2_idx", "bwt2_idx_name", "bowtie2_idx", "bowtie2_index"], _conf )
+
+				vplot_idx 	= get_conf_val( vplot_idx, 	["vplotindex", "vplot_index", "vplotidx", "vplot_idx", "v_index"], _conf )
+				blacklist_idr 	= get_conf_val( blacklist_idr, 	["blacklist_idr"], _conf )
+			}
+		}
+	}
+
+	if ( v ) { // verbose
+		print("\n")
+		print( "Chr. sizes file\t: $chrsz\n" )
+		print( "Genome size (hs,mm)\t: $gensz\n" )
+		print( "Sequence dir.\t\t: $seq\n" )
+		print( "Umap dir.\t\t: $umap\n" )
+		print( "Umap dir. (HiC)\t\t: $umap_hic\n" )
+		print( "BWA index\t\t: $bwa_idx\n" )
+		print( "Bowtie index\t\t: $bwt_idx\n" )
+		print( "Bowtie2 index\t\t: $bwt2_idx\n" )
+		print( "V-Plot index\t\t: $vplot_idx\n" )
+		print( "Black list for IDR\t: $blacklist_idr\n" )
+	}
+}

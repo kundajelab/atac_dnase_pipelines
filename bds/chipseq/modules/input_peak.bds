@@ -1,0 +1,46 @@
+#!/usr/bin/env bds
+
+include "species.bds"
+
+
+help Narrow peak input definition : 
+help      For true replicates, use '-peak1' and '-peak2',
+help      For pooled replicates, use '-peak_pooled',
+help      For two PR (pseudo-replicates), use '-peak[REP_ID]_pr1' and '-peak[REP_ID]_pr2',
+help      For two PPR (pooled pseudo-replicates), use '-peak_ppr1' and '-peak_ppr2',
+
+
+string get_peak( int rep, int pse ) { // rep==0 : pooled peak, pse==0 : true replicate
+
+	if ( pse > 2 ) error ("\nget_peak() : pse should not be larger than 2!")
+
+	string key, key2
+	if ( rep == 0 ) {
+		key 	= ( pse == 0 ? "peak_pooled" : ("peak_ppr" + pse) )
+		key2 	= key
+	}
+	else {
+		key 	= "peak"     + rep + ( pse == 0 ? "" : ("_pr" + pse) )
+		key2 	= "peak_rep" + rep + ( pse == 0 ? "" : ("_pr" + pse) )
+	}
+
+	if ( cmd_line_arg_has_key( key ) ) {
+		return get_cmd_line_arg_val( key )
+	}
+	else if ( cmd_line_arg_has_key( key2 ) ) {
+		return get_cmd_line_arg_val( key2 )
+	}
+	else if ( conf.hasKey( key ) ) {
+		return get_path( conf{ key } )
+	}
+	else if ( conf.hasKey( key2 ) ) {
+		return get_path( conf{ key2 } )
+	}
+
+	return ""
+}
+
+int get_num_rep_peak() {
+	
+	return 2
+}

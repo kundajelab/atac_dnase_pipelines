@@ -1,6 +1,6 @@
 #!/usr/bin/env bds
 
-include "../chipseq/modules/species.bds"
+include "species.bds"
 
 
 
@@ -30,6 +30,8 @@ string[] _trim_adapters( string fastq1, string fastq2, string out_dir, string in
 		sys gzip $p2
 	}
 
+	wait_par()
+
 	return out
 }
 
@@ -57,6 +59,8 @@ string _vplot( string srt_bam, string out_dir, string info ) {
 		//# this script must be in PATH (didn't work with 20 thread, so reduce it to 4)
 		sys python $(which makeVPlot.py) -a $srt_bam -b $vplot_idx -e 2000 -p ends -c 4 -v -u
 	}
+
+	wait_par()
 
 	return out
 }

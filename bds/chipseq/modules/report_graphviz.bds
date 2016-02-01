@@ -1,0 +1,77 @@
+#!/usr/bin/env bds
+
+include "report.bds"
+
+shape_box 	:= "box"
+shape_node 	:= "oval"
+fontsize_box 	:= 11
+fontsize_node 	:= 10
+color_node 	:= "whitesmoke"
+
+
+dot_lines 	:= "" // graphviz dot
+
+
+string _html_graphviz() { // graphviz diagram
+
+	dot_tmp := "$out_dir/workflow_tmp.dot"
+	dot := "$out_dir/workflow.dot"
+	svg := "$out_dir/workflow.svg"
+
+	dot_tmp.write( "digraph {\n\nrankdir=TB\n\nnode [shape=$shape_node,fontsize=$fontsize_node];\nedge [fontsize=$fontsize_node];\n\n" \
+		   	+ dot_lines + "\n\n}" )
+
+	// run graphviz
+	sys cat $dot_tmp | awk '!x[$0]++' > $dot 	# remove duplicate lines
+	//sys cat $dot_tmp > $dot
+	sys dot -Tsvg $dot > $svg 			# dot to svg
+	sys rm -f $dot_tmp
+
+	// add workflow diagram
+	return "<div id='chipseq_graphviz'><object data='"+ get_rel_path( svg ) + "'></object></div><br>"
+}
+
+// add graphviz element (in -> box -> out) to 'dot_lines'
+void _add_to_graphviz( string[] in_id, string[] in_path, string[] out_id, string[] out_path, string box, string box_color ) {
+
+	lines := ""
+	// {in1, in2, ...} -> box -> {out1, out2, ...}		
+
+	in  := "{"; out := "{"
+
+	for ( int i=0; i<in_id.size(); i++ )  {
+
+		if ( in_id[i] != "" )  in += "\""+in_id[i]+"\" "
+
+		path 	:= get_rel_path( in_path[i] )
+
+		lines += "\t\""+in_id[i]+"\" [id=\""+in_id[i]+"\",style=filled,fillcolor=$color_node,path=\"$path\"];\n"
+	}
+
+	for ( int i=0; i<out_id.size(); i++ ) {
+
+		if ( out_id[i] != "" ) out += "\""+out_id[i]+"\" "
+
+		path 	:= get_rel_path( out_path[i] )
+
+		lines += "\t\""+out_id[i]+"\" [id=\""+out_id[i]+"\",style=filled,fillcolor=$color_node,path=\"$path\"];\n"			
+	}
+
+	in  += "}"; out += "}"
+
+	if ( box == "" ) {
+		lines += "\t$in -> $out;\n"
+	}
+	else {
+		lines += "\t\"$box\" [fontsize=$fontsize_box,shape=$shape_box,style=filled,fillcolor=$box_color];\n" + \
+			 "\t$in -> \"$box\";\n" + \
+			 "\t\"$box\" -> $out;\n"
+	}
+
+	dot_lines += lines
+}
+
+void _add_to_graphviz( string[] in_id, string[] in_path, string[] out_id, string[] out_path ) {
+
+	_add_to_graphviz( in_id, in_path, out_id, out_path, "", "" )
+}

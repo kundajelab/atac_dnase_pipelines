@@ -1,0 +1,390 @@
+#!/usr/bin/env bds
+
+include "species.bds"
+
+// has functions related to bam, and helps getting bam from configruation file or command line argument
+
+help Alignment settings for bam
+wt_markdup 	:= "24h" 	help Walltime for Picardtools MarkDuplicate (default: 24h, 24:00:00).
+mem_markdup	:= "16G" 	help Max. memory for Picardtools MarkDuplicate (default: 16G).
+mapq_thresh	:= 30 		help Threshold for low MAPQ reads removal (default: 30).
+rm_chr_from_tag := "" 		help If specified, exclude lines with specified string from tagaligns. (example: 'other|ribo|mito|_', '_', default: blank)
+
+
+/*
+IMPORTANT!: legacy softwares compatibility (make the code work with legacy samtools, picard-tools)
+
+	- samtools fixmate -O doesn't work in legacy samtools
+		specify output ext like [TARGET].bam (samtools fixmate -r [SRC] [TARGET].bam)
+
+	- samtools index [SRC] [TARGET] doesn't work in legacy samtools
+		you need to manually mv .bam.bai .bai
+
+	- samtools sort -O -T  doesn't work in legacy samtools (do not use them)
+
+	- java -Xmx4G -Xms256M -jar ${PICARDROOT}/picard.jar [METHOD]  for old picard
+	- java -Xmx4G -Xms256M -jar ${PICARDROOT}/[METHOD].jar  for new picard
+*/
+
+
+init_postalign_bam()
+
+
+void init_postalign_bam() {
+
+	if ( conf_file_exists() ) {
+		mapq_thresh 	= get_conf_val_int( mapq_thresh,	["mapq_thresh"] )
+		rm_chr_from_tag = get_conf_val( rm_chr_from_tag, 	["rm_chr_from_tag", "remove_chr_from_tag", "rm_chr_from_tagalign", "remove_chr_from_tagalign"] )		
+
+		wt_markdup 	= get_conf_val( wt_markdup, 		["walltime_markdup", "wt_markdup", "timeout_markdup"] )
+		mem_markdup 	= get_conf_val( mem_markdup, 		["memory_markdup", "mem_markdup"] )
+	}
+
+	if ( v ) { // verbose
+		print("\n")		
+		print( "MAPQ reads rm thresh.\t\t: $mapq_thresh\n")
+		print( "Rm. tag reads with str.\t\t: $rm_chr_from_tag\n")
+		print( "Walltime (picard markdup)\t: $wt_markdup\n")
+		print( "Max. memory (picard markdup)\t: $mem_markdup\n")
+	}	
+}
+
+string[] _dedup_bam( string bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( bam, "bam" ), out_dir )
+
+	nodup_bam 	:= "$prefix.nodup.bam"
+	nodup_bam_idx 	:= "$prefix.nodup.bai"
+	dup_qc 		:= "$prefix.dup.qc"
+	map_qc 		:= "$prefix.nodup.flagstat.qc"
+	pbc_qc 		:= "$prefix.nodup.pbc.qc"
+	filt_bam 	:= "$prefix.filt.bam"
+	tmp_filt_bam 	:= "$prefix.dupmark.bam"
+
+	in 		:= [ bam ]
+	out 		:= [ nodup_bam, dup_qc, map_qc, pbc_qc ]
+
+	task( taskName:= "dedup_bam "+info, \
+		cpus:=nth, mem:=parse_mem_or_skip(mem_markdup), timeout:=parse_time_or_skip(wt_markdup), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		//# =============================
+		//# Remove  unmapped, mate unmapped
+		//# not primary alignment, reads failing platform
+		//# Remove low MAPQ reads
+		//# ==================  
+		sys samtools view -F 1804 -q $mapq_thresh -b $bam > $filt_bam
+
+		//# Mark duplicates
+		sys if [ -f ${PICARDROOT}/MarkDuplicates.jar ]; then \
+			java -Xmx4G -jar ${PICARDROOT}/MarkDuplicates.jar \
+				INPUT="$filt_bam" OUTPUT="$tmp_filt_bam" \
+				METRICS_FILE="$dup_qc" VALIDATION_STRINGENCY=LENIENT \
+				ASSUME_SORTED=true REMOVE_DUPLICATES=false; \
+			else \
+			java -Xmx4G -jar ${PICARDROOT}/picard.jar MarkDuplicates \
+				INPUT="$filt_bam" OUTPUT="$tmp_filt_bam" \
+				METRICS_FILE="$dup_qc" VALIDATION_STRINGENCY=LENIENT \
+				ASSUME_SORTED=true REMOVE_DUPLICATES=false; \
+			fi
+
+		//# Remove duplicates
+		//# Index final position sorted BAM
+		sys mv $tmp_filt_bam $filt_bam
+		sys samtools view -F 1804 -b $filt_bam > $nodup_bam
+		
+		//# Index Final BAM file
+		sys samtools index $nodup_bam
+		
+		sys if [ "$nodup_bam.bai" != "$nodup_bam_idx" ]; then \
+			cp $nodup_bam.bai $nodup_bam_idx; \
+			fi
+
+		sys samtools flagstat $nodup_bam > $map_qc
+
+		//# =============================
+		//# Compute library complexity
+		//# =============================
+		//# sort by position and strand
+		//# Obtain unique count statistics
+
+		//# PBC File output
+		//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
+		sys bedtools bamtobed -i $filt_bam | \
+			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$6}' | \
+			grep -v 'chrM' | sort | uniq -c | \
+			awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $pbc_qc
+
+		sys rm -f $filt_bam
+		sys rm -f $tmp_filt_bam
+	}
+
+	wait_par()
+
+	return out
+}
+
+string[] _dedup_bam_PE( string bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( bam, "bam" ), out_dir )
+
+	nodup_bam 	:= "$prefix.nodup.bam"
+	nodup_bam_idx 	:= "$prefix.nodup.bai"
+
+	dup_qc 		:= "$prefix.dup.qc"
+	map_qc 		:= "$prefix.nodup.flagstat.qc"
+	pbc_qc 		:= "$prefix.nodup.pbc.qc"
+
+	filt_bam 	:= "$prefix.filt.bam"
+	filt_bam_prefix := "$prefix.filt"
+
+	tmp_filt_bam 	:= "$prefix.dupmark.bam"
+	tmp_filt_bam_prefix := "$prefix.dupmark"
+
+	in 		:= [ bam ]
+	out 		:= [ nodup_bam, dup_qc, map_qc, pbc_qc ]
+
+	task( taskName:= "dedup_bam_PE "+info, \
+		cpus:=nth, mem:=parse_mem_or_skip(mem_markdup), timeout:=parse_time_or_skip(wt_markdup), \
+		out<-in ) {
+		sys $SHCMD_INIT
+
+		//# =============================
+		//# Remove  unmapped, mate unmapped
+		//# not primary alignment, reads failing platform
+		//# Remove low MAPQ reads
+		//# Only keep properly paired reads
+		//# Obtain name sorted BAM file
+		//# ==================
+
+		//# Will produce name sorted BAM
+		sys samtools view -F 1804 -f 2 -q $mapq_thresh -u $bam | samtools sort -n - $tmp_filt_bam_prefix
+
+		//# Remove orphan reads (pair was removed)
+		//# and read pairs mapping to different chromosomes
+		//# Obtain position sorted BAM			
+
+		//# Will produce coordinate sorted BAM
+		sys samtools fixmate -r $tmp_filt_bam $tmp_filt_bam.fixmate.bam
+		sys samtools view -F 1804 -f 2 -u $tmp_filt_bam.fixmate.bam | samtools sort - $filt_bam_prefix
+		sys rm $tmp_filt_bam.fixmate.bam
+
+		//# Mark duplicates
+		sys if [ -f ${PICARDROOT}/MarkDuplicates.jar ]; then \
+			java -Xmx4G -jar ${PICARDROOT}/MarkDuplicates.jar \
+				INPUT="$filt_bam" OUTPUT="$tmp_filt_bam" \
+				METRICS_FILE="$dup_qc" VALIDATION_STRINGENCY=LENIENT \
+				ASSUME_SORTED=true REMOVE_DUPLICATES=false; \
+			else \
+			java -Xmx4G -jar ${PICARDROOT}/picard.jar MarkDuplicates \
+				INPUT="$filt_bam" OUTPUT="$tmp_filt_bam" \
+				METRICS_FILE="$dup_qc" VALIDATION_STRINGENCY=LENIENT \
+				ASSUME_SORTED=true REMOVE_DUPLICATES=false; \
+			fi
+
+		//# ============================
+		//# Remove duplicates
+		//# Index final position sorted BAM
+		//# Create final name sorted BAM
+		//# ============================
+
+		sys mv $tmp_filt_bam $filt_bam
+		
+		sys samtools view -F 1804 -f 2 -b $filt_bam > $nodup_bam
+						
+		sys samtools index $nodup_bam
+
+		sys if [ "$nodup_bam.bai" != "$nodup_bam_idx" ]; then \
+			cp $nodup_bam.bai $nodup_bam_idx; \
+			fi
+
+		sys samtools flagstat $nodup_bam > $map_qc
+
+		//# =============================
+		//# Compute library complexity
+		//# =============================
+		//# Sort by name
+		//# convert to bedPE and obtain fragment coordinates
+		//# sort by position and strand
+		//# Obtain unique count statistics
+	
+		//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
+		sys samtools sort -n $filt_bam $filt_bam.tmp
+		sys bedtools bamtobed -bedpe -i $filt_bam.tmp.bam | \
+			awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
+			grep -v 'chrM' | sort | uniq -c | \
+			awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > $pbc_qc
+		sys rm $filt_bam.tmp.bam
+		
+		sys rm -f $filt_bam
+		sys rm -f $tmp_filt_bam
+	}
+
+	wait_par()
+
+	return out
+}
+
+string _nmsrt_bam( string bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( bam, "bam" ), out_dir )
+
+	nmsrt_bam 	:= "$prefix.nmsrt.bam"
+	nmsrt_bam_prefix:= "$prefix.nmsrt"
+
+	in 		:= [ bam ]
+	out 		:= nmsrt_bam
+
+	task( taskName:= "nmsrt_bam "+info, \
+		cpus:=nth, mem:=parse_mem_or_skip(memory), timeout:=parse_time_or_skip(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys samtools sort -n $bam $nmsrt_bam_prefix
+	}
+
+	wait_par()
+
+	return out	
+}
+
+string _srt_bam( string bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( bam, "bam" ), out_dir )
+
+	srt_bam 	:= "$prefix.srt.bam"
+	srt_bam_prefix 	:= "$prefix.srt"
+	srt_bam_idx 	:= "$prefix.srt.bai"
+
+	in 		:= [ bam ]
+	out 		:= srt_bam
+
+	task( taskName:= "srt_bam "+info, \
+		cpus:=nth, mem:=parse_mem_or_skip(memory), timeout:=parse_time_or_skip(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		//sys samtools sort -Ttmp -l0 -Obam $bam -o $srt_bam
+		//sys samtools index $srt_bam $srt_bam.bai
+		//sys mv $srt_bam.bai $srt_bam_idx
+
+		sys samtools sort $bam $srt_bam_prefix
+		sys samtools index $srt_bam
+
+		sys if [ "$srt_bam.bai" != "$srt_bam_idx" ]; then \
+			cp $srt_bam.bai $srt_bam_idx; \
+			fi
+	}
+
+	wait_par()
+
+	return out	
+}
+
+string _bam_to_tag( string bam, string out_dir, string info ) {
+	
+	prefix 	:= change_dir( remove_ext( bam, "bam" ), out_dir )
+
+	tag 	:= "$prefix.tagAlign.gz"
+
+	in 	:= [ bam ]
+	out 	:= tag
+
+	RM_CHR_ := "echo"	
+
+	if ( rm_chr_from_tag != "" ) {
+		RM_CHR_ = "zcat $tag | grep -P -v '$rm_chr_from_tag' | gzip -c > $prefix.rm_chr.tmp.gz; mv $prefix.rm_chr.tmp.gz $tag"
+	}
+
+	task( taskName:= "bam_to_tag "+info, \
+		cpus:=nth, mem:=parse_mem_or_skip(memory), timeout:=parse_time_or_skip(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+	
+		//# Create SE tagAlign file
+		sys bedtools bamtobed -i $bam | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | gzip -c > $tag
+
+		sys $RM_CHR_
+	}
+
+	wait_par()
+
+	return out
+}
+
+string _bam_to_bedpe( string nmsrt_bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( nmsrt_bam, "bam" ), out_dir )
+
+	bedpe 		:= "$prefix.bedpe.gz"
+
+	in 		:= [ nmsrt_bam ]
+	out 		:= bedpe
+
+	task( taskName:= "bam_to_bedpe "+info, \
+		cpus:=nth, mem:=parse_mem_or_skip(memory), timeout:=parse_time_or_skip(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		//# Create BEDPE file
+		sys bedtools bamtobed -bedpe -mate1 -i $nmsrt_bam | gzip -c > $bedpe
+	}
+
+	wait_par()
+
+	return out
+}
+
+string _bam_to_bed_atac( string nodup_bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( nodup_bam, "bam" ), out_dir )
+
+	mito_bam 	:= "$prefix.chrM.bam"
+	non_mito_bam 	:= "$prefix.nonchrM.bam"
+	non_mito_bam_hist_grp := "$non_mito_bam.hist_graph.pdf"
+	non_mito_bam_hist_log := "$non_mito_bam.hist_data.log"
+
+	bed 	:= "$prefix.nonchrM.tn5.bed.gz"
+
+	in 	:= [nodup_bam]
+	out 	:= bed //, mito_bam, non_mito_bam, non_mito_bam_hist_grp ]
+
+	task( taskName:= "bam_to_bed_atac "+info, \
+		cpus:=nth, mem:=parse_mem_or_skip(memory), timeout:=parse_time_or_skip(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys nonMitoChromosomes=$(samtools view -H "$nodup_bam" | \
+					grep chr | cut -f2 | sed 's/SN://g' | grep -v chrM)
+
+		sys samtools view -b "$nodup_bam" ${nonMitoChromosomes} > "$non_mito_bam"		
+		sys samtools view -b "$nodup_bam" chrM > "$mito_bam"
+
+		//# Process only non chrM reads
+		// embedded adjustBedTn5.sh
+		sys bamToBed -i "$non_mito_bam" | \
+			awk -F $'\t' 'BEGIN {OFS = FS}{ if ($6 == "+") {$2 = $2 + 4} else if ($6 == "-") {$3 = $3 - 5} print $0}' | \
+			gzip -c > "$bed"
+
+		sys if [ -f ${PICARDROOT}/CollectInsertSizeMetrics.jar ]; then \
+				java -Xmx4G -Xms256M -jar ${PICARDROOT}/CollectInsertSizeMetrics.jar \
+				INPUT="$non_mito_bam" OUTPUT="$non_mito_bam_hist_log" \
+				H="$non_mito_bam_hist_grp" W=1000 STOP_AFTER=5000000; \
+			else \
+				java -Xmx4G -Xms256M -jar ${PICARDROOT}/picard.jar CollectInsertSizeMetrics \
+				INPUT="$non_mito_bam" OUTPUT="$non_mito_bam_hist_log" \
+				H="$non_mito_bam_hist_grp" W=1000 STOP_AFTER=5000000; \
+			fi
+	}
+
+	wait_par()
+
+	return out
+}

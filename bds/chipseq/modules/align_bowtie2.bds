@@ -1,9 +1,9 @@
 #!/usr/bin/env bds
 
-include "../chipseq/modules/species.bds"
+include "species.bds"
 
 
-help Alignment settings : bowtie2
+help Bowtie2 settings :
 
 nth_bwt2	:= 2 			help # threads for bowtie2 (default: 2).
 wt_bwt2		:= "20h"		help Walltime for bowtie2 (default: 20h, 20:00:00).
@@ -52,6 +52,8 @@ string _bowtie2( string fastq1, string fastq2, string out_dir, string info ) {
 			2>$log | \
 			samtools view -bS - > $bam
 	}
+
+	wait_par()
 
 	return out
 }

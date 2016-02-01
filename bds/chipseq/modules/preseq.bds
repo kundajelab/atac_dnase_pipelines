@@ -1,9 +1,9 @@
 #!/usr/bin/env bds
 
-include "../chipseq/modules/species.bds"
+include "species.bds"
 
 
-help Preseq analysis settings
+help Preseq analysis settings :
 xmax 		:= 500		help Maximum # of reads for preseq analysis (default: 500).
 
 
@@ -69,6 +69,8 @@ string _preseq( string srt_bam, string out_dir, string info ) {
 
 		sys gnuplot $preseq_gnu
 	}
+
+	wait_par()
 	
 	return out
 }

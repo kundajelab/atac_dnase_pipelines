@@ -1,0 +1,189 @@
+#!/usr/bin/env bds
+
+include "species.bds"
+
+
+help Bwa settings :
+
+param_bwa_aln	:= "-q 5 -l 32 -k 2" 	help Parameters for bwa aln (default: "-q 5 -l 32 -k 2").
+nth_bwa_aln	:= 2 			help # threads for bwa aln (default: 2).
+wt_bwa_aln	:= "10h"		help Walltime for bwa aln (default: 10h, 10:00:00).
+mem_bwa_aln	:= "8G"	 		help Max. memory for bwa aln (default: 8G).
+wt_bwa_sam	:= "12h"		help Walltime for bwa sampe/samse (default: 12h, 12:00:00).
+mem_bwa_sam	:= "8G"			help Max. memory for bwa sampe/samse (default: 8G).
+
+
+init_align_bwa()
+
+
+void init_align_bwa() {
+
+	if ( conf_file_exists() ) {
+
+		param_bwa_aln 	= get_conf_val( param_bwa_aln, 		["bwa_aln_param", "param_bwa_aln"] )
+
+		nth_bwa_aln 	= get_conf_val_int( nth_bwa_aln,	["nthreads_bwa_aln", "nth_bwa_aln", "cpu_bwa_aln"] )
+		wt_bwa_aln 	= get_conf_val( wt_bwa_aln, 		["walltime_bwa_aln", "wt_bwa_aln", "timeout_bwa_aln"] )
+		mem_bwa_aln 	= get_conf_val( mem_bwa_aln, 		["memory_bwa_aln", "mem_bwa_aln"] )
+		wt_bwa_sam 	= get_conf_val( wt_bwa_sam, 		["walltime_bwa_sam", "wt_bwa_sam", "timeout_bwa_sam"] )
+		mem_bwa_sam 	= get_conf_val( mem_bwa_sam, 		["memory_bwa_sam", "mem_bwa_sam"] )
+	}
+
+	if ( v ) { // verbose
+		print("\n")		
+		print( "Param. for bwa aln\t: $param_bwa_aln\n")
+		print( "# threads (bwa aln)\t: $nth_bwa_aln\n")
+		print( "Walltime (bwa aln)\t: $wt_bwa_aln\n")
+		print( "Max. memory (bwa aln)\t: $mem_bwa_aln\n")
+		print( "Walltime (bwa sam)\t: $wt_bwa_sam\n")
+		print( "Max. memory (bwa sam)\t: $mem_bwa_sam\n")
+	}	
+}
+
+string[] _bwa( string fastq, string out_dir, string info ) {
+
+	prefix 	:= change_dir( remove_ext( fastq, ["fastq","fq"] ), out_dir )
+	bam 	:= "$prefix.bam"
+	qc 	:= "$prefix.flagstat.qc"
+
+	in 	:= [ fastq ]
+	out 	:= [ bam, qc ]
+
+	if ( out <- in ) { // compare file timestamps of in and out (to check if job is already done or not)
+		sai := _bwa_aln( fastq, out_dir, info )
+		wait
+
+		_bwa_sam( fastq, sai, out_dir, info )
+		wait
+
+		sai.rm() // delete intermediate file sai		
+	}
+
+	wait_par()
+
+	return out
+}
+
+string[] _bwa_PE( string fastq1, string fastq2, string out_dir, string info ) {
+
+	//prefix 	:= "$out_dir/" + concat_basename_wo_ext( fastq1, fastq2, "fastq" )
+	prefix 	:= change_dir( remove_ext( fastq1, ["fastq","fq"] ), out_dir ) + ".PE2SE"
+
+	bam 	:= "$prefix.bam"
+	qc 	:= "$prefix.flagstat.qc"
+
+	in 	:= [ fastq1, fastq2 ]
+	out 	:= [ bam, qc ]
+
+	if ( out <- in ) { // compare file timestamps of in and out (to check if job is already done or not)
+
+		// parallel jobs
+		sai1 := _bwa_aln( fastq1, out_dir, info ) 
+		sai2 := _bwa_aln( fastq2, out_dir, info )
+
+		wait
+
+		_bwa_sam_PE( fastq1, fastq2, sai1, sai2, out_dir, info )
+		wait
+		
+		sai1.rm() // delete intermediate file sai1, sai2
+		sai2.rm()
+	}
+
+	wait_par()
+
+	return out
+}
+
+string _bwa_aln( string fastq, string out_dir, string info ) {
+
+	prefix 	:= change_dir( remove_ext( fastq, "fastq" ), out_dir )
+
+	sai 	:= "$prefix.sai"	
+	
+	in 	:= [ fastq ]
+	out 	:= sai
+
+	task( taskName:= "bwa_aln "+info, \
+		cpus:=nth_bwa_aln, mem:=parse_mem_or_skip(mem_bwa_aln), timeout:=parse_time_or_skip(wt_bwa_aln), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		//# Map reads to create raw SAM file
+		sys bwa aln $param_bwa_aln -t $nth_bwa_aln $bwa_idx $fastq > $sai
+	}
+
+	wait_par()
+
+	return out
+}
+
+string[] _bwa_sam( string fastq, string sai, string out_dir, string info ) {
+
+	prefix 	:= change_dir( remove_ext( fastq, "fastq" ), out_dir )
+
+	bam 	:= "$prefix.bam"
+	qc	:= "$prefix.flagstat.qc"
+
+	in 	:= [ fastq, sai ]
+	out 	:= [ bam, qc ]
+
+	task( taskName:= "bwa_sam "+info, \
+		cpus:=nth, mem:=parse_mem_or_skip(mem_bwa_sam), timeout:=parse_time_or_skip(wt_bwa_sam), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys bwa samse $bwa_idx $sai $fastq | samtools view -Su - | samtools sort - $prefix
+		sys samtools flagstat $bam > $qc
+	}
+
+	wait_par()
+
+	return out
+}
+
+string[] _bwa_sam_PE( string fastq1, string fastq2, string sai1, string sai2, string out_dir, string info ) {
+
+	//prefix 	:= "$out_dir/" + concat_basename_wo_ext( fastq1, fastq2, "fastq" )
+	prefix 	:= change_dir( remove_ext( fastq1, "fastq" ), out_dir ) + ".PE2SE"
+
+	sam 	:= "$prefix.sam"
+	badcigar:= "$prefix.badReads"
+	bam 	:= "$prefix.bam"
+	qc	:= "$prefix.flagstat.qc"
+
+	in 	:= [ fastq1, fastq2, sai1, sai2 ]
+	out 	:= [ bam, qc ]
+
+	task( taskName:= "bwa_sam_PE "+info, \
+		cpus:=nth, mem:=parse_mem_or_skip(mem_bwa_sam), timeout:=parse_time_or_skip(wt_bwa_sam), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+		
+		sys bwa sampe $bwa_idx $sai1 $sai2 $fastq1 $fastq2 | gzip -c > $sam
+
+		//# Remove read pairs with bad CIGAR strings and sort by position                                                                
+
+		//# Find bad CIGAR read names                                                                                                                                                  
+		sys zcat $sam \
+			| awk 'BEGIN {FS="\t" ; OFS="\t"} ! /^@/ && $6!="*" { cigar=$6; gsub("[0-9]+D","",cigar); n = split(cigar,vals,"[A-Z]"); s = 0; for (i=1;i<=n;i++) s=s+vals[i]; seqlen=length($10) ; if (s!=seqlen) print $1"\t"; }' \
+			| sort | uniq > $badcigar
+
+		//# Remove bad CIGAR read pairs
+		sys if [ $(cat $badcigar | wc -l) -gt 0 ]; then \
+				zcat $sam | grep -v -F -f $badcigar | samtools view -Su - | samtools sort - $prefix; \
+			else \
+				samtools view -Su $sam | samtools sort - $prefix; \
+			fi
+
+		sys samtools flagstat $bam > $qc
+		sys rm -f $badcigar $sam
+	}
+
+	wait_par()
+
+	return out
+}

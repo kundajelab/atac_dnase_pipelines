@@ -54,12 +54,12 @@ You can also start from bam files. There are two kinds of bam files (raw or dedu
 
 For raw bams,
 ```
--input bam -bam1 [RAW_BAM_REP1] -bam2 [RWA_BAM_REP1] ...
+-bam1 [RAW_BAM_REP1] -bam2 [RWA_BAM_REP1] ...
 ```
 
-For deduped bams, preseq analysis and v plot will not be available since they need sorted raw bam.
+For deduped (filtered) bams, preseq analysis and v plot will not be available since they need sorted raw bam.
 ```
--input nodup_bam -bam1 [NODUP_BAM_REP1] -bam2 [NODUP_BAM_REP1] ...
+-filt_bam1 [NODUP_BAM_REP1] -filt_bam2 [NODUP_BAM_REP1] ...
 ```
 
 To change resource settings (# of processor, max memory and walltime) for bowtie2, add the following to command line:
@@ -77,7 +77,7 @@ For IDR analysis on peaks:
 -idr
 ```
 
-By default, IDR will be done for true replicates, but if you have `-make_pseudoreps` in the command line, you will also get IDR on pseudo replicates and pooled pseudo replicates.
+By default, IDR will be done for true replicates, but if you have `-pseudorep` in the command line, you will also get IDR on pseudo replicates and pooled pseudo replicates.
 
 
 For Kundaje lab cluster and SCG3, skip parameters (bwt2_idx, chrsz, gensz and vplot_idx) and just specify species.

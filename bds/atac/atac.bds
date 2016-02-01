@@ -1,32 +1,30 @@
 #!/usr/bin/env bds
 
-include "../chipseq/modules/fastq.bds"
-include "../chipseq/modules/bam.bds"
-include "../chipseq/modules/tagalign.bds"
-include "../modules/align_etc.bds"
-include "../modules/align_bowtie2.bds"
-include "../modules/preseq.bds"
-include "../chipseq/modules/peakcall_macs2.bds"
-include "../chipseq/modules/idr.bds"
-include "../chipseq/modules/report.bds"
 
-
-help ATAC-Seq Pipeline setting
-input 		:= ""		help Input file type (automatically determined if not specified) (default: blank).
-
-trimmed_fastq 	:= false	help Add it to skip fastq-trimming stage (default: false).
+trimmed_fastq 	:= false	help Skip fastq-trimming stage.
 fraglen 	:= 75 		help Read fragment length (default: 75).
 
-mapping	 	:= false	help Add it to perform mapping only (no MACS2 peak calling, default: false).
-vplot 		:= false 	help Add it to create V plot (default: false).
-preseq 		:= false 	help Add it to perform preseq analysis (default: false).
-subsample 	:= false 	help Add it if you want to subsample replicates (default: false).
-make_pseudoreps := false 	help Add it if you want to generate pseudo-replicates and call peaks on them (default: false).
-idr 		:= false 	help Add it to perform IDR analysis (default: false).
+mapping	 	:= false	help Mapping only (no MACS2 peak calling).
+vplot 		:= false 	help Create V plot.
+preseq 		:= false 	help Do preseq analysis.
+subsample 	:= false 	help Subsample replicates. Use '-nreads [NO_READS]' to specify # reads to subsample.
+pseudorep 	:= false 	help Generate pseudo-replicates and call peaks on them.
+idr 		:= false 	help Perform IDR analysis.
 
+include "../chipseq/modules/input_fastq.bds"
+include "../chipseq/modules/input_bam.bds"
+include "../chipseq/modules/align_bowtie2.bds"
+include "../chipseq/modules/align_etc.bds"
+include "../chipseq/modules/postalign_bam.bds"
+include "../chipseq/modules/postalign_bed.bds"
+include "../chipseq/modules/preseq.bds"
+include "../chipseq/modules/callpeak_macs2.bds"
+include "../chipseq/modules/idr.bds"
 
-// global variables for IDR
-string{} peaks, peaks_pr1, peaks_pr2
+input := ""
+
+// Global variable for output filenames ( map with key $rep )
+string{} peaks, peaks_pr1, peaks_pr2 	
 string{} shifted_tags, shifted_tags_pr1, shifted_tags_pr2
 
 
@@ -48,7 +46,6 @@ void init_atac() {
 
 	if ( conf_file_exists() ) {
 
-		input 		= get_conf_val( input, 			["input_type", "input"] )
 		trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
 		fraglen 	= get_conf_val_int( fraglen,		["fraglen", "frag_len"] )
 
@@ -57,7 +54,7 @@ void init_atac() {
 		vplot 		= get_conf_val_bool( vplot,		["vplot"] )
 		preseq 		= get_conf_val_bool( preseq,		["preseq"] )
 		subsample	= get_conf_val_bool( subsample, 	["subsample"] )
-		make_pseudoreps	= get_conf_val_bool( make_pseudoreps, 	["make_pseudoreps"] )
+		pseudorep	= get_conf_val_bool( pseudorep, 	["pseudorep"] )
 
 		idr 		= get_conf_val_bool( idr, 		["idr"] )
 	}
@@ -78,6 +75,8 @@ void init_atac() {
 		mapping 	= false
 
 		idr 		= false
+
+		input 		= "fastq"
 	
 		if ( v ) { // verbose
 			print("\n\n")
@@ -94,13 +93,6 @@ void init_atac() {
 		}		
 	}
 
-	if ( input == "" ) {  // determine input type if input is not defined
-		if ( get_bam(0,1) != "" ) 	{
-			error("Please explicitly define bam type ('-input nodup_bam' for deduped bam, '-input bam' for raw bam). No preseq and vplot for deduped bam!\n") 
-		}
-		if ( get_fastq(0,1,1) != "" ) 	input = "fastq"
-	}
-
 	if ( v ) { // verbose
 		print("\n")
 		print( "Input data type\t\t: $input\n")		
@@ -111,12 +103,19 @@ void init_atac() {
 		print( "Preseq analysis\t\t: $preseq\n")
 		print( "MACS2 peak calling\t: " + !mapping + "\n")
 		print( "Subsample replicates\t: $subsample\n")
-		print( "Create/call peaks on pseudo replicates\t: $make_pseudoreps\n")
+		print( "Create/call peaks on pseudo replicates\t: $pseudorep\n")
 		print( "Perform IDR analysis on peaks\t: $idr\n")
 	}
 }
 
 void chk_input_data() {
+
+	if ( input == "" ) { // determine input type
+		
+		if ( get_filt_bam(0,1) != "" ) 	input = "filt_bam"
+		if ( get_bam(0,1) != "" ) 	input = "bam"
+		if ( get_fastq(0,1,1) != "" ) 	input = "fastq"
+	}
 
 	if ( is_input_fastq() && !path_exists("$bwt2_idx.1.bt2") ) error("\nBowtie2 index doesn't exists! ($bwt2_idx.1.bt2)\n")
 
@@ -138,7 +137,7 @@ void chk_input_data() {
 
 			if ( fastqs.size()==0 ) error("No fastq defined for replicate $rep\n")
 
-			if ( (get_num_rep()==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
+			if ( get_num_rep()==1 && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
 
 			prefix := "Rep$rep fastq"
 			print("$prefix :\n")
@@ -154,10 +153,12 @@ void chk_input_data() {
 					error( "\tFilename is duplicate for $prefix!\n")
 			}
 
+			if ( fastqs.size() != 2 ) error("\tNeeds two fastqs for replicate $rep.\n")
+
 			fastqs_all = concat( fastqs_all, fastqs )
 		}
 	}
-	else if ( is_input_bam() || is_input_nodup_bam ) {
+	else if ( is_input_bam() ) {
 
 		string[] bams_all
 
@@ -180,13 +181,36 @@ void chk_input_data() {
 			bams_all.add( bam )
 		}
 	}
+	else if ( is_input_filt_bam() ) {
+
+		string[] bams_all
+
+		for ( int rep=1; rep <= get_num_rep(); rep++) {
+
+			bam := get_filt_bam( 0, rep )
+
+			if ( bam == "" ) error("No filt_bam defined for replicate $rep\n")
+
+			prefix := "Rep$rep filt_bam"
+			print("$prefix :\n")
+
+			print("\t$bam\n")
+			if ( !path_exists(bam) ) error("\t\tFile not found!\n")
+
+			// check any duplicate input filename
+			if ( is_in_array( get_basename( bam ), get_basename( bams_all ) ) ) \
+				error( "\tFilename is duplicate for $prefix!\n")
+
+			bams_all.add( bam )
+		}
+	}
 	else {
 		error("Unsupported file type!\n")
 	}
 
-	if ( is_input_nodup_bam() ) {
+	if ( is_input_filt_bam() ) {
 
-		print("\n\nPreseq analysis and vplot are not available when pipeline starts from deduped bam files (with '-input nodup_bam')!\n")
+		print("\n\nPreseq analysis and vplot are not available if pipeline starts from filtered bam files (with '-input filt_bam')!\n")
 
 		vplot 	= false
 		preseq 	= false
@@ -197,7 +221,7 @@ void atac() {
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 		
-		if ( no_par_job ) _atac( rep )
+		if ( no_par_job )   _atac( rep )
 		else 		par _atac( rep )
 	}
 	wait
@@ -209,13 +233,13 @@ void _atac( int rep ) {
 
 	atac_out_dir := mkdir_path( (get_num_rep()==1) ? out_dir : "$out_dir/$info" )
 
-	string bam, nodup_bam
+	string bam, filt_bam, dup_qc
 
 	if ( is_input_fastq() ) {
 
 		fastqs := get_fastqs( 0, rep )
 
-		// correct if user skipped replicate id (-fastq[PAIR]) in fastq input (-fastq[REP]_[PAIR])
+		// correct if user skipped replicate id like (-fastq[PAIR]) instead of (-fastq[REP]_[PAIR])
 		if ( (get_num_rep()==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
 
 		string p1, p2
@@ -226,7 +250,6 @@ void _atac( int rep ) {
 			p2 = fastqs[1]
 		}
 		else {
-
 			( p1, p2 ) = _trim_adapters( fastqs[0], fastqs[1], atac_out_dir, info )
 		}
 
@@ -234,27 +257,27 @@ void _atac( int rep ) {
 
 		bam = _bowtie2( p1, p2, atac_out_dir, info )
 		wait
-
-		nodup_bam = _dedup_bam_PE( bam, atac_out_dir, info )
+		
+		(filt_bam, dup_qc) = _dedup_bam_PE( bam, atac_out_dir, info )
 	}
 	else if ( is_input_bam() ) {
 
 		bam = get_bam( 0, rep )
 
-		nodup_bam = _dedup_bam_PE( bam, atac_out_dir, info )
+		(filt_bam, dup_qc) = _dedup_bam_PE( bam, atac_out_dir, info )
 	}
-	else if ( is_input_nodup_bam() ) {
+	else if ( is_input_filt_bam() ) {
 
-		nodup_bam = get_bam( 0, rep )
+		filt_bam = get_filt_bam( 0, rep )
 	}
 
 	wait
 
 	if ( !mapping ) {
 
-		if ( subsample || make_pseudoreps ) {
+		if ( subsample || pseudorep ) {
 
-			nmsrt_bam := _nmsrt_bam( nodup_bam, atac_out_dir, info )
+			nmsrt_bam := _nmsrt_bam( filt_bam, atac_out_dir, info )
 			wait
 
 			bedpe := _bam_to_bedpe( nmsrt_bam, atac_out_dir, info )
@@ -276,7 +299,7 @@ void _atac( int rep ) {
 
 			shifted_tags{rep} = _shift_tag( tag, atac_out_dir, info )			 
 			
-			if ( make_pseudoreps ) {
+			if ( pseudorep ) {
 
 				string tag_pr1, tag_pr2
 				(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info )
@@ -289,7 +312,7 @@ void _atac( int rep ) {
 
 			peaks{rep} = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
 			
-			if ( make_pseudoreps ) {
+			if ( pseudorep ) {
 
 				peaks_pr1{rep} = _macs2_atac( shifted_tags_pr1{rep}, "$fraglen", atac_out_dir, info + "_pr1" )
 				peaks_pr2{rep} = _macs2_atac( shifted_tags_pr2{rep}, "$fraglen", atac_out_dir, info + "_pr2")
@@ -297,7 +320,7 @@ void _atac( int rep ) {
 		}
 		else {
 
-			shifted_tags{rep} = _bam_to_bed_atac( nodup_bam, atac_out_dir, info )
+			shifted_tags{rep} = _bam_to_bed_atac( filt_bam, atac_out_dir, info )
 			wait
 
 			peaks{rep} = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
@@ -334,7 +357,7 @@ void do_idr() {
 	// IDR for true reps
 	idr_Nt := _idr( peaks{1}, peaks{2}, peak_pooled, idr_out_dir, "true_rep_Rep1_vs_Rep2" )
 
-	if ( make_pseudoreps ) {
+	if ( pseudorep ) {
 
 		// IDR on pseudo reps
 		idr_N1 := _idr( peaks_pr1{1}, peaks_pr2{1}, peaks{1}, idr_out_dir, "pseudo_rep_Rep1_PR1_vs_Rep1_PR2" )
@@ -645,16 +668,28 @@ bool is_input_bam() {
 	return input.toLower() == "bam"
 }
 
-bool is_input_nodup_bam() {
+bool is_input_filt_bam() {
 
-	return input.toLower() == "nodup_bam"
+	return input.toLower() == "filt_bam"
 }
 
 int get_num_rep() {
 
 	if ( is_input_legacy() ) 	return 1
-	else if ( is_input_fastq() ) 	return get_num_rep_fastq()
-	else if ( is_input_bam() || is_input_nodup_bam() ) 	return get_num_rep_bam()
+
+	else if ( is_input_fastq() ) {
+
+		if ( get_num_rep_fastq()==2 ) {
+
+			fastqs := get_fastqs( 0, 1 )			
+
+			if ( fastqs.size()<2 ) return 1
+		}
+
+		return get_num_rep_fastq()
+	}
+	else if ( is_input_bam() )  	return get_num_rep_bam()
+	else if ( is_input_filt_bam() ) return get_num_rep_filt_bam()
 
 	return 0
 }
