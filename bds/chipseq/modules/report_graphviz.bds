@@ -45,7 +45,7 @@ void _add_to_graphviz( string[] in_id, string[] in_path, string[] out_id, string
 
 		path 	:= get_rel_path( in_path[i] )
 
-		lines += "\t\""+in_id[i]+"\" [id=\""+in_id[i]+"\",style=filled,fillcolor=$color_node,path=\"$path\"];\n"
+		lines += "\t\""+in_id[i]+"\" [id=\""+in_id[i]+"\",style=filled,fillcolor=$color_node,tooltip=\"$path\",href=\"$path\"];\n"
 	}
 
 	for ( int i=0; i<out_id.size(); i++ ) {
@@ -54,7 +54,7 @@ void _add_to_graphviz( string[] in_id, string[] in_path, string[] out_id, string
 
 		path 	:= get_rel_path( out_path[i] )
 
-		lines += "\t\""+out_id[i]+"\" [id=\""+out_id[i]+"\",style=filled,fillcolor=$color_node,path=\"$path\"];\n"			
+		lines += "\t\""+out_id[i]+"\" [id=\""+out_id[i]+"\",style=filled,fillcolor=$color_node,tooltip=\"$path\",href=\"$path\"];\n"			
 	}
 
 	in  += "}"; out += "}"

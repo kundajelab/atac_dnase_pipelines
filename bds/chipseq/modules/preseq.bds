@@ -25,7 +25,7 @@ void init_peakcall_etc() {
 
 string _preseq( string srt_bam, string out_dir, string info ) {
 
-	prefix 		:= change_dir( srt_bam, out_dir )
+	prefix 		:= change_dir( remove_ext( srt_bam, ["bam"] ) , out_dir )
 
 	preseq_file 	:= "$prefix.preseq.pdf"
 	preseq_gnu 	:= "$prefix.preseq.gnu"

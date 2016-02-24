@@ -5,21 +5,35 @@ include "general.bds"
 
 help Species settings
 
-species			:= "" 		help Species. If not on kundaje lab servers, specify '-species_file' too.
-species_file		:= ""		help Species file path.
+species		:= "" 		help Species. If not on kundaje lab servers, specify '-species_file' too.
+species_file	:= ""		help Species file path.
 
-chrsz 			:= "" 		help Chrome sizes file path (use fetchChromSizes from UCSC tools).
-seq 			:= ""		help Reference genome sequence directory path (where chr*.fa exist).
-gensz 			:= "hs"		help Genome size; hs for human, mm for mouse (default: hs).
-umap 			:= "" 		help Unique mappability tracks directory path (https://sites.google.com/site/anshulkundaje/projects/mappability).
-umap_hic		:= "" 		help Unique mappability tracks directory path (for HiC, DO NOT USE all-mappable umap track starting from 1bp)
+chrsz 		:= "" 		help Chrome sizes file path (use fetchChromSizes from UCSC tools).
+seq 		:= ""		help Reference genome sequence directory path (where chr*.fa exist).
+ref_fa 		:= ""		help Reference genome sequence fasta file.
+gensz 		:= "hs"		help Genome size; hs for human, mm for mouse (default: hs).
+umap 		:= "" 		help Unique mappability tracks directory path (https://sites.google.com/site/anshulkundaje/projects/mappability).
+umap_hic	:= "" 		help Unique mappability tracks directory path (for HiC, DO NOT USE all-mappable umap track starting from 1bp)
 
-bwa_idx 		:= ""		help BWA index (full path prefix of [].bwt file) .
-bwt_idx			:= ""		help Bowtie index (full path prefix of [].1.ebwt file).
-bwt2_idx		:= ""		help Bowtie2 index (full path prefix of [].1.bt2 file).
-vplot_idx 		:= "" 		help V plot index (full path for bed file).
+bwa_idx 	:= ""		help BWA index (full path prefix of [].bwt file) .
+bwt_idx		:= ""		help Bowtie index (full path prefix of [].1.ebwt file).
+bwt2_idx	:= ""		help Bowtie2 index (full path prefix of [].1.bt2 file).
+vplot_idx 	:= "" 		help V plot index (full path for bed file).
 
-blacklist_idr 		:= "" 		help Blacklist for IDR peaks (full path for bed file).
+blacklist_idr 	:= "" 		help Blacklist for IDR peaks (full path for bed file).
+
+blacklist 	:= "" 		help Blacklist bed for ataqc.
+dnase 		:= ""		help DNase bed for ataqc.
+tss 		:= ""		help TSS bed for ataqc.
+prom 		:= ""		help Promoter bed for ataqc.
+enh 		:= ""		help Enhancer bed for ataqc.
+reg2map 	:= ""		help Reg2map for ataqc.
+roadmap_meta 	:= ""		help Roadmap metadata for ataqc.
+
+
+// params for atac qc
+
+
 
 species_basename 		:= "species.conf"
 species_basename_kundaje_lab  	:= "species_kundaje_lab.conf"
@@ -32,8 +46,8 @@ read_species() // read it if exists
 void init_species() {
 
 	if ( conf_file_exists() ) {
-		species 	= get_conf_val( species, 	["SPECIES"] )
-		species_file 	= get_conf_val( species_file, 	["SPECIES_FILE", "SPECIES_CONF_FILE", "SPECIES_CONF"] )
+		species 	= get_conf_val( species, 	["species"] )
+		species_file 	= get_conf_val( species_file, 	["species_file", "species_conf_file", "species_conf"] )
 	}
 
 	if ( v ) { // verbose
@@ -102,7 +116,7 @@ void read_species() { // check for species configruation files
 				gensz		= get_conf_val( gensz, 		["gensz", "genomesize", "genome_size", "genome_sz", "gen_sz"], _conf )
 				chrsz		= get_conf_val( chrsz, 		["chromsize","chromsizes","chrom_sizes", "chrsz", "chr_sz"], _conf )
 				seq 		= get_conf_val( seq, 		["seq_dir", "seq"], _conf )
-
+		
 				umap		= get_conf_val( umap, 		["umap_dir", "umap"], _conf )
 				umap_hic	= get_conf_val( umap_hic,	["umap_dir_hic", "umap_hic"], _conf )
 
@@ -113,6 +127,15 @@ void read_species() { // check for species configruation files
 
 				vplot_idx 	= get_conf_val( vplot_idx, 	["vplotindex", "vplot_index", "vplotidx", "vplot_idx", "v_index"], _conf )
 				blacklist_idr 	= get_conf_val( blacklist_idr, 	["blacklist_idr"], _conf )
+
+				ref_fa 		= get_conf_val( ref_fa, 	["ref_fa"], _conf )
+				blacklist 	= get_conf_val( blacklist, 	["blacklist"], _conf )
+				dnase 		= get_conf_val( dnase, 		["dnase"], _conf )
+				tss 		= get_conf_val( tss, 		["tss"], _conf )
+				prom 		= get_conf_val( prom, 		["prom"], _conf )
+				enh 		= get_conf_val( enh, 		["enh"], _conf )
+				reg2map 	= get_conf_val( reg2map, 	["reg2map"], _conf )
+				roadmap_meta 	= get_conf_val( roadmap_meta, 	["roadmap_meta"], _conf )
 			}
 		}
 	}
@@ -121,7 +144,7 @@ void read_species() { // check for species configruation files
 		print("\n")
 		print( "Chr. sizes file\t: $chrsz\n" )
 		print( "Genome size (hs,mm)\t: $gensz\n" )
-		print( "Sequence dir.\t\t: $seq\n" )
+		print( "Ref. genome seq. dir.\t\t: $seq\n" )
 		print( "Umap dir.\t\t: $umap\n" )
 		print( "Umap dir. (HiC)\t\t: $umap_hic\n" )
 		print( "BWA index\t\t: $bwa_idx\n" )
@@ -129,5 +152,15 @@ void read_species() { // check for species configruation files
 		print( "Bowtie2 index\t\t: $bwt2_idx\n" )
 		print( "V-Plot index\t\t: $vplot_idx\n" )
 		print( "Black list for IDR\t: $blacklist_idr\n" )
+
+		print( "\nParams for ataqc\n")
+		print( "Ref. genome seq. fastq\t\t: $ref_fa\n" )
+		print( "Black list for ataqc\t: $blacklist\n" )
+		print( "DNase bed for ataqc\t: $dnase\n" )
+		print( "TSS bed for ataqc\t: $tss\n" )
+		print( "Promoter bed for ataqc\t: $prom\n" )
+		print( "Enhancer bed for ataqc\t: $enh\n" )
+		print( "Reg2map bed for ataqc\t: $reg2map\n" )
+		print( "Roadmap metadata for ataqc\t: $roadmap_meta\n" )
 	}
 }

@@ -1,0 +1,34 @@
+#!/usr/bin/env bds
+
+include "species.bds"
+
+
+string _vplot( string srt_bam, string out_dir, string info ) {
+
+	prefix 		:= change_dir( remove_ext( srt_bam, ["bam"] ) , out_dir )
+	vp_idx_base 	:= get_basename( vplot_idx )
+
+	vplot 	:= "$prefix.$vp_idx_base.vect.png"
+
+	in 	:= [ srt_bam ]
+	out 	:= vplot
+
+	task( taskName:= "v_plot "+info, \
+		cpus:=nth, mem:=parse_mem_or_skip(memory), timeout:=parse_time_or_skip(wt), \
+		out<-in ) {
+
+		sys $SHCMD_INIT
+
+		sys cd $out_dir
+
+		//# generate V plot
+		sys echo "Generating V Plot..."
+
+		//# this script must be in PATH (didn't work with 20 thread, so reduce it to 4)
+		sys python $(which makeVPlot.py) -a $srt_bam -b $vplot_idx -e 2000 -p ends -c 4 -v -u
+	}
+
+	wait_par()
+
+	return out
+}

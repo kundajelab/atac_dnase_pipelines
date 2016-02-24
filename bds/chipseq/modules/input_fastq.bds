@@ -34,6 +34,8 @@ string get_fastq( int ctl, int rep, int pe ) {
 	key2 := key_wo_PE2 + "_" + pe
 
 	key_wo_PE3 := ( ctl > 0 ? "ctl_fastq" : "fastq" )
+	key3 := key_wo_PE3 + "_" + pe
+
 
 	if ( (ctl==0) && (rep==1) && (pe==1) && (fastq1_1 != "") ) {
 		return fastq1_1
@@ -56,6 +58,9 @@ string get_fastq( int ctl, int rep, int pe ) {
 	else if ( cmd_line_arg_has_key( key2 ) ) {
 		return get_cmd_line_arg_val( key2 )
 	}	
+	else if ( (rep==1) && cmd_line_arg_has_key( key3 ) ) {
+		return get_cmd_line_arg_val( key3 )
+	}
 	else if ( (pe==1) && conf.hasKey( key_wo_PE ) ) {
 		return get_path( conf{ key_wo_PE } )
 	}
@@ -71,6 +76,10 @@ string get_fastq( int ctl, int rep, int pe ) {
 	else if ( conf.hasKey( key2 ) ) {
 		return get_path( conf{ key2 } )
 	}
+	else if ( (rep==1) && conf.hasKey( key3 ) ) {
+		return get_path( conf{ key3 } )
+	}
+
 	return ""
 }
 

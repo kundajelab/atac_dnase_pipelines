@@ -39,8 +39,10 @@ string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, str
 	gpeakfile	:= "$prefix.gappedPeak.gz"
 
 	fc_bedgraph 	:= "$prefix.fc.signal.bedgraph"
+	fc_bedgraph_srt	:= "$prefix.fc.signal.srt.bedgraph"
 	fc_bigwig 	:= "$prefix.fc.signal.bw"
 	pval_bedgraph 	:= "$prefix.pval.signal.bedgraph"
+	pval_bedgraph_srt := "$prefix.pval.signal.srt.bedgraph"
 	pval_bigwig 	:= "$prefix.pval.signal.bw"
 
 	prefix_basename	:= get_basename( prefix )
@@ -59,7 +61,8 @@ string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, str
 		out<-in ) {
 
 		sys $SHCMD_INIT
-
+		sys LC_COLLATE=C
+		
 		//==========================================
 		//# Generate narrow peaks and preliminary signal tracks
 		//============================================
@@ -101,9 +104,10 @@ string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, str
 		sys rm -f "$prefix"_FE.bdg
 
 		//# Convert bedgraph to bigwig
-		sys bedGraphToBigWig $fc_bedgraph $chrsz $fc_bigwig
+		sys sort -k1,1 -k2,2n $fc_bedgraph > $fc_bedgraph_srt
+		sys bedGraphToBigWig $fc_bedgraph_srt $chrsz $fc_bigwig
 
-		sys rm -f $fc_bedgraph
+		sys rm -f $fc_bedgraph $fc_bedgraph_srt
 
 		//===========================================
 		//# For -log10(p-value) signal tracks
@@ -127,9 +131,10 @@ string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, str
 		sys rm -rf "$prefix"_ppois.bdg
 
 		//# Convert bedgraph to bigwig
-		sys bedGraphToBigWig $pval_bedgraph $chrsz $pval_bigwig
+		sys sort -k1,1 -k2,2n $pval_bedgraph > $pval_bedgraph_srt		
+		sys bedGraphToBigWig $pval_bedgraph_srt $chrsz $pval_bigwig
 
-		sys rm -f $pval_bedgraph
+		sys rm -f $pval_bedgraph $pval_bedgraph_srt
 		sys rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg
 	}
 
@@ -138,24 +143,27 @@ string[] _macs2( string tag, string ctl_tag, string fraglen, string out_dir, str
 	return out
 }
 
-string _macs2_atac( string non_mito_bed, string fraglen, string out_dir, string info ) {
+string[] _macs2_atac( string non_mito_bed, string fraglen, string out_dir, string info ) {
 
 	prefix 	:= change_dir( remove_ext( non_mito_bed, "bed" ), out_dir ) + ".pf"
 
 	peakfile 	:= "$prefix"+"_peaks.narrowPeak"
 	fc_bedgraph 	:= "$prefix.fc.signal.bedgraph"
+	fc_bedgraph_srt	:= "$prefix.fc.signal.srt.bedgraph"	
 	fc_bigwig 	:= "$prefix.fc.signal.bigwig"
 	pval_bedgraph 	:= "$prefix.pval.signal.bedgraph"
+	pval_bedgraph_srt := "$prefix.pval.signal.srt.bedgraph"	
 	pval_bigwig 	:= "$prefix.pval.signal.bigwig"
 
 	in 	:= [ non_mito_bed ]
-	out 	:= peakfile
+	out 	:= [ peakfile, fc_bigwig, pval_bigwig ]
 
 	task( taskName:= "macs2_atac "+info, \
 		cpus:=nth_macs2, mem:=parse_mem_or_skip(mem_macs2), timeout:=parse_time_or_skip(wt_macs2), \
 		out<-in ) {
 	
 		sys $SHCMD_INIT
+		sys LC_COLLATE=C
 
 		sys adjustedBed="slopBed -i $non_mito_bed -g $chrsz -l 75 -r -75 -s"
 		sys macs2 callpeak \
@@ -168,8 +176,10 @@ string _macs2_atac( string non_mito_bed, string fraglen, string out_dir, string 
 		sys slopBed -i "$prefix"_FE.bdg -g "$chrsz" -b 0 | \
 			bedClip stdin "$chrsz" $fc_bedgraph
 		sys rm -f "$prefix"_FE.bdg
-		sys bedGraphToBigWig $fc_bedgraph "$chrsz" "$fc_bigwig"
-		sys rm -f "$prefix.fc.signal.bedgraph"
+
+		sys sort -k1,1 -k2,2n $fc_bedgraph > $fc_bedgraph_srt
+		sys bedGraphToBigWig $fc_bedgraph_srt "$chrsz" "$fc_bigwig"
+		sys rm -f $fc_bedgraph $fc_bedgraph_srt
 
 		//# sval counts the number of tags per million in the (compressed) BED file
 		sys sval=$(wc -l <(zcat -f "$non_mito_bed") | awk '{printf "%f", $1/1000000}')
@@ -179,8 +189,10 @@ string _macs2_atac( string non_mito_bed, string fraglen, string out_dir, string 
 		sys slopBed -i "$prefix"_ppois.bdg -g "$chrsz" -b 0 | \
 			bedClip stdin "$chrsz" $pval_bedgraph
 		sys rm -f "$prefix"_ppois.bdg
-		sys bedGraphToBigWig $pval_bedgraph "$chrsz" "$pval_bigwig"
-		sys rm -f "$prefix.pval.signal.bedgraph"
+
+		sys sort -k1,1 -k2,2n $pval_bedgraph > $pval_bedgraph_srt
+		sys bedGraphToBigWig $pval_bedgraph_srt "$chrsz" "$pval_bigwig"
+		sys rm -f $pval_bedgraph $pval_bedgraph_srt
 
 		sys rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg
 	}

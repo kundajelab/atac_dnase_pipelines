@@ -167,6 +167,10 @@ void chk_input() {
 		error("\n\nFor peak calling, # replicates (" + get_num_rep() + ") should be <= 2.\n\n")
 	}
 
+	if ( is_final_stage_idr() && !path_exists( blacklist_idr ) ) {
+		print("\nWarning: Blacklist bed ('-blacklist_idr') for final IDR QC is missing! ($blacklist_idr)\n\n")
+	}
+
 	print( "\n====== Checking inputs (data type = $input) ...\n\n" );
 
 	if ( is_input_peak() ) {
@@ -845,7 +849,6 @@ void do_idr() {
 		if ( !is_data_available( 0, 2 ) ) return
 	}
 
-
 	string tmp
 
 	// take 2nd and 3rd output (narrowpeak.gz, and png plot) of _idr
@@ -877,7 +880,8 @@ void do_idr() {
 		
 		wait
 
-		if ( idr_Nt!="" && idr_N1!="" && idr_N2!="" && idr_Np!="" ) { // if we have all four narrow peaks, do idr qc
+		if ( path_exists( blacklist_idr ) && \
+			 idr_Nt!="" && idr_N1!="" && idr_N2!="" && idr_Np!="" ) { // if we have all four narrow peaks, do idr qc
 
 			// get final idr qc score, use idr final idr narrow peak files from true, pseudo and pooled pseudo reps
 			idr_qc = _idr_final_qc( idr_Nt, idr_N1, idr_N2, idr_Np, idr_out_dir, "" )
@@ -1159,7 +1163,7 @@ void set_env() {
 		print("Automatically adding environment variables...\n\n")
 
 		path := " export PATH=" \
-			+ "$dir_sw_BDS/bwa-0.7.3:$dir_sw_BDS/samtools-0.1.19:$dir_sw_BDS/bedtools2-2.19.1/bin:" \
+			+ "$dir_sw_BDS/tabix-0.2.6:$dir_sw_BDS/bwa-0.7.3:$dir_sw_BDS/samtools-0.1.19:$dir_sw_BDS/bedtools2-2.19.1/bin:" \
 			+ "$dir_sw_BDS/ucsc_tools:$dir_sw_BDS/picard-tools-1.92:$dir_sw_BDS/R-2.15.1/bin:" \
 			+ "$dir_sw_BDS/phantompeakqualtools:$dir_sw_BDS/idr/bin:$dir_sw_BDS/python3.4/bin:" \
 			+ "$dir_sw_BDS/align2rawsignal/bin:$dir_sw_BDS/idrCode:$dir_sw_BDS/python2.7/bin:" \
@@ -1167,7 +1171,8 @@ void set_env() {
 			+ "\${PATH}"
 
 		shellcmd := "export PICARDROOT=$dir_sw_BDS/picard-tools-1.92; export LAPACK=$dir_sw_BDS/blas/lapack-*/liblapack.a; " \
-				+ "export GEMROOT=$dir_sw_BDS/gem; export GEM=$dir_sw_BDS/gem/gem.jar; " \
+			+ "export GEMROOT=$dir_sw_BDS/gem; export GEM=$dir_sw_BDS/gem/gem.jar; " \
+			+ "export PYTHONPATH=$dir_sw_BDS/python2.7/lib/python2.7/site-packages:\${PYTHONPATH}; "
 
 		shellcmd = shellcmd \
 			+ "MCRROOT=$dir_sw_BDS/MATLAB_Compiler_Runtime/v714;" \
@@ -1182,7 +1187,7 @@ void set_env() {
 			+ "export XAPPLRESDIR;"
 
 		SHCMD_INIT = SHCMD_INIT + ";" + path + ";" + shellcmd
-		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
+		SHCMD_INIT = SHCMD_INIT.replace( "; ;", ";" ).replace( ";;", ";" )
 	}
 
 	if ( is_kundaje_lab() || is_scg3() ) {
@@ -1206,7 +1211,7 @@ void set_env() {
 				+ "\${PATH}"
 
 			shellcmd := "export LAPACK=$dir_sw_BDS/blas/lapack-*/liblapack.a; " \
-					+ "export GEMROOT=$dir_sw_BDS/gem; export GEM=$dir_sw_BDS/gem/gem.jar; " \
+				+ "export GEMROOT=$dir_sw_BDS/gem; export GEM=$dir_sw_BDS/gem/gem.jar; "
 
 			shellcmd = shellcmd \
 				+ "MCRROOT=$dir_sw_BDS/MATLAB_Compiler_Runtime/v714;" \

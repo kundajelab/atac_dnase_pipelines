@@ -29,7 +29,7 @@ void init_align_bwt2() {
 	}
 }
 
-string _bowtie2( string fastq1, string fastq2, string out_dir, string info ) {
+string[] _bowtie2( string fastq1, string fastq2, string out_dir, string info ) {
 
 	prefix 	:= change_dir( remove_ext( fastq1, ["fastq","fq"] ), out_dir ) + ".PE2SE"
 
@@ -37,7 +37,7 @@ string _bowtie2( string fastq1, string fastq2, string out_dir, string info ) {
 	log 	:= "$prefix.align.log"
 
 	in 	:= [ fastq1, fastq2 ]
-	out 	:= bam
+	out 	:= [ bam, log ]
 
 	task( taskName:= "bowtie2 "+info, \
 		cpus:=nth_bwt2, mem:=parse_mem_or_skip(mem_bwt2), timeout:=parse_time_or_skip(wt_bwt2), \

@@ -422,7 +422,7 @@ Some bioinformatics softwares like bwa 0.7.3, samtools 0.1.12 do not return non-
 
 The minimum memory requirement for the pipeline is 8GB, but we recommend to run the pipeline on computers with more than 16GB of memory. If you have memory issues, there are two options. Try with 2) first and if it doesn't work go 1). The difference between those two options is that even single thread jobs will be serialized for 1).
 
-1) (SLOW BUT STABLE) Turn off parallelization by using the flag "-no_par_job" in command line argument or "NO_PARALLEL_JOB=true" in a configuration file. However, individual jobs can still use multiple number of processors so increase the number of threads to speed up the pipeline.
+1) (SLOW BUT STABLE) Turn off parallelization by using the flag "-no_par_job" in command line argument or "no_par_job=true" in a configuration file. However, individual jobs can still use multiple number of processors so increase the number of threads to speed up the pipeline.
 
 Example: for desktop with 4 cores
 ```
@@ -672,10 +672,46 @@ If see the following error when you submit jobs to Sun Grid Enginee,
 
 Check if your $HOME/.bashrc has any errorneous lines.
 
-Remove the following line in you module initialization scripts ($modULESHOME/init/bash or /etc/profile.d/modules.sh).
+Remove the following line in you module initialization scripts ($MODULESHOME/init/bash or /etc/profile.d/modules.sh).
 ```
 export -f module
 ```
+
+
+4) Cannot allocate memory (bwa fails due to lack of memory)
+
+An example of a failed job due to lack of memory (desktop with 4 cores and 12 GB of memory):
+
+```
+[bam_header_read] EOF marker is absent. The input is probably truncated.
+[bwa_read_seq] 0.0% bases are trimmed.
+[bwa_aln_core] convert to sequence coordinate... [bwt_restore_sa] Failed to allocate 1547846992 bytes at bwt.c line 404: Cannot allocate memory
+[samopen] SAM header is present: 25 sequences.
+[sam_read1] reference 'ID:bwa   PN:bwa  VN:0.7.3-r789   CL:bwa samse /home/leepc12/run/index/encodeHg19Male_bwa-0.7.3.fa /home/leepc12/run/ENCSR000EGM3/out/TEST_Rep2.sai /home/leepc12/run/ENCODE/ENCFF000YLY.fastq.gz
+' is recognized as '*'.
+[main_samview] truncated file.
+```
+
+Solution: balance memory usage between parallel jobs or disable parallel jobs (add '-no_par_job')
+
+```
+$ bds chipseq.bds -no_par_job ...
+```
+
+
+
+5) [samopen] no @SQ lines in the header. ( bwa sam failure )
+
+For computers with limited memory, bwa samse/sampe fails without non-zero exit value. This leads to a failure of a pipeline or corruption of outputs.
+
+Solution: balance memory usage between parallel jobs or disable parallel jobs (add '-no_par_job')
+
+```
+$ bds chipseq.bds -no_par_job ...
+```
+
+
+
 
 
 
