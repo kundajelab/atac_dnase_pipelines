@@ -368,6 +368,7 @@ void _atac( int rep ) {
 
 		if ( preseq ) pdf = _preseq( sorted_bam, atac_out_dir, info )
 
+		wait
 		_report_atac( pdf, png, atac_out_dir, info )
 	}
 
