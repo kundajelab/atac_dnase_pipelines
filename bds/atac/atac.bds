@@ -132,6 +132,10 @@ void chk_input_data() {
 
 	if ( !mapping && !path_exists( chrsz ) ) error("\nChromosome sizes file doesn't exists! ($chrsz)\n")	
 
+	if ( idr && !path_exists( blacklist_idr ) ) {
+		print("\nWarning: Blacklist bed ('-blacklist_idr') for final IDR QC is missing! ($blacklist_idr)\n\n")
+	}
+
 	print("\n")
 
 	if ( is_input_fastq() ) {
@@ -408,8 +412,10 @@ void do_idr() {
 		idr_Np := _idr( peak_ppr1, peak_ppr2, peak_pooled, idr_out_dir, "pooled_pseudo_rep_PPR1_vs_PPR2" )
 		wait
 
-		// second entry of return from function _idr() is narrowpeak.gz, get final idr qc score
-		idr_final_score := _idr_final_qc( idr_Nt[1], idr_N1[1], idr_N2[1], idr_Np[1], idr_out_dir, "" )
+		if ( path_exists( blacklist_idr ) ) {
+			// second entry of return from function _idr() is narrowpeak.gz, get final idr qc score
+			idr_final_score := _idr_final_qc( idr_Nt[1], idr_N1[1], idr_N2[1], idr_Np[1], idr_out_dir, "" )
+		}
 	}
 
 	wait
