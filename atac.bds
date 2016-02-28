@@ -16,16 +16,16 @@ ataqc 		:= false 	help Advanced ATAC QC (parameters to be defined: species, blac
 
 help() // show help contexts
 
-include "../chipseq/modules/input_fastq.bds"
-include "../chipseq/modules/input_bam.bds"
-include "../chipseq/modules/align_bowtie2.bds"
-include "../chipseq/modules/align_etc.bds"
-include "../chipseq/modules/vplot.bds"
-include "../chipseq/modules/postalign_bam.bds"
-include "../chipseq/modules/postalign_bed.bds"
-include "../chipseq/modules/preseq.bds"
-include "../chipseq/modules/callpeak_macs2.bds"
-include "../chipseq/modules/idr.bds"
+include "bds_pipeline_lib/modules/input_fastq.bds"
+include "bds_pipeline_lib/modules/input_bam.bds"
+include "bds_pipeline_lib/modules/align_bowtie2.bds"
+include "bds_pipeline_lib/modules/align_etc.bds"
+include "bds_pipeline_lib/modules/vplot.bds"
+include "bds_pipeline_lib/modules/postalign_bam.bds"
+include "bds_pipeline_lib/modules/postalign_bed.bds"
+include "bds_pipeline_lib/modules/preseq.bds"
+include "bds_pipeline_lib/modules/callpeak_macs2.bds"
+include "bds_pipeline_lib/modules/idr.bds"
 
 input := ""
 

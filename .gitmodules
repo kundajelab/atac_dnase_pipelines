@@ -1,0 +1,3 @@
+[submodule "ataqc"]
+	path = ataqc
+	url = https://bitbucket.org/csfoo/ataqc
