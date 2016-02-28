@@ -1,18 +1,20 @@
 #!/usr/bin/env bds
 
 
+help == atac pipeline settings
+
+se 		:= false 	help Single ended data.
 trimmed_fastq 	:= false	help Skip fastq-trimming stage.
 fraglen 	:= 75 		help Read fragment length (default: 75).
-
-mapping	 	:= false	help Mapping only (no MACS2 peak calling).
+mapping	 	:= false	help Mapping only (no macs2 peak calling or idr).
 vplot 		:= false 	help Create V plot.
 preseq 		:= false 	help Do preseq analysis.
-subsample 	:= false 	help Subsample replicates. Use '-nreads [NO_READS]' to specify # reads to subsample.
+subsample 	:= false 	help Subsample replicates. Use '-nreads [NO_READS]' (default: 15000000) to specify # reads to subsample.
 pseudorep 	:= false 	help Generate pseudo-replicates and call peaks on them.
 idr 		:= false 	help Perform IDR analysis.
-
 ataqc 		:= false 	help Advanced ATAC QC (parameters to be defined: species, blacklist, dnase, tss, prom, enh, reg2map and roadmap_meta).
 
+help() // show help contexts
 
 include "../chipseq/modules/input_fastq.bds"
 include "../chipseq/modules/input_bam.bds"
@@ -33,8 +35,6 @@ string{} shifted_tags, shifted_tags_pr1, shifted_tags_pr2
 
 
 
-help()
-
 init_atac()
 
 chk_input_data()
@@ -49,6 +49,8 @@ do_idr()
 void init_atac() {
 
 	if ( conf_file_exists() ) {
+
+		se 		= get_conf_val_bool( se,		["se"] )
 
 		trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
 		fraglen 	= get_conf_val_int( fraglen,		["fraglen", "frag_len"] )
@@ -74,6 +76,8 @@ void init_atac() {
 		vplot_idx 	= args[6].trim()
 		out_dir 	= args[7].trim()
 
+		se 		= false
+
 		vplot 		= true
 		preseq 		= true
 
@@ -84,38 +88,17 @@ void init_atac() {
 
 		input 		= "fastq"
 	
-		if ( v ) { // verbose
-			print("\n\n")
-			print("Legacy input method found (8 parameters)\n")
-			print("========================================\n")
-			print( "Bowtie2 index\t\t: $bwt2_idx\n" )
-			print( "Read 1\t\t\t: $fastq1_1\n" )
-			print( "Read 2\t\t\t: $fastq1_2\n" )
-			print( "# threads (bowtie2)\t: $nth_bwt2\n")
-			print( "Genome size (hs,mm)\t: $gensz\n" )
-			print( "Chromosome sizes file\t: $chrsz\n" )
-			print( "V-Plot index\t\t: $vplot_idx\n" )
-			print( "Output dir.\t\t: $out_dir\n" )
-		}		
+		print("\n\nLegacy input method found (8 parameters)\n")
+		print("========================================\n")
+		print( "Bowtie2 index\t\t: $bwt2_idx\n" )
+		print( "Read 1\t\t\t: $fastq1_1\n" )
+		print( "Read 2\t\t\t: $fastq1_2\n" )
+		print( "# threads (bowtie2)\t: $nth_bwt2\n")
+		print( "Genome size (hs,mm)\t: $gensz\n" )
+		print( "Chromosome sizes file\t: $chrsz\n" )
+		print( "V-Plot index\t\t: $vplot_idx\n" )
+		print( "Output dir.\t\t: $out_dir\n" )
 	}
-
-	if ( v ) { // verbose
-		print("\n")
-		print( "Input data type\t\t: $input\n")		
-		print( "Fastqs are trimmed?\t: $trimmed_fastq\n")
-		print( "Fragment length\t\t: $fraglen\n")
-		print( "# Replicates\t\t: "+ get_num_rep() + "\n")
-		print( "Vplot generation\t: $vplot\n")
-		print( "Preseq analysis\t\t: $preseq\n")
-		print( "MACS2 peak calling\t: " + !mapping + "\n")
-		print( "Subsample replicates\t: $subsample\n")
-		print( "Create/call peaks on pseudo replicates\t: $pseudorep\n")
-		print( "Perform IDR analysis on peaks\t: $idr\n")
-		print( "ATAQC (advanced QC report)\t: $ataqc\n")
-	}
-}
-
-void chk_input_data() {
 
 	if ( input == "" ) { // determine input type
 		
@@ -124,123 +107,215 @@ void chk_input_data() {
 		if ( get_fastq(0,1,1) != "" ) 	input = "fastq"
 	}
 
-	if ( ataqc && !is_input_fastq() ) error("\nATACQC ('-ataqc') is available for fastqs input only!\n")
+	print( "\n\n== atac pipeline settings\n")
+	print( "Single ended data set?\t: $se")
+	print( "Input data type\t\t: $input\n")		
+	print( "Fastqs are trimmed?\t: $trimmed_fastq\n")
+	print( "Fragment length\t\t: $fraglen\n")
+	print( "# Replicates\t\t: "+ get_num_rep() + "\n")
+	print( "MACS2 peak calling\t: " + !mapping + "\n")
+	print( "Subsample replicates\t: $subsample\n")
+	print( "Create/call peaks on pseudo replicates\t: $pseudorep\n")
+	print( "Perform IDR analysis on peaks\t: $idr\n")
+	print( "Vplot generation\t: $vplot\n")
+	print( "Preseq analysis\t\t: $preseq\n")
+	print( "ATAQC (advanced QC report including vplot and preseq)\t: $ataqc\n")
+}
 
-	if ( is_input_fastq() && !path_exists("$bwt2_idx.1.bt2") ) error("\nBowtie2 index doesn't exists! ($bwt2_idx.1.bt2)\n")
+void chk_input_data() {
 
-	if ( vplot && !path_exists( vplot_idx ) ) error("\nVPlot index doesn't exists! ($vplot_idx) \n")	
+	print( "\n\n== checking atac inputs (data type = $input) ...\n\n" );
 
-	if ( !mapping && !path_exists( chrsz ) ) error("\nChromosome sizes file doesn't exists! ($chrsz)\n")	
+	if ( is_input_fastq() ) chk_align_bwt2()
+	if ( !mapping ) 	chk_callpeak_macs2()
+	if ( vplot ) 		chk_vplot()
+	if ( idr ) 		chk_idr()
 
-	if ( idr && !path_exists( blacklist_idr ) ) {
-		print("\nWarning: Blacklist bed ('-blacklist_idr') for final IDR QC is missing! ($blacklist_idr)\n\n")
+	if ( is_input_filt_bam() && ( vplot || preseq ) ) {
+		error("Preseq analysis (-preseq) and vplot (-vplot) are not available if pipeline starts from filtered bam files (with '-input filt_bam')!\n")
 	}
 
-	print("\n")
+	if ( ataqc && !is_input_fastq() ) error("ATACQC (-ataqc) is available for fastqs input only!\n")
+	if ( ataqc && se ) 		  error("ATACQC (-ataqc) is not available for single-ended (-se) data set!\n")
 
-	if ( is_input_fastq() ) {
+	// check data files
+	suffix := se ? " (SE)" : " (PE)"
 
-		string[] fastqs_all
+	string[] data_all
 
-		for ( int rep=1; rep <= get_num_rep(); rep++) {
+	for ( int rep=1; rep <= get_num_rep(); rep++) {
 
-			string read1, read2
+		string[] data
 
+		string prefix
+
+		if ( is_input_fastq() ) {
+			prefix = "Rep$rep fastq" + suffix
 			fastqs := get_fastqs( 0, rep )
 
+			if ( !se && (get_num_rep()==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
+
+			if ( fastqs.size()==0 ) {
+				data.push( "" )
+			}
+			else {
+				for ( string fastq : fastqs ) data.push( fastq )
+			}
+
 			if ( fastqs.size()==0 ) error("No fastq defined for replicate $rep\n")
-
-			if ( get_num_rep()==1 && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
-
-			prefix := "Rep$rep fastq"
-			print("$prefix :\n")
-
-			for ( string s : fastqs ) {
-				print("\t$s\n")
-				if ( (s != "") && !path_exists(s) ) error("\t\tFile not found!\n")
-			}
-
-			// check any duplicate input filename
-			for ( string s : fastqs ) {
-				if ( is_in_array( get_basename( s ), get_basename( fastqs_all ) ) ) \
-					error( "\tFilename is duplicate for $prefix!\n")
-			}
-
-			if ( fastqs.size() != 2 ) error("\tNeeds two fastqs for replicate $rep.\n")
-
-			fastqs_all = concat( fastqs_all, fastqs )
 		}
-	}
-	else if ( is_input_bam() ) {
-
-		string[] bams_all
-
-		for ( int rep=1; rep <= get_num_rep(); rep++) {
-
-			bam := get_bam( 0, rep )
-
-			if ( bam == "" ) error("No bam defined for replicate $rep\n")
-
-			prefix := "Rep$rep bam"
-			print("$prefix :\n")
-
-			print("\t$bam\n")
-			if ( !path_exists(bam) ) error("\t\tFile not found!\n")
-
-			// check any duplicate input filename
-			if ( is_in_array( get_basename( bam ), get_basename( bams_all ) ) ) \
-				error( "\tFilename is duplicate for $prefix!\n")
-
-			bams_all.add( bam )
+		else if ( is_input_bam() ) {
+			prefix = "Rep$rep bam" + suffix
+			data.push( get_bam( 0, rep ) )
 		}
-	}
-	else if ( is_input_filt_bam() ) {
-
-		string[] bams_all
-
-		for ( int rep=1; rep <= get_num_rep(); rep++) {
-
-			bam := get_filt_bam( 0, rep )
-
-			if ( bam == "" ) error("No filt_bam defined for replicate $rep\n")
-
-			prefix := "Rep$rep filt_bam"
-			print("$prefix :\n")
-
-			print("\t$bam\n")
-			if ( !path_exists(bam) ) error("\t\tFile not found!\n")
-
-			// check any duplicate input filename
-			if ( is_in_array( get_basename( bam ), get_basename( bams_all ) ) ) \
-				error( "\tFilename is duplicate for $prefix!\n")
-
-			bams_all.add( bam )
+		else if ( is_input_filt_bam() ) {
+			prefix = "Rep$rep filt_bam" + suffix
+			data.push( get_filt_bam( 0, rep ) )
 		}
-	}
-	else {
-		error("Unsupported file type!\n")
+		else {
+			error("Unspported input type (-input)!")
+		}
+
+		print("$prefix :\n")
+
+		for ( string s : data ) {
+			print("\t$s\n")
+			if ( (s != "") && !path_exists(s) ) error("\t\tFile not found!\n")
+		}
+
+		if ( data[0] == "" ) {
+			error( "\t$prefix missing!\n")
+		}
+
+		// check any duplicate input filename
+		for ( string s : data ) {
+			if ( is_in_array( get_basename( s ), get_basename( data_all ) ) ) \
+				error( "\t$prefix has duplicate filename!\n")
+		}
+
+		data_all = concat( data_all, data )
 	}
 
-	if ( is_input_filt_bam() ) {
-
-		print("\n\nPreseq analysis and vplot are not available if pipeline starts from filtered bam files (with '-input filt_bam')!\n")
-
-		vplot 	= false
-		preseq 	= false
-	}
 }
 
 void atac() {
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 		
-		if ( no_par_job )   _atac( rep )
+		if ( no_par )   _atac( rep )
 		else 		par _atac( rep )
 	}
 	wait
 }
 
 void _atac( int rep ) {
+
+	if ( se ) 	_atac_SE( rep )
+	else 		_atac_PE( rep )
+}
+
+void _atac_SE( int rep ) {
+
+	info := get_task_info( 0, rep )
+
+	atac_out_dir := mkdir_path( (get_num_rep()==1) ? out_dir : "$out_dir/$info" )
+
+	string fastq, align_log, bam, filt_bam, dup_qc
+
+	if ( is_input_fastq() ) {
+
+		fastqs := get_fastqs( 0, rep )
+
+		fastq = fastqs[0]
+
+		string p1
+		
+		if ( trimmed_fastq ) {
+			p1 = fastq
+		}
+		else {
+			p1 = _trim_adapters( fastq, atac_out_dir, info )
+		}
+		wait
+
+		( bam, align_log ) = _bowtie2( p1, atac_out_dir, info )
+		wait
+	}
+
+	if ( is_input_fastq() || is_input_bam() ) {
+
+		if ( is_input_bam() ) bam = get_bam( 0, rep )			
+
+		( filt_bam, dup_qc ) = _dedup_bam( bam, atac_out_dir, info )
+		wait
+	}
+
+
+	if ( is_input_fastq() || is_input_bam() || is_input_filt_bam() ) {
+
+		if ( is_input_filt_bam() ) filt_bam = get_filt_bam( 0, rep )
+	}
+
+	string pval_bigwig, fc_bigwig
+
+	if ( !mapping ) {
+
+		tag := _bam_to_tag( filt_bam, atac_out_dir, info )
+		wait
+
+		string subsampled_tag
+
+		if ( subsample ) {
+			subsampled_tag = _subsample_tag( tag, atac_out_dir, info )
+			wait
+		}
+		else {
+			subsampled_tag = tag
+		}
+
+		shifted_tags{rep} = _shift_tag( subsampled_tag, atac_out_dir, info )
+		wait
+
+		( peaks{rep}, fc_bigwig, pval_bigwig )  = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
+
+		if ( pseudorep ) {
+
+			( shifted_tags_pr1{rep}, shifted_tags_pr2{rep} ) = _spr( shifted_tags{rep}, atac_out_dir, info )
+			wait
+
+			string tmp // to get multiple elements of function return
+			( peaks_pr1{rep}, tmp ) = _macs2_atac( shifted_tags_pr1{rep}, "$fraglen", atac_out_dir, info + "_pr1" )
+			( peaks_pr2{rep}, tmp ) = _macs2_atac( shifted_tags_pr2{rep}, "$fraglen", atac_out_dir, info + "_pr2")
+		}
+	}
+
+	if ( bam != "" ) {
+
+		string sorted_bam
+
+		if ( vplot || preseq || ataqc ) sorted_bam = _srt_bam( bam, atac_out_dir, info )
+		wait
+
+		if ( ataqc ) {
+			// currently ataqc doesn't support single ended data
+		}
+		else {
+			string png, pdf
+
+			if ( vplot ) png = _vplot( sorted_bam, atac_out_dir, info )
+
+			if ( preseq ) pdf = _preseq( sorted_bam, atac_out_dir, info )
+
+			wait
+
+			_report_atac( pdf, png, atac_out_dir, info )
+		}
+	}
+
+	wait
+}
+
+void _atac_PE( int rep ) {
 
 	info := get_task_info( 0, rep )
 
@@ -252,42 +327,40 @@ void _atac( int rep ) {
 
 		fastqs := get_fastqs( 0, rep )
 
+		string p1, p2
+
 		// correct if user skipped replicate id like (-fastq[PAIR]) instead of (-fastq[REP]_[PAIR])
 		if ( (get_num_rep()==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
 
 		fastq1 = fastqs[0]
 		fastq2 = fastqs[1]
 
-		string p1, p2
-
 		if ( trimmed_fastq ) {
-
 			p1 = fastq1
 			p2 = fastq2
 		}
 		else {
-			( p1, p2 ) = _trim_adapters( fastq1, fastq2, atac_out_dir, info )
+			( p1, p2 ) = _trim_adapters_PE( fastq1, fastq2, atac_out_dir, info )
+			wait
 		}
 
+		( bam, align_log ) = _bowtie2_PE( p1, p2, atac_out_dir, info )
 		wait
-
-		( bam, align_log ) = _bowtie2( p1, p2, atac_out_dir, info )
-		wait
-		
-		(filt_bam, dup_qc) = _dedup_bam_PE( bam, atac_out_dir, info )
 	}
-	else if ( is_input_bam() ) {
 
-		bam = get_bam( 0, rep )
+
+	if ( is_input_fastq() || is_input_bam() ) {
+
+		if ( is_input_bam() ) bam = get_bam( 0, rep )			
 
 		(filt_bam, dup_qc) = _dedup_bam_PE( bam, atac_out_dir, info )
-	}
-	else if ( is_input_filt_bam() ) {
-
-		filt_bam = get_filt_bam( 0, rep )
+		wait
 	}
 
-	wait
+	if ( is_input_fastq() || is_input_bam() || is_input_filt_bam() ) {
+
+		if ( is_input_filt_bam() ) filt_bam = get_filt_bam( 0, rep )
+	}
 
 	string pval_bigwig, fc_bigwig
 
@@ -347,29 +420,33 @@ void _atac( int rep ) {
 		}
 	}
 
-	string sorted_bam
+	if ( bam != "" ) {
 
-	if ( vplot || preseq || ataqc ) sorted_bam = _srt_bam( bam, atac_out_dir, info )
-	wait
+		string sorted_bam
 
-	if ( ataqc ) {
-
-		report_dir := mkdir_path( "$atac_out_dir/ataqc" )
-
-		_ataqc( fastq1, fastq2, bam, align_log, sorted_bam, \
-			dup_qc, filt_bam, shifted_tags{rep}, pval_bigwig, peaks{rep}, \
-			report_dir, info )
-	}
-	else {
-
-		string png, pdf
-
-		if ( vplot ) png = _vplot( sorted_bam, atac_out_dir, info )
-
-		if ( preseq ) pdf = _preseq( sorted_bam, atac_out_dir, info )
-
+		if ( vplot || preseq || ataqc ) sorted_bam = _srt_bam( bam, atac_out_dir, info )
 		wait
-		_report_atac( pdf, png, atac_out_dir, info )
+
+		if ( ataqc ) {
+
+			report_dir := mkdir_path( "$atac_out_dir/ataqc" )
+
+			_ataqc( fastq1, fastq2, bam, align_log, sorted_bam, \
+				dup_qc, filt_bam, shifted_tags{rep}, pval_bigwig, peaks{rep}, \
+				report_dir, info )
+		}
+		else {
+
+			string png, pdf
+
+			if ( vplot ) png = _vplot( sorted_bam, atac_out_dir, info )
+
+			if ( preseq ) pdf = _preseq( sorted_bam, atac_out_dir, info )
+
+			wait
+
+			_report_atac( pdf, png, atac_out_dir, info )
+		}
 	}
 
 	wait
@@ -484,13 +561,15 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 // outputs (pdf, png, log, ...) and report must be in the same directory
 string[] _report_atac( string preseq_pdf, string vplot_png, string out_dir, string info ) {
 
-	prefix   := change_dir( remove_ext( preseq_pdf, ["preseq.pdf"] ), out_dir )
+	//prefix   := change_dir( remove_ext( preseq_pdf, ["preseq.pdf"] ), out_dir )
+	//tex_file := "$prefix.summary.tex"
+	//pdf_file := "$prefix.summary.pdf"
 
-	tex_file := "$prefix.summary.tex"
-	pdf_file := "$prefix.summary.pdf"
+	prefix 	 := "$out_dir/report"
+	tex_file := "$prefix.tex"
+	pdf_file := "$prefix.pdf"
 
-	//in 	:= [pdf, png] // a lot of inputs so I picked up just two
-	in 	:= "" // no file time stamp checking
+	in 	:= "" // always run this function (don't check file time stamp checking)
 	out 	:= [tex_file, pdf_file]
 
 	task( taskName:= "report "+info, \
@@ -648,13 +727,11 @@ void set_shell_env() {
 
 		SHCMD_INIT = SHCMD_INIT + " module add bowtie/2.2.4 samtools/1.2 bedtools/2.21.0;" \
 					+ " module add picard-tools/1.129 ucsc_tools/3.0.9 MACS2/2.1.0 java/latest;" \
-					+ " module add preseq/1.0.2 texlive/2013;" \
+					+ " module add preseq/1.0.2 texlive/2013 trim_galore/0.4.0;" \
 					+ " export _JAVA_OPTIONS='-Xms256M -Xmx2048M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='16G'; export MALLOC_ARENA_MAX=4"
 		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
 
-		if ( v ) { // verbose
-			print( "Final shell cmd. for init.\t: $SHCMD_INIT\n" )
-		}
+		print( "Shell command for init.\t: $SHCMD_INIT\n" )
 	}
 }
 
@@ -662,70 +739,7 @@ void help() {
 
 	if ( is_cmd_line_arg_empty() ) {
 
-		print("\n")
-		print(" Usage 1 (command line argument, legacy input method): \n")
-		print("\n")
-		print("\t\$ bds atac.bds [BOWTIE_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE] [CHROMSIZES] [VPLOT_INDEX] [OUTPUT_DIR] \n")
-		print("\n")
-		print(" Usage 2 (command line argument): \n")
-		print("\n")
-		print("\t\$ bds atac.bds -bwt_idx [BOWTIE_INDEX] \\ \n")
-		print("\t\t -fastq1 [READ1] \\ \n")
-		print("\t\t -fastq2 [READ2] \\ \n")
-		print("\t\t -nth_bwt2 [NTHREADS_BWT2] \\ \n")
-		print("\t\t -gensz [GENOMESIZE] \\ \n")
-		print("\t\t -chrsz [CHROMSIZES] \\ \n")
-		print("\t\t -out_dir [OUTPUT_DIR] \n")
-		print("\n")
-		print("\tIf you want V plot generation add the following:\n")
-		print("\t\t -vplot -vplot_idx [VPLOT_INDEX]\n")
-		print("\n")
-		print("\tIf you want preseq analysis add the following:\n")
-		print("\t\t -preseq\n")
-		print("\n")
-		print("\tIf you don't want MACS2 peak calling add the following:\n")
-		print("\t\t -mapping\n")
-		print("\n")
-		print(" Usage 3 (configruation file): \n")
-		print("\n")
-		print("\t\$ bds atac.bds [CONF_FILE]\n")
-		print("\n")
-		print("\t=== [CONF_FILE] contents ===\n")
-		print("\tbwa_idx= [BOWTIE_INDEX]\n")
-		print("\tfastq1= [READ1]\n")
-		print("\tfastq2= [READ2]\n")
-		print("\tnth_bwt2= [NTHREADS_BWT2]\n")
-		print("\tgensz= [GENOMESIZE]\n")
-		print("\tchrsz= [CHROMSIZES]\n")
-		print("\tout_dir= [OUTPUT_DIR]\n")
-		print("\tvplot= [NEED_VPLOT_GENERATION]\n")
-		print("\tvplot_idx= [VPLOT_INDEX]\n")
-		print("\tpreseq= [NEED_PRESEQ_ANALYSIS]\n")
-		print("\n")
-		print(" Usage 4 (command line argument, multiple replicates): \n")
-		print("\n")
-		print("\t\$ bds atac.bds -bwt_idx [BOWTIE_INDEX] \\ \n")
-		print("\t\t -rep_num [NUMBER_OF_REPLICATES] \\ \n")
-		print("\t\t -fastq1_1 [REP1_READ1] \\ \n")
-		print("\t\t -fastq1_2 [REP1_READ2] \\ \n")
-		print("\t\t -fastq2_1 [REP2_READ1] \\ \n")
-		print("\t\t -fastq2_2 [REP2_READ2] \\ \n")
-		print("\t\t ... \n")
-		print("\t\t -nth_bwt2 [NTHREADS_BWT2] \\ \n")
-		print("\t\t -gensz [GENOMESIZE] \\ \n")
-		print("\t\t -chrsz [CHROMSIZES] \\ \n")
-		print("\t\t -out_dir [OUTPUT_DIR] \n")
-		print("\t\t -vplot -vplot_idx [VPLOT_INDEX] \\ \n")
-		print("\t\t -preseq \\ \n")
-		print("\n")
-		print(" For Sun Grid Engine (SGE) cluster use\n")
-		print("\n")
-		print("\t\$ bds -s sge atac.bds ... \n")
-		print("\n")
-		print(" List of parameters\n")
-		print(" \n")
 		printHelp()
-
 		exit
 	}
 }
