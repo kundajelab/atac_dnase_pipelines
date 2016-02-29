@@ -400,9 +400,8 @@ void _atac_PE( int rep ) {
 				(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info )
 				wait
 
-				string tmp // to get first element of returned array
-				( shifted_tags_pr1{rep}, tmp ) = _shift_tag( tag_pr1, atac_out_dir, info )
-				( shifted_tags_pr2{rep}, tmp ) = _shift_tag( tag_pr2, atac_out_dir, info )
+				shifted_tags_pr1{rep} = _shift_tag( tag_pr1, atac_out_dir, info )
+				shifted_tags_pr2{rep} = _shift_tag( tag_pr2, atac_out_dir, info )
 			}
 			wait
 
