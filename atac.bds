@@ -108,7 +108,7 @@ void init_atac() {
 	}
 
 	print( "\n\n== atac pipeline settings\n")
-	print( "Single ended data set?\t: $se")
+	print( "Single ended data set?\t: $se\n")
 	print( "Input data type\t\t: $input\n")		
 	print( "Fastqs are trimmed?\t: $trimmed_fastq\n")
 	print( "Fragment length\t\t: $fraglen\n")
@@ -153,7 +153,9 @@ void chk_input_data() {
 			prefix = "Rep$rep fastq" + suffix
 			fastqs := get_fastqs( 0, rep )
 
-			if ( !se && (get_num_rep()==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
+			if ( !se && (get_num_rep()==1) && (fastqs.size()<2) && (get_fastq( 0, 2, 1 )!="") ) fastqs.add( get_fastq( 0, 2, 1 ) )
+
+			if ( !se && fastqs.size() < 2 ) error("A pair of fastqs are needed for replicate $rep (if it's single-ended add '-se')\n")
 
 			if ( fastqs.size()==0 ) {
 				data.push( "" )
@@ -302,15 +304,14 @@ void _atac_SE( int rep ) {
 			// currently ataqc doesn't support single ended data
 		}
 		else {
-			string png, pdf
 
-			if ( vplot ) png = _vplot( sorted_bam, atac_out_dir, info )
+			if ( vplot ) _vplot( sorted_bam, atac_out_dir, info )
 
-			if ( preseq ) pdf = _preseq( sorted_bam, atac_out_dir, info )
+			if ( preseq ) _preseq( sorted_bam, atac_out_dir, info )
 
 			wait
 
-			_report_atac( pdf, png, atac_out_dir, info )
+			_report_atac( atac_out_dir, info )
 		}
 		
 	}
@@ -333,8 +334,8 @@ void _atac_PE( int rep ) {
 		string p1, p2
 
 		// correct if user skipped replicate id like (-fastq[PAIR]) instead of (-fastq[REP]_[PAIR])
-		if ( (get_num_rep()==1) && (fastqs.size()<2) ) fastqs.add( get_fastq( 0, 2, 1 ) )
-
+		if ( (get_num_rep()==1) && (fastqs.size()<2) && (get_fastq( 0, 2, 1 )!="") ) fastqs.add( get_fastq( 0, 2, 1 ) )
+ 
 		fastq1 = fastqs[0]
 		fastq2 = fastqs[1]
 
@@ -440,15 +441,13 @@ void _atac_PE( int rep ) {
 		}
 		else {
 
-			string png, pdf
+			if ( vplot ) _vplot( sorted_bam, atac_out_dir, info )
 
-			if ( vplot ) png = _vplot( sorted_bam, atac_out_dir, info )
-
-			if ( preseq ) pdf = _preseq( sorted_bam, atac_out_dir, info )
+			if ( preseq ) _preseq( sorted_bam, atac_out_dir, info )
 
 			wait
 
-			_report_atac( pdf, png, atac_out_dir, info )
+			_report_atac( atac_out_dir, info )
 		}
 	}
 
@@ -562,7 +561,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 }
 
 // outputs (pdf, png, log, ...) and report must be in the same directory
-string[] _report_atac( string preseq_pdf, string vplot_png, string out_dir, string info ) {
+string[] _report_atac( string out_dir, string info ) {
 
 	//prefix   := change_dir( remove_ext( preseq_pdf, ["preseq.pdf"] ), out_dir )
 	//tex_file := "$prefix.summary.tex"
@@ -572,7 +571,7 @@ string[] _report_atac( string preseq_pdf, string vplot_png, string out_dir, stri
 	tex_file := "$prefix.tex"
 	pdf_file := "$prefix.pdf"
 
-	in 	:= "" // always run this function (don't check file time stamp checking)
+	in 	:= "" // always run this function (don't check file time stamp)
 	out 	:= [tex_file, pdf_file]
 
 	task( taskName:= "report "+info, \
@@ -588,9 +587,7 @@ string[] _report_atac( string preseq_pdf, string vplot_png, string out_dir, stri
 		sys MODEL=$bwt_idx
 
 		//# insert size histogram graph file name
-		sys if [[ $se == "false" ]]; then \
-			insertSizeHist="$(echo *.hist_graph.pdf)"; \
-			fi
+		sys insertSizeHist="$(echo *.hist_graph.pdf)"
 
 		//# PRESEQ graph file name
 		sys preseqGraph="$(echo *.preseq.pdf)"
@@ -664,17 +661,19 @@ string[] _report_atac( string preseq_pdf, string vplot_png, string out_dir, stri
 		sys echo "\subsection{Genome Model}" >> $tex_file
 		sys echo "${MODEL//_/\\_}" >> $tex_file
 
-		sys if [[ $vplot == "true" ]]; then \
+		sys if [[ ${vPlot} != "*"* ]]; then \
 			echo "\subsection{V-Plot}" >> $tex_file; \
 			echo "From ${vPlot//_/\\_}:\\\\" >> $tex_file; \
 			echo "\includegraphics[width=0.5\textwidth]{${vPlot}}" >> $tex_file; \
 			fi
 
-		sys if [[ $preseq == "true" ]]; then \
+		sys if [[ ${preseqGraph} != "*"* ]]; then \
 			echo "\subsection{preseq lc\_extrap Yield Predicion}" >> $tex_file; \
 			echo "From ${preseqGraph//_/\\_}:\\\\" >> $tex_file; \
 			echo "\includegraphics[width=0.5\textwidth]{${preseqGraph}}" >> $tex_file; \
 			fi
+
+		//if [[ $preseqLog != "*"* ]];
 
 		sys if [[ $input == "fastq" ]]; then \
 			echo "\subsection{Library Complexity}" >> $tex_file; \
@@ -685,7 +684,7 @@ string[] _report_atac( string preseq_pdf, string vplot_png, string out_dir, stri
 			echo "${BPCTABLE}" >> $tex_file; \
 			echo "\end{tabular}" >> $tex_file; \
 			echo "}" >> $tex_file; \
-			if [[ $se == "false" ]]; then \
+			if [[ ${insertSizeHist} != "*"* ]]; then \
 				echo "\subsection{Insert size histogram}" >> $tex_file; \
 				echo "From ${insertSizeHist//_/\\_}:\\\\" >> $tex_file; \
 				echo "\includegraphics[width=0.5\textwidth]{${insertSizeHist}}" >> $tex_file; \
