@@ -7,7 +7,7 @@ ATAC Seq Pipeline
 
 ATAC Seq pipeline is dependent on two external git repos and each has the following directory:
 ```
-ataqc/ 		(private, https://bitbucket.org/csfoo/ataqc)
+ataqc/ 		(public, https://bitbucket.org/csfoo/ataqc)
 chipseq/	(public, https://github.com/kundajelab/TF_chipseq_pipeline)
 ```
 
