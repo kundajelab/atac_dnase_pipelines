@@ -57,9 +57,9 @@ For preseq analysis, add the following to command line:
 -preseq
 ```
 
-For advanced ATAQC (only for PE dataset), add the following to command line, you will need to get read permission to the ataqc repo (https://bitbucket.org/csfoo/ataqc).
+For advanced ATAQC (only for PE dataset), add the following to command line, parameters `-preseq` and `-vplot` will be ignored since they are already included in ATAQC. You will need to get read permission to the ataqc repo (https://bitbucket.org/csfoo/ataqc).
 ```
--ataqc
+-ataqc -vplot_idx [VPLOT_INDEX]
 ```
 
 If you have just one replicate (PE), define fastqs with `-fastq[PAIR_NO]`.
