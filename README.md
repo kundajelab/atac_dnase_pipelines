@@ -5,7 +5,7 @@ ATAC Seq Pipeline
 ### Installation instruction
 
 Please read this README first!
-<a href="../README.md">README.md</a>
+<a href="chipseq/README_PIPELINE.md">README.md</a>
 
 
 ### Usage
@@ -20,12 +20,17 @@ $ bds atac.bds [BOWTIE2_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE; hs f
 For general use, use the following command line:
 ```
 $ bds atac.bds -fastq1 [READ1] -fastq2 [READ2] -bwt2_idx [BOWTIE2_INDEX] \
--gensz [GENOMESIZE; hs for human, mm for mouse] -chrsz [CHROMESIZES_FILE]
+-gensz [GENOMESIZE; hs for human, mm for mouse] -chrsz [CHR_SIZES_FILE]
 ```
 
 If your fastqs are already trimmed, add the following to the command line to skip trimming stage.
 ```
 -trimmed_fastq
+```
+
+If your data are single ended, add the following to the command line.
+```
+-se
 ```
 
 For V plot generation, add the following to command line:
@@ -38,19 +43,28 @@ For preseq analysis, add the following to command line:
 -preseq
 ```
 
-If you have single replicate, define fastqs with '-fastq[PAIR_NO]'.
+If you have just one replicate (PE), define fastqs with `-fastq[PAIR_NO]`.
 ```
 -fastq1 [READ_PAIR1] -fastq2 [READ_PAIR2] \
 ```
 
-For multiple replicates, define fastqs with '-fastq[REP_NO]_[PAIR_NO]'. Add -fastq[]_[] for each replicate and pair to the command line. The following example is for 2 replicates.
+For multiple replicates (PE), define fastqs with `-fastq[REP_NO]_[PAIR_NO]`. Add -fastq[]_[] for each replicate and pair to the command line:replicates.
 ```
 -fastq1_1 [READ_REP1_PAIR1] -fastq1_2 [READ_REP1_PAIR2] \
--fastq2_1 [READ_REP2_PAIR1] -fastq2_2 [READ_REP2_PAIR2]
+-fastq2_1 [READ_REP2_PAIR1] -fastq2_2 [READ_REP2_PAIR2] \
 ...
 ```
 
-You can also start from bam files. There are two kinds of bam files (raw or deduped) and you need to explicitly choose between raw bam (bam) and deduped one (nodup_bam) with '-input [BAM_TYPE]'.
+For multiple replicates (SE), define fastqs with `-fastq[REP_NO]`:
+```
+-se \
+-fastq1 [READ_REP1] \
+-fastq2 [READ_REP2] \
+...
+```
+
+
+You can also start from bam files. There are two kinds of bam files (raw or deduped) and you need to explicitly choose between raw bam (bam) and deduped one (nodup_bam) with `-input [BAM_TYPE]`.
 
 For raw bams,
 ```
@@ -60,6 +74,21 @@ For raw bams,
 For deduped (filtered) bams, preseq analysis and v plot will not be available since they need sorted raw bam.
 ```
 -filt_bam1 [NODUP_BAM_REP1] -filt_bam2 [NODUP_BAM_REP1] ...
+```
+
+To subsample beds (tagaligns) add the following to the command line, you can skip the second parameter (-nreads, default is 15000000):
+```
+-subsample -nreads [NO_READS_TO_SUBSAMPLE]
+```
+
+To generate pseduro replicates and call peaks on them:
+```
+-pseudorep
+```
+
+For IDR analysis on peaks (two replicates are needed):
+```
+-idr
 ```
 
 To change resource settings (# of processor, max memory and walltime) for bowtie2, add the following to command line:
@@ -72,10 +101,6 @@ For MACS2 peak calling:
 -nth_macs2 [NTHREADS_MACS2] -mem_macs2 [MEMORY_MACS2; e.g. 20G] -wt_macs2 [WALLTIME_MACS@; e.g. 20h]
 ```
 
-For IDR analysis on peaks:
-```
--idr
-```
 
 By default, IDR will be done for true replicates, but if you have `-pseudorep` in the command line, you will also get IDR on pseudo replicates and pooled pseudo replicates.
 
@@ -115,7 +140,7 @@ max( [NTH_BWT2], [NTH_MACS2] ) x [NUM_REP]
 
 (Not recommended) If you don't want any jobs to be parallelized (each job can still use multiple threads though), add the following to command line (this option is for computers with limited resource):
 ```
--no_par_job
+-no_par
 ```
 
 ### Requirements (python 2.x >= 2.7)
