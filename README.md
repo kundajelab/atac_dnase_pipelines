@@ -2,10 +2,24 @@ ATAC Seq Pipeline
 ===================================================
 
 
-### Installation instruction
 
-Please read this README first!
-<a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_PIPELINE.md">README.md</a>
+### Cloning/pulling the pipeline repo
+
+ATAC Seq pipeline is dependent on two external git repos and each has the following directory:
+```
+ataqc/ 		(private, https://bitbucket.org/csfoo/ataqc)
+chipseq/	(public, https://github.com/kundajelab/TF_chipseq_pipeline)
+```
+
+To fully clone the repo:
+```
+$ git clone https://github.com/kundajelab/bds_atac --recursive
+```
+
+To fully pull the repo:
+```
+$ git pull --recurse-submodules
+```
 
 
 ### Usage
@@ -41,6 +55,11 @@ For V plot generation, add the following to command line:
 For preseq analysis, add the following to command line:
 ```
 -preseq
+```
+
+For advanced ATAQC (only for PE dataset), add the following to command line, you will need to get read permission to the ataqc repo (https://bitbucket.org/csfoo/ataqc).
+```
+-ataqc
 ```
 
 If you have just one replicate (PE), define fastqs with `-fastq[PAIR_NO]`.
