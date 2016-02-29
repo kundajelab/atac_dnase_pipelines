@@ -5,7 +5,7 @@ ATAC Seq Pipeline
 ### Installation instruction
 
 Please read this README first!
-<a href="chipseq/README_PIPELINE.md">README.md</a>
+<a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_PIPELINE.md">README.md</a>
 
 
 ### Usage
