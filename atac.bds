@@ -273,6 +273,8 @@ void _atac_SE( int rep ) {
 			subsampled_tag = tag
 		}
 
+		_xcor( subsampled_tag, atac_out_dir, info )
+
 		shifted_tags{rep} = _shift_tag( subsampled_tag, atac_out_dir, info )
 		wait
 
@@ -310,6 +312,7 @@ void _atac_SE( int rep ) {
 
 			_report_atac( pdf, png, atac_out_dir, info )
 		}
+		
 	}
 
 	wait
@@ -585,7 +588,9 @@ string[] _report_atac( string preseq_pdf, string vplot_png, string out_dir, stri
 		sys MODEL=$bwt_idx
 
 		//# insert size histogram graph file name
-		sys insertSizeHist="$(echo *.hist_graph.pdf)"
+		sys if [[ $se == "false" ]]; then \
+			insertSizeHist="$(echo *.hist_graph.pdf)"; \
+			fi
 
 		//# PRESEQ graph file name
 		sys preseqGraph="$(echo *.preseq.pdf)"
@@ -680,9 +685,11 @@ string[] _report_atac( string preseq_pdf, string vplot_png, string out_dir, stri
 			echo "${BPCTABLE}" >> $tex_file; \
 			echo "\end{tabular}" >> $tex_file; \
 			echo "}" >> $tex_file; \
-			echo "\subsection{Insert size histogram}" >> $tex_file; \
-			echo "From ${insertSizeHist//_/\\_}:\\\\" >> $tex_file; \
-			echo "\includegraphics[width=0.5\textwidth]{${insertSizeHist}}" >> $tex_file; \
+			if [[ $se == "false" ]]; then \
+				echo "\subsection{Insert size histogram}" >> $tex_file; \
+				echo "From ${insertSizeHist//_/\\_}:\\\\" >> $tex_file; \
+				echo "\includegraphics[width=0.5\textwidth]{${insertSizeHist}}" >> $tex_file; \
+				fi; \
 			echo "\subsection{Picard Duplication Metrics}" >> $tex_file; \
 			echo "From ${dupQCFile//_/\\_}:\\\\" >> $tex_file; \
 			echo "\begin{tabular}{l|c}" >> $tex_file; \
@@ -722,12 +729,30 @@ void set_shell_env() {
 		}
 
 		if ( is_scg3() ) { // if on SCG3		
+
 			SHCMD_INIT = SHCMD_INIT + " module add gnuplot/5.0 python/2.7.6;" \
+
+			dir_sw_BDS := "/srv/gsfs0/scratch/leepc12/software"
+
+			path := " export PATH=" \
+				+ "$dir_sw_BDS/R-2.15.1/bin:" \
+				+ "$dir_sw_BDS/phantompeakqualtools:$dir_sw_BDS/python3.4/bin:" \
+				+ "$dir_sw_BDS/idrCode" \
+				+ "\${PATH}"
+
+			shellcmd := "export LAPACK=$dir_sw_BDS/blas/lapack-*/liblapack.a;"
+			
+			SHCMD_INIT = SHCMD_INIT + ";" + path + ";" + shellcmd
+			SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )			
+		}
+		else {
+			SHCMD_INIT = SHCMD_INIT + " module add r/2.15.1 phantompeakqualtools/default idr/latest trim_galore/0.4.0;"
+			SHCMD_INIT = SHCMD_INIT + " export PATH=${PATH}:/software/idrCode;"			
 		}
 
 		SHCMD_INIT = SHCMD_INIT + " module add bowtie/2.2.4 samtools/1.2 bedtools/2.21.0;" \
 					+ " module add picard-tools/1.129 ucsc_tools/3.0.9 MACS2/2.1.0 java/latest;" \
-					+ " module add preseq/1.0.2 texlive/2013 trim_galore/0.4.0;" \
+					+ " module add preseq/1.0.2 texlive/2013;" \
 					+ " export _JAVA_OPTIONS='-Xms256M -Xmx2048M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='16G'; export MALLOC_ARENA_MAX=4"
 		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
 
@@ -785,15 +810,16 @@ bool is_input_filt_bam() {
 
 int get_num_rep() {
 
-	if ( is_input_legacy() ) 	return 1
-
+	if ( is_input_legacy() ) {
+		return 1
+	}
 	else if ( is_input_fastq() ) {
 
 		if ( get_num_rep_fastq()==2 ) {
 
 			fastqs := get_fastqs( 0, 1 )			
 
-			if ( fastqs.size()<2 ) return 1
+			if ( !se && fastqs.size()<2 ) return 1
 		}
 
 		return get_num_rep_fastq()
