@@ -107,6 +107,8 @@ void init_atac() {
 		if ( get_fastq(0,1,1) != "" ) 	input = "fastq"
 	}
 
+	fraglen0 = true // set fragment length as zero for cross corr. analysis
+
 	print( "\n\n== atac pipeline settings\n")
 	print( "Single ended data set?\t: $se\n")
 	print( "Input data type\t\t: $input\n")		
@@ -260,12 +262,12 @@ void _atac_SE( int rep ) {
 
 	string pval_bigwig, fc_bigwig
 
+	string subsampled_tag
+
 	if ( !mapping ) {
 
 		tag := _bam_to_tag( filt_bam, atac_out_dir, info )
 		wait
-
-		string subsampled_tag
 
 		if ( subsample ) {
 			subsampled_tag = _subsample_tag( tag, atac_out_dir, info )
@@ -274,8 +276,6 @@ void _atac_SE( int rep ) {
 		else {
 			subsampled_tag = tag
 		}
-
-		_xcor( subsampled_tag, atac_out_dir, info )
 
 		shifted_tags{rep} = _shift_tag( subsampled_tag, atac_out_dir, info )
 		wait
@@ -312,8 +312,12 @@ void _atac_SE( int rep ) {
 			wait
 
 			_report_atac( atac_out_dir, info )
-		}
-		
+		}		
+	}
+
+	if ( !mapping && subsampled_tag != "" ) { // cross correlation analysis
+
+		_xcor( subsampled_tag, atac_out_dir, info )
 	}
 
 	wait
