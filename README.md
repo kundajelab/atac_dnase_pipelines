@@ -22,6 +22,34 @@ $ git pull --recurse-submodules
 ```
 
 
+### Installing BigDataScript (BDS)
+
+Get BigDataScript v0.9999:
+```
+$ git clone https://github.com/pcingola/BigDataScript
+$ cd BigDataScript
+$ git checkout tags/v0.9999
+$ cp distro/bds_Linux.tgz $HOME
+$ cd $HOME
+$ tar zxvf bds_Linux.tgz
+```
+
+Add `$HOME/.bds/` to your `$PATH`, then replace BDS's default bds.config with a correct one:
+```
+$ cp /path/to/bds_atac/chipseq/bds.config $HOME/.bds/
+```
+
+If Java memory error occurs, add the following to your `$HOME/.bashrc`:
+```
+export _JAVA_OPTIONS="-Xms256M -Xmx512M -XX:ParallelGCThreads=1"
+export MAX_JAVA_MEM="8G"
+export MALLOC_ARENA_MAX=4
+```
+
+
+
+
+
 ### Usage
 
 1) Define parameters in command line argument (legacy method)
