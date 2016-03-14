@@ -213,4 +213,6 @@ If your pipeline starts from BAM files, make sure that bam index (.bam.bai) exis
 ### Contributors
 
 * Jin wook Lee - PhD Student, Mechanical Engineering Dept., Stanford University
+* Chuan Sheng Foo - PhD Student, Computer Science Dept., Stanford University
+* Daniel Kim - MD/PhD Student, Biomedical Informatics Program, Stanford University
 * Anshul Kundaje - Assistant Professor, Dept. of Genetics, Stanford University
