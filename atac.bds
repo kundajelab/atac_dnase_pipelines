@@ -740,25 +740,25 @@ void set_shell_env() {
 				+ "$dir_sw_BDS/R-2.15.1/bin:" \
 				+ "$dir_sw_BDS/phantompeakqualtools:$dir_sw_BDS/python3.4/bin:" \
                                 + "$dir_sw_BDS/align2rawsignal/bin:$dir_sw_BDS/idrCode:$dir_sw_BDS/python2.7/bin:" \
-				+ "$dir_sw_BDS/idrCode" \
-				+ "$dir_sw_BDS/preseq/2.0.2" \
+				+ "$dir_sw_BDS/idrCode:" \
+				+ "$dir_sw_BDS/preseq:" \
 				+ "\${PATH}"
 
-			shellcmd := "export LAPACK=$dir_sw_BDS/blas/lapack-*/liblapack.a;"
+
+			shellcmd := "export LAPACK=$dir_sw_BDS/blas/lapack-*/liblapack.a;" \
+                        	  + "export PYTHONPATH=$dir_sw_BDS/python2.7/lib/python2.7/site-packages:$dir_sw_BDS/python3.4/lib/python3.4/site-packages:\${PYTHONPATH};"
 			
 			SHCMD_INIT = SHCMD_INIT + ";" + path + ";" + shellcmd
-			SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )			
+			SHCMD_INIT = SHCMD_INIT.replace( "; ;", ";" ).replace( ";;", ";" )
 		}
 		else {
-			SHCMD_INIT = SHCMD_INIT + " module add r/2.15.1 phantompeakqualtools/default idr/latest preseq/2.0.2;"
-			SHCMD_INIT = SHCMD_INIT + " export PATH=${PATH}:/software/idrCode;"			
+			SHCMD_INIT = SHCMD_INIT + " module add r/2.15.1 phantompeakqualtools/default idr/latest preseq/2.0.2 MACS2/2.1.0;"
+			SHCMD_INIT = SHCMD_INIT + " export PATH=${PATH}:/software/idrCode;"
 		}
 
-		SHCMD_INIT = SHCMD_INIT + " module add bowtie/2.2.4 samtools/1.2 bedtools/2.21.0;" \
-					+ " module add picard-tools/1.129 ucsc_tools/3.0.9 MACS2/2.1.0 java/latest;" \
-					+ " module add texlive/2013 trim_galore/0.4.0;" \
-					+ " export _JAVA_OPTIONS='-Xms256M -Xmx2048M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='16G'; export MALLOC_ARENA_MAX=4"
-		SHCMD_INIT = SHCMD_INIT.replace( ";;", ";" )
+		SHCMD_INIT = SHCMD_INIT + " module add bowtie/2.2.4 samtools/1.2 bedtools/2.21.0 picard-tools/1.129 ucsc_tools/3.0.9 java/latest texlive/2013 trim_galore/0.4.0;" \
+					+ " export _JAVA_OPTIONS='-Xms256M -Xmx2048M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='16G'; export MALLOC_ARENA_MAX=4;"
+		SHCMD_INIT = SHCMD_INIT.replace( "; ;", ";" ).replace( ";;", ";" )
 
 		print( "Shell command for init.\t: $SHCMD_INIT\n" )
 	}
