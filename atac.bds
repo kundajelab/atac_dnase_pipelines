@@ -533,7 +533,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 
 		sys cd $out_dir
 
-		sys python $(which run_ataqc.py) \
+		sys python $script_dir/ataqc/run_ataqc.py \
 		    --workdir $out_dir \
 		    --outdir $out_dir \
 		    --outprefix $prefix_basename \
