@@ -530,7 +530,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 		    --outprefix $prefix_basename \
 		    --genome $species \
 		    --ref $ref_fa \
-		    --tss $tss \
+		    --tss $vplot_idx \
 		    --dnase $dnase \
 		    --blacklist $blacklist \
 		    --prom $prom \
