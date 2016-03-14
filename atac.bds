@@ -16,16 +16,16 @@ ataqc 		:= false 	help Advanced ATAC QC (parameters to be defined: species, blac
 
 help() // show help contexts
 
-include "chipseq/modules/input_fastq.bds"
-include "chipseq/modules/input_bam.bds"
-include "chipseq/modules/align_bowtie2.bds"
-include "chipseq/modules/align_etc.bds"
-include "chipseq/modules/vplot.bds"
-include "chipseq/modules/postalign_bam.bds"
-include "chipseq/modules/postalign_bed.bds"
-include "chipseq/modules/preseq.bds"
-include "chipseq/modules/callpeak_macs2.bds"
-include "chipseq/modules/idr.bds"
+include "modules/input_fastq.bds"
+include "modules/input_bam.bds"
+include "modules/align_bowtie2.bds"
+include "modules/align_etc.bds"
+include "modules/vplot.bds"
+include "modules/postalign_bam.bds"
+include "modules/postalign_bed.bds"
+include "modules/preseq.bds"
+include "modules/callpeak_macs2.bds"
+include "modules/idr.bds"
 
 input := ""
 
@@ -39,33 +39,14 @@ init_atac()
 
 chk_input_data()
 
-set_shell_env()
-
 atac()
 
 do_idr()
 
 
 void init_atac() {
-
-	if ( conf_file_exists() ) {
-
-		se 		= get_conf_val_bool( se,		["se"] )
-
-		trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
-		fraglen 	= get_conf_val_int( fraglen,		["fraglen", "frag_len"] )
-
-		mapping		= get_conf_val_bool( mapping,		["mapping"] )
-
-		vplot 		= get_conf_val_bool( vplot,		["vplot"] )
-		preseq 		= get_conf_val_bool( preseq,		["preseq"] )
-		subsample	= get_conf_val_bool( subsample, 	["subsample"] )
-		pseudorep	= get_conf_val_bool( pseudorep, 	["pseudorep"] )
-
-		idr 		= get_conf_val_bool( idr, 		["idr"] )
-		ataqc 		= get_conf_val_bool( ataqc, 		["ataqc"] )
-	}
-	else if ( is_input_legacy() ) { // legacy input method taking first 8 parameters from cmd. line
+	
+	if ( is_input_legacy() ) { // legacy input method taking first 8 parameters from cmd. line
 
 		bwt2_idx 	= args[0].trim()
 		fastq1_1	= args[1].trim()
@@ -98,6 +79,23 @@ void init_atac() {
 		print( "Chromosome sizes file\t: $chrsz\n" )
 		print( "V-Plot index\t\t: $vplot_idx\n" )
 		print( "Output dir.\t\t: $out_dir\n" )
+	}
+	else {
+		se 		= get_conf_val_bool( se,		["se"] )
+
+		trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
+		fraglen 	= get_conf_val_int( fraglen,		["fraglen", "frag_len"] )
+
+		mapping		= get_conf_val_bool( mapping,		["mapping"] )
+
+		vplot 		= get_conf_val_bool( vplot,		["vplot"] )
+		preseq 		= get_conf_val_bool( preseq,		["preseq"] )
+		subsample	= get_conf_val_bool( subsample, 	["subsample"] )
+		pseudorep	= get_conf_val_bool( pseudorep, 	["pseudorep"] )
+
+		idr 		= get_conf_val_bool( idr, 		["idr"] )
+		ataqc 		= get_conf_val_bool( ataqc, 		["ataqc"] )
+
 	}
 
 	if ( input == "" ) { // determine input type
@@ -512,13 +510,6 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 
 	html 		:= "$prefix"+"_qc.html"
 	txt 		:= "$prefix"+"_qc.txt"
-	/*
-	gc_plot 	:= "$prefix"+"_gcPlot.pdf"
-	hist_graph 	:= "$prefix.inserts.hist_graph.pdf"
-	lg_vplot 	:= "$prefix"+"_large_vplot.png"
-	vplot 		:= "$prefix"+"_vplot.png"
-	signal 		:= "$prefix.signal"
-	*/
 
 	prefix_basename := get_basename( prefix )
 
@@ -565,10 +556,6 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 
 // outputs (pdf, png, log, ...) and report must be in the same directory
 string[] _report_atac( string out_dir, string info ) {
-
-	//prefix   := change_dir( remove_ext( preseq_pdf, ["preseq.pdf"] ), out_dir )
-	//tex_file := "$prefix.summary.tex"
-	//pdf_file := "$prefix.summary.pdf"
 
 	prefix 	 := "$out_dir/report"
 	tex_file := "$prefix.tex"
@@ -716,52 +703,6 @@ string[] _report_atac( string out_dir, string info ) {
 	}
 
 	return out
-}
-
-void set_shell_env() {
-	
-	// create output dir.	
-
-	if ( is_kundaje_lab() || is_scg3() ) {
-
-		print("\n\nAutomatically adding environment variables... (kundaje_lab: $hostname) \n\n")
-
-		if ( SHCMD_INIT.indexOf( init_mod ) < 0  ) { // if not module init. cmd found, then add it
-			SHCMD_INIT = SHCMD_INIT + " . /etc/profile.d/modules.sh;"
-		}
-
-		if ( is_scg3() ) { // if on SCG3		
-
-			SHCMD_INIT = SHCMD_INIT + " module add gnuplot/5.0 python/2.7.6;" \
-
-			dir_sw_BDS := "/srv/gsfs0/scratch/leepc12/software"
-
-			path := " export PATH=" \
-				+ "$dir_sw_BDS/R-2.15.1/bin:" \
-				+ "$dir_sw_BDS/phantompeakqualtools:$dir_sw_BDS/python3.4/bin:" \
-                                + "$dir_sw_BDS/align2rawsignal/bin:$dir_sw_BDS/idrCode:$dir_sw_BDS/python2.7/bin:" \
-				+ "$dir_sw_BDS/idrCode:" \
-				+ "$dir_sw_BDS/preseq:" \
-				+ "\${PATH}"
-
-
-			shellcmd := "export LAPACK=$dir_sw_BDS/blas/lapack-*/liblapack.a;" \
-                        	  + "export PYTHONPATH=$dir_sw_BDS/python2.7/lib/python2.7/site-packages:$dir_sw_BDS/python3.4/lib/python3.4/site-packages:\${PYTHONPATH};"
-			
-			SHCMD_INIT = SHCMD_INIT + ";" + path + ";" + shellcmd
-			SHCMD_INIT = SHCMD_INIT.replace( "; ;", ";" ).replace( ";;", ";" )
-		}
-		else {
-			SHCMD_INIT = SHCMD_INIT + " module add r/2.15.1 phantompeakqualtools/default idr/latest preseq/2.0.2 MACS2/2.1.0;"
-			SHCMD_INIT = SHCMD_INIT + " export PATH=${PATH}:/software/idrCode;"
-		}
-
-		SHCMD_INIT = SHCMD_INIT + " module add bowtie/2.2.4 samtools/1.2 bedtools/2.21.0 picard-tools/1.129 ucsc_tools/3.0.9 java/latest texlive/2013 trim_galore/0.4.0;" \
-					+ " export _JAVA_OPTIONS='-Xms256M -Xmx2048M -XX:ParallelGCThreads=1'; export MAX_JAVA_MEM='16G'; export MALLOC_ARENA_MAX=4;"
-		SHCMD_INIT = SHCMD_INIT.replace( "; ;", ";" ).replace( ";;", ";" )
-
-		print( "Shell command for init.\t: $SHCMD_INIT\n" )
-	}
 }
 
 void help() {
