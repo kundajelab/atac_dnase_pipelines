@@ -36,7 +36,14 @@ $ tar zxvf bds_Linux.tgz
 
 Add `$HOME/.bds/` to your `$PATH`, then replace BDS's default bds.config with a correct one:
 ```
-$ cp /path/to/bds_atac/chipseq/bds.config $HOME/.bds/
+$ cd bds_atac
+$ mkdir -p $HOME/.bds
+$ cp bds.config $HOME/.bds
+```
+
+Add the following lines to your `$HOME/.bashrc` or `$HOME/.bash_profile`:
+```
+export PATH=$PATH:$HOME/.bds
 ```
 
 If Java memory error occurs, add the following to your `$HOME/.bashrc`:
@@ -47,12 +54,9 @@ export MALLOC_ARENA_MAX=4
 ```
 
 
-
-
-
 ### Usage
 
-1) Define parameters in command line argument (legacy method)
+1) Define parameters in command line argument (legacy method, not recommended)
 This input method does not support multiple replicates and always generate V plot and perform preseq analysis.
 ```
 $ bds atac.bds [BOWTIE2_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE; hs for human, mm for mouse] [CHROMSIZES_FILE] [VPLOT_INDEX] [OUTPUT_DIR]
@@ -85,9 +89,9 @@ For preseq analysis, add the following to command line:
 -preseq
 ```
 
-For advanced ATAQC (only for PE dataset), add the following to command line, parameters `-preseq` and `-vplot` will be ignored since they are already included in ATAQC. You will need to get read permission to the ataqc repo (https://bitbucket.org/csfoo/ataqc).
+For advanced ATAQC (only for PE dataset), add the following to command line, parameters `-preseq` and `-vplot` will be ignored since they are already included in ATAQC. You will need to get read permission to the ataqc repo (https://bitbucket.org/csfoo/ataqc). See help for description for each parameter.
 ```
--ataqc -vplot_idx [VPLOT_INDEX]
+-ataqc -vplot_idx [] -ref_fa [] -blacklist [] -dnase [] -prom [] -enh [] -reg2map [] -roadmap_meta []
 ```
 
 If you have just one replicate (PE), define fastqs with `-fastq[PAIR_NO]`.
@@ -97,17 +101,12 @@ If you have just one replicate (PE), define fastqs with `-fastq[PAIR_NO]`.
 
 For multiple replicates (PE), define fastqs with `-fastq[REP_NO]_[PAIR_NO]`. Add -fastq[]_[] for each replicate and pair to the command line:replicates.
 ```
--fastq1_1 [READ_REP1_PAIR1] -fastq1_2 [READ_REP1_PAIR2] \
--fastq2_1 [READ_REP2_PAIR1] -fastq2_2 [READ_REP2_PAIR2] \
-...
+-fastq1_1 [READ_REP1_PAIR1] -fastq1_2 [READ_REP1_PAIR2] -fastq2_1 [READ_REP2_PAIR1] -fastq2_2 [READ_REP2_PAIR2] ...
 ```
 
 For multiple replicates (SE), define fastqs with `-fastq[REP_NO]`:
 ```
--se \
--fastq1 [READ_REP1] \
--fastq2 [READ_REP2] \
-...
+-se -fastq1 [READ_REP1] -fastq2 [READ_REP2] ...
 ```
 
 
@@ -148,9 +147,7 @@ For MACS2 peak calling:
 -nth_macs2 [NTHREADS_MACS2] -mem_macs2 [MEMORY_MACS2; e.g. 20G] -wt_macs2 [WALLTIME_MACS@; e.g. 20h]
 ```
 
-
 By default, IDR will be done for true replicates, but if you have `-pseudorep` in the command line, you will also get IDR on pseudo replicates and pooled pseudo replicates.
-
 
 For Kundaje lab cluster and SCG3, skip parameters (bwt2_idx, chrsz, gensz and vplot_idx) and just specify species.
 ```
@@ -165,17 +162,26 @@ $ bds atac.bds
 ```
 
 
-
 3) Define parameters in configuration file.
 Key names in a configruation file are identical to parameter names on command line. 
 ```
 $ bds atac.bds [CONF_FILE]
+
+or 
+
+$ bds atac.bds -c [CONF_FILE]
 
 $ cat [CONF_FILE]
 fastq1= [READ1]
 fastq2= [READ2]
 ...
 ```
+
+
+### Species file and Environment file
+
+See details <a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_PIPELINE.md" target=_blank>here</a>
+
 
 
 ### Parallelism in atac pipeline
