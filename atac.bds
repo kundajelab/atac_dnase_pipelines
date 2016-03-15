@@ -1,4 +1,5 @@
 #!/usr/bin/env bds
+#vim: syntax=java
 
 
 help == atac pipeline settings
