@@ -26,6 +26,7 @@ include "modules/postalign_bam.bds"
 include "modules/postalign_bed.bds"
 include "modules/preseq.bds"
 include "modules/callpeak_macs2.bds"
+include "modules/callpeak_etc.bds"
 include "modules/idr.bds"
 
 input := ""
@@ -33,7 +34,7 @@ input := ""
 // Global variable for output filenames ( map with key $rep )
 string{} peaks, peaks_pr1, peaks_pr2 	
 string{} shifted_tags, shifted_tags_pr1, shifted_tags_pr2
-
+string peak_pooled, peak_ppr1, peak_ppr2
 
 
 init_atac()
@@ -41,6 +42,8 @@ init_atac()
 chk_input_data()
 
 atac()
+
+post_atac()
 
 do_idr()
 
@@ -138,6 +141,8 @@ void chk_input_data() {
 
 	if ( ataqc && !is_input_fastq() ) error("ATACQC (-ataqc) is available for fastqs input only!\n")
 	if ( ataqc && se ) 		  error("ATACQC (-ataqc) is not available for single-ended (-se) data set!\n")
+
+	if ( idr && get_num_rep() != 2 ) error("IDR (-idr) is available for two replicates only!")
 
 	// check data files
 	suffix := se ? " (SE)" : " (PE)"
@@ -424,6 +429,7 @@ void _atac_PE( int rep ) {
 
 			( peaks{rep}, fc_bigwig, pval_bigwig ) = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
 		}
+
 	}
 
 	if ( bam != "" ) {
@@ -456,17 +462,55 @@ void _atac_PE( int rep ) {
 	wait
 }
 
+void post_atac() {
+
+	if ( mapping ) return
+
+	if ( get_num_rep() != 2 ) return
+
+	pooled_out_dir := mkdir_path( "$out_dir/pooled_replicate" )
+
+	string shifted_tag_pooled
+
+	if ( pseudorep ) {
+
+		// Make shifted tags for pooled pseudo rep (ppr).
+		string shifted_tag_ppr1, shifted_tag_ppr2
+
+		( shifted_tag_pooled, shifted_tag_ppr1, shifted_tag_ppr2 ) = \
+			_ppr( 	shifted_tags{1}, shifted_tags_pr1{1}, shifted_tags_pr2{1}, \
+				shifted_tags{2}, shifted_tags_pr1{2}, shifted_tags_pr2{2}, pooled_out_dir, "" )
+		wait
+
+		// call peaks on ppr
+		string tmp
+		( peak_ppr1, tmp ) = _macs2_atac( shifted_tag_ppr1, "$fraglen", pooled_out_dir, "ppr1" )
+		( peak_ppr2, tmp ) = _macs2_atac( shifted_tag_ppr2, "$fraglen", pooled_out_dir, "ppr2" )
+		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$fraglen", pooled_out_dir, "pooled" )
+
+		wait
+
+		peak_final := _naive_overlap_thresh_narrowpeak( peak_pooled, peaks{1}, peaks{2}, \
+								peak_ppr1, peak_ppr2, pooled_out_dir, "final" )
+	}
+	else {
+		shifted_tag_pooled = _pool_tag( shifted_tags{1}, shifted_tags{2}, pooled_out_dir, "" )
+		wait
+
+		string tmp
+		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$fraglen", pooled_out_dir, "pooled" )
+	}
+
+	wait
+}
+
 void do_idr() {
 	
+	if ( mapping ) return
+
 	if ( !idr || get_num_rep() != 2 ) return
 
 	idr_out_dir := mkdir_path( use_idr1 ? "$out_dir/idr1" : "$out_dir/idr2" )
-
-	shifted_tag_pooled := _pool_tag( shifted_tags{1}, shifted_tags{2}, idr_out_dir, "" )
-	wait
-
-	peak_pooled := _macs2_atac( shifted_tag_pooled, "$fraglen", idr_out_dir, "pooled" )
-	wait
 
 	// IDR for true reps
 	idr_Nt := _idr( peaks{1}, peaks{2}, peak_pooled, idr_out_dir, "true_rep_Rep1_vs_Rep2" )
@@ -476,19 +520,6 @@ void do_idr() {
 		// IDR on pseudo reps
 		idr_N1 := _idr( peaks_pr1{1}, peaks_pr2{1}, peaks{1}, idr_out_dir, "pseudo_rep_Rep1_PR1_vs_Rep1_PR2" )
 		idr_N2 := _idr( peaks_pr1{2}, peaks_pr2{2}, peaks{2}, idr_out_dir, "pseudo_rep_Rep2_PR1_vs_Rep2_PR2" )
-
-		// Make shifted tags for pooled pseudo rep (ppr).
-		string shifted_tag_pooled, shifted_tag_ppr1, shifted_tag_ppr2
-
-		( shifted_tag_pooled, shifted_tag_ppr1, shifted_tag_ppr2 ) = \
-			_ppr( 	shifted_tags{1}, shifted_tags_pr1{1}, shifted_tags_pr2{1}, \
-				shifted_tags{2}, shifted_tags_pr1{2}, shifted_tags_pr2{2}, idr_out_dir, "" )
-		wait
-
-		// call peaks on ppr
-		peak_ppr1 := _macs2_atac( shifted_tag_ppr1, "$fraglen", idr_out_dir, "ppr1" )
-		peak_ppr2 := _macs2_atac( shifted_tag_ppr2, "$fraglen", idr_out_dir, "ppr2" )
-		wait
 
 		// IDR on ppr
 		idr_Np := _idr( peak_ppr1, peak_ppr2, peak_pooled, idr_out_dir, "pooled_pseudo_rep_PPR1_vs_PPR2" )
