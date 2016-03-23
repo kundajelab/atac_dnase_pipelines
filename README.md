@@ -54,6 +54,12 @@ export MALLOC_ARENA_MAX=4
 ```
 
 
+### SCG3 and Kundaje lab clusters
+
+On SCG3 and Kundaje lab clusters, you don't need to define any genome specific parameters like bowtie2 index, chromsome sizes file, vplot index (TSS) and so on. Just add `-species [SPECIES; hg19, mm9, ...]` and all parameters will be automatically added by the pipeline.
+
+
+
 ### Usage
 
 1) Define parameters in command line argument (legacy method, not recommended)
@@ -89,7 +95,7 @@ For preseq analysis, add the following to command line:
 -preseq
 ```
 
-For advanced ATAQC (only for PE dataset), add the following to command line, parameters `-preseq` and `-vplot` will be ignored since they are already included in ATAQC. You will need to get read permission to the ataqc repo (https://bitbucket.org/csfoo/ataqc). See help for description for each parameter.
+For advanced ATAQC (only for PE dataset), add the following to command line, parameters `-preseq` and `-vplot` will be ignored since they are already included in ATAQC. See help (`$ bds atac.bds`) for description of all parameters.
 ```
 -ataqc -vplot_idx [] -ref_fa [] -blacklist [] -dnase [] -prom [] -enh [] -reg2map [] -roadmap_meta []
 ```
@@ -132,12 +138,12 @@ To generate pseduro replicates and call peaks on them:
 -pseudorep
 ```
 
-For IDR analysis on peaks (two replicates are needed):
+For IDR analysis on peaks (two replicates are needed) add the following, and for final IDR QC add path to blacklist idr (for hg19, http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz):
 ```
--idr
+-idr -blacklist_idr [BLACKLIST_IDR]
 ```
 
-To change resource settings (# of processor, max memory and walltime) for bowtie2, add the following to command line:
+To change resource settings (# of processor, max memory and walltime) for bowtie2, add the following to command line, please note that memory is PER CPU:
 ```
 -nth_bwt2 [NTHREADS_BWT2] -mem_bwt2 [MEMORY_BWT2; e.g. 20G] -wt_bwt2 [WALLTIME_BWT2; e.g. 20h]
 ```
@@ -154,7 +160,7 @@ For Kundaje lab cluster and SCG3, skip parameters (bwt2_idx, chrsz, gensz and vp
 $ bds atac.bds -fastq1 [READ1] -fastq2 [READ2] -species [hg19 or mm9]
 ```
 
-For other clusters, add -mod, -addpath and -shcmd to set up enviroment variables for your jobs. This is explained in <a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">README_PIPELINE.md</a>.
+For other clusters, add -mod, -addpath and -shcmd to set up enviroment variables for your jobs or make an environment file for your system. See details <a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">here</a>.
 
 To list all parameters and default values for them,
 ```
