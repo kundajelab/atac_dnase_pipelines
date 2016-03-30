@@ -15,6 +15,8 @@ pseudorep 	:= false 	help Generate pseudo-replicates and call peaks on them.
 idr 		:= false 	help Perform IDR analysis.
 ataqc 		:= false 	help Advanced ATAC QC (parameters to be defined: species, blacklist, dnase, tss, prom, enh, reg2map and roadmap_meta).
 
+mem_ataqc 	:= "8G"		help Max. memory for ataqc (default: 8G).
+
 help() // show help contexts
 
 include "modules/input_fastq.bds"
@@ -100,6 +102,7 @@ void init_atac() {
 		idr 		= get_conf_val_bool( idr, 		["idr"] )
 		ataqc 		= get_conf_val_bool( ataqc, 		["ataqc"] )
 
+		mem_ataqc	= get_conf_val( mem_ataqc,		["mem_ataqc"] )
 	}
 
 	if ( input == "" ) { // determine input type
@@ -110,6 +113,8 @@ void init_atac() {
 	}
 
 	fraglen0 = true // set fragment length as zero for cross corr. analysis
+
+	rm_chr_from_tag = "chrM"; // remove lines with chrM in _bam_to_tag
 
 	print( "\n\n== atac pipeline settings\n")
 	print( "Single ended data set?\t: $se\n")
@@ -124,6 +129,7 @@ void init_atac() {
 	print( "Vplot generation\t: $vplot\n")
 	print( "Preseq analysis\t\t: $preseq\n")
 	print( "ATAQC (advanced QC report including vplot and preseq)\t: $ataqc\n")
+	print( "Max. memory (ATAQC)\t: $mem_ataqc\n")
 }
 
 void chk_input_data() {
@@ -140,7 +146,7 @@ void chk_input_data() {
 	}
 
 	if ( ataqc && !is_input_fastq() ) error("ATACQC (-ataqc) is available for fastqs input only!\n")
-	if ( ataqc && se ) 		  error("ATACQC (-ataqc) is not available for single-ended (-se) data set!\n")
+	//if ( ataqc && se ) 		  error("ATACQC (-ataqc) is not available for single-ended (-se) data set!\n")
 
 	if ( idr && get_num_rep() != 2 ) error("IDR (-idr) is available for two replicates only!")
 
@@ -305,7 +311,13 @@ void _atac_SE( int rep ) {
 		wait
 
 		if ( ataqc ) {
-			// currently ataqc doesn't support single ended data
+
+			report_dir := mkdir_path( "$atac_out_dir/ataqc" )
+
+			_ataqc( fastq, "", bam, align_log, sorted_bam, \
+				dup_qc, filt_bam, shifted_tags{rep}, pval_bigwig, peaks{rep}, \
+				report_dir, info )
+
 		}
 		else {
 
@@ -413,7 +425,11 @@ void _atac_PE( int rep ) {
 			}
 			wait
 
-			( peaks{rep}, fc_bigwig, pval_bigwig )  = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
+			if ( !subsample ) {
+
+				shifted_tags{rep} = _bam_to_bed_atac( filt_bam, atac_out_dir, info )
+				wait
+			}
 			
 			if ( pseudorep ) {
 
@@ -423,13 +439,11 @@ void _atac_PE( int rep ) {
 			}
 		}
 		else {
-
 			shifted_tags{rep} = _bam_to_bed_atac( filt_bam, atac_out_dir, info )
 			wait
-
-			( peaks{rep}, fc_bigwig, pval_bigwig ) = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
 		}
 
+		( peaks{rep}, fc_bigwig, pval_bigwig ) = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
 	}
 
 	if ( bam != "" ) {
@@ -544,6 +558,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 	txt 		:= "$prefix"+"_qc.txt"
 
 	prefix_basename := get_basename( prefix )
+	param_fastq 	:= (fastq2!="") ? "--fastq1 $fastq1 --fastq2 $fastq2" : "--fastq1 $fastq1"
 
 	in  := [ fastq1, fastq2, bam, align_log, srt_bam, dup_log, filt_bam, bed, bigwig, peak ]
 	out := [ html, txt ] //, gc_plot, hist_graph, lg_vplot, vplot, signal ]
@@ -569,8 +584,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 		    --enh $enh \
 		    --reg2map $reg2map \
 		    --meta $roadmap_meta \
-		    --fastq1 $fastq1 \
-		    --fastq2 $fastq2 \
+		    $param_fastq \
 		    --alignedbam $bam \
 		    --alignmentlog $align_log \
 		    --coordsortbam $srt_bam \
