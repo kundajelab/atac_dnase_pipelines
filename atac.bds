@@ -7,15 +7,16 @@ help == atac pipeline settings
 se 		:= false 	help Single ended data.
 trimmed_fastq 	:= false	help Skip fastq-trimming stage.
 fraglen 	:= 75 		help Read fragment length (default: 75).
-mapping	 	:= false	help Mapping only (no macs2 peak calling or idr).
+mapping	 	:= false	help Mapping only (no macs2 peak calling or IDR).
 vplot 		:= false 	help Create V plot.
 preseq 		:= false 	help Do preseq analysis.
 subsample 	:= false 	help Subsample replicates. Use '-nreads [NO_READS]' (default: 15000000) to specify # reads to subsample.
-pseudorep 	:= false 	help Generate pseudo-replicates and call peaks on them.
-idr 		:= false 	help Perform IDR analysis.
-ataqc 		:= false 	help Advanced ATAC QC (parameters to be defined: species, blacklist, dnase, tss, prom, enh, reg2map and roadmap_meta).
+no_pseudorep 	:= false 	help No pseudo-replicates.
+no_idr 		:= false 	help No IDR analysis on called peaks.
+no_ataqc 	:= false 	help No ATAQC 
+//ataqc(parameters to be defined: species, blacklist, dnase, tss, prom, enh, reg2map and roadmap_meta).
 
-mem_ataqc 	:= "8G"		help Max. memory for ataqc (default: 8G).
+mem_ataqc 	:= "8G"		help Max. memory for ATAQC (default: 8G).
 
 help() // show help contexts
 
@@ -47,7 +48,7 @@ atac()
 
 post_atac()
 
-do_idr()
+idr()
 
 
 void init_atac() {
@@ -70,8 +71,9 @@ void init_atac() {
 
 		mapping 	= false
 
-		idr 		= false
-		ataqc 		= false
+		no_pseudorep 	= true
+		no_idr 		= true
+		no_ataqc	= true
 
 		input 		= "fastq"
 	
@@ -97,10 +99,10 @@ void init_atac() {
 		vplot 		= get_conf_val_bool( vplot,		["vplot"] )
 		preseq 		= get_conf_val_bool( preseq,		["preseq"] )
 		subsample	= get_conf_val_bool( subsample, 	["subsample"] )
-		pseudorep	= get_conf_val_bool( pseudorep, 	["pseudorep"] )
+		no_pseudorep	= get_conf_val_bool( no_pseudorep, 	["no_pseudorep"] )
 
-		idr 		= get_conf_val_bool( idr, 		["idr"] )
-		ataqc 		= get_conf_val_bool( ataqc, 		["ataqc"] )
+		no_idr 		= get_conf_val_bool( no_idr, 		["no_idr"] )
+		no_ataqc 	= get_conf_val_bool( no_ataqc, 		["no_ataqc"] )
 
 		mem_ataqc	= get_conf_val( mem_ataqc,		["mem_ataqc"] )
 	}
@@ -124,12 +126,12 @@ void init_atac() {
 	print( "# Replicates\t\t: "+ get_num_rep() + "\n")
 	print( "MACS2 peak calling\t: " + !mapping + "\n")
 	print( "Subsample replicates\t: $subsample\n")
-	print( "Create/call peaks on pseudo replicates\t: $pseudorep\n")
-	print( "Perform IDR analysis on peaks\t: $idr\n")
+	print( "No pseudo replicates\t: $no_pseudorep\n")
+	print( "No IDR analysis on peaks\t: $no_idr\n")
 	print( "Vplot generation\t: $vplot\n")
 	print( "Preseq analysis\t\t: $preseq\n")
-	print( "ATAQC (advanced QC report including vplot and preseq)\t: $ataqc\n")
-	print( "Max. memory (ATAQC)\t: $mem_ataqc\n")
+	print( "No ATAQC (advanced QC report including vplot and preseq)\t: $no_ataqc\n")
+	print( "Max. memory for ATAQC\t: $mem_ataqc\n")
 }
 
 void chk_input_data() {
@@ -139,16 +141,21 @@ void chk_input_data() {
 	if ( is_input_fastq() ) chk_align_bwt2()
 	if ( !mapping ) 	chk_callpeak_macs2()
 	if ( vplot ) 		chk_vplot()
-	if ( idr ) 		chk_idr()
+	if ( !no_idr ) 		chk_idr()
 
 	if ( is_input_filt_bam() && ( vplot || preseq ) ) {
 		error("Preseq analysis (-preseq) and vplot (-vplot) are not available if pipeline starts from filtered bam files (with '-input filt_bam')!\n")
 	}
 
-	if ( ataqc && !is_input_fastq() ) error("ATACQC (-ataqc) is available for fastqs input only!\n")
-	//if ( ataqc && se ) 		  error("ATACQC (-ataqc) is not available for single-ended (-se) data set!\n")
+	if ( !is_input_fastq() ) {
+		print("\nWarning: ATAQC is available for fastq inputs only. Disabling ATAQC...\n")
+		no_ataqc = true
+	}
 
-	if ( idr && get_num_rep() != 2 ) error("IDR (-idr) is available for two replicates only!")
+	if ( get_num_rep() != 2 ) {
+		print("\nWarning: IDR is available for two replicates only. Disabling IDR...\n")
+		no_idr 	= true
+	}
 
 	// check data files
 	suffix := se ? " (SE)" : " (PE)"
@@ -216,9 +223,9 @@ void atac() {
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 		
-		if ( no_par )   _atac( rep )
-		else 		par _atac( rep )
+		par _atac( rep )
 	}
+
 	wait
 }
 
@@ -226,6 +233,8 @@ void _atac( int rep ) {
 
 	if ( se ) 	_atac_SE( rep )
 	else 		_atac_PE( rep )
+
+	wait_par_rep()
 }
 
 void _atac_SE( int rep ) {
@@ -292,7 +301,7 @@ void _atac_SE( int rep ) {
 
 		( peaks{rep}, fc_bigwig, pval_bigwig )  = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
 
-		if ( pseudorep ) {
+		if ( !no_pseudorep ) {
 
 			( shifted_tags_pr1{rep}, shifted_tags_pr2{rep} ) = _spr( shifted_tags{rep}, atac_out_dir, info )
 			wait
@@ -307,17 +316,16 @@ void _atac_SE( int rep ) {
 
 		string sorted_bam
 
-		if ( vplot || preseq || ataqc ) sorted_bam = _srt_bam( bam, atac_out_dir, info )
+		if ( vplot || preseq || !no_ataqc ) sorted_bam = _srt_bam( bam, atac_out_dir, info )
 		wait
 
-		if ( ataqc ) {
+		if ( !no_ataqc ) {
 
 			report_dir := mkdir_path( "$atac_out_dir/ataqc" )
 
 			_ataqc( fastq, "", bam, align_log, sorted_bam, \
 				dup_qc, filt_bam, shifted_tags{rep}, pval_bigwig, peaks{rep}, \
 				report_dir, info )
-
 		}
 		else {
 
@@ -390,37 +398,34 @@ void _atac_PE( int rep ) {
 
 	if ( !mapping ) {
 
-		if ( subsample || pseudorep ) {
+		if ( subsample || !no_pseudorep ) {
 
-			nmsrt_bam := _nmsrt_bam( filt_bam, atac_out_dir, info )
-			wait
-
-			bedpe := _bam_to_bedpe( nmsrt_bam, atac_out_dir, info )
+			bedpe := _bam_to_bedpe( filt_bam, atac_out_dir, info, "filt_bam\\n($info)", "bedpe\\n($info)" )
 			wait 
 
 			string subsampled_bedpe
 
 			if ( subsample ) {
 
-				subsampled_bedpe = _subsample_bedpe( bedpe, atac_out_dir, info )		
+				subsampled_bedpe = _subsample_bedpe( bedpe, atac_out_dir, info )
 			}
 			else {
 				subsampled_bedpe = bedpe
 			}
 			wait
 
-			tag := _bedpe_to_tag( subsampled_bedpe, atac_out_dir, info )			
+			tag := _bedpe_to_tag( subsampled_bedpe, atac_out_dir, info )
 			wait
 
-			shifted_tags{rep} = _shift_tag( tag, atac_out_dir, info )			 
-			
-			if ( pseudorep ) {
+			shifted_tags{rep} = _shift_tag( tag, atac_out_dir, info )
+
+			if ( !no_pseudorep ) {
 
 				string tag_pr1, tag_pr2
 				(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info )
 				wait
 
-				shifted_tags_pr1{rep} = _shift_tag( tag_pr1, atac_out_dir, info )
+				shifted_tags_pr1{rep} = _shift_tag( tag_pr1, atac_out_dir, info )				
 				shifted_tags_pr2{rep} = _shift_tag( tag_pr2, atac_out_dir, info )
 			}
 			wait
@@ -431,9 +436,10 @@ void _atac_PE( int rep ) {
 				wait
 			}
 			
-			if ( pseudorep ) {
+			if ( !no_pseudorep ) {
 
 				string tmp // to get multiple elements of function return
+
 				( peaks_pr1{rep}, tmp ) = _macs2_atac( shifted_tags_pr1{rep}, "$fraglen", atac_out_dir, info + "_pr1" )
 				( peaks_pr2{rep}, tmp ) = _macs2_atac( shifted_tags_pr2{rep}, "$fraglen", atac_out_dir, info + "_pr2")
 			}
@@ -450,10 +456,10 @@ void _atac_PE( int rep ) {
 
 		string sorted_bam
 
-		if ( vplot || preseq || ataqc ) sorted_bam = _srt_bam( bam, atac_out_dir, info )
+		if ( vplot || preseq || !no_ataqc ) sorted_bam = _srt_bam( bam, atac_out_dir, info )
 		wait
 
-		if ( ataqc ) {
+		if ( !no_ataqc ) {
 
 			report_dir := mkdir_path( "$atac_out_dir/ataqc" )
 
@@ -486,7 +492,7 @@ void post_atac() {
 
 	string shifted_tag_pooled
 
-	if ( pseudorep ) {
+	if ( !no_pseudorep ) {
 
 		// Make shifted tags for pooled pseudo rep (ppr).
 		string shifted_tag_ppr1, shifted_tag_ppr2
@@ -498,6 +504,7 @@ void post_atac() {
 
 		// call peaks on ppr
 		string tmp
+
 		( peak_ppr1, tmp ) = _macs2_atac( shifted_tag_ppr1, "$fraglen", pooled_out_dir, "ppr1" )
 		( peak_ppr2, tmp ) = _macs2_atac( shifted_tag_ppr2, "$fraglen", pooled_out_dir, "ppr2" )
 		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$fraglen", pooled_out_dir, "pooled" )
@@ -518,31 +525,32 @@ void post_atac() {
 	wait
 }
 
-void do_idr() {
+void idr() {
 	
 	if ( mapping ) return
 
-	if ( !idr || get_num_rep() != 2 ) return
+	if ( no_idr || get_num_rep() != 2 ) return
 
-	idr_out_dir := mkdir_path( use_idr1 ? "$out_dir/idr1" : "$out_dir/idr2" )
+	idr_out_dir := mkdir_path( "$out_dir/idr2" )
 
-	// IDR for true reps
-	idr_Nt := _idr( peaks{1}, peaks{2}, peak_pooled, idr_out_dir, "true_rep_Rep1_vs_Rep2" )
+	string idr_tr, idr_pr_rep1, idr_pr_rep2, idr_ppr, tmp
 
-	if ( pseudorep ) {
+	// idr for true reps
+	(idr_tr, tmp) = _idr2( peaks{1}, peaks{2}, peak_pooled, idr_out_dir, "true" )
 
-		// IDR on pseudo reps
-		idr_N1 := _idr( peaks_pr1{1}, peaks_pr2{1}, peaks{1}, idr_out_dir, "pseudo_rep_Rep1_PR1_vs_Rep1_PR2" )
-		idr_N2 := _idr( peaks_pr1{2}, peaks_pr2{2}, peaks{2}, idr_out_dir, "pseudo_rep_Rep2_PR1_vs_Rep2_PR2" )
+	if ( !no_pseudorep ) {
 
-		// IDR on ppr
-		idr_Np := _idr( peak_ppr1, peak_ppr2, peak_pooled, idr_out_dir, "pooled_pseudo_rep_PPR1_vs_PPR2" )
+		// idr on pseudo reps
+		(idr_pr_rep1, tmp) = _idr2( peaks_pr1{1}, peaks_pr2{1}, peaks{1}, idr_out_dir, "rep1_pr" )
+		(idr_pr_rep2, tmp) = _idr2( peaks_pr1{2}, peaks_pr2{2}, peaks{2}, idr_out_dir, "rep2_pr" )
+
+		// idr on ppr
+		(idr_ppr, tmp) = _idr2( peak_ppr1, peak_ppr2, peak_pooled, idr_out_dir, "ppr" )
 		wait
 
-		if ( path_exists( blacklist_idr ) ) {
-			// second entry of return from function _idr() is narrowpeak.gz, get final idr qc score
-			idr_final_score := _idr_final_qc( idr_Nt[1], idr_N1[1], idr_N2[1], idr_Np[1], idr_out_dir, "" )
-		}
+		string idr_final_score
+
+		(idr_final_score, tmp, tmp) = _idr_final_qc( idr_tr, idr_pr_rep1, idr_pr_rep2, idr_ppr, idr_out_dir, "" )
 	}
 
 	wait
@@ -550,30 +558,28 @@ void do_idr() {
 
 string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, string srt_bam, \
 		 string dup_log, string filt_bam, string bed, string bigwig, string peak, \
-		 string out_dir, string info ) {
+		 string o_dir, string info ) {
 
-	prefix 		:= change_dir( remove_ext( fastq1, ["fastq","fq"] ), out_dir ) + ".PE2SE"
-
+	prefix 		:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), out_dir ) + ".PE2SE"
 	html 		:= "$prefix"+"_qc.html"
 	txt 		:= "$prefix"+"_qc.txt"
-
 	prefix_basename := get_basename( prefix )
 	param_fastq 	:= (fastq2!="") ? "--fastq1 $fastq1 --fastq2 $fastq2" : "--fastq1 $fastq1"
 
-	in  := [ fastq1, fastq2, bam, align_log, srt_bam, dup_log, filt_bam, bed, bigwig, peak ]
-	out := [ html, txt ] //, gc_plot, hist_graph, lg_vplot, vplot, signal ]
+	in  	:= [ fastq1, fastq2, bam, align_log, srt_bam, dup_log, filt_bam, bed, bigwig, peak ]
+	out 	:= [ html, txt ] //, gc_plot, hist_graph, lg_vplot, vplot, signal ]
 
-	task( taskName:= "ataqc "+info, \
-		cpus:=nth, mem:=parse_mem_or_skip(memory), timeout:=parse_time_or_skip(wt), \
-		out<-in ) {
+	taskName:= "ataqc "+info
 
-		sys $SHCMD_INIT
+	task( out<-in ) {
 
-		sys cd $out_dir
+		sys $shcmd_init
+
+		sys cd $o_dir
 
 		sys python $script_dir/ataqc/run_ataqc.py \
-		    --workdir $out_dir \
-		    --outdir $out_dir \
+		    --workdir $o_dir \
+		    --outdir $o_dir \
 		    --outprefix $prefix_basename \
 		    --genome $species \
 		    --ref $ref_fa \
@@ -601,23 +607,23 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 }
 
 // outputs (pdf, png, log, ...) and report must be in the same directory
-string[] _report_atac( string out_dir, string info ) {
+string[] _report_atac( string o_dir, string info ) {
 
-	prefix 	 := "$out_dir/report"
+	prefix 	 := "$o_dir/report"
 	tex_file := "$prefix.tex"
 	pdf_file := "$prefix.pdf"
 
 	in 	:= "" // always run this function (don't check file time stamp)
 	out 	:= [tex_file, pdf_file]
 
-	task( taskName:= "report "+info, \
-		cpus:=nth, mem:=parse_mem_or_skip(memory), timeout:=parse_time_or_skip(wt), \
-		out<-in ) {
+	taskName:= "report_atac "+info
 
-		sys $SHCMD_INIT
+	task( out<-in ) {
 
-		sys cd $out_dir
-		sys thisFolder=$out_dir
+		sys $shcmd_init
+
+		sys cd $o_dir
+		sys thisFolder=$o_dir
 
 		//# figure out what we've aligned to
 		sys MODEL=$bwt_idx
@@ -744,7 +750,7 @@ string[] _report_atac( string out_dir, string info ) {
 		sys echo "\end{document}" >> $tex_file		
 
 		//# now generate the pdf report (appears as *.report.pdf)
-		//sys cd $out_dir
+		//sys cd $o_dir
 		sys pdflatex $tex_file
 	}
 
