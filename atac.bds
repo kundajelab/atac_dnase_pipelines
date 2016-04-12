@@ -11,7 +11,7 @@ mapping	 	:= false	help Mapping only (no macs2 peak calling or IDR).
 vplot 		:= false 	help Create V plot.
 preseq 		:= false 	help Do preseq analysis.
 subsample 	:= false 	help Subsample replicates. Use '-nreads [NO_READS]' (default: 15000000) to specify # reads to subsample.
-no_pseudo_rep 	:= false 	help No pseudo-replicates.
+true_rep 	:= false 	help No pseudo-replicates.
 idr 		:= false 	help Perform IDR analysis on called peaks. This will change p-value threshold (0.01->0.1) in MACS2 peak calling.
 no_ataqc 	:= false 	help No ATAQC 
 csem	 	:= false	help Use CSEM for alignment.
@@ -73,7 +73,7 @@ void init_atac() {
 
 		mapping 	= false
 
-		no_pseudo_rep 	= true
+		true_rep 	= true
 		idr 		= false
 		no_ataqc	= true
 
@@ -103,7 +103,7 @@ void init_atac() {
 		vplot 		= get_conf_val_bool( vplot,		["vplot"] )
 		preseq 		= get_conf_val_bool( preseq,		["preseq"] )
 		subsample	= get_conf_val_bool( subsample, 	["subsample"] )
-		no_pseudo_rep	= get_conf_val_bool( no_pseudo_rep, 	["no_pseudo_rep"] )
+		true_rep	= get_conf_val_bool( true_rep, 		["true_rep"] )
 
 		idr 		= get_conf_val_bool( idr, 		["idr"] )
 		no_ataqc 	= get_conf_val_bool( no_ataqc, 		["no_ataqc"] )
@@ -132,7 +132,7 @@ void init_atac() {
 	print( "# Replicates\t\t: "+ get_num_rep() + "\n")
 	print( "MACS2 peak calling\t: " + !mapping + "\n")
 	print( "Subsample replicates\t: $subsample\n")
-	print( "No pseudo replicates\t: $no_pseudo_rep\n")
+	print( "No pseudo replicates\t: $true_rep\n")
 	print( "Perform IDR analysis on peaks\t: $idr\n")
 	print( "Vplot generation\t: $vplot\n")
 	print( "Preseq analysis\t\t: $preseq\n")
@@ -328,7 +328,7 @@ void _atac_SE( int rep ) {
 
 		( peaks{rep}, fc_bigwig, pval_bigwig )  = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
 
-		if ( !no_pseudo_rep ) {
+		if ( !true_rep ) {
 
 			( shifted_tags_pr1{rep}, shifted_tags_pr2{rep} ) = _spr( shifted_tags{rep}, atac_out_dir, info )
 			wait
@@ -431,7 +431,7 @@ void _atac_PE( int rep ) {
 
 	if ( !mapping ) {
 
-		if ( subsample || !no_pseudo_rep ) {
+		if ( subsample || !true_rep ) {
 
 			bedpe := _bam_to_bedpe( filt_bam, atac_out_dir, info, "filt_bam\\n($info)", "bedpe\\n($info)" )
 			wait 
@@ -452,7 +452,7 @@ void _atac_PE( int rep ) {
 
 			shifted_tags{rep} = _shift_tag( tag, atac_out_dir, info )
 
-			if ( !no_pseudo_rep ) {
+			if ( !true_rep ) {
 
 				string tag_pr1, tag_pr2
 				(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info )
@@ -469,7 +469,7 @@ void _atac_PE( int rep ) {
 				wait
 			}
 			
-			if ( !no_pseudo_rep ) {
+			if ( !true_rep ) {
 
 				string tmp // to get multiple elements of function return
 
@@ -525,7 +525,7 @@ void post_atac() {
 
 	string shifted_tag_pooled
 
-	if ( !no_pseudo_rep ) {
+	if ( !true_rep ) {
 
 		// Make shifted tags for pooled pseudo rep (ppr).
 		string shifted_tag_ppr1, shifted_tag_ppr2
@@ -581,7 +581,7 @@ void do_idr() {
 	// idr for true reps
 	(idr_tr, tmp) = _idr2( peak_rep1_filt, peak_rep2_filt, peak_pooled_filt, idr_out_dir, "true" )
 
-	if ( !no_pseudo_rep ) {
+	if ( !true_rep ) {
 
 		peak_pr1_rep1_filt := _filt_out_bad_npeaks( peaks_pr1{1}, rep1_dir, "rep1_pr1" )
 		peak_pr2_rep1_filt := _filt_out_bad_npeaks( peaks_pr2{1}, rep1_dir, "rep1_pr2" )
@@ -708,23 +708,15 @@ string _html_atac_files() {
 		
 		align_out_dir 	:= "$out_dir/$info"
 		
-		if ( ctl == 0 ) \
-			html += "<tr data-tt-id='$key'><td>" + "Replicate $rep ($info)"+ "</td><td>"+ _html_link_url( align_out_dir ) +"</td></tr>"
-		else \
-			html += "<tr data-tt-id='$key'><td>" + "Control $rep ($info)" + "</td><td>"+ _html_link_url( align_out_dir )  +"</td></tr>"
+		html += "<tr data-tt-id='$key'><td>" + "Replicate $rep ($info)"+ "</td><td>"+ _html_link_url( align_out_dir ) +"</td></tr>"
 
 		// replicates and controls
-		if ( is_paired_end( ctl, rep ) ) {
-			
-			if ( fastq.hasKey(key+",1") ) {
-				html += "<tr data-tt-id='fastq_$key"+"_1' data-tt-parent-id='$key'><td>" + "fastq pair 1" + "</td><td>"+_html_link_url( fastq{key+",1"} )+"</td></tr>"
-				html += "<tr data-tt-id='fastq_$key"+"_2' data-tt-parent-id='$key'><td>" + "fastq pair 2" + "</td><td>"+_html_link_url( fastq{key+",2"} )+"</td></tr>"
-			}
+		if ( fastq.hasKey(key+",1") ) {
+			html += "<tr data-tt-id='fastq_$key"+"_1' data-tt-parent-id='$key'><td>" + "fastq pair 1" + "</td><td>"+_html_link_url( fastq{key+",1"} )+"</td></tr>"
+			html += "<tr data-tt-id='fastq_$key"+"_2' data-tt-parent-id='$key'><td>" + "fastq pair 2" + "</td><td>"+_html_link_url( fastq{key+",2"} )+"</td></tr>"
 		}
-		else {
-			if ( fastq.hasKey(key) ) {
-				html += "<tr data-tt-id='fastq_$key' data-tt-parent-id='$key'><td>" + "fastq" + "</td><td>"+_html_link_url( fastq{key} )+"</td></tr>"
-			}
+		else if ( fastq.hasKey(key) ) {
+			html += "<tr data-tt-id='fastq_$key' data-tt-parent-id='$key'><td>" + "fastq" + "</td><td>"+_html_link_url( fastq{key} )+"</td></tr>"
 		}
 
 		if ( bam.hasKey(key) ) 	    html += "<tr data-tt-id='bam_$key' data-tt-parent-id='$key'><td>" + "bam" + "</td><td>"+_html_link_url( bam{key} )+"</td></tr>"

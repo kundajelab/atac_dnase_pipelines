@@ -124,7 +124,7 @@ To subsample beds (tagaligns) add the following to the command line, you can ski
 
 To disable pseudo replicate generation:
 ```
--no_pseudo_rep
+-true_rep
 ```
 
 For IDR analysis on peaks (two replicates are needed) add the following, and for final IDR QC add path to blacklist idr (for hg19, http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz):
@@ -142,7 +142,7 @@ For MACS2 peak calling:
 -nth_macs2 [NTHREADS_MACS2] -mem_macs2 [MEMORY_MACS2; e.g. 20G] -wt_macs2 [WALLTIME_MACS2; e.g. 20h]
 ```
 
-By default, IDR will be done for true replicates and pseudo replicates, but if you have `-no_pseudo_rep` in the command line, you will also get IDR on true replicates.
+By default, IDR will be done for true replicates and pseudo replicates, but if you have `-true_rep` in the command line, you will also get IDR on true replicates.
 
 For Kundaje lab cluster and SCG3, skip all genome specific parameters (like bwt2_idx, chrsz, ... ) and just specify species.
 ```
