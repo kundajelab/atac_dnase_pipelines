@@ -159,6 +159,10 @@ void chk_input_data() {
 		no_ataqc = true
 	}
 
+	if ( !se && csem ) {
+		error("CSEM (-csem) is not available for single-ended data set ('-se')!\n")
+	}
+
 	if ( get_num_rep() != 2 && idr ) {
 		print("\nWarning: IDR is available for two replicates only. Disabling IDR...\n")
 		idr 	= false
@@ -654,7 +658,269 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 
 	return out
 }
+/*
+void report() { // HTML atac report
 
+	wait
+	
+	sys cp $script_dir/html/jquery.treetable.* $out_dir    # move report js/css files to out_dir
+
+	report_file 	:= "$out_dir/Report.html"
+	report_header 	:= "$script_dir/html/rpt_header.html"
+
+	html := report_header.read()
+
+	html += _html_atac_files() 	// treeview for directory and file structure 
+	html += _html_atac_tracks() 	// epigenome browser tracks
+	html += _html_atac_graphviz()// graphviz workflow diagram
+	html += _html_atac_QC()	// show QC tables and images
+
+	html += "<br></body></html>"
+
+	report_file.write( html )
+}
+
+string _html_atac_graphviz() {
+
+	html := "<div id='atac_graphviz'><b>Workflow diagram</b>"
+
+	html += _html_graphviz()
+
+	html += "</div><br>\n"
+	return html
+}
+
+string _html_atac_files() {
+
+	html := "<div id='atac_files'><b>Directories and files</b>"
+
+	html += "<table id='filetable'> <caption>"+\
+		"<a href='#' onclick=\"jQuery('#filetable').treetable('expandAll'); return false;\">Expand all</a> &nbsp&nbsp" + \
+		"<a href='#' onclick=\"jQuery('#filetable').treetable('collapseAll'); return false;\">Collapse all</a>" + \
+		"</caption> <thead><tr><th>Files</th><th>Path</th></tr></thead> <tbody>"
+
+	for ( int rep=1; rep <= get_num_rep(); rep++) {
+
+		if ( !is_data_available( ctl, rep ) ) continue
+
+		info 	:= get_num_rep()==1 ? "." : "rep$rep"
+		key 	:= "$rep"
+		
+		align_out_dir 	:= "$out_dir/$info"
+		
+		if ( ctl == 0 ) \
+			html += "<tr data-tt-id='$key'><td>" + "Replicate $rep ($info)"+ "</td><td>"+ _html_link_url( align_out_dir ) +"</td></tr>"
+		else \
+			html += "<tr data-tt-id='$key'><td>" + "Control $rep ($info)" + "</td><td>"+ _html_link_url( align_out_dir )  +"</td></tr>"
+
+		// replicates and controls
+		if ( is_paired_end( ctl, rep ) ) {
+			
+			if ( fastq.hasKey(key+",1") ) {
+				html += "<tr data-tt-id='fastq_$key"+"_1' data-tt-parent-id='$key'><td>" + "fastq pair 1" + "</td><td>"+_html_link_url( fastq{key+",1"} )+"</td></tr>"
+				html += "<tr data-tt-id='fastq_$key"+"_2' data-tt-parent-id='$key'><td>" + "fastq pair 2" + "</td><td>"+_html_link_url( fastq{key+",2"} )+"</td></tr>"
+			}
+		}
+		else {
+			if ( fastq.hasKey(key) ) {
+				html += "<tr data-tt-id='fastq_$key' data-tt-parent-id='$key'><td>" + "fastq" + "</td><td>"+_html_link_url( fastq{key} )+"</td></tr>"
+			}
+		}
+
+		if ( bam.hasKey(key) ) 	    html += "<tr data-tt-id='bam_$key' data-tt-parent-id='$key'><td>" + "bam" + "</td><td>"+_html_link_url( bam{key} )+"</td></tr>"
+		if ( filt_bam.hasKey(key) ) html += "<tr data-tt-id='filt_bam_$key' data-tt-parent-id='$key'><td>" + "filtered bam" + "</td><td>"+_html_link_url( filt_bam{key} )+"</td></tr>"
+		if ( tag.hasKey(key) ) 	    html += "<tr data-tt-id='tag_$key' data-tt-parent-id='$key'><td>" + "tagalign" + "</td><td>"+_html_link_url( tag{key} )+"</td></tr>"
+	}
+
+	// signal track
+
+	if ( signal_trk.hasKey("0,1") || signal_trk_pval.hasKey("rep1") ) {
+
+		html += "<tr data-tt-id='signal'><td>" + "Signal track"+ "</td><td>"+ "" +"</td></tr>"
+
+		for ( int rep=1; rep <= get_num_rep(); rep++) {
+
+			if ( !is_data_available( 0, rep ) ) continue
+
+			info 	:= get_info( ctl, rep )
+			key 	:= "$ctl,$rep"
+
+			if ( signal_trk.hasKey(key) ) html += "<tr data-tt-id='signal_$key' data-tt-parent-id='signal'><td>" + "pval ($info)" + "</td><td>"+ _html_link_url( signal_trk{key} )+"</td></tr>"
+		}
+		
+		peak_out_dir := "$out_dir/peaks_macs2"
+
+		// true rep
+		html += "<tr data-tt-id='signal_trk_truerep' data-tt-parent-id='signal'><td>" + "True replicates"+ "</td><td>"+ _html_link_url( peak_out_dir+"/true_replicates" ) +"</td></tr>"
+
+		for ( int rep=1; rep <= get_num_rep(); rep++) {
+
+			if ( signal_trk_pval.hasKey("rep$rep") ) html += "<tr data-tt-id='signal_trk_$rep' data-tt-parent-id='signal_trk_truerep'><td>" + "pval (rep$rep)"+ "</td><td>"+ _html_link_url( signal_trk_pval{"rep$rep"} ) +"</td></tr>"
+			if ( signal_trk_fc.hasKey("rep$rep") ) html += "<tr data-tt-id='signal_trk_$rep' data-tt-parent-id='signal_trk_truerep'><td>" + "fc (rep$rep)"+ "</td><td>"+ _html_link_url( signal_trk_fc{"rep$rep"} ) +"</td></tr>"
+		}
+
+		// pseudo rep
+		if ( signal_trk_pval.hasKey("rep1_pr1") ) \
+			html += "<tr data-tt-id='signal_trk_pr' data-tt-parent-id='signal'><td>" + "Pseudo replicates"+ "</td><td>"+ _html_link_url( peak_out_dir+"/pseudo_replicates" ) +"</td></tr>"
+
+		for ( int rep=1; rep <= get_num_rep(); rep++) {
+			if ( signal_trk_pval.hasKey("rep$rep"+"_pr1") ) html += "<tr data-tt-id='signal_trk_pr1_$rep' data-tt-parent-id='signal_trk_pr'><td>" + "pval (rep$rep pr1)"+ "</td><td>"+ _html_link_url( signal_trk_pval{"rep$rep"+"_pr1"} ) +"</td></tr>"
+			if ( signal_trk_fc.hasKey("rep$rep"+"_pr1") ) html += "<tr data-tt-id='signal_trk_pr1_$rep' data-tt-parent-id='signal_trk_pr'><td>" + "fc (rep$rep pr1)"+ "</td><td>"+ _html_link_url( signal_trk_fc{"rep$rep"+"_pr1"} ) +"</td></tr>"
+			if ( signal_trk_pval.hasKey("rep$rep"+"_pr2") ) html += "<tr data-tt-id='signal_trk_pr2_$rep' data-tt-parent-id='signal_trk_pr'><td>" + "pval (rep$rep pr2)"+ "</td><td>"+ _html_link_url( signal_trk_pval{"rep$rep"+"_pr2"} ) +"</td></tr>"
+			if ( signal_trk_fc.hasKey("rep$rep"+"_pr2") ) html += "<tr data-tt-id='signal_trk_pr2_$rep' data-tt-parent-id='signal_trk_pr'><td>" + "fc (rep$rep pr2)"+ "</td><td>"+ _html_link_url( signal_trk_fc{"rep$rep"+"_pr2"} ) +"</td></tr>"
+		}
+
+		if ( signal_trk_pval.hasKey("ppr1") ) {
+			html += "<tr data-tt-id='signal_trk_ppr' data-tt-parent-id='signal'><td>" + "Pooled pseudo replicates"+ "</td><td>"+ _html_link_url( peak_out_dir+"/pooled_pseudo_replicates" ) +"</td></tr>"
+			html += "<tr data-tt-id='signal_trk_ppr1' data-tt-parent-id='signal_trk_ppr'><td>" + "pval (ppr1)"+ "</td><td>"+ _html_link_url( signal_trk_pval{"ppr1"} ) +"</td></tr>"
+			html += "<tr data-tt-id='signal_trk_ppr1' data-tt-parent-id='signal_trk_ppr'><td>" + "fc (ppr1)"+ "</td><td>"+ _html_link_url( signal_trk_fc{"ppr1"} ) +"</td></tr>"
+			html += "<tr data-tt-id='signal_trk_ppr2' data-tt-parent-id='signal_trk_ppr'><td>" + "pval (ppr2)"+ "</td><td>"+ _html_link_url( signal_trk_pval{"ppr2"} ) +"</td></tr>"
+			html += "<tr data-tt-id='signal_trk_ppr2' data-tt-parent-id='signal_trk_ppr'><td>" + "fc (ppr2)"+ "</td><td>"+ _html_link_url( signal_trk_fc{"ppr2"} ) +"</td></tr>"
+		}
+
+	}
+
+	// peaks
+
+	if ( peak.hasKey("spp,1") ) { // if peak output exists
+
+		peak_out_dir := "$out_dir/peaks_spp"
+
+		html += "<tr data-tt-id='peak'><td>" + "Peaks"+ "</td><td>"+ _html_link_url( peak_out_dir ) +"</td></tr>"
+
+		// true rep
+		html += "<tr data-tt-id='peak_truerep' data-tt-parent-id='peak'><td>" + "True replicates"+ "</td><td>"+ _html_link_url( peak_out_dir+"/true_replicates" ) +"</td></tr>"
+
+		for ( int rep=1; rep <= get_num_rep(); rep++) {
+
+			if ( peak.hasKey("spp,$rep") ) html += "<tr data-tt-id='peak_$rep' data-tt-parent-id='peak_truerep'><td>" + "rep$rep"+ "</td><td>"+ _html_link_url( peak{"spp,$rep"} ) +"</td></tr>"
+		}
+
+		// pseudo rep
+		if ( peak_pr1.hasKey("spp,1") ) \
+			html += "<tr data-tt-id='peak_pr' data-tt-parent-id='peak'><td>" + "Pseudo replicates"+ "</td><td>"+ _html_link_url( peak_out_dir+"/pseudo_replicates" ) +"</td></tr>"
+
+		for ( int rep=1; rep <= get_num_rep(); rep++) {
+			if ( peak_pr1.hasKey("spp,$rep") ) html += "<tr data-tt-id='peak_pr1_$rep' data-tt-parent-id='peak_pr'><td>" + "rep$rep pr1"+ "</td><td>"+ _html_link_url( peak_pr1{"spp,$rep"} ) +"</td></tr>"
+			if ( peak_pr2.hasKey("spp,$rep") ) html += "<tr data-tt-id='peak_pr2_$rep' data-tt-parent-id='peak_pr'><td>" + "rep$rep pr2"+ "</td><td>"+ _html_link_url( peak_pr2{"spp,$rep"} ) +"</td></tr>"
+		}
+
+		if ( peak_ppr1.hasKey("spp") ) {
+			html += "<tr data-tt-id='peak_ppr' data-tt-parent-id='peak'><td>" + "Pooled pseudo replicates"+ "</td><td>"+ _html_link_url( peak_out_dir+"/pooled_pseudo_replicates" ) +"</td></tr>"
+
+			html += "<tr data-tt-id='peak_ppr1' data-tt-parent-id='peak_ppr'><td>" + "ppr1"+ "</td><td>"+ _html_link_url( peak_ppr1{"spp"} ) +"</td></tr>"
+			html += "<tr data-tt-id='peak_ppr2' data-tt-parent-id='peak_ppr'><td>" + "ppr2"+ "</td><td>"+ _html_link_url( peak_ppr2{"spp"} ) +"</td></tr>"
+		}
+	}
+
+	// idr
+
+	if ( idr_tr != "" ) { // if idr output exists
+
+		string idr_out_dir
+
+		if ( is_input_peak() ) idr_out_dir = "$out_dir/idr2"
+		else 		       idr_out_dir = "$out_dir/peaks_spp/idr2"
+
+		html += "<tr data-tt-id='idr'><td>" + "IDR peaks"+ "</td><td>"+ _html_link_url( idr_out_dir ) +"</td></tr>"
+
+ 		if ( idr_tr!="" ) html += "<tr data-tt-id='idr_tr' data-tt-parent-id='idr'><td>" + "True replicates"+ "</td><td>"+ _html_link_url( idr_tr ) +"</td></tr>"		
+		if ( idr_pr_rep1!="" ) html += "<tr data-tt-id='idr_pr_rep1' data-tt-parent-id='idr'><td>" + "Pseudo-replicates (rep1)"+ "</td><td>"+ _html_link_url( idr_pr_rep1 ) +"</td></tr>"		
+		if ( idr_pr_rep2!="" ) html += "<tr data-tt-id='idr_pr_rep2' data-tt-parent-id='idr'><td>" + "Pseudo-replicates (rep2)"+ "</td><td>"+ _html_link_url( idr_pr_rep2 ) +"</td></tr>"		
+		if ( idr_ppr!="" ) html += "<tr data-tt-id='idr_ppr' data-tt-parent-id='idr'><td>" + "Pooled pseudo-replicates"+ "</td><td>"+ _html_link_url( idr_ppr ) +"</td></tr>"		
+		if ( idr_opt!="" ) html += "<tr data-tt-id='idr_opt' data-tt-parent-id='idr'><td>" + "Optimal set"+ "</td><td>"+ _html_link_url( idr_opt ) +"</td></tr>"		
+		if ( idr_consv!="" ) html += "<tr data-tt-id='idr_consv' data-tt-parent-id='idr'><td>" + "Conservative set"+ "</td><td>"+ _html_link_url( idr_consv ) +"</td></tr>"		
+	}
+
+	html += "</tbody></table>"
+	html += "</div><br>\n"
+
+	return html
+}
+
+string _html_atac_QC() {
+
+	string[] flagstat_qcs, dup_qcs, flagstat_nodup_qcs, pbc_qcs, xcor_qcs, xcor_plots
+	string[] flagstat_headers, dup_headers, flagstat_nodup_headers, pbc_headers, xcor_headers
+
+	for ( int ctl=0; ctl <= num_ctl; ctl++) { // iterate through inputs (ctl==0 : replicate, ctl==1 : control)	
+	
+		for ( int rep=1; rep <= get_num_rep(); rep++) {
+
+			if ( !is_data_available( ctl, rep ) ) continue
+
+			info := get_info( ctl, rep )
+			key := "$ctl,$rep"
+
+			if ( ctl == 0 ) {
+				//html_rep_by_id += _html_xcor( info, 	[ info ], [ xcor_qc{key} ], [ xcor_plot{key} ], [ info ] )
+
+				if ( xcor_qc.hasKey( key ) )	{
+					xcor_qcs 		+= xcor_qc{key}
+					xcor_plots 		+= xcor_plot{key}
+
+					xcor_headers 		+= info
+				}
+			}
+
+			if ( flagstat_qc.hasKey( key ) ) 	flagstat_qcs 		+= flagstat_qc{key}
+			if ( dup_qc.hasKey( key ) ) 		dup_qcs 		+= dup_qc{key}
+			if ( flagstat_nodup_qc.hasKey( key ) )	flagstat_nodup_qcs 	+= flagstat_nodup_qc{key}
+			if ( pbc_qc.hasKey( key ) ) 		pbc_qcs			+= pbc_qc{key}
+
+			if ( flagstat_qc.hasKey( key ) ) 	flagstat_headers 	+= info
+			if ( dup_qc.hasKey( key ) ) 		dup_headers 		+= info
+			if ( flagstat_nodup_qc.hasKey( key ) )	flagstat_nodup_headers 	+= info
+			if ( pbc_qc.hasKey( key ) ) 		pbc_headers		+= info
+
+		}
+	}	
+
+	html := "<div id='atac_qc'>"
+	
+	html += _parse_flagstat_to_html( "all", 	flagstat_headers, flagstat_qcs, flagstat_headers )
+	html += _parse_dup_to_html( "all", 		dup_headers, dup_qcs, dup_headers )
+	html += _parse_flagstat_to_html( "all, filtered",flagstat_nodup_headers, flagstat_nodup_qcs, flagstat_nodup_headers )
+	html += _parse_pbc_to_html( "all", 		pbc_headers, pbc_qcs, pbc_headers )
+	html += _parse_xcor_to_html( "all", 		xcor_headers, xcor_qcs, xcor_plots, xcor_headers )
+
+	// if idr qc's exists, add them to html
+
+	if ( idr_qc != "" ) html += _parse_idr_to_html( "idr", idr_qc )
+
+	if ( idr_tr_png != "" ) html += _html_img( idr_tr_png, 800, "Nt" ) + "&nbsp"
+	if ( idr_pr_rep1_png != "" ) html += _html_img( idr_pr_rep1_png, 800, "N1" ) + "&nbsp"
+	if ( idr_pr_rep2_png != "" ) html += _html_img( idr_pr_rep2_png, 800, "N2" ) + "&nbsp"
+	if ( idr_ppr_png != "" ) html += _html_img( idr_ppr_png, 800, "Np" ) + "&nbsp"
+
+	html += "</div><br>"
+	return html
+}
+
+string _html_atac_tracks() {
+
+	string[] track_files, track_types, track_names
+
+	if ( signal_trk_pval.hasKey( "pooled" ) ) { track_types += "bigwig"; track_names += "pval (pooled)"; track_files += signal_trk_pval{"pooled"} }
+	if ( signal_trk_fc.hasKey( "pooled" ) )   { track_types += "bigwig"; track_names += "fc (pooled)";   track_files += signal_trk_fc{"pooled"}   }
+	if ( idr_opt != "" ) {	track_types += "hammock"; track_names += "peak idr (opt. set)"; track_files += _peak_to_hammock( idr_opt ) }
+	if ( idr_consv != "" ) {track_types += "hammock"; track_names += "peak idr (cons. set)"; track_files += _peak_to_hammock( idr_consv ) }
+
+	for (int rep=1; rep<=get_num_rep(); rep++) {
+
+		if ( signal_trk_pval.hasKey( "rep$rep" ) ) { track_types += "bigwig"; track_names += "pval (rep$rep)"; track_files += signal_trk_pval{"rep$rep"} }
+		if ( signal_trk_fc.hasKey( "rep$rep" ) )   { track_types += "bigwig"; track_names += "fc (rep$rep)";   track_files += signal_trk_fc{"rep$rep"}   }
+		if ( rep==1 && idr_pr_rep1 != "" ) {	track_types += "hammock"; track_names += "peak idr (rep1_pr)"; track_files += _peak_to_hammock( idr_pr_rep1 ) }
+		if ( rep==2 && idr_pr_rep2 != "" ) {	track_types += "hammock"; track_names += "peak idr (rep2_pr)"; track_files += _peak_to_hammock( idr_pr_rep2 ) }
+	}
+
+	html := _html_epg_browser_viz( track_files, track_types, track_names )
+
+	return html
+}
+*/
+
+/*
 // outputs (pdf, png, log, ...) and report must be in the same directory
 string[] _report_atac( string o_dir, string info ) {
 
@@ -805,6 +1071,7 @@ string[] _report_atac( string o_dir, string info ) {
 
 	return out
 }
+*/
 
 void help() {
 

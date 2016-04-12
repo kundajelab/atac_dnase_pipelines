@@ -2,8 +2,15 @@ ATAC Seq Pipeline
 ===================================================
 
 
+### Installation instruction
 
-### Cloning/pulling the pipeline repo
+Install java (jdk >= 1.7 or jre >= 1.7) and the latest git on your system. 
+
+Install Anaconda Python3 (or Miniconda3) on your system. Open a new terminal after installation.
+
+Install BigDataScript v0.9999 on your system.
+
+See details <a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_PIPELINE.md" target=_blank>here</a>
 
 ATAC Seq pipeline is dependent on two external git repos and each has the following directory:
 ```
@@ -11,58 +18,46 @@ ataqc/ 		(public, https://bitbucket.org/csfoo/ataqc)
 chipseq/	(public, https://github.com/kundajelab/TF_chipseq_pipeline)
 ```
 
-To fully clone the repo:
+To FULLY clone the repo:
 ```
 $ git clone https://github.com/kundajelab/bds_atac --recursive
 ```
 
-To fully pull the repo:
+To FULLY pull the repo:
 ```
 $ git pull --recurse-submodules
 ```
 
-
-### Installing BigDataScript (BDS)
-
-Get BigDataScript v0.9999:
+Install software dependencies automatically (DO NOT run this on kundaje clusters or SCG3). It will create two conda environments (aquas_chipseq and aquas_chipseq_py3) in Miniconda3.
 ```
-$ git clone https://github.com/pcingola/BigDataScript
-$ cd BigDataScript
-$ git checkout tags/v0.9999
-$ cp distro/bds_Linux.tgz $HOME
-$ cd $HOME
-$ tar zxvf bds_Linux.tgz
+$ ./install_dependencies.sh
 ```
 
-Add `$HOME/.bds/` to your `$PATH`, then replace BDS's default bds.config with a correct one:
+Replace BDS's default `bds.config` with a correct one:
 ```
+$ cp chipseq/bds.config $HOME/.bds
+```
+
+
+### Installation instruction (for Kundaje lab clusters and SCG3)
+
+BDS and all dependencies have already been installed on lab servers (including SCG3). Do not run `install_dependencies.sh` on these servers. Get the latest version of chipseq pipelines. Don't forget to move bds.config to BigDataScript (BDS) directory
+```
+$ git clone https://github.com/kundajelab/bds_atac --recursive
 $ cd bds_atac
 $ mkdir -p $HOME/.bds
-$ cp bds.config $HOME/.bds
+$ cp chipseq/bds.config $HOME/.bds/
 ```
 
-Add the following lines to your `$HOME/.bashrc` or `$HOME/.bash_profile`:
+For Kundaje lab servers (mitra, nandi, durga, kali, vayu, amold and wotan) and SCG3 (carmack*, crick*, scg3*), the pipeline automatically determines the type of servers and set shell environments and species database.
 ```
-export PATH=$PATH:$HOME/.bds
+$ bds bds_atac.bds ... -species [SPECIES; hg19, mm9, ... ]
 ```
-
-If Java memory error occurs, add the following to your `$HOME/.bashrc`:
-```
-export _JAVA_OPTIONS="-Xms256M -Xmx512M -XX:ParallelGCThreads=1"
-export MAX_JAVA_MEM="8G"
-export MALLOC_ARENA_MAX=4
-```
-
-
-### SCG3 and Kundaje lab clusters
-
-On SCG3 and Kundaje lab clusters, you don't need to define any genome specific parameters like bowtie2 index, chromsome sizes file, vplot index (TSS) and so on. Just add `-species [SPECIES; hg19, mm9, ...]` and all parameters will be automatically added by the pipeline.
-
 
 
 ### Usage
 
-1) Define parameters in command line argument (legacy method, not recommended)
+1) Define parameters in command line argument (legacy method, NOT RECOMMENDED)
 This input method does not support multiple replicates and always generate V plot and perform preseq analysis.
 ```
 $ bds atac.bds [BOWTIE2_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE; hs for human, mm for mouse] [CHROMSIZES_FILE] [VPLOT_INDEX] [OUTPUT_DIR]
@@ -85,19 +80,14 @@ If your data are single ended, add the following to the command line.
 -se
 ```
 
-For V plot generation, add the following to command line:
+For ATAQC, you need to define the following parameters. parameters `-preseq` and `-vplot` will be ignored since they are already included in ATAQC. See help (`$ bds atac.bds`) for description of all parameters.
 ```
--vplot -vplot_idx [VPLOT_INDEX] 
-```
-
-For preseq analysis, add the following to command line:
-```
--preseq
+-vplot_idx [] -ref_fa [] -blacklist [] -dnase [] -prom [] -enh [] -reg2map [] -roadmap_meta []
 ```
 
-For advanced ATAQC (only for PE dataset), add the following to command line, parameters `-preseq` and `-vplot` will be ignored since they are already included in ATAQC. See help (`$ bds atac.bds`) for description of all parameters.
+If you don't want ATAQC, add the following to command line. 
 ```
--ataqc -vplot_idx [] -ref_fa [] -blacklist [] -dnase [] -prom [] -enh [] -reg2map [] -roadmap_meta []
+-no_ataqc 
 ```
 
 If you have just one replicate (PE), define fastqs with `-fastq[PAIR_NO]`.
@@ -115,8 +105,7 @@ For multiple replicates (SE), define fastqs with `-fastq[REP_NO]`:
 -se -fastq1 [READ_REP1] -fastq2 [READ_REP2] ...
 ```
 
-
-You can also start from bam files. There are two kinds of bam files (raw or deduped) and you need to explicitly choose between raw bam (bam) and deduped one (nodup_bam) with `-input [BAM_TYPE]`.
+You can also start from bam files. There are two kinds of bam files (raw or deduped) and you need to explicitly choose between raw bam (bam) and deduped one (nodup_bam) with `-input [BAM_TYPE]`. Don't forget to add `-se` if they are not paired end (PE).
 
 For raw bams,
 ```
@@ -133,9 +122,9 @@ To subsample beds (tagaligns) add the following to the command line, you can ski
 -subsample -nreads [NO_READS_TO_SUBSAMPLE]
 ```
 
-To generate pseduro replicates and call peaks on them:
+To disable pseudo replicate generation:
 ```
--pseudorep
+-no_pseudo_rep
 ```
 
 For IDR analysis on peaks (two replicates are needed) add the following, and for final IDR QC add path to blacklist idr (for hg19, http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz):
@@ -145,22 +134,22 @@ For IDR analysis on peaks (two replicates are needed) add the following, and for
 
 To change resource settings (# of processor, max memory and walltime) for bowtie2, add the following to command line, please note that memory is PER CPU:
 ```
--nth_bwt2 [NTHREADS_BWT2] -mem_bwt2 [MEMORY_BWT2; e.g. 20G] -wt_bwt2 [WALLTIME_BWT2; e.g. 20h]
+-nth_bwt2 [NTHREADS_BWT2] -mem_bwt2 [MAX_MEMORY_PER_THREAD_BWT2; e.g. 20G] -wt_bwt2 [WALLTIME_BWT2; e.g. 20h]
 ```
 
 For MACS2 peak calling:
 ```
--nth_macs2 [NTHREADS_MACS2] -mem_macs2 [MEMORY_MACS2; e.g. 20G] -wt_macs2 [WALLTIME_MACS@; e.g. 20h]
+-nth_macs2 [NTHREADS_MACS2] -mem_macs2 [MEMORY_MACS2; e.g. 20G] -wt_macs2 [WALLTIME_MACS2; e.g. 20h]
 ```
 
-By default, IDR will be done for true replicates, but if you have `-pseudorep` in the command line, you will also get IDR on pseudo replicates and pooled pseudo replicates.
+By default, IDR will be done for true replicates and pseudo replicates, but if you have `-no_pseudo_rep` in the command line, you will also get IDR on true replicates.
 
-For Kundaje lab cluster and SCG3, skip parameters (bwt2_idx, chrsz, gensz and vplot_idx) and just specify species.
+For Kundaje lab cluster and SCG3, skip all genome specific parameters (like bwt2_idx, chrsz, ... ) and just specify species.
 ```
 $ bds atac.bds -fastq1 [READ1] -fastq2 [READ2] -species [hg19 or mm9]
 ```
 
-For other clusters, add -mod, -addpath and -shcmd to set up enviroment variables for your jobs or make an environment file for your system. See details <a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">here</a>.
+For other clusters, add -mod, -addpath, -shcmd, -conda_env to set up enviroment variables for your jobs or make an environment file for your system. See details <a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">here</a>.
 
 To list all parameters and default values for them,
 ```
@@ -190,27 +179,47 @@ See details <a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/mast
 
 
 
-### Parallelism in atac pipeline
+### Parallelization level
 
 ATAC seq for each repliacte will go IN PARALLEL!. Consider your computation resources! # of processors taken will be :
 ```
-max( [NTH_BWT2], [NTH_MACS2] ) x [NUM_REP]
+max( [NTH_BWT2], [NTH_MACS2], [NTH_SPP] ) x [NUM_REP]
 ```
 
-(Not recommended) If you don't want any jobs to be parallelized (each job can still use multiple threads though), add the following to command line (this option is for computers with limited resource):
+For completely serialized jobs:
 ```
 -no_par
 ```
 
-### Requirements (python 2.x >= 2.7)
+You can also set up the level of parallelization for the pipeline.
+```
+-par_lvl [PAR_LEVEL; 0-7]
+```
+0: no parallel jobs (equivalent to `-no_par`, all subtasks for each replicate will also be serialized)
+1: no replicates/controls in parallel (subtasks for each replicate can be parallelized)
+2: 2 replicates/controls in parallel
+3: 2 replicates/controls and 2 peak-callings in parallel (default)
+4: 4 replicates/controls and 2 peak-callings in parallel
+5: 4 replicates/controls and 4 peak-callings in parallel
+6: customized
+7: unlimited
 
-Python modules:
-- numpy
-- matplotlib
-- pysam
-- python-Levenshtein
-- pybedtools
-- trimgalore
+For customized parallelization:
+```
+-par_lvl 6 -reps_in_par [NO_REP_IN_PAR] -peaks_in_par [NO_PEAKCALLING_IN_PAR]
+```
+
+See details <a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_PIPELINE.md" target=_blank>here</a>
+
+
+
+### Requirements 
+
+For python2 (python 2.x >= 2.7), <a href="https://github.com/kundajelab/bds_atac/blob/master/requirements.txt" target=_blank>here</a>
+
+For python3, <a href="https://github.com/kundajelab/bds_atac/blob/master/requirements_py3.txt" target=_blank>here</a>
+
+For R-2.x, <a href="https://github.com/kundajelab/bds_atac/blob/master/requirements_r2.txt" target=_blank>here</a>
 
 
 
