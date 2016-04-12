@@ -609,7 +609,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 		 string dup_log, string filt_bam, string bed, string bigwig, string peak, \
 		 string o_dir, string info ) {
 
-	prefix 		:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), out_dir ) + ".PE2SE"
+	prefix 		:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir ) + ".PE2SE"
 	html 		:= "$prefix"+"_qc.html"
 	txt 		:= "$prefix"+"_qc.txt"
 	prefix_basename := get_basename( prefix )
