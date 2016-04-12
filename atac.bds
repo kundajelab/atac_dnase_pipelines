@@ -145,11 +145,6 @@ void chk_input_data() {
 
 	print( "\n\n== checking atac inputs (data type = $input) ...\n\n" );
 
-	if ( is_input_fastq() ) chk_align_bwt2()
-	if ( !mapping ) 	chk_callpeak_macs2()
-	if ( vplot ) 		chk_vplot()
-	if ( idr ) 		chk_idr()
-
 	if ( is_input_filt_bam() && ( vplot || preseq ) ) {
 		error("Preseq analysis (-preseq) and vplot (-vplot) are not available if pipeline starts from filtered bam files (with '-input filt_bam')!\n")
 	}
@@ -167,6 +162,12 @@ void chk_input_data() {
 		print("\nWarning: IDR is available for two replicates only. Disabling IDR...\n")
 		idr 	= false
 	}
+
+	if ( is_input_fastq() ) chk_align_bwt2()
+	if ( !mapping ) 	chk_callpeak_macs2()
+	if ( vplot ) 		chk_vplot()
+	if ( idr ) 		chk_idr()
+	if ( !no_ataqc ) 	chk_ataqc()
 
 	if ( idr ) {
 		if ( idr_thresh == "0.02" ) {
@@ -239,6 +240,21 @@ void chk_input_data() {
 		data_all = concat( data_all, data )
 	}
 
+}
+
+void chk_ataqc() {
+
+	print("\nChecking parameters and data files for ATAQC. If you don't want ATAQC then add '-no_ataqc'\n\n")
+
+	if ( species == "" ) error("Genome name is missing ( '-species [GENOME_NAME; hg19, mm9, ...]' )!\n" )
+	if ( ref_fa == "" ) error("Specify your reference genome .fa ('-ref_fa [FA]')!\n")
+	if ( vplot_idx == "" ) error("V plot index is missing ( '-vplot_idx' )!\n")
+	if ( dnase == "" ) error("DNase bed is missing ( '-dnase' )!\n")
+	if ( blacklist == "" ) error("Blacklist bed is missing ( '-blacklist' )!\n")
+	if ( prom == "" ) error("Promoter bed is missing ( '-prom' )!\n")
+	if ( enh == "" ) error("Enhancer bed is missing ( '-enh' )!\n")
+	if ( reg2map == "" ) error("reg2map is missing ( '-reg2map' )!\n")
+	if ( roadmap_meta == "" ) error("Roadmap metadata are missing ( '-roadmap_meta' )!\n")
 }
 
 void atac() {
@@ -343,10 +359,10 @@ void _atac_SE( int rep ) {
 
 		string sorted_bam
 
-		if ( vplot || preseq || !no_ataqc ) sorted_bam = _srt_bam( bam, atac_out_dir, info )
+		if ( vplot || preseq || !mapping && !no_ataqc ) sorted_bam = _srt_bam( bam, atac_out_dir, info )
 		wait
 
-		if ( !no_ataqc ) {
+		if ( !mapping && !no_ataqc ) {
 
 			report_dir := mkdir_path( "$atac_out_dir/ataqc" )
 
@@ -489,10 +505,10 @@ void _atac_PE( int rep ) {
 
 		string sorted_bam
 
-		if ( vplot || preseq || !no_ataqc ) sorted_bam = _srt_bam( bam, atac_out_dir, info )
+		if ( vplot || preseq || !mapping && !no_ataqc ) sorted_bam = _srt_bam( bam, atac_out_dir, info )
 		wait
 
-		if ( !no_ataqc ) {
+		if ( !mapping && !no_ataqc ) {
 
 			report_dir := mkdir_path( "$atac_out_dir/ataqc" )
 
@@ -612,14 +628,15 @@ void do_idr() {
 string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, string srt_bam, \
 		 string dup_log, string filt_bam, string bed, string bigwig, string peak, \
 		 string o_dir, string info ) {
-
-	prefix 		:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir ) + ".PE2SE"
+	
+	prefix 		:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir ) + ( (fastq2!="") ? ".PE2SE" : "" )
 	html 		:= "$prefix"+"_qc.html"
 	txt 		:= "$prefix"+"_qc.txt"
 	prefix_basename := get_basename( prefix )
 	param_fastq 	:= (fastq2!="") ? "--fastq1 $fastq1 --fastq2 $fastq2" : "--fastq1 $fastq1"
 
-	in  	:= [ fastq1, fastq2, bam, align_log, srt_bam, dup_log, filt_bam, bed, bigwig, peak ]
+	in  	:= (fastq2!="") ? [ fastq1, fastq2, bam, align_log, srt_bam, dup_log, filt_bam, bed, bigwig, peak ] \
+				: [ fastq1, bam, align_log, srt_bam, dup_log, filt_bam, bed, bigwig, peak ]
 	out 	:= [ html, txt ] //, gc_plot, hist_graph, lg_vplot, vplot, signal ]
 
 	taskName:= "ataqc "+info
