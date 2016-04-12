@@ -11,9 +11,10 @@ mapping	 	:= false	help Mapping only (no macs2 peak calling or IDR).
 vplot 		:= false 	help Create V plot.
 preseq 		:= false 	help Do preseq analysis.
 subsample 	:= false 	help Subsample replicates. Use '-nreads [NO_READS]' (default: 15000000) to specify # reads to subsample.
-no_pseudorep 	:= false 	help No pseudo-replicates.
-no_idr 		:= false 	help No IDR analysis on called peaks.
+no_pseudo_rep 	:= false 	help No pseudo-replicates.
+idr 		:= false 	help Perform IDR analysis on called peaks. This will change p-value threshold (0.01->0.1) in MACS2 peak calling.
 no_ataqc 	:= false 	help No ATAQC 
+csem	 	:= false	help Use CSEM for alignment.
 //ataqc(parameters to be defined: species, blacklist, dnase, tss, prom, enh, reg2map and roadmap_meta).
 
 mem_ataqc 	:= "8G"		help Max. memory for ATAQC (default: 8G).
@@ -22,6 +23,7 @@ help() // show help contexts
 
 include "modules/input_fastq.bds"
 include "modules/input_bam.bds"
+include "modules/align_bowtie.bds"
 include "modules/align_bowtie2.bds"
 include "modules/align_etc.bds"
 include "modules/vplot.bds"
@@ -48,7 +50,7 @@ atac()
 
 post_atac()
 
-idr()
+do_idr()
 
 
 void init_atac() {
@@ -71,9 +73,11 @@ void init_atac() {
 
 		mapping 	= false
 
-		no_pseudorep 	= true
-		no_idr 		= true
+		no_pseudo_rep 	= true
+		idr 		= false
 		no_ataqc	= true
+
+		csem 		= false
 
 		input 		= "fastq"
 	
@@ -99,10 +103,12 @@ void init_atac() {
 		vplot 		= get_conf_val_bool( vplot,		["vplot"] )
 		preseq 		= get_conf_val_bool( preseq,		["preseq"] )
 		subsample	= get_conf_val_bool( subsample, 	["subsample"] )
-		no_pseudorep	= get_conf_val_bool( no_pseudorep, 	["no_pseudorep"] )
+		no_pseudo_rep	= get_conf_val_bool( no_pseudo_rep, 	["no_pseudo_rep"] )
 
-		no_idr 		= get_conf_val_bool( no_idr, 		["no_idr"] )
+		idr 		= get_conf_val_bool( idr, 		["idr"] )
 		no_ataqc 	= get_conf_val_bool( no_ataqc, 		["no_ataqc"] )
+
+		csem 		= get_conf_val_bool( csem, 		["csem"] )
 
 		mem_ataqc	= get_conf_val( mem_ataqc,		["mem_ataqc"] )
 	}
@@ -126,11 +132,12 @@ void init_atac() {
 	print( "# Replicates\t\t: "+ get_num_rep() + "\n")
 	print( "MACS2 peak calling\t: " + !mapping + "\n")
 	print( "Subsample replicates\t: $subsample\n")
-	print( "No pseudo replicates\t: $no_pseudorep\n")
-	print( "No IDR analysis on peaks\t: $no_idr\n")
+	print( "No pseudo replicates\t: $no_pseudo_rep\n")
+	print( "Perform IDR analysis on peaks\t: $idr\n")
 	print( "Vplot generation\t: $vplot\n")
 	print( "Preseq analysis\t\t: $preseq\n")
 	print( "No ATAQC (advanced QC report including vplot and preseq)\t: $no_ataqc\n")
+	print( "Use CSEM for alignment\t: $csem\n")
 	print( "Max. memory for ATAQC\t: $mem_ataqc\n")
 }
 
@@ -141,20 +148,31 @@ void chk_input_data() {
 	if ( is_input_fastq() ) chk_align_bwt2()
 	if ( !mapping ) 	chk_callpeak_macs2()
 	if ( vplot ) 		chk_vplot()
-	if ( !no_idr ) 		chk_idr()
+	if ( idr ) 		chk_idr()
 
 	if ( is_input_filt_bam() && ( vplot || preseq ) ) {
 		error("Preseq analysis (-preseq) and vplot (-vplot) are not available if pipeline starts from filtered bam files (with '-input filt_bam')!\n")
 	}
 
-	if ( !is_input_fastq() ) {
+	if ( !is_input_fastq() && !no_ataqc ) {
 		print("\nWarning: ATAQC is available for fastq inputs only. Disabling ATAQC...\n")
 		no_ataqc = true
 	}
 
-	if ( get_num_rep() != 2 ) {
+	if ( get_num_rep() != 2 && idr ) {
 		print("\nWarning: IDR is available for two replicates only. Disabling IDR...\n")
-		no_idr 	= true
+		idr 	= false
+	}
+
+	if ( idr ) {
+		if ( idr_thresh == "0.02" ) {
+			print("\nDefault IDR threshold is found ($idr_thresh). Set it to 0.1 .\n")
+			idr_thresh = 0.1
+		}
+	
+		print("\nSet p-value threshold in MACS2 peak calling to 0.1 .\n")
+
+		pval_thresh_macs2 = 0.1
 	}
 
 	// check data files
@@ -261,7 +279,12 @@ void _atac_SE( int rep ) {
 		}
 		wait
 
-		( bam, align_log ) = _bowtie2( p1, atac_out_dir, info )
+		if ( csem ) {
+			( bam, align_log ) = _bowtie2_csem( p1, atac_out_dir, info )
+		}
+		else {		
+			( bam, align_log ) = _bowtie2( p1, atac_out_dir, info )
+		}
 		wait
 	}
 
@@ -301,7 +324,7 @@ void _atac_SE( int rep ) {
 
 		( peaks{rep}, fc_bigwig, pval_bigwig )  = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
 
-		if ( !no_pseudorep ) {
+		if ( !no_pseudo_rep ) {
 
 			( shifted_tags_pr1{rep}, shifted_tags_pr2{rep} ) = _spr( shifted_tags{rep}, atac_out_dir, info )
 			wait
@@ -333,9 +356,9 @@ void _atac_SE( int rep ) {
 
 			if ( preseq ) _preseq( sorted_bam, atac_out_dir, info )
 
-			wait
+			//wait
 
-			_report_atac( atac_out_dir, info )
+			//_report_atac( atac_out_dir, info )
 		}		
 	}
 
@@ -376,8 +399,14 @@ void _atac_PE( int rep ) {
 			wait
 		}
 
-		( bam, align_log ) = _bowtie2_PE( p1, p2, atac_out_dir, info )
+		if ( csem ) {
+			( bam, align_log ) = _bowtie2_csem_PE( p1, p2, atac_out_dir, info )
+		}
+		else {		
+			( bam, align_log ) = _bowtie2_PE( p1, p2, atac_out_dir, info )
+		}
 		wait
+
 	}
 
 
@@ -398,7 +427,7 @@ void _atac_PE( int rep ) {
 
 	if ( !mapping ) {
 
-		if ( subsample || !no_pseudorep ) {
+		if ( subsample || !no_pseudo_rep ) {
 
 			bedpe := _bam_to_bedpe( filt_bam, atac_out_dir, info, "filt_bam\\n($info)", "bedpe\\n($info)" )
 			wait 
@@ -419,7 +448,7 @@ void _atac_PE( int rep ) {
 
 			shifted_tags{rep} = _shift_tag( tag, atac_out_dir, info )
 
-			if ( !no_pseudorep ) {
+			if ( !no_pseudo_rep ) {
 
 				string tag_pr1, tag_pr2
 				(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info )
@@ -436,7 +465,7 @@ void _atac_PE( int rep ) {
 				wait
 			}
 			
-			if ( !no_pseudorep ) {
+			if ( !no_pseudo_rep ) {
 
 				string tmp // to get multiple elements of function return
 
@@ -473,9 +502,9 @@ void _atac_PE( int rep ) {
 
 			if ( preseq ) _preseq( sorted_bam, atac_out_dir, info )
 
-			wait
+			//wait
 
-			_report_atac( atac_out_dir, info )
+			//_report_atac( atac_out_dir, info )
 		}
 	}
 
@@ -492,7 +521,7 @@ void post_atac() {
 
 	string shifted_tag_pooled
 
-	if ( !no_pseudorep ) {
+	if ( !no_pseudo_rep ) {
 
 		// Make shifted tags for pooled pseudo rep (ppr).
 		string shifted_tag_ppr1, shifted_tag_ppr2
@@ -525,27 +554,47 @@ void post_atac() {
 	wait
 }
 
-void idr() {
+void do_idr() {
 	
 	if ( mapping ) return
 
-	if ( no_idr || get_num_rep() != 2 ) return
+	if ( !idr || get_num_rep() != 2 ) return
 
 	idr_out_dir := mkdir_path( "$out_dir/idr2" )
 
 	string idr_tr, idr_pr_rep1, idr_pr_rep2, idr_ppr, tmp
 
-	// idr for true reps
-	(idr_tr, tmp) = _idr2( peaks{1}, peaks{2}, peak_pooled, idr_out_dir, "true" )
+	rep1_dir   := "$out_dir/rep1"
+	rep2_dir   := "$out_dir/rep2"
+	pooled_dir := "$out_dir/pooled_replicate"
 
-	if ( !no_pseudorep ) {
+	peak_rep1_filt 	:= _filt_out_bad_npeaks( peaks{1}, rep1_dir, "rep1" )
+	peak_rep2_filt 	:= _filt_out_bad_npeaks( peaks{2}, rep2_dir, "rep2"  )
+	peak_pooled_filt:= _filt_out_bad_npeaks( peak_pooled, pooled_dir, "pooled" )
+
+	wait
+
+	// idr for true reps
+	(idr_tr, tmp) = _idr2( peak_rep1_filt, peak_rep2_filt, peak_pooled_filt, idr_out_dir, "true" )
+
+	if ( !no_pseudo_rep ) {
+
+		peak_pr1_rep1_filt := _filt_out_bad_npeaks( peaks_pr1{1}, rep1_dir, "rep1_pr1" )
+		peak_pr2_rep1_filt := _filt_out_bad_npeaks( peaks_pr2{1}, rep1_dir, "rep1_pr2" )
+		peak_pr1_rep2_filt := _filt_out_bad_npeaks( peaks_pr1{2}, rep2_dir, "rep2_pr1" )
+		peak_pr2_rep2_filt := _filt_out_bad_npeaks( peaks_pr2{2}, rep2_dir, "rep2_pr2" )
+
+		peak_ppr1_filt 	   := _filt_out_bad_npeaks( peak_ppr1, pooled_dir, "ppr1" )
+		peak_ppr2_filt 	   := _filt_out_bad_npeaks( peak_ppr2, pooled_dir, "ppr2" ) 
+
+		wait
 
 		// idr on pseudo reps
-		(idr_pr_rep1, tmp) = _idr2( peaks_pr1{1}, peaks_pr2{1}, peaks{1}, idr_out_dir, "rep1_pr" )
-		(idr_pr_rep2, tmp) = _idr2( peaks_pr1{2}, peaks_pr2{2}, peaks{2}, idr_out_dir, "rep2_pr" )
+		(idr_pr_rep1, tmp) = _idr2( peak_pr1_rep1_filt, peak_pr2_rep1_filt, peak_rep1_filt, idr_out_dir, "rep1_pr" )
+		(idr_pr_rep2, tmp) = _idr2( peak_pr1_rep2_filt, peak_pr2_rep2_filt, peak_rep2_filt, idr_out_dir, "rep2_pr" )
 
 		// idr on ppr
-		(idr_ppr, tmp) = _idr2( peak_ppr1, peak_ppr2, peak_pooled, idr_out_dir, "ppr" )
+		(idr_ppr, tmp) = _idr2( peak_ppr1_filt, peak_ppr2_filt, peak_pooled_filt, idr_out_dir, "ppr" )
 		wait
 
 		string idr_final_score

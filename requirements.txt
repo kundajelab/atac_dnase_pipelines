@@ -1,3 +1,4 @@
+bowtie ==1.1.2 #1.1.1
 bowtie2 ==2.2.6
 samtools ==1.2
 bedtools ==2.22 #2.21.0
@@ -6,22 +7,25 @@ ucsc-wigtobigwig
 ucsc-bedgraphtobigwig
 ucsc-bigwiginfo
 ucsc-bedclip
-python ==2.7.3
 macs2 ==2.1.0
 boost ==1.57.0
-r ==2.15.3
 gnuplot ==5.0.3
 trim-galore ==0.4.1
+numpy ==1.10.4
+matplotlib ==1.5.1
+python-levenshtein
+pybedtools
+pandas
+metaseq
+jinja2
 
-
-## picard tool does not have a shell variable PICARDROOT and jar is not picard.jar but picard-1.97.jar
-## a softlink picard.jar will be created and linked to it in install_dependencies.sh
-## also PICARDROOT will be defined in conda activate.
+## picard tool does not have a shell variable PICARDROOT
+## PICARDROOT will be defined in conda activate.
 
 ## there are packages that are not in official conda repos
 ## run install_dependencies.sh to install these softwares
 
 # texlive ==2013
 # preseq ==2.0.2 
-# r-spp ==1.13
-# phantompeakqualtools ==2.0
+
+
