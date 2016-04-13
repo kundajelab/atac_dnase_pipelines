@@ -52,6 +52,9 @@ post_atac()
 
 do_idr()
 
+report()
+
+
 
 void init_atac() {
 	
@@ -146,7 +149,7 @@ void chk_input_data() {
 	print( "\n\n== checking atac inputs (data type = $input) ...\n\n" );
 
 	if ( is_input_filt_bam() && ( vplot || preseq ) ) {
-		error("Preseq analysis (-preseq) and vplot (-vplot) are not available if pipeline starts from filtered bam files (with '-input filt_bam')!\n")
+		error("Preseq analysis (-preseq) and vplot (-vplot) are not available if pipeline starts from filtered bam files (with '-filt_bam [FILT_BAM_PATH]...')!\n")
 	}
 
 	if ( !is_input_fastq() && !no_ataqc ) {
@@ -277,7 +280,7 @@ void _atac( int rep ) {
 
 void _atac_SE( int rep ) {
 
-	info := get_task_info( 0, rep )
+	info := "rep$rep"
 
 	atac_out_dir := mkdir_path( (get_num_rep()==1) ? out_dir : "$out_dir/$info" )
 
@@ -289,7 +292,7 @@ void _atac_SE( int rep ) {
 
 		fastq = fastqs[0]
 
-		string p1
+		string p1, label_fastq
 		
 		if ( trimmed_fastq ) {
 			p1 = fastq
@@ -299,11 +302,13 @@ void _atac_SE( int rep ) {
 		}
 		wait
 
+		fastq_graph_id := trimmed_fastq ? "fastq\\n($info)" : "trimmed\\nfastq\\n($info)"
+
 		if ( csem ) {
-			( bam, align_log ) = _bowtie2_csem( p1, atac_out_dir, info )
+			( bam, align_log ) = _bowtie2_csem( p1, atac_out_dir, info, fastq_graph_id, "bam\\n($info)" )
 		}
 		else {		
-			( bam, align_log ) = _bowtie2( p1, atac_out_dir, info )
+2			( bam, align_log ) = _bowtie2( p1, atac_out_dir, info, fastq_graph_id, "bam\\n($info)" )
 		}
 		wait
 	}
@@ -316,7 +321,6 @@ void _atac_SE( int rep ) {
 		wait
 	}
 
-
 	if ( is_input_fastq() || is_input_bam() || is_input_filt_bam() ) {
 
 		if ( is_input_filt_bam() ) filt_bam = get_filt_bam( 0, rep )
@@ -328,7 +332,7 @@ void _atac_SE( int rep ) {
 
 	if ( !mapping ) {
 
-		tag := _bam_to_tag( filt_bam, atac_out_dir, info )
+		tag := _bam_to_tag( filt_bam, atac_out_dir, info, "filt_bam\\n($info)", "tagalign\\n($info)" )
 		wait
 
 		if ( subsample ) {
@@ -342,16 +346,23 @@ void _atac_SE( int rep ) {
 		shifted_tags{rep} = _shift_tag( subsampled_tag, atac_out_dir, info )
 		wait
 
-		( peaks{rep}, fc_bigwig, pval_bigwig )  = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
+		tag_graph_id := subsample ? "subsampled\\ntagalign\\n($info)" : "tagalign\\n($info)"
+
+		( peaks{rep}, fc_bigwig, pval_bigwig )  = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info, tag_graph_id )
 
 		if ( !true_rep ) {
 
-			( shifted_tags_pr1{rep}, shifted_tags_pr2{rep} ) = _spr( shifted_tags{rep}, atac_out_dir, info )
+			( shifted_tags_pr1{rep}, shifted_tags_pr2{rep} ) = _spr( shifted_tags{rep}, atac_out_dir, info, \
+									tag_graph_id, "tagalign pr1\\n($info)", "tagalign pr2\\n($info)" )
 			wait
 
 			string tmp // to get multiple elements of function return
-			( peaks_pr1{rep}, tmp ) = _macs2_atac( shifted_tags_pr1{rep}, "$fraglen", atac_out_dir, info + "_pr1" )
-			( peaks_pr2{rep}, tmp ) = _macs2_atac( shifted_tags_pr2{rep}, "$fraglen", atac_out_dir, info + "_pr2")
+
+			( peaks_pr1{rep}, tmp ) = _macs2_atac( shifted_tags_pr1{rep}, "$fraglen", atac_out_dir, info + "_pr1", \
+								"tagalign pr1\\n($info)" )
+
+			( peaks_pr2{rep}, tmp ) = _macs2_atac( shifted_tags_pr2{rep}, "$fraglen", atac_out_dir, info + "_pr2", \
+								"tagalign pr2\\n($info)" )
 		}
 	}
 
@@ -392,7 +403,7 @@ void _atac_SE( int rep ) {
 
 void _atac_PE( int rep ) {
 
-	info := get_task_info( 0, rep )
+	info := "rep$rep"
 
 	atac_out_dir := mkdir_path( (get_num_rep()==1) ? out_dir : "$out_dir/$info" )
 
@@ -419,16 +430,14 @@ void _atac_PE( int rep ) {
 			wait
 		}
 
-		if ( csem ) {
-			( bam, align_log ) = _bowtie2_csem_PE( p1, p2, atac_out_dir, info )
-		}
-		else {		
-			( bam, align_log ) = _bowtie2_PE( p1, p2, atac_out_dir, info )
-		}
+		fastq_graph_id1 := trimmed_fastq ? "fastq1\\n($info)" : "trimmed\\nfastq1\\n($info)"
+		fastq_graph_id2 := trimmed_fastq ? "fastq2\\n($info)" : "trimmed\\nfastq2\\n($info)"
+
+		( bam, align_log ) = _bowtie2_PE( p1, p2, atac_out_dir, info, \
+							fastq_graph_id1, fastq_graph_id2, "bam\\n($info)" )
 		wait
 
 	}
-
 
 	if ( is_input_fastq() || is_input_bam() ) {
 
@@ -463,6 +472,8 @@ void _atac_PE( int rep ) {
 			}
 			wait
 
+			tag_graph_id := subsample ? "subsampled\\nbedpe\\n($info)" : "bedpe\\n($info)"
+
 			tag := _bedpe_to_tag( subsampled_bedpe, atac_out_dir, info )
 			wait
 
@@ -471,10 +482,11 @@ void _atac_PE( int rep ) {
 			if ( !true_rep ) {
 
 				string tag_pr1, tag_pr2
-				(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info )
+				(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info, \
+							tag_graph_id, "tagalign pr1\\n($info)", "tagalign pr2\\n($info)" )
 				wait
 
-				shifted_tags_pr1{rep} = _shift_tag( tag_pr1, atac_out_dir, info )				
+				shifted_tags_pr1{rep} = _shift_tag( tag_pr1, atac_out_dir, info )
 				shifted_tags_pr2{rep} = _shift_tag( tag_pr2, atac_out_dir, info )
 			}
 			wait
@@ -489,8 +501,11 @@ void _atac_PE( int rep ) {
 
 				string tmp // to get multiple elements of function return
 
-				( peaks_pr1{rep}, tmp ) = _macs2_atac( shifted_tags_pr1{rep}, "$fraglen", atac_out_dir, info + "_pr1" )
-				( peaks_pr2{rep}, tmp ) = _macs2_atac( shifted_tags_pr2{rep}, "$fraglen", atac_out_dir, info + "_pr2")
+				( peaks_pr1{rep}, tmp ) = _macs2_atac( shifted_tags_pr1{rep}, "$fraglen", atac_out_dir, info + "_pr1", \
+									"tagalign pr1\\n($info)" )
+
+				( peaks_pr2{rep}, tmp ) = _macs2_atac( shifted_tags_pr2{rep}, "$fraglen", atac_out_dir, info + "_pr2", \
+									"tagalign pr2\\n($info)" )
 			}
 		}
 		else {
@@ -523,7 +538,6 @@ void _atac_PE( int rep ) {
 			if ( preseq ) _preseq( sorted_bam, atac_out_dir, info )
 
 			//wait
-
 			//_report_atac( atac_out_dir, info )
 		}
 	}
@@ -554,9 +568,9 @@ void post_atac() {
 		// call peaks on ppr
 		string tmp
 
-		( peak_ppr1, tmp ) = _macs2_atac( shifted_tag_ppr1, "$fraglen", pooled_out_dir, "ppr1" )
-		( peak_ppr2, tmp ) = _macs2_atac( shifted_tag_ppr2, "$fraglen", pooled_out_dir, "ppr2" )
-		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$fraglen", pooled_out_dir, "pooled" )
+		( peak_ppr1, tmp ) = _macs2_atac( shifted_tag_ppr1, "$fraglen", pooled_out_dir, "ppr1", "tagalign\\n(ppr1)" )
+		( peak_ppr2, tmp ) = _macs2_atac( shifted_tag_ppr2, "$fraglen", pooled_out_dir, "ppr2", "tagalign\\n(ppr2)" )
+		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$fraglen", pooled_out_dir, "pooled", "tagalign\\n(pooled)" )
 
 		wait
 
@@ -568,7 +582,7 @@ void post_atac() {
 		wait
 
 		string tmp
-		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$fraglen", pooled_out_dir, "pooled" )
+		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$fraglen", pooled_out_dir, "pooled", "tagalign\\n(pooled)" )
 	}
 
 	wait
@@ -609,19 +623,22 @@ void do_idr() {
 
 	wait
 
-	// do idr
-
 	// idr for true reps
-	(idr_tr, tmp) = _idr2( peak_rep1_filt, peak_rep2_filt, peak_pooled_filt, idr_out_dir, "true" )
+	(idr_tr, tmp) = _idr2( peak_rep1_filt, peak_rep2_filt, peak_pooled_filt, idr_out_dir, "true", \
+				"n peak filt\\n(rep1)","n peak filt\\n(rep2)","n peak filt\\n(pooled)" )
 
 	if ( !true_rep ) {
 
 		// idr on pseudo reps
-		(idr_pr_rep1, tmp) = _idr2( peak_pr1_rep1_filt, peak_pr2_rep1_filt, peak_rep1_filt, idr_out_dir, "rep1_pr" )
-		(idr_pr_rep2, tmp) = _idr2( peak_pr1_rep2_filt, peak_pr2_rep2_filt, peak_rep2_filt, idr_out_dir, "rep2_pr" )
+		(idr_pr_rep1, tmp) = _idr2( peak_pr1_rep1_filt, peak_pr2_rep1_filt, peak_rep1_filt, idr_out_dir, "rep1_pr", \
+						"n peak filt\\n(rep1_pr1)","n peak filt\\n(rep1_pr2)","n peak filt\\n(rep1)" )
+
+		(idr_pr_rep2, tmp) = _idr2( peak_pr1_rep2_filt, peak_pr2_rep2_filt, peak_rep2_filt, idr_out_dir, "rep2_pr", \
+						"n peak filt\\n(rep2_pr1)","n peak filt\\n(rep2_pr2)","n peak filt\\n(rep2)" )
 
 		// idr on ppr
-		(idr_ppr, tmp) = _idr2( peak_ppr1_filt, peak_ppr2_filt, peak_pooled_filt, idr_out_dir, "ppr" )
+		(idr_ppr, tmp) = _idr2( peak_ppr1_filt, peak_ppr2_filt, peak_pooled_filt, idr_out_dir, "ppr", \
+						"n peak filt\\n(ppr1)","n peak filt\\n(ppr2)","n peak filt\\n(pooled)" )
 		wait
 
 		string idr_final_score
@@ -680,9 +697,19 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 
 	wait_par()
 
+	label_in := ( fastq2!="" ) ? ["fastq1\\n($info)","fastq2\\n($info)","bam\\n($info)","srt_bam\\n($info)",\
+				      "filt_bam\\n($info)","tagalign\\n($info)","pval sig.\\n($info)","n peak\\n($info)"] \
+				   : ["fastq\\n($info)","bam\\n($info)","srt_bam\\n($info)",\
+				      "filt_bam\\n($info)","tagalign\\n($info)","pval sig.\\n($info)","n peak\\n($info)"]
+
+	path_in := ( fastq2!="" ) ? [fastq1, fastq2, bam, srt_bam, filt_bam, bed, bigwig, peak] \
+				  : [fastq1, bam, srt_bam, filt_bam, bed, bigwig, peak]
+
+	_add_to_graphviz( label_in, path_in, ["ataqc rpt\\n($info)"], [html], "ataqc\\n($info)", grp_color_ataqc )
+
 	return out
 }
-/*
+
 void report() { // HTML atac report
 
 	wait
@@ -694,10 +721,10 @@ void report() { // HTML atac report
 
 	html := report_header.read()
 
-	html += _html_atac_files() 	// treeview for directory and file structure 
-	html += _html_atac_tracks() 	// epigenome browser tracks
-	html += _html_atac_graphviz()// graphviz workflow diagram
-	html += _html_atac_QC()	// show QC tables and images
+//	html += _html_atac_files() 	// treeview for directory and file structure 
+//	html += _html_atac_tracks() 	// epigenome browser tracks
+	html += _html_atac_graphviz() 	// graphviz workflow diagram
+//	html += _html_atac_QC()	 	// show QC tables and images
 
 	html += "<br></body></html>"
 
@@ -713,7 +740,7 @@ string _html_atac_graphviz() {
 	html += "</div><br>\n"
 	return html
 }
-
+/*
 string _html_atac_files() {
 
 	html := "<div id='atac_files'><b>Directories and files</b>"
@@ -1096,11 +1123,6 @@ void help() {
 		printHelp()
 		exit
 	}
-}
-
-string get_task_info( int ctl, int rep ) {
-
-	return ( (ctl>0) ? "ctl_" : "") + "rep" + rep
 }
 
 bool is_input_legacy() {
