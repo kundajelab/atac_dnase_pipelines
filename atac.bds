@@ -588,26 +588,33 @@ void do_idr() {
 	rep2_dir   := "$out_dir/rep2"
 	pooled_dir := "$out_dir/pooled_replicate"
 
+	// take top $npeak_filt lines from narrowpeaks for idr
+
 	peak_rep1_filt 	:= _filt_out_bad_npeaks( peaks{1}, rep1_dir, "rep1" )
 	peak_rep2_filt 	:= _filt_out_bad_npeaks( peaks{2}, rep2_dir, "rep2"  )
 	peak_pooled_filt:= _filt_out_bad_npeaks( peak_pooled, pooled_dir, "pooled" )
 
+	string peak_pr1_rep1_filt, peak_pr2_rep1_filt, peak_pr1_rep2_filt, peak_pr2_rep2_filt, peak_ppr1_filt, peak_ppr2_filt
+
+	if ( !true_rep ) {
+
+		peak_pr1_rep1_filt = _filt_out_bad_npeaks( peaks_pr1{1}, rep1_dir, "rep1_pr1" )
+		peak_pr2_rep1_filt = _filt_out_bad_npeaks( peaks_pr2{1}, rep1_dir, "rep1_pr2" )
+		peak_pr1_rep2_filt = _filt_out_bad_npeaks( peaks_pr1{2}, rep2_dir, "rep2_pr1" )
+		peak_pr2_rep2_filt = _filt_out_bad_npeaks( peaks_pr2{2}, rep2_dir, "rep2_pr2" )
+
+		peak_ppr1_filt 	   = _filt_out_bad_npeaks( peak_ppr1, pooled_dir, "ppr1" )
+		peak_ppr2_filt 	   = _filt_out_bad_npeaks( peak_ppr2, pooled_dir, "ppr2" )
+	}
+
 	wait
+
+	// do idr
 
 	// idr for true reps
 	(idr_tr, tmp) = _idr2( peak_rep1_filt, peak_rep2_filt, peak_pooled_filt, idr_out_dir, "true" )
 
 	if ( !true_rep ) {
-
-		peak_pr1_rep1_filt := _filt_out_bad_npeaks( peaks_pr1{1}, rep1_dir, "rep1_pr1" )
-		peak_pr2_rep1_filt := _filt_out_bad_npeaks( peaks_pr2{1}, rep1_dir, "rep1_pr2" )
-		peak_pr1_rep2_filt := _filt_out_bad_npeaks( peaks_pr1{2}, rep2_dir, "rep2_pr1" )
-		peak_pr2_rep2_filt := _filt_out_bad_npeaks( peaks_pr2{2}, rep2_dir, "rep2_pr2" )
-
-		peak_ppr1_filt 	   := _filt_out_bad_npeaks( peak_ppr1, pooled_dir, "ppr1" )
-		peak_ppr2_filt 	   := _filt_out_bad_npeaks( peak_ppr2, pooled_dir, "ppr2" ) 
-
-		wait
 
 		// idr on pseudo reps
 		(idr_pr_rep1, tmp) = _idr2( peak_pr1_rep1_filt, peak_pr2_rep1_filt, peak_rep1_filt, idr_out_dir, "rep1_pr" )
