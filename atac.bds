@@ -6,7 +6,6 @@ help == atac pipeline settings
 
 se 		:= false 	help Single ended data.
 trimmed_fastq 	:= false	help Skip fastq-trimming stage.
-fraglen 	:= 75 		help Read fragment length (default: 75).
 mapping	 	:= false	help Mapping only (no macs2 peak calling or IDR).
 vplot 		:= false 	help Create V plot.
 preseq 		:= false 	help Do preseq analysis.
@@ -16,8 +15,8 @@ idr 		:= false 	help Perform IDR analysis on called peaks. This will change p-va
 no_ataqc 	:= false 	help No ATAQC 
 csem	 	:= false	help Use CSEM for alignment.
 //ataqc(parameters to be defined: species, blacklist, dnase, tss, prom, enh, reg2map and roadmap_meta).
-
 mem_ataqc 	:= "8G"		help Max. memory for ATAQC (default: 8G).
+smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
 
 help() // show help contexts
 
@@ -77,7 +76,6 @@ void init_atac() {
 		mapping 	= false
 
 		true_rep 	= true
-		idr 		= false
 		no_ataqc	= true
 
 		csem 		= false
@@ -99,7 +97,6 @@ void init_atac() {
 		se 		= get_conf_val_bool( se,		["se"] )
 
 		trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
-		fraglen 	= get_conf_val_int( fraglen,		["fraglen", "frag_len"] )
 
 		mapping		= get_conf_val_bool( mapping,		["mapping"] )
 
@@ -114,6 +111,8 @@ void init_atac() {
 		csem 		= get_conf_val_bool( csem, 		["csem"] )
 
 		mem_ataqc	= get_conf_val( mem_ataqc,		["mem_ataqc"] )
+
+		smooth_win	= get_conf_val( smooth_win,		["smooth_win"] )
 	}
 
 	if ( input == "" ) { // determine input type
@@ -127,11 +126,15 @@ void init_atac() {
 
 	rm_chr_from_tag = "chrM"; // remove lines with chrM in _bam_to_tag
 
+	print_atac()
+}
+
+void print_atac() {
+
 	print( "\n\n== atac pipeline settings\n")
 	print( "Single ended data set?\t: $se\n")
 	print( "Input data type\t\t: $input\n")		
 	print( "Fastqs are trimmed?\t: $trimmed_fastq\n")
-	print( "Fragment length\t\t: $fraglen\n")
 	print( "# Replicates\t\t: "+ get_num_rep() + "\n")
 	print( "MACS2 peak calling\t: " + !mapping + "\n")
 	print( "Subsample replicates\t: $subsample\n")
@@ -142,6 +145,7 @@ void init_atac() {
 	print( "No ATAQC (advanced QC report including vplot and preseq)\t: $no_ataqc\n")
 	print( "Use CSEM for alignment\t: $csem\n")
 	print( "Max. memory for ATAQC\t: $mem_ataqc\n")
+	print( "Smoothing window for MACS2\t: $smooth_win\n")
 }
 
 void chk_input_data() {
@@ -348,7 +352,7 @@ void _atac_SE( int rep ) {
 
 		tag_graph_id := subsample ? "subsampled\\ntagalign\\n($info)" : "tagalign\\n($info)"
 
-		( peaks{rep}, fc_bigwig, pval_bigwig )  = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info, tag_graph_id )
+		( peaks{rep}, fc_bigwig, pval_bigwig )  = _macs2_atac( shifted_tags{rep}, "$smooth_win", atac_out_dir, info, tag_graph_id )
 
 		if ( !true_rep ) {
 
@@ -358,10 +362,10 @@ void _atac_SE( int rep ) {
 
 			string tmp // to get multiple elements of function return
 
-			( peaks_pr1{rep}, tmp ) = _macs2_atac( shifted_tags_pr1{rep}, "$fraglen", atac_out_dir, info + "_pr1", \
+			( peaks_pr1{rep}, tmp ) = _macs2_atac( shifted_tags_pr1{rep}, "$smooth_win", atac_out_dir, info + "_pr1", \
 								"tagalign pr1\\n($info)" )
 
-			( peaks_pr2{rep}, tmp ) = _macs2_atac( shifted_tags_pr2{rep}, "$fraglen", atac_out_dir, info + "_pr2", \
+			( peaks_pr2{rep}, tmp ) = _macs2_atac( shifted_tags_pr2{rep}, "$smooth_win", atac_out_dir, info + "_pr2", \
 								"tagalign pr2\\n($info)" )
 		}
 	}
@@ -501,10 +505,10 @@ void _atac_PE( int rep ) {
 
 				string tmp // to get multiple elements of function return
 
-				( peaks_pr1{rep}, tmp ) = _macs2_atac( shifted_tags_pr1{rep}, "$fraglen", atac_out_dir, info + "_pr1", \
+				( peaks_pr1{rep}, tmp ) = _macs2_atac( shifted_tags_pr1{rep}, "$smooth_win", atac_out_dir, info + "_pr1", \
 									"tagalign pr1\\n($info)" )
 
-				( peaks_pr2{rep}, tmp ) = _macs2_atac( shifted_tags_pr2{rep}, "$fraglen", atac_out_dir, info + "_pr2", \
+				( peaks_pr2{rep}, tmp ) = _macs2_atac( shifted_tags_pr2{rep}, "$smooth_win", atac_out_dir, info + "_pr2", \
 									"tagalign pr2\\n($info)" )
 			}
 		}
@@ -513,7 +517,7 @@ void _atac_PE( int rep ) {
 			wait
 		}
 
-		( peaks{rep}, fc_bigwig, pval_bigwig ) = _macs2_atac( shifted_tags{rep}, "$fraglen", atac_out_dir, info )
+		( peaks{rep}, fc_bigwig, pval_bigwig ) = _macs2_atac( shifted_tags{rep}, "$smooth_win", atac_out_dir, info )
 	}
 
 	if ( bam != "" ) {
@@ -568,9 +572,9 @@ void post_atac() {
 		// call peaks on ppr
 		string tmp
 
-		( peak_ppr1, tmp ) = _macs2_atac( shifted_tag_ppr1, "$fraglen", pooled_out_dir, "ppr1", "tagalign\\n(ppr1)" )
-		( peak_ppr2, tmp ) = _macs2_atac( shifted_tag_ppr2, "$fraglen", pooled_out_dir, "ppr2", "tagalign\\n(ppr2)" )
-		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$fraglen", pooled_out_dir, "pooled", "tagalign\\n(pooled)" )
+		( peak_ppr1, tmp ) = _macs2_atac( shifted_tag_ppr1, "$smooth_win", pooled_out_dir, "ppr1", "tagalign\\n(ppr1)" )
+		( peak_ppr2, tmp ) = _macs2_atac( shifted_tag_ppr2, "$smooth_win", pooled_out_dir, "ppr2", "tagalign\\n(ppr2)" )
+		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", pooled_out_dir, "pooled", "tagalign\\n(pooled)" )
 
 		wait
 
@@ -582,7 +586,7 @@ void post_atac() {
 		wait
 
 		string tmp
-		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$fraglen", pooled_out_dir, "pooled", "tagalign\\n(pooled)" )
+		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", pooled_out_dir, "pooled", "tagalign\\n(pooled)" )
 	}
 
 	wait
