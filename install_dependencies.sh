@@ -6,7 +6,8 @@ conda config --add channels bioconda
 conda config --add channels astro
 
 conda create -n bds_atac --file requirements.txt -y
-conda create -n bds_atac_r2 --file requirements_r2.txt -y
+conda install -n bds_atac --file requirements_r2.txt -y --force # force install R-2.15.3
+
 conda create -n bds_atac_py3 --file requirements_py3.txt -y
 
 
@@ -50,21 +51,6 @@ make all
 cd $CONDA_BIN
 ln -s $CONDA_EXTRA/preseq/preseq preseq
 
-source deactivate
-
-
-source activate bds_atac_r2
-
-if [ $? != 0 ]; then
-  echo Anaconda environment not found!
-  exit
-fi
-
-CONDA_BIN=$(dirname $(which activate))
-CONDA_EXTRA="$CONDA_BIN/../extra"
-CONDA_ACTIVATE_D="$CONDA_BIN/../etc/conda/activate.d"
-CONDA_INIT="$CONDA_ACTIVATE_D/init.sh"
-mkdir -p $CONDA_EXTRA $CONDA_ACTIVATE_D
 
 #### install R 2.x.x packages
 cd $CONDA_EXTRA
