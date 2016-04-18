@@ -9,7 +9,7 @@ trimmed_fastq 	:= false	help Skip fastq-trimming stage.
 mapping	 	:= false	help Mapping only (no macs2 peak calling or IDR).
 vplot 		:= false 	help Create V plot.
 preseq 		:= false 	help Do preseq analysis.
-subsample 	:= false 	help Subsample replicates. Use '-nreads [NO_READS]' (default: 15000000) to specify # reads to subsample.
+subsample 	:= 0 		help Subsample replicates. Use '-subsample [NO_READS]'.
 true_rep 	:= false 	help No pseudo-replicates.
 idr 		:= false 	help Perform IDR analysis on called peaks. This will change p-value threshold (0.01->0.1) in MACS2 peak calling.
 no_ataqc 	:= false 	help No ATAQC 
@@ -22,7 +22,6 @@ help() // show help contexts
 
 include "modules/input_fastq.bds"
 include "modules/input_bam.bds"
-include "modules/align_bowtie.bds"
 include "modules/align_bowtie2.bds"
 include "modules/align_etc.bds"
 include "modules/vplot.bds"
@@ -32,6 +31,8 @@ include "modules/preseq.bds"
 include "modules/callpeak_macs2.bds"
 include "modules/callpeak_etc.bds"
 include "modules/idr.bds"
+include "modules/report.bds"
+
 
 input := ""
 
@@ -57,7 +58,6 @@ post_atac()
 do_idr()
 
 report()
-
 
 
 void init_atac() {
@@ -107,7 +107,7 @@ void init_atac() {
 
 		vplot 		= get_conf_val_bool( vplot,		["vplot"] )
 		preseq 		= get_conf_val_bool( preseq,		["preseq"] )
-		subsample	= get_conf_val_bool( subsample, 	["subsample"] )
+		subsample	= get_conf_val_int( subsample, 		["subsample"] )
 		true_rep	= get_conf_val_bool( true_rep, 		["true_rep"] )
 
 		idr 		= get_conf_val_bool( idr, 		["idr"] )
@@ -142,7 +142,7 @@ void print_atac() {
 	print( "Fastqs are trimmed?\t: $trimmed_fastq\n")
 	print( "# Replicates\t\t: "+ get_num_rep() + "\n")
 	print( "MACS2 peak calling\t: " + !mapping + "\n")
-	print( "Subsample replicates\t: $subsample\n")
+	print( "Subsample # lines replicates (0 if no subsampling)\t: $subsample\n")
 	print( "No pseudo replicates\t: $true_rep\n")
 	print( "Perform IDR analysis on peaks\t: $idr\n")
 	print( "Vplot generation\t: $vplot\n")
@@ -169,8 +169,8 @@ void chk_input_data() {
 	if ( !se && csem ) {
 		error("CSEM (-csem) is not available for single-ended data set ('-se')!\n")
 	}
-
-	if ( get_num_rep() != 2 && idr ) {
+	
+	if ( get_num_rep() > 2 && idr ) {
 		print("\nWarning: IDR is available for two replicates only. Disabling IDR...\n")
 		idr 	= false
 	}
@@ -192,6 +192,12 @@ void chk_input_data() {
 		pval_thresh_macs2 = 0.1
 	}
 
+	if ( nreads == 15000000 ) {
+
+		print("\nDefault # of reads to subsample for cross-corr. analysis ($nreads). Set it to 25000000.\n")
+		nreads = 25000000
+	}
+
 	// check data files
 	suffix := se ? " (SE)" : " (PE)"
 
@@ -210,7 +216,7 @@ void chk_input_data() {
 			if ( !se && (get_num_rep()==1) && (fastqs.size()<2) && (get_fastq( 0, 2, 1 )!="") ) fastqs.add( get_fastq( 0, 2, 1 ) )
 
 			if ( !se && fastqs.size() < 2 ) error("A pair of fastqs are needed for replicate $rep (if it's single-ended add '-se')\n")
-
+ 
 			if ( fastqs.size()==0 ) {
 				data.push( "" )
 			}
@@ -291,7 +297,7 @@ void _atac_SE( int rep ) {
 
 	info := "rep$rep"
 
-	atac_out_dir := mkdir_path( (get_num_rep()==1) ? out_dir : "$out_dir/$info" )
+	align_o_dir := mkdir_path( "$out_dir/align/$info" ) // create align output directory
 
 	if ( is_input_fastq() ) {
 
@@ -305,17 +311,19 @@ void _atac_SE( int rep ) {
 			p1 = fastq{rep}
 		}
 		else {
-			p1 = _trim_adapters( fastq{rep}, atac_out_dir, info )
+			p1 = _trim_adapters( fastq{rep}, align_o_dir, info )
 		}
 		wait
 
-		fastq_graph_id := trimmed_fastq ? "fastq\\n($info)" : "trimmed\\nfastq\\n($info)"
+		fastq_graph_id := trimmed_fastq ? "fastq_($info)" : "trimmed_fastq_($info)"
 
 		if ( csem ) {
-			( bam{rep}, align_log{rep} ) = _bowtie2_csem( p1, atac_out_dir, info, fastq_graph_id, "bam\\n($info)" )
+			( bam{rep}, align_log{rep} ) = _bowtie2_csem( p1, align_o_dir, info, \
+									fastq_graph_id, "bam_($info)", "L1_align/$info/bam" )
 		}
-		else {		
-			( bam{rep}, align_log{rep} ) = _bowtie2( p1, atac_out_dir, info, fastq_graph_id, "bam\\n($info)" )
+		else {
+			( bam{rep}, align_log{rep} ) = _bowtie2( p1, align_o_dir, info, \
+									fastq_graph_id, "bam_($info)", "L1_align/$info/bam" )
 		}
 		wait
 	}
@@ -324,7 +332,7 @@ void _atac_SE( int rep ) {
 
 		if ( is_input_bam() ) bam{rep} = get_bam( 0, rep )			
 
-		( filt_bam{rep}, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) = _dedup_bam( bam{rep}, atac_out_dir, info )
+		( filt_bam{rep}, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) = _dedup_bam( bam{rep}, align_o_dir, info )
 		wait
 	}
 
@@ -333,39 +341,64 @@ void _atac_SE( int rep ) {
 		if ( is_input_filt_bam() ) filt_bam{rep} = get_filt_bam( 0, rep )
 	}
 
-	string subsampled_tag
+	string tag, subsampled_tag
 
 	if ( !mapping ) {
 
-		tag := _bam_to_tag( filt_bam{rep}, atac_out_dir, info, "filt_bam\\n($info)", "tagalign\\n($info)" )
+		tag = _bam_to_tag( filt_bam{rep}, align_o_dir, info )
 		wait
 
-		if ( subsample ) {
-			subsampled_tag = _subsample_tag( tag, atac_out_dir, info )
+		if ( subsample != 0 ) {
+			subsampled_tag = _subsample_tag( tag, subsample, align_o_dir, info, "", "", "" )
 			wait
 		}
 		else {
 			subsampled_tag = tag
 		}
 
-		shifted_tags{rep} = _shift_tag( subsampled_tag, atac_out_dir, info )
+		shifted_tags{rep} = _shift_tag( subsampled_tag, align_o_dir, info )
 		wait
 
-		tag_graph_id := subsample ? "subsampled\\ntagalign\\n($info)" : "tagalign\\n($info)"
+		peak_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/$info")
+		sig_o_dir 	:= mkdir_path( "$out_dir/signal/macs2/$info" )
 
-		( peaks{rep}, fc_bigwig{rep}, pval_bigwig{rep} )  = _macs2_atac( shifted_tags{rep}, "$smooth_win", atac_out_dir, info, tag_graph_id )
-
+		( peaks{rep}, fc_bigwig{rep}, pval_bigwig{rep} )  = _macs2_atac( shifted_tags{rep}, "$smooth_win", peak_o_dir, sig_o_dir, info, \
+										\
+										"tagalign_($info)", "peak_macs2_($info)", "pval_signal_($info)", "fc_signal_($info)", \
+										"L1_peak/macs2/$info/peak", "L1_signal/macs2/$info/pval", "L1_signal/macs2/$info/fc" )
 		if ( !true_rep ) {
 
-			( shifted_tags_pr1{rep}, shifted_tags_pr2{rep} ) = _spr( shifted_tags{rep}, atac_out_dir, info, \
-									tag_graph_id, "tagalign pr1\\n($info)", "tagalign pr2\\n($info)" )
+			align_pr1_o_dir := mkdir_path( "$out_dir/align/pseudo_reps/$info/pr1" )
+			align_pr2_o_dir := mkdir_path( "$out_dir/align/pseudo_reps/$info/pr2" )
+
+			( shifted_tags_pr1{rep}, shifted_tags_pr2{rep} ) = _spr( shifted_tags{rep}, align_pr1_o_dir, align_pr2_o_dir, info, \
+										\
+										"tagalign_($info)", "tagalign_($info-pr1)", "tagalign_($info-pr2)", \
+										"L1_align/pseudo_reps/$info/pr1/tagalign", "L1_align/pseudo_reps/$info/pr2/tagalign" ) 
 			wait
 
+			peak_pr1_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/pseudo_reps/$info/pr1" )
+			sig_pr1_o_dir 	:= mkdir_path( "$out_dir/signal/macs2/pseudo_reps/$info/pr1" )
+			peak_pr2_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/pseudo_reps/$info/pr2" )
+			sig_pr2_o_dir 	:= mkdir_path( "$out_dir/signal/macs2/pseudo_reps/$info/pr2" )
+
+			pr1_hrchy 	:= "macs2/pseudo_reps/$info/pr1"
+			pr2_hrchy 	:= "macs2/pseudo_reps/$info/pr2"
+
 			( peaks_pr1{rep}, fc_bigwig{rep+"_pr1"}, pval_bigwig{rep+"_pr1"} ) \
-					= _macs2_atac( shifted_tags_pr1{rep}, "$smooth_win", atac_out_dir, info + "_pr1", "tagalign pr1\\n($info)" )
+					\
+					= _macs2_atac( shifted_tags_pr1{rep}, "$smooth_win", peak_pr1_o_dir, sig_pr1_o_dir, info + "-pr1", \
+						\
+						"tagalign_($info-pr1)", "peak_macs2_($info-pr1)", "pval_signal_($info-pr1)", "fc_signal_($info-pr1)", \
+						"L1_peak/$pr1_hrchy/peak", "L1_signal/$pr1_hrchy/pval", "L1_signal/$pr1_hrchy/fc" )
+
 
 			( peaks_pr2{rep}, fc_bigwig{rep+"_pr2"}, pval_bigwig{rep+"_pr2"} ) \
-					= _macs2_atac( shifted_tags_pr2{rep}, "$smooth_win", atac_out_dir, info + "_pr2", "tagalign pr2\\n($info)" )
+					\
+					= _macs2_atac( shifted_tags_pr2{rep}, "$smooth_win", peak_pr2_o_dir, sig_pr2_o_dir, info + "-pr2", \
+						\
+						"tagalign_($info-pr2)", "peak_macs2_($info-pr2)", "pval_signal_($info-pr2)", "fc_signal_($info-pr2)", \
+						"L1_peak/$pr2_hrchy/peak", "L1_signal/$pr2_hrchy/pval", "L1_signal/$pr2_hrchy/fc" )
 		}
 	}
 
@@ -373,32 +406,37 @@ void _atac_SE( int rep ) {
 
 		string sorted_bam
 
-		if ( vplot || preseq || !mapping && !no_ataqc ) sorted_bam = _srt_bam( bam{rep}, atac_out_dir, info )
+		if ( vplot || preseq || !mapping && !no_ataqc ) sorted_bam = _srt_bam( bam{rep}, align_o_dir, info )
 		wait
 
 		if ( !mapping && !no_ataqc ) {
+			
+			report_dir := mkdir_path( "$out_dir/ataqc/$info" )
 
-			report_dir := mkdir_path( "$atac_out_dir/ataqc" )
-
-			_ataqc( fastq{rep}, "", bam{rep}, align_log{rep}, sorted_bam, \
+			_ataqc( fastq{rep}, "", bam{rep}, align_log{rep}, pbc_qc{rep}, sorted_bam, \
 				dup_qc{rep}, filt_bam{rep}, shifted_tags{rep}, pval_bigwig{rep}, peaks{rep}, \
 				report_dir, info )
 		}
 		else {
+			if ( vplot ) _vplot( sorted_bam, align_o_dir, info )
 
-			if ( vplot ) _vplot( sorted_bam, atac_out_dir, info )
-
-			if ( preseq ) _preseq( sorted_bam, atac_out_dir, info )
+			if ( preseq ) _preseq( sorted_bam, align_o_dir, info )
 
 			//wait
 
-			//_report_atac( atac_out_dir, info )
+			//_report_atac( align_o_dir, info )
 		}		
 	}
 
-	if ( !mapping && subsampled_tag != "" ) { // cross correlation analysis
+	if ( !mapping && tag != "" ) { // cross correlation analysis
 
-		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag, atac_out_dir, info )
+		subsampled_tag_xcor := _subsample_tag( tag, align_o_dir, info, \
+								"tagalign_($info)", "subsampled_tagalign_($info)", \
+								"L1_align/$info/subsampled_tagalign" )
+
+		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag_xcor, align_o_dir, info, \
+								"subsampled_tagalign_($info)", "xcor_qc($info)", \
+								"L1_align/$info/xcor_qc" )
 	}
 
 	wait
@@ -408,7 +446,7 @@ void _atac_PE( int rep ) {
 
 	info := "rep$rep"
 
-	atac_out_dir := mkdir_path( (get_num_rep()==1) ? out_dir : "$out_dir/$info" )
+	align_o_dir := mkdir_path( "$out_dir/align/$info" ) // create align output directory
 
 	if ( is_input_fastq() ) {
 
@@ -430,15 +468,15 @@ void _atac_PE( int rep ) {
 			p2 = fastq2
 		}
 		else {
-			( p1, p2 ) = _trim_adapters_PE( fastq1, fastq2, atac_out_dir, info )
+			( p1, p2 ) = _trim_adapters_PE( fastq1, fastq2, align_o_dir, info )
 			wait
 		}
 
-		fastq_graph_id1 := trimmed_fastq ? "fastq1\\n($info)" : "trimmed\\nfastq1\\n($info)"
-		fastq_graph_id2 := trimmed_fastq ? "fastq2\\n($info)" : "trimmed\\nfastq2\\n($info)"
+		fastq_graph_id1 := trimmed_fastq ? "fastq1_($info)" : "trimmed_fastq1_($info)"
+		fastq_graph_id2 := trimmed_fastq ? "fastq2_($info)" : "trimmed_fastq2_($info)"
 
-		( bam{rep}, align_log{rep} ) = _bowtie2_PE( p1, p2, atac_out_dir, info, \
-							fastq_graph_id1, fastq_graph_id2, "bam\\n($info)" )
+		( bam{rep}, align_log{rep} ) = _bowtie2_PE( p1, p2, align_o_dir, info, \
+							fastq_graph_id1, fastq_graph_id2, "bam_($info)", "L1_align/$info/bam" )
 		wait
 
 	}
@@ -447,7 +485,7 @@ void _atac_PE( int rep ) {
 
 		if ( is_input_bam() ) bam{rep} = get_bam( 0, rep )			
 
-		(filt_bam{rep}, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) = _dedup_bam_PE( bam{rep}, atac_out_dir, info )
+		(filt_bam{rep}, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) = _dedup_bam_PE( bam{rep}, align_o_dir, info )
 		wait
 	}
 
@@ -456,145 +494,200 @@ void _atac_PE( int rep ) {
 		if ( is_input_filt_bam() ) filt_bam{rep} = get_filt_bam( 0, rep )
 	}
 
-	string tag
+	string bedpe
 
 	if ( !mapping ) {
 
-		if ( subsample || !true_rep ) {
+		if ( subsample!=0 || !true_rep ) {
 
-			bedpe := _bam_to_bedpe( filt_bam{rep}, atac_out_dir, info, "filt_bam\\n($info)", "bedpe\\n($info)" )
+			bedpe = _bam_to_bedpe( filt_bam{rep}, align_o_dir, info )
 			wait 
 
 			string subsampled_bedpe
 
-			if ( subsample ) {
+			if ( subsample!=0 ) {
 
-				subsampled_bedpe = _subsample_bedpe( bedpe, atac_out_dir, info )
+				subsampled_bedpe = _subsample_bedpe( bedpe, subsample, align_o_dir, info )
 			}
 			else {
 				subsampled_bedpe = bedpe
 			}
 			wait
 
-			tag_graph_id := subsample ? "subsampled\\nbedpe\\n($info)" : "bedpe\\n($info)"
-
-			tag = _bedpe_to_tag( subsampled_bedpe, atac_out_dir, info )
+			tag := _bedpe_to_tag( subsampled_bedpe, align_o_dir, info )			
 			wait
 
-			shifted_tags{rep} = _shift_tag( tag, atac_out_dir, info )
+			shifted_tags{rep} = _shift_tag( tag, align_o_dir, info )
 
 			if ( !true_rep ) {
 
+				align_pr1_o_dir := mkdir_path( "$out_dir/align/pseudo_reps/$info/pr1" )
+				align_pr2_o_dir := mkdir_path( "$out_dir/align/pseudo_reps/$info/pr2" )
+
 				string tag_pr1, tag_pr2
-				(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, atac_out_dir, info, \
-							tag_graph_id, "tagalign pr1\\n($info)", "tagalign pr2\\n($info)" )
+				(tag_pr1, tag_pr2) = _spr_PE( subsampled_bedpe, align_pr1_o_dir, align_pr2_o_dir, info, \
+							\
+							"tagalign_($info)", "tagalign_($info-pr1)", "tagalign_($info-pr2)", \
+							"L1_align/pseudo_reps/$info/pr1/tagalign", \
+							"L1_align/pseudo_reps/$info/pr2/tagalign" ) 
 				wait
 
-				shifted_tags_pr1{rep} = _shift_tag( tag_pr1, atac_out_dir, info )
-				shifted_tags_pr2{rep} = _shift_tag( tag_pr2, atac_out_dir, info )
+				shifted_tags_pr1{rep} = _shift_tag( tag_pr1, align_pr1_o_dir, info )
+				shifted_tags_pr2{rep} = _shift_tag( tag_pr2, align_pr2_o_dir, info )
 			}
 			wait
 
-			if ( !subsample ) {
+			if ( subsample==0 ) {
 
-				shifted_tags{rep} = _bam_to_bed_atac( filt_bam, atac_out_dir, info )
+				shifted_tags{rep} = _bam_to_bed_atac( filt_bam{rep}, align_o_dir, info )
 				wait
 			}
 			
 			if ( !true_rep ) {
 
+				peak_pr1_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/pseudo_reps/$info/pr1" )
+				sig_pr1_o_dir 	:= mkdir_path( "$out_dir/signal/macs2/pseudo_reps/$info/pr1" )
+				peak_pr2_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/pseudo_reps/$info/pr2" )
+				sig_pr2_o_dir 	:= mkdir_path( "$out_dir/signal/macs2/pseudo_reps/$info/pr2" )
+
+				pr1_hrchy := "macs2/pseudo_reps/$info/pr1"
+				pr2_hrchy := "macs2/pseudo_reps/$info/pr2"
+
 				( peaks_pr1{rep}, fc_bigwig{rep+"_pr1"}, pval_bigwig{rep+"_pr1"} ) \
-					= _macs2_atac( shifted_tags_pr1{rep}, "$smooth_win", atac_out_dir, info + "_pr1", "tagalign pr1\\n($info)" )
+					\
+					= _macs2_atac( shifted_tags_pr1{rep}, "$smooth_win", peak_pr1_o_dir, sig_pr1_o_dir, info + "_pr1", \
+						\
+						"tagalign_($info-pr1)", "peak_macs2_($info-pr1)", "pval_signal_($info-pr1)", "fc_signal_($info-pr1)", \
+						"L1_peak/$pr1_hrchy/peak", "L1_signal/$pr1_hrchy/pval", "L1_signal/$pr1_hrchy/fc" )
 
 				( peaks_pr2{rep},  fc_bigwig{rep+"_pr2"}, pval_bigwig{rep+"_pr2"} ) \
-					= _macs2_atac( shifted_tags_pr2{rep}, "$smooth_win", atac_out_dir, info + "_pr2", "tagalign pr2\\n($info)" )
+					\
+					= _macs2_atac( shifted_tags_pr2{rep}, "$smooth_win", peak_pr2_o_dir, sig_pr2_o_dir, info + "_pr2", \
+						\
+						"tagalign_($info-pr2)", "peak_macs2_($info-pr2)", "pval_signal_($info-pr2)", "fc_signal_($info-pr2)", \
+						"L1_peak/$pr2_hrchy/peak", "L1_signal/$pr2_hrchy/pval", "L1_signal/$pr2_hrchy/fc" )
 			}
 		}
 		else {
-			shifted_tags{rep} = _bam_to_bed_atac( filt_bam{rep}, atac_out_dir, info )
+			shifted_tags{rep} = _bam_to_bed_atac( filt_bam{rep}, align_o_dir, info )
 			wait
 		}
 
-		( peaks{rep}, fc_bigwig{rep}, pval_bigwig{rep} ) = _macs2_atac( shifted_tags{rep}, "$smooth_win", atac_out_dir, info )
+		peak_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/$info")
+		sig_o_dir 	:= mkdir_path( "$out_dir/signal/macs2/$info" )
+
+		( peaks{rep}, fc_bigwig{rep}, pval_bigwig{rep} ) = _macs2_atac( shifted_tags{rep}, "$smooth_win", peak_o_dir, sig_o_dir, info, \
+									\
+									"tagalign_($info)", "peak_macs2_($info)", "pval_signal_($info)", "fc_signal_($info)", \
+									"L1_peak/macs2/$info/peak", "L1_signal/macs2/$info/pval", "L1_signal/macs2/$info/fc" )
 	}
 
 	if ( bam.hasKey(rep) ) {
 
 		string sorted_bam
 
-		if ( vplot || preseq || !mapping && !no_ataqc ) sorted_bam = _srt_bam( bam{rep}, atac_out_dir, info )
+		if ( vplot || preseq || !mapping && !no_ataqc ) sorted_bam = _srt_bam( bam{rep}, align_o_dir, info )
 		wait
 
 		if ( !mapping && !no_ataqc ) {
 
-			report_dir := mkdir_path( "$atac_out_dir/ataqc" )
+			report_dir := mkdir_path( "$out_dir/ataqc/$info" )
 
-			_ataqc( fastq{rep+",1"}, fastq{rep+",2"}, bam{rep}, align_log{rep}, sorted_bam, \
+			_ataqc( fastq{rep+",1"}, fastq{rep+",2"}, bam{rep}, align_log{rep}, pbc_qc{rep}, sorted_bam, \
 				dup_qc{rep}, filt_bam{rep}, shifted_tags{rep}, pval_bigwig{rep}, peaks{rep}, \
 				report_dir, info )
 		}
 		else {
 
-			if ( vplot ) _vplot( sorted_bam, atac_out_dir, info )
+			if ( vplot ) _vplot( sorted_bam, align_o_dir, info )
 
-			if ( preseq ) _preseq( sorted_bam, atac_out_dir, info )
+			if ( preseq ) _preseq( sorted_bam, align_o_dir, info )
 
 			//wait
-			//_report_atac( atac_out_dir, info )
+			//_report_atac( report_dir, info )
 		}
 	}
 
-	if ( !mapping && tag != "" ) { // cross correlation analysis
+	if ( !mapping ) { // cross correlation analysis
 
-		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( tag, atac_out_dir, info )
+		if ( bedpe == "" ) bedpe = _bam_to_bedpe( filt_bam{rep}, align_o_dir, info )
+
+		subsampled_tag_xcor := _subsample_bedpe_to_tag_xcor( bedpe, align_o_dir, info ) //, \
+							//"subsampled_bedpe_($info)", "subsampled_tagalign_($info)", \
+							//"L1_align/$info/subsampled_tagalign" )
+		wait
+
+		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag_xcor, align_o_dir, info, \
+								"subsampled_tagalign_($info)", "xcor_qc($info)", \
+								"L1_align/$info/xcor_qc" )
 	}
 
 	wait
 }
 
-void post_atac() {
+void post_atac() { // for pooling two replicates and calling peaks on them
 
 	if ( mapping ) return
 
 	if ( get_num_rep() != 2 ) return
 
-	pooled_out_dir := mkdir_path( "$out_dir/pooled_replicate" )
+ 	align_pooled_o_dir := mkdir_path( "$out_dir/align/pooled_rep" )
 
 	string shifted_tag_pooled
 
 	if ( !true_rep ) {
+
+	 	align_pooled_o_dir := mkdir_path( "$out_dir/align/pooled_rep" )
+	 	align_ppr1_o_dir   := mkdir_path( "$out_dir/align/pooled_pseudo_reps/ppr1" )
+	 	align_ppr2_o_dir   := mkdir_path( "$out_dir/align/pooled_pseudo_reps/ppr2" )
 
 		// Make shifted tags for pooled pseudo rep (ppr).
 		string shifted_tag_ppr1, shifted_tag_ppr2
 
 		( shifted_tag_pooled, shifted_tag_ppr1, shifted_tag_ppr2 ) = \
 			_ppr( 	shifted_tags{1}, shifted_tags_pr1{1}, shifted_tags_pr2{1}, \
-				shifted_tags{2}, shifted_tags_pr1{2}, shifted_tags_pr2{2}, pooled_out_dir, "" )
+				shifted_tags{2}, shifted_tags_pr1{2}, shifted_tags_pr2{2}, \
+				align_pooled_o_dir, align_ppr1_o_dir, align_ppr2_o_dir, "" )
 		wait
+
+		peak_o_dir 	:= mkdir_path( "$out_dir/peak/macs2")
+		sig_o_dir 	:= mkdir_path( "$out_dir/signal/macs2")
+
+		ppr1_o_dir 	:= mkdir_path( "$peak_o_dir/pooled_pseudo_reps/ppr1" )
+		ppr1_sig_o_dir 	:= mkdir_path( "$sig_o_dir/pooled_pseudo_reps/ppr1" )
+		ppr2_o_dir 	:= mkdir_path( "$peak_o_dir/pooled_pseudo_reps/ppr2" )
+		ppr2_sig_o_dir 	:= mkdir_path( "$sig_o_dir/pooled_pseudo_reps/ppr2" )
+		pooled_o_dir	:= mkdir_path( "$peak_o_dir/pooled_rep" )
+		pooled_sig_o_dir:= mkdir_path( "$sig_o_dir/pooled_rep" )
 
 		// call peaks on ppr
-		string tmp
 
-		( peak_ppr1, fc_bigwig{"ppr1"}, pval_bigwig{"ppr1"} ) \
-			= _macs2_atac( shifted_tag_ppr1, "$smooth_win", pooled_out_dir, "ppr1", "tagalign\\n(ppr1)" )
+		ppr1_hrchy 	:= "macs2/pooled_pseudo_reps/ppr1"
+		ppr2_hrchy 	:= "macs2/pooled_pseudo_reps/ppr2"
+		pooled_hrchy 	:= "macs2/pooled_rep"
 
-		( peak_ppr2, fc_bigwig{"ppr2"}, pval_bigwig{"ppr2"} ) \
-			= _macs2_atac( shifted_tag_ppr2, "$smooth_win", pooled_out_dir, "ppr2", "tagalign\\n(ppr2)" )
+		( peak_ppr1, fc_bigwig{"ppr1"}, pval_bigwig{"ppr1"} ) = _macs2_atac( shifted_tag_ppr1, "$smooth_win", ppr1_o_dir, ppr1_sig_o_dir, "ppr1", \
+						\
+						"tagalign_(ppr1)","peak_macs2"+"_(ppr1)", "pval_signal_(ppr1)", "fc_signal_(ppr1)", \
+						"L1_peak/$ppr1_hrchy/peak", "L1_signal/$ppr1_hrchy/pval", "L1_signal/$ppr1_hrchy/fc" )
 
-		( peak_pooled, fc_bigwig{"pooled"}, pval_bigwig{"pooled"} ) \
-			= _macs2_atac( shifted_tag_pooled, "$smooth_win", pooled_out_dir, "pooled", "tagalign\\n(pooled)" )
 
-		wait
+		( peak_ppr2, fc_bigwig{"ppr2"}, pval_bigwig{"ppr2"} ) = _macs2_atac( shifted_tag_ppr2, "$smooth_win", ppr2_o_dir, ppr2_sig_o_dir, "ppr2", \
+						\
+						"tagalign_(ppr2)","peak_macs2"+"_(ppr2)", "pval_signal_(ppr2)", "fc_signal_(ppr2)", \
+						"L1_peak/$ppr2_hrchy/peak", "L1_signal/$ppr2_hrchy/pval", "L1_signal/$ppr2_hrchy/fc" )
 
-		peak_overlap =  _naive_overlap_thresh_narrowpeak( peak_pooled, peaks{1}, peaks{2}, \
-								peak_ppr1, peak_ppr2, pooled_out_dir, "final" )
+		( peak_pooled, fc_bigwig{"pooled"}, pval_bigwig{"pooled"} ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", pooled_o_dir, pooled_sig_o_dir, "pooled", \
+						\
+						"tagalign_(pooled)", "peak_macs2"+"_(pooled)", "pval_signal_(pooled)", "fc_signal_(pooled)", \
+						"L1_peak/$pooled_hrchy/peak", "L1_signal/$pooled_hrchy/pval", "L1_signal/$pooled_hrchy/fc" )
 	}
 	else {
-		shifted_tag_pooled = _pool_tag( shifted_tags{1}, shifted_tags{2}, pooled_out_dir, "" )
+		shifted_tag_pooled = _pool_tag( shifted_tags{1}, shifted_tags{2}, align_pooled_o_dir, "" )
 		wait
 
 		string tmp
-		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", pooled_out_dir, "pooled", "tagalign\\n(pooled)" )
+		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", align_pooled_o_dir, "pooled", "tagalign_(pooled)" )
 	}
 
 	wait
@@ -604,63 +697,143 @@ void do_idr() {
 	
 	if ( mapping ) return
 
-	if ( !idr || get_num_rep() != 2 ) return
-
-	idr_out_dir := mkdir_path( "$out_dir/idr2" )
-
-	rep1_dir   := "$out_dir/rep1"
-	rep2_dir   := "$out_dir/rep2"
-	pooled_dir := "$out_dir/pooled_replicate"
+	if ( !idr || get_num_rep() > 2 ) return
 
 	// take top $npeak_filt lines from narrowpeaks for idr
 
 	string{} filt_peaks, filt_peaks_pr1, filt_peaks_pr2
 	string filt_peak_pooled, filt_peak_ppr1, filt_peak_ppr2
 
-	filt_peaks{1} 	= _filt_out_bad_npeaks( peaks{1}, rep1_dir, "rep1" )
-	filt_peaks{2} 	= _filt_out_bad_npeaks( peaks{2}, rep2_dir, "rep2"  )
-	filt_peak_pooled= _filt_out_bad_npeaks( peak_pooled, pooled_dir, "pooled" )
+	filt_peaks{1} 	= _filt_out_bad_npeaks( peaks{1}, "", "rep1", \
+						"peak_macs2_(rep1)", "peak_macs2_filt_(rep1)", "L1_peak/macs2/rep1/peak_filt" )
+ 
+	if ( get_num_rep() > 1 ) {
+		filt_peaks{2} 	= _filt_out_bad_npeaks( peaks{2}, "", "rep2", \
+						"peak_macs2_(rep2)", "peak_macs2_filt_(rep2)", "L1_peak/macs2/rep2/peak_filt" )
+		filt_peak_pooled= _filt_out_bad_npeaks( peak_pooled, "", "pooled", \
+						"peak_macs2_(pooled)", "peak_macs2_filt_(pooled)", "L1_peak/macs2/pooled_rep/peak_filt" )
+	}
 	
 	if ( !true_rep ) {
 
-		filt_peaks_pr1{1} = _filt_out_bad_npeaks( peaks_pr1{1}, rep1_dir, "rep1_pr1" )
-		filt_peaks_pr2{1} = _filt_out_bad_npeaks( peaks_pr2{1}, rep1_dir, "rep1_pr2" )
-		filt_peaks_pr1{2} = _filt_out_bad_npeaks( peaks_pr1{2}, rep2_dir, "rep2_pr1" )
-		filt_peaks_pr2{2} = _filt_out_bad_npeaks( peaks_pr2{2}, rep2_dir, "rep2_pr2" )
+		filt_peaks_pr1{1} = _filt_out_bad_npeaks( peaks_pr1{1}, "", "rep1-pr1", \
+						"peak_macs2_(rep1-pr1)", "peak_macs2_filt_(rep1-pr1)", "L1_peak/macs2/pseudo_reps/rep1/pr1/peak_filt" )
+		filt_peaks_pr2{1} = _filt_out_bad_npeaks( peaks_pr2{1}, "", "rep1-pr2", \
+						"peak_macs2_(rep1-pr2)", "peak_macs2_filt_(rep1-pr2)", "L1_peak/macs2/pseudo_reps/rep1/pr2/peak_filt" )
 
-		filt_peak_ppr1 	   = _filt_out_bad_npeaks( peak_ppr1, pooled_dir, "ppr1" )
-		filt_peak_ppr2 	   = _filt_out_bad_npeaks( peak_ppr2, pooled_dir, "ppr2" )
+		if ( get_num_rep() > 1 ) {
+
+			filt_peaks_pr1{2} = _filt_out_bad_npeaks( peaks_pr1{2}, "", "rep2-pr1", \
+						"peak_macs2_(rep2-pr1)", "peak_macs2_filt_(rep2-pr1)", "L1_peak/macs2/pseudo_reps/rep2/pr1/peak_filt" )
+			filt_peaks_pr2{2} = _filt_out_bad_npeaks( peaks_pr2{2}, "", "rep2-pr2", \
+						"peak_macs2_(rep2-pr2)", "peak_macs2_filt_(rep2-pr2)", "L1_peak/macs2/pseudo_reps/rep2/pr2/peak_filt" )
+
+			filt_peak_ppr1 	   = _filt_out_bad_npeaks( peak_ppr1, "", "ppr1", \
+						"peak_macs2_(ppr1)", "peak_macs2_filt_(ppr1)", "L1_peak/macs2/pooled_pseudo_reps/ppr1/peak_filt" )
+			filt_peak_ppr2 	   = _filt_out_bad_npeaks( peak_ppr2, "", "ppr2", \
+						"peak_macs2_(ppr2)", "peak_macs2_filt_(ppr2)", "L1_peak/macs2/pooled_pseudo_reps/ppr2/peak_filt" )
+		}
 	}
 
 	wait
 
-	string tmp
+	// naive overlap peak
 
-	// idr for true reps
-	(idr_tr, idr_tr_png) = _idr2( filt_peaks{1}, filt_peaks{2}, filt_peak_pooled, idr_out_dir, "true", \
-				"n peak filt\\n(rep1)","n peak filt\\n(rep2)","n peak filt\\n(pooled)" )
+	overlap_o_dir := mkdir_path( "$out_dir/peak/macs2/overlap" )
 
+	if ( get_num_rep() == 1 ) {
+
+		peak_overlap = _naive_overlap_peak( "narrowPeak", peaks{1}, peaks_pr1{1}, peaks_pr2{1}, overlap_o_dir, "final" )
+
+		_add_to_graphviz( ["peak_macs2_(rep1)","peak_macs2_(rep1-pr1)","peak_macs2_(rep1-pr2)"], \
+				  [peaks{1}, peaks_pr1{1}, peaks_pr2{1}], \
+				  ["peak_macs2_(overlap)"], [peak_overlap], "naive_overlap", grp_color_naive_overlap )
+				    
+		_add_to_filetable(["L1_peak/macs2/overlap/peak_overlap"], [peak_overlap] )
+	}
+	else {
+		peak_overlap = _naive_overlap_peak( "narrowPeak", peak_pooled, peaks{1}, peaks{2}, \
+								  peak_ppr1, peak_ppr2, overlap_o_dir, "final" )
+
+		_add_to_graphviz( ["peak_macs2_(pooled)","peak_macs2_(rep1)","peak_macs2_(rep2)","peak_macs2_(ppr1)","peak_macs2_(ppr2)"], \
+				  [peak_pooled, peaks{1}, peaks{2}, peak_ppr1, peak_ppr2], \
+				  ["peak_macs2_(overlap)"], [peak_overlap], "naive_overlap", grp_color_naive_overlap )
+				    
+		_add_to_filetable(["L1_peak/macs2/overlap/peak_overlap"], [peak_overlap] )
+	}
+
+	// do IDR
+
+	idr_o_dir 	:= mkdir_path( "$out_dir/idr" )
+
+	if ( get_num_rep() > 1 ) {
+
+		idr_true_o_dir 	:= mkdir_path( "$idr_o_dir/true_reps" )
+
+		// idr for true reps
+		(idr_tr, idr_tr_png) = _idr2( filt_peaks{1}, filt_peaks{2}, filt_peak_pooled, idr_true_o_dir, "true", \
+						\
+						"peak_macs2_filt_(rep1)","peak_macs2_filt_(rep2)","peak_macs2_filt_(pooled)", \
+						"idr_peak_(true)", "L1_idr/true_reps/idr_peak" )
+	}
+	
 	if ( !true_rep ) {
 
+		idr_rep1_pr_o_dir := mkdir_path( "$idr_o_dir/pseudo_reps/rep1" )
+
 		// idr on pseudo reps
-		(idr_pr_rep1, idr_pr_rep1_png) = _idr2( filt_peaks_pr1{1}, filt_peaks_pr2{1}, filt_peaks{1}, idr_out_dir, "rep1_pr", \
-						"n peak filt\\n(rep1_pr1)","n peak filt\\n(rep1_pr2)","n peak filt\\n(rep1)" )
+		(idr_pr_rep1, idr_pr_rep1_png) = _idr2( filt_peaks_pr1{1}, filt_peaks_pr2{1}, filt_peaks{1}, idr_rep1_pr_o_dir, "rep1-pr", \
+						\
+						"peak_macs2_filt_(rep1-pr1)","peak_macs2_filt_(rep1-pr2)","peak_macs2_filt_(rep1)", \
+						"idr_peak_(rep1-pr)", "L1_idr/pseudo_reps/rep1/idr_peak" )
 
-		(idr_pr_rep2, idr_pr_rep2_png) = _idr2( filt_peaks_pr1{2}, filt_peaks_pr2{2}, filt_peaks{2}, idr_out_dir, "rep2_pr", \
-						"n peak filt\\n(rep2_pr1)","n peak filt\\n(rep2_pr2)","n peak filt\\n(rep2)" )
+		if ( get_num_rep() > 1 ) {
 
-		// idr on ppr
-		(idr_ppr, idr_ppr_png) = _idr2( filt_peak_ppr1, filt_peak_ppr2, filt_peak_pooled, idr_out_dir, "ppr", \
-						"n peak filt\\n(ppr1)","n peak filt\\n(ppr2)","n peak filt\\n(pooled)" )
-		wait
+			idr_rep2_pr_o_dir := mkdir_path( "$idr_o_dir/pseudo_reps/rep2" )
+			idr_ppr_o_dir 	  := mkdir_path( "$idr_o_dir/pooled_pseudo_reps" )
 
-		(idr_qc, idr_opt, idr_consv)  = _idr_final_qc( idr_tr, idr_pr_rep1, idr_pr_rep2, idr_ppr, idr_out_dir, "" )
+			(idr_pr_rep2, idr_pr_rep2_png) = _idr2( filt_peaks_pr1{2}, filt_peaks_pr2{2}, filt_peaks{2}, idr_rep2_pr_o_dir, "rep2-pr", \
+							\
+							"peak_macs2_filt_(rep2-pr1)","peak_macs2_filt_(rep2-pr2)","peak_macs2_filt_(rep2)", \
+							"idr_peak_(rep2-pr)", "L1_idr/pseudo_reps/rep2/idr_peak" )
+
+			// idr on ppr
+			(idr_ppr, idr_ppr_png) = _idr2( filt_peak_ppr1, filt_peak_ppr2, filt_peak_pooled, idr_ppr_o_dir, "ppr", \
+							\
+							"peak_macs2_filt_(ppr1)","peak_macs2_filt_(ppr2)","peak_macs2_filt_(pooled)", \
+							"idr_peak_(ppr)", "L1_idr/pooled_pseudo_reps/idr_peak" )
+		}
+		wait		
+
+		if ( get_num_rep() > 1 ) {
+
+			string idr_opt_, idr_consv_
+			(idr_qc, idr_opt_, idr_consv_)  = _idr_final_qc( idr_tr, idr_pr_rep1, idr_pr_rep2, idr_ppr, idr_o_dir, "" )
+
+			idr_opt_o_dir 	:= mkdir_path( "$out_dir/idr/optimal_set" )
+			idr_consv_o_dir := mkdir_path( "$out_dir/idr/conservative_set" )
+
+			// make a copy of (because genome browser checks duplicate track URLs)
+
+			idr_opt 	= replace_dir( idr_opt_, idr_opt_o_dir )
+			idr_consv 	= replace_dir( idr_consv_, idr_consv_o_dir )
+
+			in 	:= [idr_opt_,idr_consv_]
+			out 	:= [idr_opt,idr_consv]
+
+			task ( out<-in ) {
+				sys cp $idr_opt_ $idr_opt
+				sys cp $idr_consv_ $idr_consv
+			}
+
+			_add_to_filetable( ["L1_idr/opt_set/idr_peak","L1_idr/consv_set/idr_peak"], [idr_opt, idr_consv] )
+		}
 	}
 
 	wait
 }
 
-string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, string srt_bam, \
+string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, string pbc_log, string srt_bam, \
 		 string dup_log, string filt_bam, string bed, string bigwig, string peak, \
 		 string o_dir, string info ) {
 	
@@ -670,8 +843,8 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 	prefix_basename := get_basename( prefix )
 	param_fastq 	:= (fastq2!="") ? "--fastq1 $fastq1 --fastq2 $fastq2" : "--fastq1 $fastq1"
 
-	in  	:= (fastq2!="") ? [ fastq1, fastq2, bam, align_log, srt_bam, dup_log, filt_bam, bed, bigwig, peak ] \
-				: [ fastq1, bam, align_log, srt_bam, dup_log, filt_bam, bed, bigwig, peak ]
+	in  	:= (fastq2!="") ? [ fastq1, fastq2, bam, align_log, pbc_log, srt_bam, dup_log, filt_bam, bed, bigwig, peak ] \
+				: [ fastq1, bam, align_log, pbc_log, srt_bam, dup_log, filt_bam, bed, bigwig, peak ]
 	out 	:= [ html, txt ] //, gc_plot, hist_graph, lg_vplot, vplot, signal ]
 
 	taskName:= "ataqc "+info
@@ -695,6 +868,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 		    --enh $enh \
 		    --reg2map $reg2map \
 		    --meta $roadmap_meta \
+		    --pbc $pbc_log\
 		    $param_fastq \
 		    --alignedbam $bam \
 		    --alignmentlog $align_log \
@@ -708,173 +882,27 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 
 	wait_par()
 
-	label_in := ( fastq2!="" ) ? ["fastq1\\n($info)","fastq2\\n($info)","bam\\n($info)","srt_bam\\n($info)",\
-				      "filt_bam\\n($info)","tagalign\\n($info)","pval sig.\\n($info)","n peak\\n($info)"] \
-				   : ["fastq\\n($info)","bam\\n($info)","srt_bam\\n($info)",\
-				      "filt_bam\\n($info)","tagalign\\n($info)","pval sig.\\n($info)","n peak\\n($info)"]
+	graph_in := ( fastq2!="" ) ? ["fastq1_($info)","fastq2_($info)","bam_($info)","srt_bam_($info)",\
+				      "filt_bam_($info)","tagalign_($info)","pval sig._($info)","n peak_($info)"] \
+				   : ["fastq_($info)","bam_($info)","srt_bam_($info)",\
+				      "filt_bam_($info)","tagalign_($info)","pval sig._($info)","n peak_($info)"]
 
 	path_in := ( fastq2!="" ) ? [fastq1, fastq2, bam, srt_bam, filt_bam, bed, bigwig, peak] \
 				  : [fastq1, bam, srt_bam, filt_bam, bed, bigwig, peak]
 
-	_add_to_graphviz( label_in, path_in, ["ataqc rpt\\n($info)"], [html], "ataqc\\n($info)", grp_color_ataqc )
+	_add_to_graphviz( graph_in, path_in, ["ataqc rpt_($info)"], [html], "ataqc_($info)", grp_color_ataqc )
 
 	return out
 }
 
-void report() { // HTML atac report
+void report() {
 
-	wait
-	
-	html := report_header.read()
-
-	html += _html_atac_files() 	// treeview for directory and file structure 
+	html := _html_filetable() 	// treeview for directory and file structure 
 	html += _html_atac_tracks() 	// epigenome browser tracks
-	html += _html_atac_graphviz() 	// graphviz workflow diagram
-	html += _html_atac_QC()	 	// show QC tables and images
+	html += _html_graphviz()	// graphviz workflow diagram
+	html += _html_atac_QC()	// show QC tables and images
 
-	html += "<br></body></html>"
-
-	report_file.write( html )
-}
-
-string _html_atac_graphviz() {
-
-	html := "<div id='atac_graphviz'><b>Workflow diagram</b>"
-
-	html += _html_graphviz()
-
-	html += "</div><br>\n"
-	return html
-}
-
-string _html_atac_files() {
-
-	html := "<div id='atac_files'><b>Directories and files</b>"
-
-	html += "<table id='filetable'> <caption>"+\
-		"<a href='#' onclick=\"jQuery('#filetable').treetable('expandAll'); return false;\">Expand all</a> &nbsp&nbsp" + \
-		"<a href='#' onclick=\"jQuery('#filetable').treetable('collapseAll'); return false;\">Collapse all</a>" + \
-		"</caption> <thead><tr><th>Files</th><th>Path</th></tr></thead> <tbody>"
-
-	for ( int rep=1; rep <= get_num_rep(); rep++) {
-
-		info 	:= get_num_rep()==1 ? "." : "rep$rep"
-		key 	:= "$rep"
-		
-		align_out_dir 	:= "$out_dir/$info"
-		
-		html += "<tr data-tt-id='$key'><td>" + "Replicate $rep ($info)"+ "</td><td>"+ _html_link_url( align_out_dir ) +"</td></tr>"
-
-		// replicates and controls
-		if ( fastq.hasKey(key+",1") ) {
-			html += "<tr data-tt-id='fastq_$key"+"_1' data-tt-parent-id='$key'><td>" + "fastq pair 1" + "</td><td>"+_html_link_url( fastq{key+",1"} )+"</td></tr>"
-			html += "<tr data-tt-id='fastq_$key"+"_2' data-tt-parent-id='$key'><td>" + "fastq pair 2" + "</td><td>"+_html_link_url( fastq{key+",2"} )+"</td></tr>"
-		}
-		else if ( fastq.hasKey(key) ) {
-			html += "<tr data-tt-id='fastq_$key' data-tt-parent-id='$key'><td>" + "fastq" + "</td><td>"+_html_link_url( fastq{key} )+"</td></tr>"
-		}
-
-		if ( bam.hasKey(key) ) 	    	html += "<tr data-tt-id='bam_$key' data-tt-parent-id='$key'><td>" + "bam" + "</td><td>"+_html_link_url( bam{key} )+"</td></tr>"
-		if ( filt_bam.hasKey(key) ) 	html += "<tr data-tt-id='filt_bam_$key' data-tt-parent-id='$key'><td>" + "filtered bam" + "</td><td>"+_html_link_url( filt_bam{key} )+"</td></tr>"
-		if ( shifted_tags.hasKey(key) ) html += "<tr data-tt-id='tag_$key' data-tt-parent-id='$key'><td>" + "tagalign" + "</td><td>"+_html_link_url( shifted_tags{key} )+"</td></tr>"
-	}
-
-	// signal track
-
-	if ( pval_bigwig.hasKey("1") ) {
-
-		html += "<tr data-tt-id='signal'><td>" + "Signal track"+ "</td><td>"+ "" +"</td></tr>"
-
-		// true rep
-		html += "<tr data-tt-id='signal_trk_truerep' data-tt-parent-id='signal'><td>" + "True replicates"+ "</td><td></td></tr>"
-
-		for ( int rep=1; rep <= get_num_rep(); rep++) {
-
-			if ( pval_bigwig.hasKey(rep) ) html += "<tr data-tt-id='signal_trk_$rep' data-tt-parent-id='signal_trk_truerep'><td>" + "pval (rep$rep)"+ "</td><td>"+ _html_link_url( pval_bigwig{rep} ) +"</td></tr>"
-			if ( fc_bigwig.hasKey(rep) ) html += "<tr data-tt-id='signal_trk_$rep' data-tt-parent-id='signal_trk_truerep'><td>" + "fc (rep$rep)"+ "</td><td>"+ _html_link_url( fc_bigwig{rep} ) +"</td></tr>"
-		}
-
-		// pseudo rep
-		if ( pval_bigwig.hasKey("rep1_pr1") ) \
-			html += "<tr data-tt-id='signal_trk_pr' data-tt-parent-id='signal'><td>" + "Pseudo replicates"+ "</td><td></td></tr>"
-
-		for ( int rep=1; rep <= get_num_rep(); rep++) {
-			if ( pval_bigwig.hasKey("rep$rep"+"_pr1") ) html += "<tr data-tt-id='signal_trk_pr1_$rep' data-tt-parent-id='signal_trk_pr'><td>" + "pval (rep$rep pr1)"+ "</td><td>"+ _html_link_url( pval_bigwig{"rep$rep"+"_pr1"} ) +"</td></tr>"
-			if ( fc_bigwig.hasKey("rep$rep"+"_pr1") ) html += "<tr data-tt-id='signal_trk_pr1_$rep' data-tt-parent-id='signal_trk_pr'><td>" + "fc (rep$rep pr1)"+ "</td><td>"+ _html_link_url( fc_bigwig{"rep$rep"+"_pr1"} ) +"</td></tr>"
-			if ( pval_bigwig.hasKey("rep$rep"+"_pr2") ) html += "<tr data-tt-id='signal_trk_pr2_$rep' data-tt-parent-id='signal_trk_pr'><td>" + "pval (rep$rep pr2)"+ "</td><td>"+ _html_link_url( pval_bigwig{"rep$rep"+"_pr2"} ) +"</td></tr>"
-			if ( fc_bigwig.hasKey("rep$rep"+"_pr2") ) html += "<tr data-tt-id='signal_trk_pr2_$rep' data-tt-parent-id='signal_trk_pr'><td>" + "fc (rep$rep pr2)"+ "</td><td>"+ _html_link_url( fc_bigwig{"rep$rep"+"_pr2"} ) +"</td></tr>"
-		}
-
-		pooled_dir := "$out_dir/pooled_replicate"
-
-		if ( pval_bigwig.hasKey("ppr1") ) {
-			html += "<tr data-tt-id='signal_trk_ppr' data-tt-parent-id='signal'><td>" + "Pooled pseudo replicates"+ "</td><td>"+ _html_link_url( pooled_dir ) +"</td></tr>"
-			html += "<tr data-tt-id='signal_trk_ppr1' data-tt-parent-id='signal_trk_ppr'><td>" + "pval (ppr1)"+ "</td><td>"+ _html_link_url( pval_bigwig{"ppr1"} ) +"</td></tr>"
-			html += "<tr data-tt-id='signal_trk_ppr1' data-tt-parent-id='signal_trk_ppr'><td>" + "fc (ppr1)"+ "</td><td>"+ _html_link_url( fc_bigwig{"ppr1"} ) +"</td></tr>"
-			html += "<tr data-tt-id='signal_trk_ppr2' data-tt-parent-id='signal_trk_ppr'><td>" + "pval (ppr2)"+ "</td><td>"+ _html_link_url( pval_bigwig{"ppr2"} ) +"</td></tr>"
-			html += "<tr data-tt-id='signal_trk_ppr2' data-tt-parent-id='signal_trk_ppr'><td>" + "fc (ppr2)"+ "</td><td>"+ _html_link_url( fc_bigwig{"ppr2"} ) +"</td></tr>"
-		}
-	}
-
-	// peaks
-
-	if ( peaks.hasKey("1") ) { // if peak output exists
-
-		html += "<tr data-tt-id='peak'><td>" + "Peaks"+ "</td><td></td></tr>"
-
-		// true rep
-		html += "<tr data-tt-id='peak_truerep' data-tt-parent-id='peak'><td>" + "True replicates"+ "</td><td></td></tr>"
-
-		for ( int rep=1; rep <= get_num_rep(); rep++) {
-
-			if ( peaks.hasKey("$rep") ) html += "<tr data-tt-id='peak_$rep' data-tt-parent-id='peak_truerep'><td>" + "rep$rep"+ "</td><td>"+ _html_link_url( peaks{"$rep"} ) +"</td></tr>"
-		}
-
-		// pseudo rep
-		if ( peaks_pr1.hasKey("1") ) \
-			html += "<tr data-tt-id='peak_pr' data-tt-parent-id='peak'><td>" + "Pseudo replicates"+ "</td><td></td></tr>"
-
-		for ( int rep=1; rep <= get_num_rep(); rep++) {
-			if ( peaks_pr1.hasKey("$rep") ) html += "<tr data-tt-id='peak_pr1_$rep' data-tt-parent-id='peak_pr'><td>" + "rep$rep pr1"+ "</td><td>"+ _html_link_url( peaks_pr1{"$rep"} ) +"</td></tr>"
-			if ( peaks_pr2.hasKey("$rep") ) html += "<tr data-tt-id='peak_pr2_$rep' data-tt-parent-id='peak_pr'><td>" + "rep$rep pr2"+ "</td><td>"+ _html_link_url( peaks_pr2{"$rep"} ) +"</td></tr>"
-		}
-
-		pooled_dir := "$out_dir/pooled_replicate"
-
-		if ( peak_ppr1 != "" ) {
-			html += "<tr data-tt-id='peak_ppr' data-tt-parent-id='peak'><td>" + "Pooled pseudo replicates"+ "</td><td>"+ _html_link_url( pooled_dir ) +"</td></tr>"
-
-			html += "<tr data-tt-id='peak_ppr1' data-tt-parent-id='peak_ppr'><td>" + "ppr1"+ "</td><td>"+ _html_link_url( peak_ppr1 ) +"</td></tr>"
-			html += "<tr data-tt-id='peak_ppr2' data-tt-parent-id='peak_ppr'><td>" + "ppr2"+ "</td><td>"+ _html_link_url( peak_ppr2 ) +"</td></tr>"
-		}
-
-		if ( peak_overlap != "" ) {
-			html += "<tr data-tt-id='peak_overlap' data-tt-parent-id='peak'><td>" + "Naive overlap"+ "</td><td>"+ _html_link_url( peak_overlap ) +"</td></tr>"
-		}
-	}
-
-	// idr
-
-	if ( idr_tr != "" ) { // if idr output exists
-
-		string idr_out_dir
-
-		idr_out_dir = "$out_dir/idr2"
-
-		html += "<tr data-tt-id='idr'><td>" + "IDR peaks"+ "</td><td>"+ _html_link_url( idr_out_dir ) +"</td></tr>"
-
- 		if ( idr_tr!="" ) html += "<tr data-tt-id='idr_tr' data-tt-parent-id='idr'><td>" + "True replicates"+ "</td><td>"+ _html_link_url( idr_tr ) +"</td></tr>"
-		if ( idr_pr_rep1!="" ) html += "<tr data-tt-id='idr_pr_rep1' data-tt-parent-id='idr'><td>" + "Pseudo-replicates (rep1)"+ "</td><td>"+ _html_link_url( idr_pr_rep1 ) +"</td></tr>"		
-		if ( idr_pr_rep2!="" ) html += "<tr data-tt-id='idr_pr_rep2' data-tt-parent-id='idr'><td>" + "Pseudo-replicates (rep2)"+ "</td><td>"+ _html_link_url( idr_pr_rep2 ) +"</td></tr>"		
-		if ( idr_ppr!="" ) html += "<tr data-tt-id='idr_ppr' data-tt-parent-id='idr'><td>" + "Pooled pseudo-replicates"+ "</td><td>"+ _html_link_url( idr_ppr ) +"</td></tr>"		
-		if ( idr_opt!="" ) html += "<tr data-tt-id='idr_opt' data-tt-parent-id='idr'><td>" + "Optimal set"+ "</td><td>"+ _html_link_url( idr_opt ) +"</td></tr>"		
-		if ( idr_consv!="" ) html += "<tr data-tt-id='idr_consv' data-tt-parent-id='idr'><td>" + "Conservative set"+ "</td><td>"+ _html_link_url( idr_consv ) +"</td></tr>"		
-	}
-
-	html += "</tbody></table>"
-	html += "</div><br>\n"
-
-	return html
+	report( html )
 }
 
 string _html_atac_QC() {
@@ -919,10 +947,10 @@ string _html_atac_QC() {
 
 	if ( idr_qc != "" ) html += _parse_idr_to_html( "idr", idr_qc )
 
-	if ( idr_tr_png != "" ) html += _html_img( idr_tr_png, 800, "Nt" ) + "&nbsp"
-	if ( idr_pr_rep1_png != "" ) html += _html_img( idr_pr_rep1_png, 800, "N1" ) + "&nbsp"
-	if ( idr_pr_rep2_png != "" ) html += _html_img( idr_pr_rep2_png, 800, "N2" ) + "&nbsp"
-	if ( idr_ppr_png != "" ) html += _html_img( idr_ppr_png, 800, "Np" ) + "&nbsp"
+	if ( idr_tr_png != "" ) html += _html_img( idr_tr_png, 800, "true reps" ) + "&nbsp"
+	if ( idr_pr_rep1_png != "" ) html += _html_img( idr_pr_rep1_png, 800, "rep1 pseudo-reps" ) + "&nbsp"
+	if ( idr_pr_rep2_png != "" ) html += _html_img( idr_pr_rep2_png, 800, "rep2 pseudo-reps" ) + "&nbsp"
+	if ( idr_ppr_png != "" ) html += _html_img( idr_ppr_png, 800, "pooled pseudo-reps" ) + "&nbsp"
 
 	html += "</div><br>"
 	return html
