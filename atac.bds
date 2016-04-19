@@ -2,6 +2,22 @@
 #vim: syntax=java
 
 
+// Functions usually have the following structure. Output naming policy is included in the function.
+// They find prefix of input and add suffix to output and then change output's directory (o_dir).
+// Therefore, output naming is already defined in each file. e.g. in bwa, PREFIX.fastq.gz -> PREFIX.bam
+// e.g. output (string or array of str.) = _do_something( input1, input2, ... , o_dir, info )
+
+// Don't be confused with additional code lines for each underscored( _ ) function and 'hrchy' and 'graph' things.
+// They are for automatic generation of graphviz diagram and HTML filetable
+
+// Variables can be declared with help context, they are automatically set as 'parameter variables' and become parameters on shell command line.
+// You can omit type of variable with ':='. e.g. str1 := "abc" is equivalent to string str1 = "abc".
+
+// Important file names are stored in global variables (usually a string map string{} with a key with replicate id and peakcaller name)
+// e.g. filt_bam{"1"} = filtered bam for replicate 1, peaks_pr1{"2"} = peak file for pseudo replicate 1 of replicate 2 generated from spp
+
+
+
 help == atac pipeline settings
 
 se 		:= false 	help Single ended data.
@@ -11,7 +27,7 @@ vplot 		:= false 	help Create V plot.
 preseq 		:= false 	help Do preseq analysis.
 subsample 	:= 0 		help Subsample replicates. Use '-subsample [NO_READS]'.
 true_rep 	:= false 	help No pseudo-replicates.
-idr 		:= false 	help Perform IDR analysis on called peaks. This will change p-value threshold (0.01->0.1) in MACS2 peak calling.
+no_idr 		:= false 	help No IDR analysis on called peaks. This will change p-value threshold (0.1->0.01) in MACS2 peak calling.
 no_ataqc 	:= false 	help No ATAQC 
 csem	 	:= false	help Use CSEM for alignment.
 //ataqc(parameters to be defined: species, blacklist, dnase, tss, prom, enh, reg2map and roadmap_meta).
@@ -87,6 +103,8 @@ void init_atac() {
 		csem 		= false
 
 		input 		= "fastq"
+
+		no_idr 		= true
 	
 		print("\n\nLegacy input method found (8 parameters)\n")
 		print("========================================\n")
@@ -111,7 +129,7 @@ void init_atac() {
 		subsample	= get_conf_val_int( subsample, 		["subsample"] )
 		true_rep	= get_conf_val_bool( true_rep, 		["true_rep"] )
 
-		idr 		= get_conf_val_bool( idr, 		["idr"] )
+		no_idr 		= get_conf_val_bool( no_idr, 		["no_idr"] )
 		no_ataqc 	= get_conf_val_bool( no_ataqc, 		["no_ataqc"] )
 
 		csem 		= get_conf_val_bool( csem, 		["csem"] )
@@ -157,7 +175,7 @@ void print_atac() {
 	print( "MACS2 peak calling\t: " + !mapping + "\n")
 	print( "Subsample # lines replicates (0 if no subsampling)\t: $subsample\n")
 	print( "No pseudo replicates\t: $true_rep\n")
-	print( "Perform IDR analysis on peaks\t: $idr\n")
+	print( "No IDR analysis on peaks\t: $no_idr\n")
 	print( "Vplot generation\t: $vplot\n")
 	print( "Preseq analysis\t\t: $preseq\n")
 	print( "No ATAQC (advanced QC report including vplot and preseq)\t: $no_ataqc\n")
@@ -183,31 +201,31 @@ void chk_input_data() {
 		error("CSEM (-csem) is not available for single-ended data set ('-se')!\n")
 	}
 	
-	if ( get_num_rep() > 2 && idr ) {
-		print("\nWarning: IDR is available for two replicates only. Disabling IDR...\n")
-		idr 	= false
+	if ( get_num_rep() > 2 && !no_idr ) {
+		print("\nWarning: IDR is available for one replicate or two replicates only. Disabling IDR...\n")
+		no_idr 	= true
 	}
 
 	if ( is_input_fastq() ) chk_align_bwt2()
 	if ( !mapping ) 	chk_callpeak_macs2()
 	if ( vplot ) 		chk_vplot()
-	if ( idr ) 		chk_idr()
+	if ( !no_idr ) 		chk_idr()
 	if ( !no_ataqc ) 	chk_ataqc()
 
-	if ( idr ) {
+	if ( !no_idr ) {
 		if ( idr_thresh == "0.02" ) {
-			print("\nDefault IDR threshold is found ($idr_thresh). Set it to 0.1 .\n")
+			print("\nDefault IDR threshold is found ($idr_thresh). Setting it to 0.1 ...\n")
 			idr_thresh = 0.1
 		}
 	
-		print("\nSet p-value threshold in MACS2 peak calling to 0.1 .\n")
+		print("\nSetting p-value threshold in MACS2 peak calling to 0.1 ...\n")
 
 		pval_thresh_macs2 = 0.1
 	}
 
 	if ( nreads == 15000000 ) {
 
-		print("\nDefault # of reads to subsample for cross-corr. analysis ($nreads). Set it to 25000000.\n")
+		print("\nDefault # of reads to subsample for cross-corr. analysis ($nreads). Setting it to 25000000 ...\n")
 		nreads = 25000000
 	}
 
@@ -730,7 +748,7 @@ void do_idr() {
 	
 	if ( mapping ) return
 
-	if ( !idr || get_num_rep() > 2 ) return
+	if ( no_idr || get_num_rep() > 2 ) return
 
 	// take top $npeak_filt lines from narrowpeaks for idr
 
@@ -888,9 +906,13 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 
 		sys $shcmd_init
 
+		// To prevent java heap space error (Exception in thread "main" java.lang.OutOfMemoryError: Java heap space)
+		// increae -Xmx if you still have it
+		sys export _JAVA_OPTIONS="-Xms256M -Xmx4096M -XX:ParallelGCThreads=1"
+
 		sys cd $o_dir
 
-		sys python $script_dir/ataqc/run_ataqc.py \
+		sys $script_dir/ataqc/run_ataqc.py \
 		    --workdir $o_dir \
 		    --outdir $o_dir \
 		    --outprefix $prefix_basename \

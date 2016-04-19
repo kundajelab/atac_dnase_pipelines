@@ -80,9 +80,9 @@ If your data are single ended, add the following to the command line.
 -se
 ```
 
-For ATAQC, you need to define the following parameters. parameters `-preseq` and `-vplot` will be ignored since they are already included in ATAQC. See help (`$ bds atac.bds`) for description of all parameters.
+For ATAQC, you need to define the following parameters. parameters `-preseq` and `-vplot` will be ignored since they are already included in ATAQC. See help (`$ bds atac.bds`) for description of all parameters. Even though you don't use a species file `-species_file`, you need to specify a species name for ATAQC.
 ```
--vplot_idx [] -ref_fa [] -blacklist [] -dnase [] -prom [] -enh [] -reg2map [] -roadmap_meta []
+-species [hg19, mm9 or ...] -vplot_idx [] -ref_fa [] -blacklist [] -dnase [] -prom [] -enh [] -reg2map [] -roadmap_meta []
 ```
 
 If you don't want ATAQC, add the following to command line. 
@@ -117,19 +117,24 @@ For deduped (filtered) bams, preseq analysis and v plot will not be available si
 -filt_bam1 [NODUP_BAM_REP1] -filt_bam2 [NODUP_BAM_REP1] ...
 ```
 
-To subsample beds (tagaligns) add the following to the command line, you can skip the second parameter (-nreads, default is 15000000):
+To subsample beds (tagaligns) add the following to the command line. This is different from subsampling for cross-corr. analysis. Peaks will be called with subsampled tagaligns.
 ```
--subsample -nreads [NO_READS_TO_SUBSAMPLE]
+-subsample [NO_READS_TO_SUBSAMPLE]
 ```
 
-To disable pseudo replicate generation:
+To disable pseudo replicate generation. By default, IDR will be done for true replicates and pseudo replicates, but if you have `-true_rep` in the command line, you will also get IDR on true replicates only. IDR on a single replicate and naive overlapped peak is not avaiable when this flag is on:
 ```
 -true_rep
 ```
 
-For IDR analysis on peaks (two replicates are needed) add the following, and for final IDR QC add path to blacklist idr (for hg19, http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz):
+IDR analysis is included in the pipeline by default. For better IDR QC, add path to blacklist idr (for hg19, http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz).
 ```
--idr -blacklist_idr [BLACKLIST_IDR]
+-blacklist_idr [BLACKLIST_IDR]
+```
+
+If you don't want IDR analysis on peaks (two replicates are needed) add the following:
+```
+-no_idr
 ```
 
 To change resource settings (# of processor, max memory and walltime) for bowtie2, add the following to command line, please note that memory is PER CPU:
@@ -141,8 +146,6 @@ For MACS2 peak calling:
 ```
 -nth_macs2 [NTHREADS_MACS2] -mem_macs2 [MEMORY_MACS2; e.g. 20G] -wt_macs2 [WALLTIME_MACS2; e.g. 20h]
 ```
-
-By default, IDR will be done for true replicates and pseudo replicates, but if you have `-true_rep` in the command line, you will also get IDR on true replicates.
 
 For Kundaje lab cluster and SCG3, skip all genome specific parameters (like bwt2_idx, chrsz, ... ) and just specify species.
 ```
@@ -229,6 +232,20 @@ For R-2.x, <a href="https://github.com/kundajelab/bds_atac/blob/master/requireme
 
 If your pipeline starts from BAM files, make sure that bam index (.bam.bai) exists together with BAM file. If not, build index with `samtools index [YOUR_BAM_FILE]`. BAM and BAI should be in the same directory.
 
+
+2) pysam backward compatibility issue
+
+ATAQC currently does not work with pysam >= 0.9. Lower it to 0.8.3.
+```
+Traceback (most recent call last):
+  File "/users/leepc12/code/bds_atac/ataqc/run_ataqc.py", line 1303, in <module>
+    main()
+  File "/users/leepc12/code/bds_atac/ataqc/run_ataqc.py", line 1120, in main
+    chr_m_reads, fraction_chr_m = get_chr_m(COORDSORT_BAM)
+  File "/users/leepc12/code/bds_atac/ataqc/run_ataqc.py", line 160, in get_chr_m
+    tot_reads += int(chrom_stats[2])
+IndexError: list index out of range
+```
 
 
 ### Contributors

@@ -1,9 +1,10 @@
 #!/bin/bash
 
 ############ install in conda env.
-conda config --add channels r
+conda config --add channels r # r-2.15.3
 conda config --add channels bioconda
-conda config --add channels astro
+conda config --add channels astro # r-2.15.3
+conda config --add channels kalefranz # imagemagick
 
 conda create -n bds_atac --file requirements.txt -y
 conda install -n bds_atac --file requirements_r2.txt -y --force # force install R-2.15.3
@@ -47,6 +48,8 @@ rm -rf preseq
 git clone https://github.com/smithlabcode/preseq --recursive
 cd preseq
 git checkout tags/v2.0.2
+export CPLUS_INCLUDE_PATH=$CONDA_BIN/../include
+export LIBRARY_PATH=$CONDA_BIN/../lib
 make all
 cd $CONDA_BIN
 ln -s $CONDA_EXTRA/preseq/preseq preseq
