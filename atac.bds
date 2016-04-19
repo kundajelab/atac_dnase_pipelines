@@ -35,6 +35,7 @@ include "modules/report.bds"
 
 
 input := ""
+max_callpeak 	:= 1	// maximum # of peak calling in parallel
 
 // Global variable for output filenames ( map with key $rep )
 string{} fastq, align_log, bam, filt_bam, dup_qc, flagstat_nodup_qc, pbc_qc, xcor_qc, xcor_plot
@@ -96,7 +97,7 @@ void init_atac() {
 		print( "Genome size (hs,mm)\t: $gensz\n" )
 		print( "Chromosome sizes file\t: $chrsz\n" )
 		print( "V-Plot index\t\t: $vplot_idx\n" )
-		print( "Output dir.\t\t: $out_dir\n" )
+		print( "Output dir.\t\t: $out_dir\n" )		
 	}
 	else {
 		se 		= get_conf_val_bool( se,		["se"] )
@@ -131,7 +132,19 @@ void init_atac() {
 
 	rm_chr_from_tag = "chrM"; // remove lines with chrM in _bam_to_tag
 
+	calc_max_callpeak()
+
 	print_atac()
+}
+
+void calc_max_callpeak() {
+
+	real r1 = peaks_in_par
+	real r2 = reps_in_par
+	
+	max_callpeak = round( ceil( r1/r2 ) )
+
+	print("\nDEBUG: max_callpeak = $max_callpeak\n")
 }
 
 void print_atac() {
@@ -295,6 +308,8 @@ void _atac( int rep ) {
 
 void _atac_SE( int rep ) {
 
+	cnt_callpeak := 0
+
 	info := "rep$rep"
 
 	align_o_dir := mkdir_path( "$out_dir/align/$info" ) // create align output directory
@@ -359,13 +374,6 @@ void _atac_SE( int rep ) {
 		shifted_tags{rep} = _shift_tag( subsampled_tag, align_o_dir, info )
 		wait
 
-		peak_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/$info")
-		sig_o_dir 	:= mkdir_path( "$out_dir/signal/macs2/$info" )
-
-		( peaks{rep}, fc_bigwig{rep}, pval_bigwig{rep} )  = _macs2_atac( shifted_tags{rep}, "$smooth_win", peak_o_dir, sig_o_dir, info, \
-										\
-										"tagalign_($info)", "peak_macs2_($info)", "pval_signal_($info)", "fc_signal_($info)", \
-										"L1_peak/macs2/$info/peak", "L1_signal/macs2/$info/pval", "L1_signal/macs2/$info/fc" )
 		if ( !true_rep ) {
 
 			align_pr1_o_dir := mkdir_path( "$out_dir/align/pseudo_reps/$info/pr1" )
@@ -392,6 +400,7 @@ void _atac_SE( int rep ) {
 						"tagalign_($info-pr1)", "peak_macs2_($info-pr1)", "pval_signal_($info-pr1)", "fc_signal_($info-pr1)", \
 						"L1_peak/$pr1_hrchy/peak", "L1_signal/$pr1_hrchy/pval", "L1_signal/$pr1_hrchy/fc" )
 
+			if ( !path_exists( peaks_pr1{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
 
 			( peaks_pr2{rep}, fc_bigwig{rep+"_pr2"}, pval_bigwig{rep+"_pr2"} ) \
 					\
@@ -399,7 +408,18 @@ void _atac_SE( int rep ) {
 						\
 						"tagalign_($info-pr2)", "peak_macs2_($info-pr2)", "pval_signal_($info-pr2)", "fc_signal_($info-pr2)", \
 						"L1_peak/$pr2_hrchy/peak", "L1_signal/$pr2_hrchy/pval", "L1_signal/$pr2_hrchy/fc" )
+
+			if ( !path_exists( peaks_pr2{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
 		}
+
+		peak_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/$info")
+		sig_o_dir 	:= mkdir_path( "$out_dir/signal/macs2/$info" )
+
+		( peaks{rep}, fc_bigwig{rep}, pval_bigwig{rep} )  = _macs2_atac( shifted_tags{rep}, "$smooth_win", peak_o_dir, sig_o_dir, info, \
+										\
+										"tagalign_($info)", "peak_macs2_($info)", "pval_signal_($info)", "fc_signal_($info)", \
+										"L1_peak/macs2/$info/peak", "L1_signal/macs2/$info/pval", "L1_signal/macs2/$info/fc" )
+		if ( !path_exists( peaks{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
 	}
 
 	if ( bam.hasKey(rep) ) {
@@ -443,6 +463,8 @@ void _atac_SE( int rep ) {
 }
 
 void _atac_PE( int rep ) {
+
+	cnt_callpeak := 0 // count peak calling 
 
 	info := "rep$rep"
 
@@ -560,12 +582,16 @@ void _atac_PE( int rep ) {
 						"tagalign_($info-pr1)", "peak_macs2_($info-pr1)", "pval_signal_($info-pr1)", "fc_signal_($info-pr1)", \
 						"L1_peak/$pr1_hrchy/peak", "L1_signal/$pr1_hrchy/pval", "L1_signal/$pr1_hrchy/fc" )
 
+				if ( !path_exists( peaks_pr1{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
+
 				( peaks_pr2{rep},  fc_bigwig{rep+"_pr2"}, pval_bigwig{rep+"_pr2"} ) \
 					\
 					= _macs2_atac( shifted_tags_pr2{rep}, "$smooth_win", peak_pr2_o_dir, sig_pr2_o_dir, info + "_pr2", \
 						\
 						"tagalign_($info-pr2)", "peak_macs2_($info-pr2)", "pval_signal_($info-pr2)", "fc_signal_($info-pr2)", \
 						"L1_peak/$pr2_hrchy/peak", "L1_signal/$pr2_hrchy/pval", "L1_signal/$pr2_hrchy/fc" )
+
+				if ( !path_exists( peaks_pr2{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
 			}
 		}
 		else {
@@ -580,6 +606,8 @@ void _atac_PE( int rep ) {
 									\
 									"tagalign_($info)", "peak_macs2_($info)", "pval_signal_($info)", "fc_signal_($info)", \
 									"L1_peak/macs2/$info/peak", "L1_signal/macs2/$info/pval", "L1_signal/macs2/$info/fc" )
+
+		if ( !path_exists( peaks{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
 	}
 
 	if ( bam.hasKey(rep) ) {
@@ -631,6 +659,8 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 
 	if ( get_num_rep() != 2 ) return
 
+	cnt_callpeak := 0
+
  	align_pooled_o_dir := mkdir_path( "$out_dir/align/pooled_rep" )
 
 	string shifted_tag_pooled
@@ -671,11 +701,14 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 						"tagalign_(ppr1)","peak_macs2"+"_(ppr1)", "pval_signal_(ppr1)", "fc_signal_(ppr1)", \
 						"L1_peak/$ppr1_hrchy/peak", "L1_signal/$ppr1_hrchy/pval", "L1_signal/$ppr1_hrchy/fc" )
 
+		if ( !path_exists( peak_ppr1 ) && ++cnt_callpeak % peaks_in_par == 0 ) wait
 
 		( peak_ppr2, fc_bigwig{"ppr2"}, pval_bigwig{"ppr2"} ) = _macs2_atac( shifted_tag_ppr2, "$smooth_win", ppr2_o_dir, ppr2_sig_o_dir, "ppr2", \
 						\
 						"tagalign_(ppr2)","peak_macs2"+"_(ppr2)", "pval_signal_(ppr2)", "fc_signal_(ppr2)", \
 						"L1_peak/$ppr2_hrchy/peak", "L1_signal/$ppr2_hrchy/pval", "L1_signal/$ppr2_hrchy/fc" )
+
+		if ( !path_exists( peak_ppr2 ) && ++cnt_callpeak % peaks_in_par == 0 ) wait
 
 		( peak_pooled, fc_bigwig{"pooled"}, pval_bigwig{"pooled"} ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", pooled_o_dir, pooled_sig_o_dir, "pooled", \
 						\
@@ -739,29 +772,31 @@ void do_idr() {
 
 	// naive overlap peak
 
-	overlap_o_dir := mkdir_path( "$out_dir/peak/macs2/overlap" )
+	if ( !true_rep ) {
 
-	if ( get_num_rep() == 1 ) {
+		overlap_o_dir := mkdir_path( "$out_dir/peak/macs2/overlap" )
 
-		peak_overlap = _naive_overlap_peak( "narrowPeak", peaks{1}, peaks_pr1{1}, peaks_pr2{1}, overlap_o_dir, "final" )
+		if ( get_num_rep() == 1 ) {
 
-		_add_to_graphviz( ["peak_macs2_(rep1)","peak_macs2_(rep1-pr1)","peak_macs2_(rep1-pr2)"], \
-				  [peaks{1}, peaks_pr1{1}, peaks_pr2{1}], \
-				  ["peak_macs2_(overlap)"], [peak_overlap], "naive_overlap", grp_color_naive_overlap )
-				    
-		_add_to_filetable(["L1_peak/macs2/overlap/peak_overlap"], [peak_overlap] )
+			peak_overlap = _naive_overlap_peak( "narrowPeak", peaks{1}, peaks_pr1{1}, peaks_pr2{1}, overlap_o_dir, "final" )
+
+			_add_to_graphviz( ["peak_macs2_(rep1)","peak_macs2_(rep1-pr1)","peak_macs2_(rep1-pr2)"], \
+					  [peaks{1}, peaks_pr1{1}, peaks_pr2{1}], \
+					  ["peak_macs2_(overlap)"], [peak_overlap], "naive_overlap", grp_color_naive_overlap )
+					    
+			_add_to_filetable(["L1_peak/macs2/overlap/peak_overlap"], [peak_overlap] )
+		}
+		else {
+			peak_overlap = _naive_overlap_peak( "narrowPeak", peak_pooled, peaks{1}, peaks{2}, \
+									  peak_ppr1, peak_ppr2, overlap_o_dir, "final" )
+
+			_add_to_graphviz( ["peak_macs2_(pooled)","peak_macs2_(rep1)","peak_macs2_(rep2)","peak_macs2_(ppr1)","peak_macs2_(ppr2)"], \
+					  [peak_pooled, peaks{1}, peaks{2}, peak_ppr1, peak_ppr2], \
+					  ["peak_macs2_(overlap)"], [peak_overlap], "naive_overlap", grp_color_naive_overlap )
+					    
+			_add_to_filetable(["L1_peak/macs2/overlap/peak_overlap"], [peak_overlap] )
+		}
 	}
-	else {
-		peak_overlap = _naive_overlap_peak( "narrowPeak", peak_pooled, peaks{1}, peaks{2}, \
-								  peak_ppr1, peak_ppr2, overlap_o_dir, "final" )
-
-		_add_to_graphviz( ["peak_macs2_(pooled)","peak_macs2_(rep1)","peak_macs2_(rep2)","peak_macs2_(ppr1)","peak_macs2_(ppr2)"], \
-				  [peak_pooled, peaks{1}, peaks{2}, peak_ppr1, peak_ppr2], \
-				  ["peak_macs2_(overlap)"], [peak_overlap], "naive_overlap", grp_color_naive_overlap )
-				    
-		_add_to_filetable(["L1_peak/macs2/overlap/peak_overlap"], [peak_overlap] )
-	}
-
 	// do IDR
 
 	idr_o_dir 	:= mkdir_path( "$out_dir/idr" )
