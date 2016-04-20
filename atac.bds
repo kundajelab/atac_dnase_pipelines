@@ -797,33 +797,33 @@ void do_idr() {
 	string{} filt_peak, filt_peak_pr1, filt_peak_pr2
 	string filt_peak_pooled, filt_peak_ppr1, filt_peak_ppr2
 
-	filt_peak{1} 	= _filt_out_bad_npeaks( peak{1}, "", "rep1", \
+	filt_peak{1} 	= _filt_top_peaks( peak{1}, "", "rep1", \
 						"peak_macs2_(rep1)", "peak_macs2_filt_(rep1)", "L1_peak/macs2/rep1/peak_filt" )
  
 	if ( get_num_rep() > 1 ) {
-		filt_peak{2} 	= _filt_out_bad_npeaks( peak{2}, "", "rep2", \
+		filt_peak{2} 	= _filt_top_peaks( peak{2}, "", "rep2", \
 						"peak_macs2_(rep2)", "peak_macs2_filt_(rep2)", "L1_peak/macs2/rep2/peak_filt" )
-		filt_peak_pooled= _filt_out_bad_npeaks( peak_pooled, "", "pooled", \
+		filt_peak_pooled= _filt_top_peaks( peak_pooled, "", "pooled", \
 						"peak_macs2_(pooled)", "peak_macs2_filt_(pooled)", "L1_peak/macs2/pooled_rep/peak_filt" )
 	}
 	
 	if ( !true_rep ) {
 
-		filt_peak_pr1{1} = _filt_out_bad_npeaks( peak_pr1{1}, "", "rep1-pr1", \
+		filt_peak_pr1{1} = _filt_top_peaks( peak_pr1{1}, "", "rep1-pr1", \
 						"peak_macs2_(rep1-pr1)", "peak_macs2_filt_(rep1-pr1)", "L1_peak/macs2/pseudo_reps/rep1/pr1/peak_filt" )
-		filt_peak_pr2{1} = _filt_out_bad_npeaks( peak_pr2{1}, "", "rep1-pr2", \
+		filt_peak_pr2{1} = _filt_top_peaks( peak_pr2{1}, "", "rep1-pr2", \
 						"peak_macs2_(rep1-pr2)", "peak_macs2_filt_(rep1-pr2)", "L1_peak/macs2/pseudo_reps/rep1/pr2/peak_filt" )
 
 		if ( get_num_rep() > 1 ) {
 
-			filt_peak_pr1{2} = _filt_out_bad_npeaks( peak_pr1{2}, "", "rep2-pr1", \
+			filt_peak_pr1{2} = _filt_top_peaks( peak_pr1{2}, "", "rep2-pr1", \
 						"peak_macs2_(rep2-pr1)", "peak_macs2_filt_(rep2-pr1)", "L1_peak/macs2/pseudo_reps/rep2/pr1/peak_filt" )
-			filt_peak_pr2{2} = _filt_out_bad_npeaks( peak_pr2{2}, "", "rep2-pr2", \
+			filt_peak_pr2{2} = _filt_top_peaks( peak_pr2{2}, "", "rep2-pr2", \
 						"peak_macs2_(rep2-pr2)", "peak_macs2_filt_(rep2-pr2)", "L1_peak/macs2/pseudo_reps/rep2/pr2/peak_filt" )
 
-			filt_peak_ppr1 	   = _filt_out_bad_npeaks( peak_ppr1, "", "ppr1", \
+			filt_peak_ppr1 	   = _filt_top_peaks( peak_ppr1, "", "ppr1", \
 						"peak_macs2_(ppr1)", "peak_macs2_filt_(ppr1)", "L1_peak/macs2/pooled_pseudo_reps/ppr1/peak_filt" )
-			filt_peak_ppr2 	   = _filt_out_bad_npeaks( peak_ppr2, "", "ppr2", \
+			filt_peak_ppr2 	   = _filt_top_peaks( peak_ppr2, "", "ppr2", \
 						"peak_macs2_(ppr2)", "peak_macs2_filt_(ppr2)", "L1_peak/macs2/pooled_pseudo_reps/ppr2/peak_filt" )
 		}
 	}
