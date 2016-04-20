@@ -41,6 +41,8 @@ add_to_activate
 ### PICARDROOT
 CONTENTS=("export PICARDROOT=$CONDA_BIN")
 add_to_activate
+cd $CONDA_BIN
+ln -s ../share/picard-1.126-3/picard.jar picard.jar
 
 ##### preseq ==2.0.2 
 cd $CONDA_EXTRA

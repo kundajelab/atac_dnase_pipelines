@@ -25,14 +25,17 @@ trimmed_fastq 	:= false	help Skip fastq-trimming stage.
 mapping	 	:= false	help Mapping only (no macs2 peak calling or IDR).
 vplot 		:= false 	help Create V plot.
 preseq 		:= false 	help Do preseq analysis.
-subsample 	:= 0 		help Subsample replicates. Use '-subsample [NO_READS]'.
+subsample 	:= 0 		help # of reads to subsample replicates. Subsampled tagalign will be used for steps downstream (default: 0; no subsampling). 
 true_rep 	:= false 	help No pseudo-replicates.
 no_idr 		:= false 	help No IDR analysis on called peaks. This will change p-value threshold (0.1->0.01) in MACS2 peak calling.
 no_ataqc 	:= false 	help No ATAQC 
 csem	 	:= false	help Use CSEM for alignment.
-//ataqc(parameters to be defined: species, blacklist, dnase, tss, prom, enh, reg2map and roadmap_meta).
 mem_ataqc 	:= "8G"		help Max. memory for ATAQC (default: 8G).
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
+dnase_seq	:= false  	help DNase-Seq (no tn5 shifting, subsampling 50M by default for cross-corr. analysis).
+
+//ataqc(parameters to be defined: species, blacklist, dnase, tss, prom, enh, reg2map and roadmap_meta).
+
 
 help() // show help contexts
 
@@ -137,6 +140,8 @@ void init_atac() {
 		mem_ataqc	= get_conf_val( mem_ataqc,		["mem_ataqc"] )
 
 		smooth_win	= get_conf_val( smooth_win,		["smooth_win"] )
+
+		dnase_seq 	= get_conf_val_bool( dnase_seq, 	["dnase_seq"] )
 	}
 
 	if ( input == "" ) { // determine input type
@@ -225,8 +230,14 @@ void chk_input_data() {
 
 	if ( nreads == 15000000 ) {
 
-		print("\nDefault # of reads to subsample for cross-corr. analysis ($nreads). Setting it to 25000000 ...\n")
-		nreads = 25000000
+		if ( dnase_seq ) {
+			print("\nFound default # of reads to subsample for cross-corr. analysis ($nreads). Setting it to 25000000 ...\n")
+			nreads = 25000000
+		}
+		else {
+			print("\nDNase-Seq flag (-dnase_seq) is on. Found default # of reads to subsample for cross-corr. analysis ($nreads). Setting it to 50000000 ...\n")
+			nreads = 50000000
+		}
 	}
 
 	// check data files
@@ -389,7 +400,12 @@ void _atac_SE( int rep ) {
 			subsampled_tag = tag
 		}
 
-		shifted_tags{rep} = _shift_tag( subsampled_tag, align_o_dir, info )
+		if ( dnase_seq ) {
+			shifted_tags{rep} = subsampled_tag
+		}
+		else { 
+			shifted_tags{rep} = _tn5_shift_tag( subsampled_tag, align_o_dir, info )
+		}
 		wait
 
 		if ( !true_rep ) {
@@ -557,7 +573,12 @@ void _atac_PE( int rep ) {
 			tag := _bedpe_to_tag( subsampled_bedpe, align_o_dir, info )			
 			wait
 
-			shifted_tags{rep} = _shift_tag( tag, align_o_dir, info )
+			if ( dnase_seq ) {
+				shifted_tags{rep} = tag
+			}
+			else {
+				shifted_tags{rep} = _tn5_shift_tag( tag, align_o_dir, info )
+			}
 
 			if ( !true_rep ) {
 
@@ -572,14 +593,25 @@ void _atac_PE( int rep ) {
 							"L1_align/pseudo_reps/$info/pr2/tagalign" ) 
 				wait
 
-				shifted_tags_pr1{rep} = _shift_tag( tag_pr1, align_pr1_o_dir, info )
-				shifted_tags_pr2{rep} = _shift_tag( tag_pr2, align_pr2_o_dir, info )
+				if ( dnase_seq ) {
+					shifted_tags_pr1{rep} = tag_pr1
+					shifted_tags_pr2{rep} = tag_pr2
+				}
+				else {
+					shifted_tags_pr1{rep} = _tn5_shift_tag( tag_pr1, align_pr1_o_dir, info )
+					shifted_tags_pr2{rep} = _tn5_shift_tag( tag_pr2, align_pr2_o_dir, info )					
+				}
 			}
 			wait
 
 			if ( subsample==0 ) {
 
-				shifted_tags{rep} = _bam_to_bed_atac( filt_bam{rep}, align_o_dir, info )
+				if ( dnase_seq ) {
+					shifted_tags{rep} = _bam_to_bed_atac( filt_bam{rep}, align_o_dir, info )
+				}
+				else {
+					shifted_tags{rep} = _bam_to_tn5_shift_bed_atac( filt_bam{rep}, align_o_dir, info )
+				}
 				wait
 			}
 			
@@ -613,7 +645,12 @@ void _atac_PE( int rep ) {
 			}
 		}
 		else {
-			shifted_tags{rep} = _bam_to_bed_atac( filt_bam{rep}, align_o_dir, info )
+			if ( dnase_seq ) {
+				shifted_tags{rep} = _bam_to_bed_atac( filt_bam{rep}, align_o_dir, info )
+			}
+			else {
+				shifted_tags{rep} = _bam_to_tn5_shift_bed_atac( filt_bam{rep}, align_o_dir, info )
+			}
 			wait
 		}
 

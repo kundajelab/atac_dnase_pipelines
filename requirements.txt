@@ -1,22 +1,25 @@
-bowtie ==1.1.2 #1.1.1
+bowtie ==1.1.2
 bowtie2 ==2.2.6
 samtools ==1.2
 bedtools ==2.22 #2.21.0
-picard ==1.139 #1.129
+picard ==1.126 #wanted 1.129 here but doesn't exist. instead 1.139 has backward compatibility issue, so take 1.126
 ucsc-wigtobigwig
 ucsc-bedgraphtobigwig
 ucsc-bigwiginfo
 ucsc-bedclip
+ucsc-bigWigAverageOverBed
 macs2 ==2.1.0
 boost ==1.57.0
 gnuplot ==5.0.3
 trim-galore ==0.4.1
-numpy ==1.10.4
-matplotlib ==1.5.1
+numpy ==1.10.4 #1.9.0 # ==1.8.2 # 1.10.4 conflicts with ATAQC
+scipy ==0.17.0 
+matplotlib #==1.5.1
 python-levenshtein
-pybedtools
-pandas # ataqc
-metaseq # ataqc
+pybedtools 
+libgfortran==3.0 # ataqc
+pandas ==0.18.0 #==0.16.1 # ataqc
+metaseq #==0.5.6 # ataqc
 jinja2 # ataqc
 graphviz # for HTML report
 ghostscript # for conver (pdf to png)
