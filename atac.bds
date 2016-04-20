@@ -166,8 +166,6 @@ void calc_max_callpeak() {
 	real r2 = reps_in_par
 	
 	max_callpeak = round( ceil( r1/r2 ) )
-
-	print("\nDEBUG: max_callpeak = $max_callpeak\n")
 }
 
 void print_atac() {
@@ -187,6 +185,7 @@ void print_atac() {
 	print( "Use CSEM for alignment\t: $csem\n")
 	print( "Max. memory for ATAQC\t: $mem_ataqc\n")
 	print( "Smoothing window for MACS2\t: $smooth_win\n")
+	print( "DNase Seq\t\t: $dnase_seq\n")
 }
 
 void chk_input_data() {
@@ -218,6 +217,7 @@ void chk_input_data() {
 	if ( !no_ataqc ) 	chk_ataqc()
 
 	if ( !no_idr ) {
+		
 		if ( idr_thresh == "0.02" ) {
 			print("\nDefault IDR threshold is found ($idr_thresh). Setting it to 0.1 ...\n")
 			idr_thresh = 0.1
@@ -231,12 +231,12 @@ void chk_input_data() {
 	if ( nreads == 15000000 ) {
 
 		if ( dnase_seq ) {
-			print("\nFound default # of reads to subsample for cross-corr. analysis ($nreads). Setting it to 25000000 ...\n")
-			nreads = 25000000
-		}
-		else {
 			print("\nDNase-Seq flag (-dnase_seq) is on. Found default # of reads to subsample for cross-corr. analysis ($nreads). Setting it to 50000000 ...\n")
 			nreads = 50000000
+		}
+		else {
+			print("\nFound default # of reads to subsample for cross-corr. analysis ($nreads). Setting it to 25000000 ...\n")
+			nreads = 25000000
 		}
 	}
 
