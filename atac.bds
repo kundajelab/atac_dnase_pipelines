@@ -53,17 +53,18 @@ include "modules/idr.bds"
 include "modules/report.bds"
 
 
-input := ""
+input := "" 
 max_callpeak 	:= 1	// maximum # of peak calling in parallel
+
 
 // Global variable for output filenames ( map with key $rep )
 string{} fastq, align_log, bam, filt_bam, dup_qc, flagstat_nodup_qc, pbc_qc, xcor_qc, xcor_plot
-
 string{} shifted_tag, shifted_tag_pr1, shifted_tag_pr2
 
-string{} peak, peak_pr1, peak_pr2
-string peak_pooled, peak_ppr1, peak_ppr2, peak_overlap
-string{} pval_bigwig, fc_bigwig
+string{} peak, peak_001, peak_pr1, peak_pr2
+string peak_pooled, peak_pooled_001, peak_ppr1, peak_ppr2, peak_overlap
+
+string{} pval_bigwig, fc_bigwig, pval_bigwig_001, fc_bigwig_001
 
 string idr_tr, idr_pr_rep1, idr_pr_rep2, idr_ppr, idr_opt, idr_consv
 string idr_tr_png, idr_pr_rep1_png, idr_pr_rep2_png, idr_ppr_png
@@ -79,6 +80,8 @@ atac()
 post_atac()
 
 do_idr()
+
+ataqc()
 
 report()
 
@@ -174,21 +177,21 @@ void calc_max_callpeak() {
 void print_atac() {
 
 	print( "\n\n== atac pipeline settings\n")
-	print( "Single ended data set?\t: $se\n")
-	print( "Input data type\t\t: $input\n")		
-	print( "Fastqs are trimmed?\t: $trimmed_fastq\n")
-	print( "# Replicates\t\t: "+ get_num_rep() + "\n")
-	print( "MACS2 peak calling\t: " + !mapping + "\n")
+	print( "Single ended data set?\t\t: $se\n")
+	print( "Input data type\t\t\t: $input\n")		
+	print( "Fastqs are trimmed?\t\t: $trimmed_fastq\n")
+	print( "# Replicates\t\t\t: "+ get_num_rep() + "\n")
+	print( "MACS2 peak calling\t\t: " + !mapping + "\n")
 	print( "Subsample # lines replicates (0 if no subsampling)\t: $subsample\n")
-	print( "No pseudo replicates\t: $true_rep\n")
+	print( "No pseudo replicates\t\t: $true_rep\n")
 	print( "No IDR analysis on peaks\t: $no_idr\n")
-	print( "Vplot generation\t: $vplot\n")
-	print( "Preseq analysis\t\t: $preseq\n")
-	print( "No ATAQC (advanced QC report including vplot and preseq)\t: $no_ataqc\n")
-	print( "Use CSEM for alignment\t: $csem\n")
-	print( "Max. memory for ATAQC\t: $mem_ataqc\n")
+	print( "Vplot generation\t\t: $vplot\n")
+	print( "Preseq analysis\t\t\t: $preseq\n")
+	print( "No ATAQC (advanced QC report)\t: $no_ataqc\n")
+	print( "Use CSEM for alignment\t\t: $csem\n")
+	print( "Max. memory for ATAQC\t\t: $mem_ataqc\n")
 	print( "Smoothing window for MACS2\t: $smooth_win\n")
-	print( "DNase Seq\t\t: $dnase_seq\n")
+	print( "DNase Seq\t\t\t: $dnase_seq\n")
 }
 
 void chk_input_data() {
@@ -225,10 +228,6 @@ void chk_input_data() {
 			print("Default IDR threshold is found ($idr_thresh). Setting it to 0.1 ...\n")
 			idr_thresh = 0.1
 		}
-	
-		print("Setting p-value threshold in MACS2 peak calling to 0.1 ...\n")
-
-		pval_thresh_macs2 = 0.1
 	}
 
 	if ( nreads == 15000000 ) {
@@ -321,6 +320,8 @@ void atac() {
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 		
 		par _atac( rep )
+	
+		wait_par_rep()
 	}
 
 	wait
@@ -330,8 +331,6 @@ void _atac( int rep ) {
 
 	if ( se ) 	_atac_SE( rep )
 	else 		_atac_PE( rep )
-
-	wait_par_rep()
 }
 
 void _atac_SE( int rep ) {
@@ -340,7 +339,7 @@ void _atac_SE( int rep ) {
 
 	info := "rep$rep"
 
-	align_o_dir := mkdir_path( "$out_dir/align/$info" ) // create align output directory
+	aln_o_dir := mkdir_path( "$out_dir/align/$info" ) // create align output directory
 
 	if ( is_input_fastq() ) {
 
@@ -354,18 +353,18 @@ void _atac_SE( int rep ) {
 			p1 = fastq{rep}
 		}
 		else {
-			p1 = _trim_adapters( fastq{rep}, align_o_dir, info )
+			p1 = _trim_adapters( fastq{rep}, aln_o_dir, info )
 		}
 		wait
 
 		fastq_graph_id := trimmed_fastq ? "fastq_($info)" : "trimmed_fastq_($info)"
 
 		if ( csem ) {
-			( bam{rep}, align_log{rep} ) = _bowtie2_csem( p1, align_o_dir, info, \
+			( bam{rep}, align_log{rep} ) = _bowtie2_csem( p1, aln_o_dir, info, \
 									fastq_graph_id, "bam_($info)", "L1_align/$info/bam" )
 		}
 		else {
-			( bam{rep}, align_log{rep} ) = _bowtie2( p1, align_o_dir, info, \
+			( bam{rep}, align_log{rep} ) = _bowtie2( p1, aln_o_dir, info, \
 									fastq_graph_id, "bam_($info)", "L1_align/$info/bam" )
 		}
 		wait
@@ -375,7 +374,7 @@ void _atac_SE( int rep ) {
 
 		if ( is_input_bam() ) bam{rep} = get_bam( 0, rep )			
 
-		( filt_bam{rep}, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) = _dedup_bam( bam{rep}, align_o_dir, info )
+		( filt_bam{rep}, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) = _dedup_bam( bam{rep}, aln_o_dir, info )
 		wait
 	}
 
@@ -388,11 +387,11 @@ void _atac_SE( int rep ) {
 
 	if ( !mapping ) {
 
-		tag = _bam_to_tag( filt_bam{rep}, align_o_dir, info )
+		tag = _bam_to_tag( filt_bam{rep}, aln_o_dir, info )
 		wait
 
 		if ( subsample != 0 ) {
-			subsampled_tag = _subsample_tag( tag, subsample, align_o_dir, info, "", "", "" )
+			subsampled_tag = _subsample_tag( tag, subsample, aln_o_dir, info, "", "", "" )
 			wait
 		}
 		else {
@@ -403,7 +402,7 @@ void _atac_SE( int rep ) {
 			shifted_tag{rep} = subsampled_tag
 		}
 		else { 
-			shifted_tag{rep} = _tn5_shift_tag( subsampled_tag, align_o_dir, info )
+			shifted_tag{rep} = _tn5_shift_tag( subsampled_tag, aln_o_dir, info )
 		}
 		wait
 
@@ -428,14 +427,14 @@ void _atac_SE( int rep ) {
 			pr1_hrchy 	:= "macs2/pseudo_reps/$info/pr1"
 			pr2_hrchy 	:= "macs2/pseudo_reps/$info/pr2"
 
-			( peak_pr1{rep}, tmp ) = _macs2_atac( shifted_tag_pr1{rep}, "$smooth_win", false, peak_pr1_o_dir, sig_pr1_o_dir, info + "-pr1", \
+			( peak_pr1{rep}, tmp ) = _macs2_atac( shifted_tag_pr1{rep}, "$smooth_win", 0.1, false, peak_pr1_o_dir, sig_pr1_o_dir, info + "-pr1", \
 						\
 						"tagalign_($info-pr1)", "peak_macs2_($info-pr1)", "pval_signal_($info-pr1)", "fc_signal_($info-pr1)", \
 						"L1_peak/$pr1_hrchy/peak", "L1_signal/$pr1_hrchy/pval", "L1_signal/$pr1_hrchy/fc" )
 
 			if ( !path_exists( peak_pr1{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
 
-			( peak_pr2{rep}, tmp ) = _macs2_atac( shifted_tag_pr2{rep}, "$smooth_win", false, peak_pr2_o_dir, sig_pr2_o_dir, info + "-pr2", \
+			( peak_pr2{rep}, tmp ) = _macs2_atac( shifted_tag_pr2{rep}, "$smooth_win", 0.1, false, peak_pr2_o_dir, sig_pr2_o_dir, info + "-pr2", \
 						\
 						"tagalign_($info-pr2)", "peak_macs2_($info-pr2)", "pval_signal_($info-pr2)", "fc_signal_($info-pr2)", \
 						"L1_peak/$pr2_hrchy/peak", "L1_signal/$pr2_hrchy/pval", "L1_signal/$pr2_hrchy/fc" )
@@ -446,46 +445,26 @@ void _atac_SE( int rep ) {
 		peak_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/$info")
 		sig_o_dir 	:= mkdir_path( "$out_dir/signal/macs2/$info" )
 
-		( peak{rep}, fc_bigwig{rep}, pval_bigwig{rep} )  = _macs2_atac( shifted_tag{rep}, "$smooth_win", true, peak_o_dir, sig_o_dir, info, \
+		( peak{rep}, fc_bigwig{rep}, pval_bigwig{rep} )  = _macs2_atac( shifted_tag{rep}, "$smooth_win", 0.1, true, peak_o_dir, sig_o_dir, info, \
 										\
 										"tagalign_($info)", "peak_macs2_($info)", "pval_signal_($info)", "fc_signal_($info)", \
 										"L1_peak/macs2/$info/peak", "L1_signal/macs2/$info/pval", "L1_signal/macs2/$info/fc" )
+
 		if ( !path_exists( peak{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
-	}
 
-	if ( bam.hasKey(rep) ) {
+		// macs2 pval thresh = 0.01
+		( peak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} )  = _macs2_atac( shifted_tag{rep}, "$smooth_win", 0.01, true, peak_o_dir, sig_o_dir, info, \
+										\
+										"tagalign_($info)", "peak_macs2_($info,p-val 0.01)", "pval_signal_($info,p-val 0.01)", "fc_signal_($info,p-val 0.01)", \
+										"L1_peak/macs2/$info/peak001", "L1_signal/macs2/$info/pval001", "L1_signal/macs2/$info/fc001" )
 
-		string sorted_bam
+		if ( !path_exists( peak_001{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
 
-		if ( vplot || preseq || !mapping && !no_ataqc ) sorted_bam = _srt_bam( bam{rep}, align_o_dir, info )
-		wait
-
-		if ( !mapping && !no_ataqc ) {
-			
-			report_dir := mkdir_path( "$out_dir/ataqc/$info" )
-
-			_ataqc( fastq{rep}, "", bam{rep}, align_log{rep}, pbc_qc{rep}, sorted_bam, \
-				dup_qc{rep}, filt_bam{rep}, shifted_tag{rep}, pval_bigwig{rep}, peak{rep}, \
-				report_dir, info )
-		}
-		else {
-			if ( vplot ) _vplot( sorted_bam, align_o_dir, info )
-
-			if ( preseq ) _preseq( sorted_bam, align_o_dir, info )
-
-			//wait
-
-			//_report_atac( align_o_dir, info )
-		}		
-	}
-
-	if ( !mapping && tag != "" ) { // cross correlation analysis
-
-		subsampled_tag_xcor := _subsample_tag( tag, align_o_dir, info, \
+		subsampled_tag_xcor := _subsample_tag( tag, aln_o_dir, info, \
 								"tagalign_($info)", "subsampled_tagalign_($info)", \
 								"L1_align/$info/subsampled_tagalign" )
 
-		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag_xcor, align_o_dir, info, \
+		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag_xcor, aln_o_dir, info, \
 								"subsampled_tagalign_($info)", "xcor_qc($info)", \
 								"L1_align/$info/xcor_qc" )
 	}
@@ -499,7 +478,7 @@ void _atac_PE( int rep ) {
 
 	info := "rep$rep"
 
-	align_o_dir := mkdir_path( "$out_dir/align/$info" ) // create align output directory
+	aln_o_dir := mkdir_path( "$out_dir/align/$info" ) // create align output directory
 
 	if ( is_input_fastq() ) {
 
@@ -521,14 +500,14 @@ void _atac_PE( int rep ) {
 			p2 = fastq2
 		}
 		else {
-			( p1, p2 ) = _trim_adapters_PE( fastq1, fastq2, align_o_dir, info )
+			( p1, p2 ) = _trim_adapters_PE( fastq1, fastq2, aln_o_dir, info )
 			wait
 		}
 
 		fastq_graph_id1 := trimmed_fastq ? "fastq1_($info)" : "trimmed_fastq1_($info)"
 		fastq_graph_id2 := trimmed_fastq ? "fastq2_($info)" : "trimmed_fastq2_($info)"
 
-		( bam{rep}, align_log{rep} ) = _bowtie2_PE( p1, p2, align_o_dir, info, \
+		( bam{rep}, align_log{rep} ) = _bowtie2_PE( p1, p2, aln_o_dir, info, \
 							fastq_graph_id1, fastq_graph_id2, "bam_($info)", "L1_align/$info/bam" )
 		wait
 
@@ -538,7 +517,7 @@ void _atac_PE( int rep ) {
 
 		if ( is_input_bam() ) bam{rep} = get_bam( 0, rep )			
 
-		(filt_bam{rep}, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) = _dedup_bam_PE( bam{rep}, align_o_dir, info )
+		(filt_bam{rep}, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) = _dedup_bam_PE( bam{rep}, aln_o_dir, info )
 		wait
 	}
 
@@ -553,28 +532,28 @@ void _atac_PE( int rep ) {
 
 		if ( subsample!=0 || !true_rep ) {
 
-			bedpe = _bam_to_bedpe( filt_bam{rep}, align_o_dir, info )
+			bedpe = _bam_to_bedpe( filt_bam{rep}, aln_o_dir, info )
 			wait 
 
 			string subsampled_bedpe
 
 			if ( subsample!=0 ) {
 
-				subsampled_bedpe = _subsample_bedpe( bedpe, subsample, align_o_dir, info )
+				subsampled_bedpe = _subsample_bedpe( bedpe, subsample, aln_o_dir, info )
 			}
 			else {
 				subsampled_bedpe = bedpe
 			}
 			wait
 
-			tag := _bedpe_to_tag( subsampled_bedpe, align_o_dir, info )			
+			tag := _bedpe_to_tag( subsampled_bedpe, aln_o_dir, info )			
 			wait
 
 			if ( dnase_seq ) {
 				shifted_tag{rep} = tag
 			}
 			else {
-				shifted_tag{rep} = _tn5_shift_tag( tag, align_o_dir, info )
+				shifted_tag{rep} = _tn5_shift_tag( tag, aln_o_dir, info )
 			}
 
 			if ( !true_rep ) {
@@ -604,10 +583,10 @@ void _atac_PE( int rep ) {
 			if ( subsample==0 ) {
 
 				if ( dnase_seq ) {
-					shifted_tag{rep} = _bam_to_bed_atac( filt_bam{rep}, align_o_dir, info )
+					shifted_tag{rep} = _bam_to_bed_atac( filt_bam{rep}, aln_o_dir, info )
 				}
 				else {
-					shifted_tag{rep} = _bam_to_tn5_shift_bed_atac( filt_bam{rep}, align_o_dir, info )
+					shifted_tag{rep} = _bam_to_tn5_shift_bed_atac( filt_bam{rep}, aln_o_dir, info )
 				}
 				wait
 			}
@@ -624,14 +603,14 @@ void _atac_PE( int rep ) {
 				pr1_hrchy := "macs2/pseudo_reps/$info/pr1"
 				pr2_hrchy := "macs2/pseudo_reps/$info/pr2"
 
-				( peak_pr1{rep}, tmp ) = _macs2_atac( shifted_tag_pr1{rep}, "$smooth_win", false, peak_pr1_o_dir, sig_pr1_o_dir, info + "_pr1", \
+				( peak_pr1{rep}, tmp ) = _macs2_atac( shifted_tag_pr1{rep}, "$smooth_win", 0.1, false, peak_pr1_o_dir, sig_pr1_o_dir, info + "_pr1", \
 						\
 						"tagalign_($info-pr1)", "peak_macs2_($info-pr1)", "pval_signal_($info-pr1)", "fc_signal_($info-pr1)", \
 						"L1_peak/$pr1_hrchy/peak", "L1_signal/$pr1_hrchy/pval", "L1_signal/$pr1_hrchy/fc" )
 
 				if ( !path_exists( peak_pr1{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
 
-				( peak_pr2{rep}, tmp ) = _macs2_atac( shifted_tag_pr2{rep}, "$smooth_win", false, peak_pr2_o_dir, sig_pr2_o_dir, info + "_pr2", \
+				( peak_pr2{rep}, tmp ) = _macs2_atac( shifted_tag_pr2{rep}, "$smooth_win", 0.1, false, peak_pr2_o_dir, sig_pr2_o_dir, info + "_pr2", \
 						\
 						"tagalign_($info-pr2)", "peak_macs2_($info-pr2)", "pval_signal_($info-pr2)", "fc_signal_($info-pr2)", \
 						"L1_peak/$pr2_hrchy/peak", "L1_signal/$pr2_hrchy/pval", "L1_signal/$pr2_hrchy/fc" )
@@ -641,10 +620,10 @@ void _atac_PE( int rep ) {
 		}
 		else {
 			if ( dnase_seq ) {
-				shifted_tag{rep} = _bam_to_bed_atac( filt_bam{rep}, align_o_dir, info )
+				shifted_tag{rep} = _bam_to_bed_atac( filt_bam{rep}, aln_o_dir, info )
 			}
 			else {
-				shifted_tag{rep} = _bam_to_tn5_shift_bed_atac( filt_bam{rep}, align_o_dir, info )
+				shifted_tag{rep} = _bam_to_tn5_shift_bed_atac( filt_bam{rep}, aln_o_dir, info )
 			}
 			wait
 		}
@@ -652,50 +631,21 @@ void _atac_PE( int rep ) {
 		peak_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/$info")
 		sig_o_dir 	:= mkdir_path( "$out_dir/signal/macs2/$info" )
 
-		( peak{rep}, fc_bigwig{rep}, pval_bigwig{rep} ) = _macs2_atac( shifted_tag{rep}, "$smooth_win", true, peak_o_dir, sig_o_dir, info, \
+		( peak{rep}, fc_bigwig{rep}, pval_bigwig{rep} ) = _macs2_atac( shifted_tag{rep}, "$smooth_win", 0.1, true, peak_o_dir, sig_o_dir, info, \
 									\
 									"tagalign_($info)", "peak_macs2_($info)", "pval_signal_($info)", "fc_signal_($info)", \
 									"L1_peak/macs2/$info/peak", "L1_signal/macs2/$info/pval", "L1_signal/macs2/$info/fc" )
 
 		if ( !path_exists( peak{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
-	}
 
-	if ( bam.hasKey(rep) ) {
+		if ( bedpe == "" ) bedpe = _bam_to_bedpe( filt_bam{rep}, aln_o_dir, info )
 
-		string sorted_bam
-
-		if ( vplot || preseq || !mapping && !no_ataqc ) sorted_bam = _srt_bam( bam{rep}, align_o_dir, info )
-		wait
-
-		if ( !mapping && !no_ataqc ) {
-
-			report_dir := mkdir_path( "$out_dir/ataqc/$info" )
-
-			_ataqc( fastq{rep+",1"}, fastq{rep+",2"}, bam{rep}, align_log{rep}, pbc_qc{rep}, sorted_bam, \
-				dup_qc{rep}, filt_bam{rep}, shifted_tag{rep}, pval_bigwig{rep}, peak{rep}, \
-				report_dir, info )
-		}
-		else {
-
-			if ( vplot ) _vplot( sorted_bam, align_o_dir, info )
-
-			if ( preseq ) _preseq( sorted_bam, align_o_dir, info )
-
-			//wait
-			//_report_atac( report_dir, info )
-		}
-	}
-
-	if ( !mapping ) { // cross correlation analysis
-
-		if ( bedpe == "" ) bedpe = _bam_to_bedpe( filt_bam{rep}, align_o_dir, info )
-
-		subsampled_tag_xcor := _subsample_bedpe_to_tag_xcor( bedpe, align_o_dir, info ) //, \
+		subsampled_tag_xcor := _subsample_bedpe_to_tag_xcor( bedpe, aln_o_dir, info ) //, \
 							//"subsampled_bedpe_($info)", "subsampled_tagalign_($info)", \
 							//"L1_align/$info/subsampled_tagalign" )
 		wait
 
-		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag_xcor, align_o_dir, info, \
+		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag_xcor, aln_o_dir, info, \
 								"subsampled_tagalign_($info)", "xcor_qc($info)", \
 								"L1_align/$info/xcor_qc" )
 	}
@@ -748,31 +698,38 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 
 		string tmp
 
-		( peak_ppr1, tmp ) = _macs2_atac( shifted_tag_ppr1, "$smooth_win", false, ppr1_o_dir, ppr1_sig_o_dir, "ppr1", \
+		( peak_ppr1, tmp ) = _macs2_atac( shifted_tag_ppr1, "$smooth_win", 0.1, false, ppr1_o_dir, ppr1_sig_o_dir, "ppr1", \
 						\
-						"tagalign_(ppr1)","peak_macs2"+"_(ppr1)", "pval_signal_(ppr1)", "fc_signal_(ppr1)", \
+						"tagalign_(ppr1)","peak_macs2_(ppr1)", "pval_signal_(ppr1)", "fc_signal_(ppr1)", \
 						"L1_peak/$ppr1_hrchy/peak", "L1_signal/$ppr1_hrchy/pval", "L1_signal/$ppr1_hrchy/fc" )
 
 		if ( !path_exists( peak_ppr1 ) && ++cnt_callpeak % peaks_in_par == 0 ) wait
 
-		( peak_ppr2, tmp ) = _macs2_atac( shifted_tag_ppr2, "$smooth_win", false, ppr2_o_dir, ppr2_sig_o_dir, "ppr2", \
+		( peak_ppr2, tmp ) = _macs2_atac( shifted_tag_ppr2, "$smooth_win", 0.1, false, ppr2_o_dir, ppr2_sig_o_dir, "ppr2", \
 						\
-						"tagalign_(ppr2)","peak_macs2"+"_(ppr2)", "pval_signal_(ppr2)", "fc_signal_(ppr2)", \
+						"tagalign_(ppr2)","peak_macs2_(ppr2)", "pval_signal_(ppr2)", "fc_signal_(ppr2)", \
 						"L1_peak/$ppr2_hrchy/peak", "L1_signal/$ppr2_hrchy/pval", "L1_signal/$ppr2_hrchy/fc" )
 
 		if ( !path_exists( peak_ppr2 ) && ++cnt_callpeak % peaks_in_par == 0 ) wait
 
-		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", true, pooled_o_dir, pooled_sig_o_dir, "pooled", \
+		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", 0.1, true, pooled_o_dir, pooled_sig_o_dir, "pooled", \
 						\
-						"tagalign_(pooled)", "peak_macs2"+"_(pooled)", "pval_signal_(pooled)", "fc_signal_(pooled)", \
+						"tagalign_(pooled)", "peak_macs2_(pooled)", "pval_signal_(pooled)", "fc_signal_(pooled)", \
 						"L1_peak/$pooled_hrchy/peak", "L1_signal/$pooled_hrchy/pval", "L1_signal/$pooled_hrchy/fc" )
+
+		if ( !path_exists( peak_pooled ) && ++cnt_callpeak % peaks_in_par == 0 ) wait
+
+		( peak_pooled_001, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", 0.01, true, pooled_o_dir, pooled_sig_o_dir, "pooled", \
+						\
+						"tagalign_(pooled,p-val 0.01)", "peak_macs2_(pooled,p-val 0.01)", "pval_signal_(pooled,p-val 0.01)", "fc_signal_(pooled,p-val 0.01)", \
+						"L1_peak/$pooled_hrchy/peak001", "L1_signal/$pooled_hrchy/pval001", "L1_signal/$pooled_hrchy/fc001" )
 	}
 	else {
 		shifted_tag_pooled = _pool_tag( shifted_tag{1}, shifted_tag{2}, align_pooled_o_dir, "" )
 		wait
 
 		string tmp
-		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", true, align_pooled_o_dir, "pooled", \
+		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", 0.1, true, align_pooled_o_dir, "pooled", \
 						\
 						"tagalign_(pooled)" )
 	}
@@ -795,6 +752,7 @@ void do_idr() {
 						"peak_macs2_(rep1)", "peak_macs2_filt_(rep1)", "L1_peak/macs2/rep1/peak_filt" )
  
 	if ( get_num_rep() > 1 ) {
+
 		filt_peak{2} 	= _filt_top_peaks( peak{2}, "", "rep2", \
 						"peak_macs2_(rep2)", "peak_macs2_filt_(rep2)", "L1_peak/macs2/rep2/peak_filt" )
 		filt_peak_pooled= _filt_top_peaks( peak_pooled, "", "pooled", \
@@ -851,6 +809,7 @@ void do_idr() {
 			_add_to_filetable(["L1_peak/macs2/overlap/peak_overlap"], [peak_overlap] )
 		}
 	}
+
 	// do IDR
 
 	idr_o_dir 	:= mkdir_path( "$out_dir/peak/idr" )
@@ -922,15 +881,69 @@ void do_idr() {
 	wait
 }
 
+void ataqc() {
+
+	if ( mapping ) return
+
+	for (int rep=1; rep<=get_num_rep(); rep++) {
+
+		par _ataqc( rep )
+
+		wait_par_rep() // count # of replicates being processed and wait (barrier) par.
+	}
+
+	wait
+}
+
+void _ataqc( int rep ) {
+
+	info := "rep$rep"
+
+	if ( bam.hasKey(rep) ) {
+
+		aln_o_dir := mkdir_path( "$out_dir/align/$info" ) // create align output directory
+
+		ataqc_o_dir := mkdir_path( "$out_dir/ataqc/$info" )
+
+		sorted_bam := _srt_bam( bam{rep}, aln_o_dir, info )
+		wait
+
+		string idr_
+
+		if ( no_idr || get_num_rep() > 2 ) 	idr_ = ""
+		else if ( get_num_rep() == 1 )		idr_ = idr_pr_rep1
+		else if ( get_num_rep() == 2 ) 		idr_ = idr_opt
+
+		if ( se ) {
+
+			_ataqc( fastq{rep}, "", bam{rep}, align_log{rep}, pbc_qc{rep}, sorted_bam, \
+				dup_qc{rep}, filt_bam{rep}, shifted_tag{rep}, pval_bigwig_001{rep}, peak_001{rep}, \
+				peak_overlap, idr_, \
+				ataqc_o_dir, info )
+		}
+		else {
+			_ataqc( fastq{rep+",1"}, fastq{rep+",2"}, bam{rep}, align_log{rep}, pbc_qc{rep}, sorted_bam, \
+				dup_qc{rep}, filt_bam{rep}, shifted_tag{rep}, pval_bigwig_001{rep}, peak_001{rep}, \
+				peak_overlap, idr_, \
+				ataqc_o_dir, info )
+		}
+	}
+
+}
+
 string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, string pbc_log, string srt_bam, \
 		 string dup_log, string filt_bam, string bed, string bigwig, string peak, \
+		 string peak_naive_overlap, string idr_peak, \
 		 string o_dir, string info ) {
 	
 	prefix 		:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir ) + ( (fastq2!="") ? ".PE2SE" : "" )
 	html 		:= "$prefix"+"_qc.html"
 	txt 		:= "$prefix"+"_qc.txt"
 	prefix_basename := get_basename( prefix )
+
 	param_fastq 	:= (fastq2!="") ? "--fastq1 $fastq1 --fastq2 $fastq2" : "--fastq1 $fastq1"
+	param_overlap 	:= (peak_naive_overlap!="") ? "--naive_overlap_peaks $peak_naive_overlap" : ""
+	param_idr 	:= (idr_peak!="") ? "--idr_peaks $idr_peak" : ""
 
 	in  	:= (fastq2!="") ? [ fastq1, fastq2, bam, align_log, pbc_log, srt_bam, dup_log, filt_bam, bed, bigwig, peak ] \
 				: [ fastq1, bam, align_log, pbc_log, srt_bam, dup_log, filt_bam, bed, bigwig, peak ]
@@ -970,7 +983,9 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 		    --finalbam $filt_bam \
 		    --finalbed $bed \
 		    --bigwig $bigwig \
-		    --peaks $peak
+		    --peaks $peak \
+		    $param_overlap \
+		    $param_idr
 	}
 
 	wait_par()
@@ -1054,17 +1069,14 @@ string _html_atac_tracks() {
 	string[] track_files, track_types, track_names
 
 	if ( pval_bigwig.hasKey( "pooled" ) ) { track_types += "bigwig"; track_names += "pval (pooled)"; track_files += pval_bigwig{"pooled"} }
-	if ( fc_bigwig.hasKey( "pooled" ) )   { track_types += "bigwig"; track_names += "fc (pooled)";   track_files += fc_bigwig{"pooled"}   }
 
 	if ( peak_overlap != "" ) { track_types += "hammock"; track_names += "peak overlap"; track_files += _peak_to_hammock( peak_overlap ) }
 
 	if ( idr_opt != "" ) {	track_types += "hammock"; track_names += "peak idr (opt. set)"; track_files += _peak_to_hammock( idr_opt ) }
-	if ( idr_consv != "" ) {track_types += "hammock"; track_names += "peak idr (cons. set)"; track_files += _peak_to_hammock( idr_consv ) }
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 
 		if ( pval_bigwig.hasKey( "$rep" ) ) { track_types += "bigwig"; track_names += "pval (rep$rep)"; track_files += pval_bigwig{rep} }
-		if ( fc_bigwig.hasKey( "$rep" ) )   { track_types += "bigwig"; track_names += "fc (rep$rep)";   track_files += fc_bigwig{rep}   }
 		if ( rep==1 && idr_pr_rep1 != "" ) {	track_types += "hammock"; track_names += "peak idr (rep1_pr)"; track_files += _peak_to_hammock( idr_pr_rep1 ) }
 		if ( rep==2 && idr_pr_rep2 != "" ) {	track_types += "hammock"; track_names += "peak idr (rep2_pr)"; track_files += _peak_to_hammock( idr_pr_rep2 ) }
 	}
