@@ -41,6 +41,7 @@ help() // show help contexts
 
 include "modules/input_fastq.bds"
 include "modules/input_bam.bds"
+include "modules/input_tagalign.bds"
 include "modules/align_bowtie2.bds"
 include "modules/align_etc.bds"
 include "modules/vplot.bds"
@@ -185,8 +186,6 @@ void print_atac() {
 	print( "Subsample # lines replicates (0 if no subsampling)\t: $subsample\n")
 	print( "No pseudo replicates\t\t: $true_rep\n")
 	print( "No IDR analysis on peaks\t: $no_idr\n")
-	print( "Vplot generation\t\t: $vplot\n")
-	print( "Preseq analysis\t\t\t: $preseq\n")
 	print( "No ATAQC (advanced QC report)\t: $no_ataqc\n")
 	print( "Use CSEM for alignment\t\t: $csem\n")
 	print( "Max. memory for ATAQC\t\t: $mem_ataqc\n")
@@ -197,10 +196,6 @@ void print_atac() {
 void chk_input_data() {
 
 	print( "\n== checking atac inputs (data type = $input) ...\n" );
-
-	if ( is_input_filt_bam() && ( vplot || preseq ) ) {
-		error("Preseq analysis (-preseq) and vplot (-vplot) are not available if pipeline starts from filtered bam files (with '-filt_bam [FILT_BAM_PATH]...')!\n")
-	}
 
 	if ( !is_input_fastq() && !no_ataqc ) {
 		print("Warning: ATAQC is available for fastq inputs only. Disabling ATAQC...\n")
@@ -455,7 +450,7 @@ void _atac_SE( int rep ) {
 		// macs2 pval thresh = 0.01
 		( peak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} )  = _macs2_atac( shifted_tag{rep}, "$smooth_win", 0.01, true, peak_o_dir, sig_o_dir, info, \
 										\
-										"tagalign_($info)", "peak_macs2_($info,p-val-thld 0.01)", "pval_signal_($info,p-val-thld 0.01)", "fc_signal_($info,p-val-thld 0.01)", \
+										"tagalign_($info)", "peak_macs2_($info,0.01)", "pval_signal_($info,0.01)", "fc_signal_($info,0.01)", \
 										"L1_peak/macs2/$info/peak001", "L1_signal/macs2/$info/pval001", "L1_signal/macs2/$info/fc001" )
 
 		if ( !path_exists( peak_001{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
@@ -640,7 +635,7 @@ void _atac_PE( int rep ) {
 
 		( peak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) = _macs2_atac( shifted_tag{rep}, "$smooth_win", 0.01, true, peak_o_dir, sig_o_dir, info, \
 									\
-									"tagalign_($info)", "peak_macs2_($info,p-val-thld 0.01)", "pval_signal_($info,p-val-thld 0.01)", "fc_signal_($info,p-val-thld 0.01)", \
+									"tagalign_($info)", "peak_macs2_($info,0.01)", "pval_signal_($info,0.01)", "fc_signal_($info,0.01)", \
 									"L1_peak/macs2/$info/peak001", "L1_signal/macs2/$info/pval001", "L1_signal/macs2/$info/fc001" )
 
 		if ( !path_exists( peak_001{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
@@ -728,7 +723,7 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 
 		( peak_pooled_001, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", 0.01, true, pooled_o_dir, pooled_sig_o_dir, "pooled", \
 						\
-						"tagalign_(pooled,p-val-thld 0.01)", "peak_macs2_(pooled,p-val-thld 0.01)", "pval_signal_(pooled,p-val-thld 0.01)", "fc_signal_(pooled,p-val-thld 0.01)", \
+						"tagalign_(pooled)", "peak_macs2_(pooled,0.01)", "pval_signal_(pooled,0.01)", "fc_signal_(pooled,0.01)", \
 						"L1_peak/$pooled_hrchy/peak001", "L1_signal/$pooled_hrchy/pval001", "L1_signal/$pooled_hrchy/fc001" )
 	}
 	else {
