@@ -455,7 +455,7 @@ void _atac_SE( int rep ) {
 		// macs2 pval thresh = 0.01
 		( peak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} )  = _macs2_atac( shifted_tag{rep}, "$smooth_win", 0.01, true, peak_o_dir, sig_o_dir, info, \
 										\
-										"tagalign_($info)", "peak_macs2_($info,p-val 0.01)", "pval_signal_($info,p-val 0.01)", "fc_signal_($info,p-val 0.01)", \
+										"tagalign_($info)", "peak_macs2_($info,p-val-thld 0.01)", "pval_signal_($info,p-val-thld 0.01)", "fc_signal_($info,p-val-thld 0.01)", \
 										"L1_peak/macs2/$info/peak001", "L1_signal/macs2/$info/pval001", "L1_signal/macs2/$info/fc001" )
 
 		if ( !path_exists( peak_001{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
@@ -638,6 +638,13 @@ void _atac_PE( int rep ) {
 
 		if ( !path_exists( peak{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
 
+		( peak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) = _macs2_atac( shifted_tag{rep}, "$smooth_win", 0.01, true, peak_o_dir, sig_o_dir, info, \
+									\
+									"tagalign_($info)", "peak_macs2_($info,p-val-thld 0.01)", "pval_signal_($info,p-val-thld 0.01)", "fc_signal_($info,p-val-thld 0.01)", \
+									"L1_peak/macs2/$info/peak001", "L1_signal/macs2/$info/pval001", "L1_signal/macs2/$info/fc001" )
+
+		if ( !path_exists( peak_001{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
+
 		if ( bedpe == "" ) bedpe = _bam_to_bedpe( filt_bam{rep}, aln_o_dir, info )
 
 		subsampled_tag_xcor := _subsample_bedpe_to_tag_xcor( bedpe, aln_o_dir, info ) //, \
@@ -721,7 +728,7 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 
 		( peak_pooled_001, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", 0.01, true, pooled_o_dir, pooled_sig_o_dir, "pooled", \
 						\
-						"tagalign_(pooled,p-val 0.01)", "peak_macs2_(pooled,p-val 0.01)", "pval_signal_(pooled,p-val 0.01)", "fc_signal_(pooled,p-val 0.01)", \
+						"tagalign_(pooled,p-val-thld 0.01)", "peak_macs2_(pooled,p-val-thld 0.01)", "pval_signal_(pooled,p-val-thld 0.01)", "fc_signal_(pooled,p-val-thld 0.01)", \
 						"L1_peak/$pooled_hrchy/peak001", "L1_signal/$pooled_hrchy/pval001", "L1_signal/$pooled_hrchy/fc001" )
 	}
 	else {
@@ -882,6 +889,8 @@ void do_idr() {
 }
 
 void ataqc() {
+
+	if ( no_ataqc ) return
 
 	if ( mapping ) return
 
