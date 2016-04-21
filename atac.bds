@@ -875,8 +875,6 @@ void do_idr() {
 				sys cp $idr_opt_ $idr_opt
 				sys cp $idr_consv_ $idr_consv
 			}
-
-			_add_to_filetable( ["L1_peak/idr/opt_set/idr_peak","L1_peak/idr/consv_set/idr_peak"], [idr_opt, idr_consv] )
 		}
 	}
 
@@ -912,24 +910,41 @@ void _ataqc( int rep ) {
 		sorted_bam := _srt_bam( bam{rep}, aln_o_dir, info )
 		wait
 
-		string idr_
+		string idr_, idr_graph_in
 
-		if ( no_idr || get_num_rep() > 2 ) 	idr_ = ""
-		else if ( get_num_rep() == 1 )		idr_ = idr_pr_rep1
-		else if ( get_num_rep() == 2 ) 		idr_ = idr_opt
+		if ( no_idr || get_num_rep() > 2 ) {
+			idr_ = ""
+			idr_graph_in = ""
+		}
+		else if ( get_num_rep() == 1 ) {
+			idr_ = idr_pr_rep1
+			idr_graph_in = "idr_peak_(rep1-pr)"
+		}
+		else if ( get_num_rep() == 2 ) {
+			idr_ = idr_opt
+			idr_graph_in = "idr_peak_(opt)"
+		}
 
 		if ( se ) {
 
 			_ataqc( fastq{rep}, "", bam{rep}, align_log{rep}, pbc_qc{rep}, sorted_bam, \
 				dup_qc{rep}, filt_bam{rep}, shifted_tag{rep}, pval_bigwig_001{rep}, peak_001{rep}, \
 				peak_overlap, idr_, \
-				ataqc_o_dir, info )
+				ataqc_o_dir, info, \
+				["fastq_($info)","bam_($info)","srt_bam_($info)","filt_bam_($info)",\
+					"tagalign_($info)","pval_signal_($info,0.01)","peak_macs2_($info,0.01)", \
+					"peak_macs2_(overlap)",idr_graph_in],\
+				["ataqc rpt_($info)"] )
 		}
 		else {
 			_ataqc( fastq{rep+",1"}, fastq{rep+",2"}, bam{rep}, align_log{rep}, pbc_qc{rep}, sorted_bam, \
 				dup_qc{rep}, filt_bam{rep}, shifted_tag{rep}, pval_bigwig_001{rep}, peak_001{rep}, \
 				peak_overlap, idr_, \
-				ataqc_o_dir, info )
+				ataqc_o_dir, info, \
+				["fastq1_($info)","fastq2_($info)","bam_($info)","srt_bam_($info)","filt_bam_($info)",\
+					"tagalign_($info)","pval_signal_($info,0.01)","peak_macs2_($info,0.01)",\
+					"peak_macs2_(overlap)",idr_graph_in],\
+				["ataqc rpt_($info)"] )
 		}
 	}
 
@@ -938,7 +953,8 @@ void _ataqc( int rep ) {
 string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, string pbc_log, string srt_bam, \
 		 string dup_log, string filt_bam, string bed, string bigwig, string peak, \
 		 string peak_naive_overlap, string idr_peak, \
-		 string o_dir, string info ) {
+		 string o_dir, string info, \
+		 string[] graph_in, string[] graph_out ) {
 	
 	prefix 		:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir ) + ( (fastq2!="") ? ".PE2SE" : "" )
 	html 		:= "$prefix"+"_qc.html"
@@ -994,15 +1010,10 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 
 	wait_par()
 
-	graph_in := ( fastq2!="" ) ? ["fastq1_($info)","fastq2_($info)","bam_($info)","srt_bam_($info)",\
-				      "filt_bam_($info)","tagalign_($info)","pval sig._($info)","n peak_($info)"] \
-				   : ["fastq_($info)","bam_($info)","srt_bam_($info)",\
-				      "filt_bam_($info)","tagalign_($info)","pval sig._($info)","n peak_($info)"]
+	path_in := ( fastq2!="" ) ? [fastq1, fastq2, bam, srt_bam, filt_bam, bed, bigwig, peak, peak_naive_overlap, idr_peak] \
+				  : [fastq1, bam, srt_bam, filt_bam, bed, bigwig, peak, peak_naive_overlap, idr_peak]
 
-	path_in := ( fastq2!="" ) ? [fastq1, fastq2, bam, srt_bam, filt_bam, bed, bigwig, peak] \
-				  : [fastq1, bam, srt_bam, filt_bam, bed, bigwig, peak]
-
-	_add_to_graphviz( graph_in, path_in, ["ataqc rpt_($info)"], [html], "ataqc_($info)", grp_color_ataqc )
+	_add_to_graphviz( graph_in, path_in, graph_out, [html], "ataqc_($info)", grp_color_ataqc )
 
 	return out
 }
