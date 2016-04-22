@@ -55,7 +55,6 @@ include "modules/report.bds"
 
 
 input := "" 
-max_callpeak 	:= 1	// maximum # of peak calling in parallel
 
 
 // Global variable for output filenames ( map with key $rep )
@@ -162,17 +161,7 @@ void init_atac() {
 
 	rm_chr_from_tag = "chrM"; // remove lines with chrM in _bam_to_tag
 
-	calc_max_callpeak()
-
 	print_atac()
-}
-
-void calc_max_callpeak() {
-
-	real r1 = peaks_in_par
-	real r2 = reps_in_par
-	
-	max_callpeak = round( ceil( r1/r2 ) )
 }
 
 void print_atac() {
@@ -330,8 +319,6 @@ void _atac( int rep ) {
 
 void _atac_SE( int rep ) {
 
-	cnt_callpeak := 0
-
 	info := "rep$rep"
 
 	aln_o_dir := mkdir_path( "$out_dir/align/$info" ) // create align output directory
@@ -427,14 +414,10 @@ void _atac_SE( int rep ) {
 						"tagalign_($info-pr1)", "peak_macs2_($info-pr1)", "pval_signal_($info-pr1)", "fc_signal_($info-pr1)", \
 						"L1_peak/$pr1_hrchy/peak", "L1_signal/$pr1_hrchy/pval", "L1_signal/$pr1_hrchy/fc" )
 
-			if ( !path_exists( peak_pr1{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
-
 			( peak_pr2{rep}, tmp ) = _macs2_atac( shifted_tag_pr2{rep}, "$smooth_win", 0.1, false, peak_pr2_o_dir, sig_pr2_o_dir, info + "-pr2", \
 						\
 						"tagalign_($info-pr2)", "peak_macs2_($info-pr2)", "pval_signal_($info-pr2)", "fc_signal_($info-pr2)", \
 						"L1_peak/$pr2_hrchy/peak", "L1_signal/$pr2_hrchy/pval", "L1_signal/$pr2_hrchy/fc" )
-
-			if ( !path_exists( peak_pr2{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
 		}
 
 		peak_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/$info")
@@ -445,15 +428,11 @@ void _atac_SE( int rep ) {
 										"tagalign_($info)", "peak_macs2_($info)", "pval_signal_($info)", "fc_signal_($info)", \
 										"L1_peak/macs2/$info/peak", "L1_signal/macs2/$info/pval", "L1_signal/macs2/$info/fc" )
 
-		if ( !path_exists( peak{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
-
 		// macs2 pval thresh = 0.01
 		( peak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} )  = _macs2_atac( shifted_tag{rep}, "$smooth_win", 0.01, true, peak_o_dir, sig_o_dir, info, \
 										\
 										"tagalign_($info)", "peak_macs2_($info,0.01)", "pval_signal_($info,0.01)", "fc_signal_($info,0.01)", \
 										"L1_peak/macs2/$info/peak001", "L1_signal/macs2/$info/pval001", "L1_signal/macs2/$info/fc001" )
-
-		if ( !path_exists( peak_001{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
 
 		subsampled_tag_xcor := _subsample_tag( tag, aln_o_dir, info, \
 								"tagalign_($info)", "subsampled_tagalign_($info)", \
@@ -468,8 +447,6 @@ void _atac_SE( int rep ) {
 }
 
 void _atac_PE( int rep ) {
-
-	cnt_callpeak := 0 // count peak calling 
 
 	info := "rep$rep"
 
@@ -603,14 +580,11 @@ void _atac_PE( int rep ) {
 						"tagalign_($info-pr1)", "peak_macs2_($info-pr1)", "pval_signal_($info-pr1)", "fc_signal_($info-pr1)", \
 						"L1_peak/$pr1_hrchy/peak", "L1_signal/$pr1_hrchy/pval", "L1_signal/$pr1_hrchy/fc" )
 
-				if ( !path_exists( peak_pr1{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
-
 				( peak_pr2{rep}, tmp ) = _macs2_atac( shifted_tag_pr2{rep}, "$smooth_win", 0.1, false, peak_pr2_o_dir, sig_pr2_o_dir, info + "_pr2", \
 						\
 						"tagalign_($info-pr2)", "peak_macs2_($info-pr2)", "pval_signal_($info-pr2)", "fc_signal_($info-pr2)", \
 						"L1_peak/$pr2_hrchy/peak", "L1_signal/$pr2_hrchy/pval", "L1_signal/$pr2_hrchy/fc" )
 
-				if ( !path_exists( peak_pr2{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
 			}
 		}
 		else {
@@ -631,14 +605,10 @@ void _atac_PE( int rep ) {
 									"tagalign_($info)", "peak_macs2_($info)", "pval_signal_($info)", "fc_signal_($info)", \
 									"L1_peak/macs2/$info/peak", "L1_signal/macs2/$info/pval", "L1_signal/macs2/$info/fc" )
 
-		if ( !path_exists( peak{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
-
 		( peak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) = _macs2_atac( shifted_tag{rep}, "$smooth_win", 0.01, true, peak_o_dir, sig_o_dir, info, \
 									\
 									"tagalign_($info)", "peak_macs2_($info,0.01)", "pval_signal_($info,0.01)", "fc_signal_($info,0.01)", \
 									"L1_peak/macs2/$info/peak001", "L1_signal/macs2/$info/pval001", "L1_signal/macs2/$info/fc001" )
-
-		if ( !path_exists( peak_001{rep} ) && ++cnt_callpeak % max_callpeak == 0 ) wait
 
 		if ( bedpe == "" ) bedpe = _bam_to_bedpe( filt_bam{rep}, aln_o_dir, info )
 
@@ -660,8 +630,6 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 	if ( mapping ) return
 
 	if ( get_num_rep() != 2 ) return
-
-	cnt_callpeak := 0
 
  	align_pooled_o_dir := mkdir_path( "$out_dir/align/pooled_rep" )
 
@@ -705,21 +673,15 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 						"tagalign_(ppr1)","peak_macs2_(ppr1)", "pval_signal_(ppr1)", "fc_signal_(ppr1)", \
 						"L1_peak/$ppr1_hrchy/peak", "L1_signal/$ppr1_hrchy/pval", "L1_signal/$ppr1_hrchy/fc" )
 
-		if ( !path_exists( peak_ppr1 ) && ++cnt_callpeak % peaks_in_par == 0 ) wait
-
 		( peak_ppr2, tmp ) = _macs2_atac( shifted_tag_ppr2, "$smooth_win", 0.1, false, ppr2_o_dir, ppr2_sig_o_dir, "ppr2", \
 						\
 						"tagalign_(ppr2)","peak_macs2_(ppr2)", "pval_signal_(ppr2)", "fc_signal_(ppr2)", \
 						"L1_peak/$ppr2_hrchy/peak", "L1_signal/$ppr2_hrchy/pval", "L1_signal/$ppr2_hrchy/fc" )
 
-		if ( !path_exists( peak_ppr2 ) && ++cnt_callpeak % peaks_in_par == 0 ) wait
-
 		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", 0.1, false, pooled_o_dir, pooled_sig_o_dir, "pooled", \
 						\
 						"tagalign_(pooled)", "peak_macs2_(pooled)", "pval_signal_(pooled)", "fc_signal_(pooled)", \
 						"L1_peak/$pooled_hrchy/peak", "L1_signal/$pooled_hrchy/pval", "L1_signal/$pooled_hrchy/fc" )
-
-		if ( !path_exists( peak_pooled ) && ++cnt_callpeak % peaks_in_par == 0 ) wait
 
 		( peak_pooled_001, fc_bigwig_001{"pooled"}, pval_bigwig_001{"pooled"} ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", 0.01, true, pooled_o_dir, pooled_sig_o_dir, "pooled", \
 						\
