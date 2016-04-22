@@ -65,7 +65,7 @@ string{} shifted_tag, shifted_tag_pr1, shifted_tag_pr2
 string{} peak, peak_001, peak_pr1, peak_pr2
 string peak_pooled, peak_pooled_001, peak_ppr1, peak_ppr2, peak_overlap
 
-string{} pval_bigwig, fc_bigwig, pval_bigwig_001, fc_bigwig_001
+string{} pval_bigwig_001, fc_bigwig_001
 
 string idr_tr, idr_pr_rep1, idr_pr_rep2, idr_ppr, idr_opt, idr_consv
 string idr_tr_png, idr_pr_rep1_png, idr_pr_rep2_png, idr_ppr_png
@@ -440,7 +440,7 @@ void _atac_SE( int rep ) {
 		peak_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/$info")
 		sig_o_dir 	:= mkdir_path( "$out_dir/signal/macs2/$info" )
 
-		( peak{rep}, fc_bigwig{rep}, pval_bigwig{rep} )  = _macs2_atac( shifted_tag{rep}, "$smooth_win", 0.1, true, peak_o_dir, sig_o_dir, info, \
+		( peak{rep}, tmp )  = _macs2_atac( shifted_tag{rep}, "$smooth_win", 0.1, false, peak_o_dir, sig_o_dir, info, \
 										\
 										"tagalign_($info)", "peak_macs2_($info)", "pval_signal_($info)", "fc_signal_($info)", \
 										"L1_peak/macs2/$info/peak", "L1_signal/macs2/$info/pval", "L1_signal/macs2/$info/fc" )
@@ -525,6 +525,8 @@ void _atac_PE( int rep ) {
 
 	if ( !mapping ) {
 
+		string tmp
+	
 		if ( subsample!=0 || !true_rep ) {
 
 			bedpe = _bam_to_bedpe( filt_bam{rep}, aln_o_dir, info )
@@ -586,8 +588,6 @@ void _atac_PE( int rep ) {
 				wait
 			}
 
-			string tmp
-			
 			if ( !true_rep ) {
 
 				peak_pr1_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/pseudo_reps/$info/pr1" )
@@ -626,7 +626,7 @@ void _atac_PE( int rep ) {
 		peak_o_dir 	:= mkdir_path( "$out_dir/peak/macs2/$info")
 		sig_o_dir 	:= mkdir_path( "$out_dir/signal/macs2/$info" )
 
-		( peak{rep}, fc_bigwig{rep}, pval_bigwig{rep} ) = _macs2_atac( shifted_tag{rep}, "$smooth_win", 0.1, true, peak_o_dir, sig_o_dir, info, \
+		( peak{rep}, tmp ) = _macs2_atac( shifted_tag{rep}, "$smooth_win", 0.1, false, peak_o_dir, sig_o_dir, info, \
 									\
 									"tagalign_($info)", "peak_macs2_($info)", "pval_signal_($info)", "fc_signal_($info)", \
 									"L1_peak/macs2/$info/peak", "L1_signal/macs2/$info/pval", "L1_signal/macs2/$info/fc" )
@@ -714,14 +714,14 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 
 		if ( !path_exists( peak_ppr2 ) && ++cnt_callpeak % peaks_in_par == 0 ) wait
 
-		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", 0.1, true, pooled_o_dir, pooled_sig_o_dir, "pooled", \
+		( peak_pooled, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", 0.1, false, pooled_o_dir, pooled_sig_o_dir, "pooled", \
 						\
 						"tagalign_(pooled)", "peak_macs2_(pooled)", "pval_signal_(pooled)", "fc_signal_(pooled)", \
 						"L1_peak/$pooled_hrchy/peak", "L1_signal/$pooled_hrchy/pval", "L1_signal/$pooled_hrchy/fc" )
 
 		if ( !path_exists( peak_pooled ) && ++cnt_callpeak % peaks_in_par == 0 ) wait
 
-		( peak_pooled_001, tmp ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", 0.01, true, pooled_o_dir, pooled_sig_o_dir, "pooled", \
+		( peak_pooled_001, fc_bigwig_001{"pooled"}, pval_bigwig_001{"pooled"} ) = _macs2_atac( shifted_tag_pooled, "$smooth_win", 0.01, true, pooled_o_dir, pooled_sig_o_dir, "pooled", \
 						\
 						"tagalign_(pooled)", "peak_macs2_(pooled,0.01)", "pval_signal_(pooled,0.01)", "fc_signal_(pooled,0.01)", \
 						"L1_peak/$pooled_hrchy/peak001", "L1_signal/$pooled_hrchy/pval001", "L1_signal/$pooled_hrchy/fc001" )
@@ -1083,15 +1083,15 @@ string _html_atac_tracks() {
 
 	string[] track_files, track_types, track_names
 
-	if ( pval_bigwig.hasKey( "pooled" ) ) { track_types += "bigwig"; track_names += "pval (pooled)"; track_files += pval_bigwig{"pooled"} }
+	if ( pval_bigwig_001.hasKey( "pooled" ) ) { track_types += "bigwig"; track_names += "pval (pooled)"; track_files += pval_bigwig_001{"pooled"} }
 
 	if ( peak_overlap != "" ) { track_types += "hammock"; track_names += "peak overlap"; track_files += _peak_to_hammock( peak_overlap ) }
-
 	if ( idr_opt != "" ) {	track_types += "hammock"; track_names += "peak idr (opt. set)"; track_files += _peak_to_hammock( idr_opt ) }
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 
-		if ( pval_bigwig.hasKey( "$rep" ) ) { track_types += "bigwig"; track_names += "pval (rep$rep)"; track_files += pval_bigwig{rep} }
+		if ( pval_bigwig_001.hasKey( "$rep" ) ) { track_types += "bigwig"; track_names += "pval (rep$rep)"; track_files += pval_bigwig_001{rep} }
+		if ( peak_001.hasKey( "$rep" ) ) { track_types += "hammock"; track_names += "peak overlap"; track_files += _peak_to_hammock( peak_overlap ) }
 		if ( rep==1 && idr_pr_rep1 != "" ) {	track_types += "hammock"; track_names += "peak idr (rep1_pr)"; track_files += _peak_to_hammock( idr_pr_rep1 ) }
 		if ( rep==2 && idr_pr_rep2 != "" ) {	track_types += "hammock"; track_names += "peak idr (rep2_pr)"; track_files += _peak_to_hammock( idr_pr_rep2 ) }
 	}
