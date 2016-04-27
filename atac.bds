@@ -261,7 +261,7 @@ void atac() {
 		wait_par_rep()
 
 		tid := par _atac( rep )	
-		
+
 		tids_rep.add( tid )
 	}
 
@@ -695,11 +695,11 @@ void do_idr() {
 
 	if ( get_num_rep() > 1 ) {
 
-		idr_true_o_dir 	:= mkdir( "$idr_o_dir/true_reps" )
+		idr_true_o_dir 	:= mkdir( "$idr_o_dir/true_reps/rep1-rep2" )
 
 		// idr for true reps
-		(idr_tr, idr_tr_png) = _idr2( filt_peak{1}, filt_peak{2}, filt_peak_pooled, idr_true_o_dir, "rep1_rep2", \
-						"peak_macs2_filt", ["rep1","rep2","pooled"], "true_reps" )
+		(idr_tr, idr_tr_png) = _idr2( filt_peak{1}, filt_peak{2}, filt_peak_pooled, idr_true_o_dir, "rep1-rep2", \
+						"peak_macs2_filt", ["rep1","rep2","pooled"], "true_reps/rep1-rep2" )
 	}
 	
 	if ( !true_rep ) {
@@ -881,10 +881,10 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 				  : [fastq1,         bam, filt_bam, bed, bigwig, peak, peak_naive_overlap, idr_peak]
 
 	graph_in := ( fastq2!="" ) ? ["fastq1_($info)","fastq2_($info)","bam_($info)","filt_bam_($info)",\
-					"tagalign_($info)","p-val_sig._($info,0.01)","peak_macs2_($info,0.01)",\
+					"tagalign_($info)","p-val_sig._0.01_($info)","peak_macs2_0.01_($info)",\
 					"peak_macs2_filt_(overlap)", graph_in_idr] : \
 				     ["fastq_($info)","bam_($info)","filt_bam_($info)",\
-					"tagalign_($info)","p-val_sig._($info,0.01)","peak_macs2_($info,0.01)", \
+					"tagalign_($info)","p-val_sig._0.01_($info)","peak_macs2_0.01_($info)", \
 					"peak_macs2_filt_(overlap)", graph_in_idr]
 	
 	graph_out := ["ataqc rpt_($info)"] 

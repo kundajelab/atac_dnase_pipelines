@@ -4,7 +4,6 @@
 conda config --add channels r # r-2.15.3
 conda config --add channels bioconda
 conda config --add channels astro # r-2.15.3
-conda config --add channels kalefranz # imagemagick
 
 conda create -n bds_atac --file requirements.txt -y
 conda install -n bds_atac --file requirements_r2.txt -y --force # force install R-2.15.3
@@ -33,6 +32,7 @@ fi
 
 CONDA_BIN=$(dirname $(which activate))
 CONDA_EXTRA="$CONDA_BIN/../extra"
+CONDA_LIB="$CONDA_BIN/../lib"
 CONDA_ACTIVATE_D="$CONDA_BIN/../etc/conda/activate.d"
 CONDA_INIT="$CONDA_ACTIVATE_D/init.sh"
 mkdir -p $CONDA_EXTRA $CONDA_ACTIVATE_D
@@ -46,6 +46,10 @@ CONTENTS=("export PICARDROOT=$CONDA_BIN")
 add_to_activate
 cd $CONDA_BIN
 ln -s ../share/picard-1.126-3/picard.jar picard.jar
+
+### SAMTOOLS NCURSES BUG FIX
+CONTENTS=("export LD_LIBRARY_PATH=$CONDA_LIB:\$LD_LIBRARY_PATH")
+add_to_activate
 
 ##### preseq ==2.0.2 
 cd $CONDA_EXTRA
