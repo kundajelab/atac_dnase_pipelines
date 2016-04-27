@@ -13,6 +13,9 @@ conda create -n bds_atac_py3 --file requirements_py3.txt -y
 
 
 function add_to_activate {
+  if [ ! -f $CONDA_INIT ]; then
+    echo > $CONDA_INIT
+  fi
   for i in "${CONTENTS[@]}"; do
     if [ $(grep "$i" "$CONDA_INIT" | wc -l ) == 0 ]; then
       echo $i >> "$CONDA_INIT"
