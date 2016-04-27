@@ -696,7 +696,7 @@ void do_idr() {
 		idr_true_o_dir 	:= mkdir( "$idr_o_dir/true_reps" )
 
 		// idr for true reps
-		(idr_tr, idr_tr_png) = _idr2( filt_peak{1}, filt_peak{2}, filt_peak_pooled, idr_true_o_dir, "true", \
+		(idr_tr, idr_tr_png) = _idr2( filt_peak{1}, filt_peak{2}, filt_peak_pooled, idr_true_o_dir, "rep1_rep2", \
 						"peak_macs2_filt", ["rep1","rep2","pooled"], "true_reps" )
 	}
 	
