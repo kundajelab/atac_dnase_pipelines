@@ -22,7 +22,7 @@ help == atac pipeline settings
 
 se 		:= false 	help Single ended data.
 trimmed_fastq 	:= false	help Skip fastq-trimming stage.
-align	 	:= false	help Align only (no MACS2 peak calling or IDR).
+align	 	:= false	help Align only (no MACS2 peak calling or IDR or ataqc analysis).
 subsample 	:= 0 		help # of reads to subsample replicates. Subsampled tagalign will be used for steps downstream (default: 0; no subsampling). 
 true_rep 	:= false 	help No pseudo-replicates.
 no_idr 		:= false 	help No IDR analysis on called peaks. This will change p-value threshold (0.1->0.01) in MACS2 peak calling.
