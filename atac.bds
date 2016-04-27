@@ -258,9 +258,11 @@ void atac() {
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 		
-		par _atac( rep )
-	
 		wait_par_rep()
+
+		tid := par _atac( rep )	
+		
+		tids_rep.add( tid )
 	}
 
 	wait
