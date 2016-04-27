@@ -1,6 +1,6 @@
 bowtie ==1.1.2
 bowtie2 ==2.2.6
-samtools ==1.2
+samtools ==1.2 # ncurse bug
 bedtools ==2.22 #2.21.0
 picard ==1.126 #wanted 1.129 here but doesn't exist. instead 1.139 has backward compatibility issue, so take 1.126
 ucsc-wigtobigwig
@@ -28,11 +28,14 @@ pysam ==0.8.3 # 0.9 has a issue with ATAQC
 
 ## picard tool does not have a shell variable PICARDROOT
 ## PICARDROOT will be defined in conda activate.
+## see install_dependencies.sh
+
+## samtools could not find libncurse. 
+## need to prepend conda library dir. to LD_LIBRARY_PATH
+## see install_dependencies.sh
 
 ## there are packages that are not in official conda repos
 ## run install_dependencies.sh to install these softwares
 
 # texlive ==2013
 # preseq ==2.0.2 
-
-

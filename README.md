@@ -57,13 +57,8 @@ $ bds bds_atac.bds ... -species [SPECIES; hg19, mm9, ... ]
 
 ### Usage
 
-1) Define parameters in command line argument (legacy method, NOT RECOMMENDED)
-This input method does not support multiple replicates and always generate V plot and perform preseq analysis.
-```
-$ bds atac.bds [BOWTIE2_INDEX] [READ1] [READ2] [NTHREADS_BWT2] [GENOMESIZE; hs for human, mm for mouse] [CHROMSIZES_FILE] [VPLOT_INDEX] [OUTPUT_DIR]
-```
 
-2) Define parameters in command line argument.
+1) Define parameters in command line argument.
 For general use, use the following command line:
 ```
 $ bds atac.bds -fastq1 [READ1] -fastq2 [READ2] -bwt2_idx [BOWTIE2_INDEX] \
@@ -82,7 +77,7 @@ If your data are single ended, add the following to the command line.
 
 For ATAQC, you need to define the following parameters. parameters `-preseq` and `-vplot` will be ignored since they are already included in ATAQC. See help (`$ bds atac.bds`) for description of all parameters. Even though you don't use a species file `-species_file`, you need to specify a species name for ATAQC.
 ```
--species [hg19, mm9 or ...] -vplot_idx [] -ref_fa [] -blacklist [] -dnase [] -prom [] -enh [] -reg2map [] -roadmap_meta []
+-species [hg19, mm9 or ...] -tss_enrich [] -ref_fa [] -blacklist [] -dnase [] -prom [] -enh [] -reg2map [] -roadmap_meta []
 ```
 
 If you don't want ATAQC, add the following to command line. 
@@ -160,7 +155,7 @@ $ bds atac.bds
 ```
 
 
-3) Define parameters in configuration file.
+2) Define parameters in configuration file.
 Key names in a configruation file are identical to parameter names on command line. 
 ```
 $ bds atac.bds [CONF_FILE]
@@ -245,6 +240,13 @@ Traceback (most recent call last):
   File "/users/leepc12/code/bds_atac/ataqc/run_ataqc.py", line 160, in get_chr_m
     tot_reads += int(chrom_stats[2])
 IndexError: list index out of range
+```
+
+3) samtools ncurses bug
+
+Prepend a directory for `libncurses.so.5` to `LD_LIBRARY_PATH`. See `install_dependencies.sh` for solution.
+```
+samtools: symbol lookup error: /lib/x86_64-linux-gnu/libncurses.so.5: undefined symbol: _nc_putchar
 ```
 
 

@@ -24,6 +24,7 @@ se 		:= false 	help Single ended data.
 trimmed_fastq 	:= false	help Skip fastq-trimming stage.
 align	 	:= false	help Align only (no MACS2 peak calling or IDR or ataqc analysis).
 subsample 	:= 0 		help # of reads to subsample replicates. Subsampled tagalign will be used for steps downstream (default: 0; no subsampling). 
+nreads 		:= 25000000	help # reads to be subsampled for cross corr. analysis (default: 25000000).
 true_rep 	:= false 	help No pseudo-replicates.
 no_idr 		:= false 	help No IDR analysis on called peaks. This will change p-value threshold (0.1->0.01) in MACS2 peak calling.
 no_ataqc 	:= false 	help No ATAQC 
@@ -31,6 +32,7 @@ csem	 	:= false	help Use CSEM for alignment.
 mem_ataqc 	:= "8G"		help Max. memory for ATAQC (default: 8G).
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
 dnase_seq	:= false  	help DNase-Seq (no tn5 shifting, subsampling 50M by default for cross-corr. analysis).
+idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
 
 //ataqc(parameters to be defined: species, blacklist, dnase, tss, prom, enh, reg2map and roadmap_meta).
 
@@ -98,6 +100,8 @@ void init_atac() {
 	mem_ataqc	= get_conf_val( mem_ataqc,		["mem_ataqc"] )
 	smooth_win	= get_conf_val( smooth_win,		["smooth_win"] )
 	dnase_seq 	= get_conf_val_bool( dnase_seq, 	["dnase_seq"] )
+	idr_thresh 	= get_conf_val( idr_thresh, 		["idr_thresh"] )
+	nreads 		= get_conf_val_int( nreads,		["nreads"] )
 
 	if ( input == "" ) { // determine input type
 		
@@ -121,7 +125,8 @@ void print_atac() {
 	print( "Fastqs are trimmed?\t\t: $trimmed_fastq\n")
 	print( "# Replicates\t\t\t: "+ get_num_rep() + "\n")
 	print( "MACS2 peak calling\t\t: " + !align + "\n")
-	print( "Subsample # lines replicates (0 if no subsampling)\t: $subsample\n")
+	print( "Subsample # lines in replicates (0 if no subsampling)\t: $subsample\n")
+	print( "Subsample # read for cross-corr. analysis \t: $nreads\n")	
 	print( "No pseudo replicates\t\t: $true_rep\n")
 	print( "No IDR analysis on peaks\t: $no_idr\n")
 	print( "No ATAQC (advanced QC report)\t: $no_ataqc\n")
@@ -129,6 +134,7 @@ void print_atac() {
 	print( "Max. memory for ATAQC\t\t: $mem_ataqc\n")
 	print( "Smoothing window for MACS2\t: $smooth_win\n")
 	print( "DNase Seq\t\t\t: $dnase_seq\n")
+	print( "IDR threshold\t\t: $idr_thresh\n" )
 }
 
 void chk_input_data() {
@@ -158,20 +164,6 @@ void chk_input_data() {
 	if ( !align ) 	chk_callpeak_macs2()
 	if ( !no_idr ) 		chk_idr()
 	if ( !no_ataqc ) 	chk_ataqc()
-
-	if ( !no_idr ) {
-
-		if ( idr_thresh == "0.02" ) {
-			print("Default IDR threshold is found ($idr_thresh). Setting it to 0.1 ...\n")
-			idr_thresh = 0.1
-		}
-	}
-
-	if ( nreads == 15000000 ) {
-
-		print("Found default # of reads to subsample for cross-corr. analysis ($nreads). Setting it to 25000000 ...\n")
-		nreads = 25000000
-	}
 
 	print("\n")
 
@@ -245,7 +237,7 @@ void chk_ataqc() {
 
 	if ( species == "" ) 	error("Genome name is missing ( '-species [GENOME_NAME; hg19, mm9, ...]' )!\n" )
 	if ( ref_fa == "" ) 	error("Specify your reference genome .fa ('-ref_fa [FA]')!\n")
-	if ( vplot_idx == "" ) 	error("V plot index is missing ( '-vplot_idx' )!\n")
+	if ( tss_enrich == "" ) 	error("V plot index is missing ( '-tss_enrich' )!\n")
 	if ( dnase == "" ) 	error("DNase bed is missing ( '-dnase' )!\n")
 	if ( blacklist == "" ) 	error("Blacklist bed is missing ( '-blacklist' )!\n")
 	if ( prom == "" ) 	error("Promoter bed is missing ( '-prom' )!\n")
@@ -258,7 +250,7 @@ void atac() {
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 		
-		wait_par_rep()
+		wait_par_rep() // wait if # replicate being processed exceeds limit (-reps_in_par) and then reset tids_rep
 
 		tid := par _atac( rep )	
 
@@ -361,7 +353,7 @@ void _atac_SE( int rep ) {
 	if ( !align ) {
 
 		// cross-corr. analysis
-		subsampled_tag_xcor := _subsample_tag( tag, aln_o_dir, info )
+		subsampled_tag_xcor := _subsample_tag( tag, nreads, aln_o_dir, info )
 
 		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag_xcor, qc_o_dir, info, info )
 
@@ -512,10 +504,10 @@ void _atac_PE( int rep ) {
 
 		if ( bedpe == "" ) {
 			
-			subsampled_tag_xcor = _subsample_tag_PE_xcor( tag, aln_o_dir, info )
+			subsampled_tag_xcor = _subsample_tag_PE_xcor( tag, nreads, aln_o_dir, info )
 		}
 		else {
-			subsampled_tag_xcor = _subsample_bedpe_to_tag_xcor( bedpe, aln_o_dir, info )
+			subsampled_tag_xcor = _subsample_bedpe_to_tag_xcor( bedpe, nreads, aln_o_dir, info )
 		}
 		wait			
 
@@ -698,7 +690,7 @@ void do_idr() {
 		idr_true_o_dir 	:= mkdir( "$idr_o_dir/true_reps/rep1-rep2" )
 
 		// idr for true reps
-		(idr_tr, idr_tr_png) = _idr2( filt_peak{1}, filt_peak{2}, filt_peak_pooled, idr_true_o_dir, "rep1-rep2", \
+		(idr_tr, idr_tr_png) = _idr2( filt_peak{1}, filt_peak{2}, filt_peak_pooled, idr_thresh, idr_true_o_dir, "rep1-rep2", \
 						"peak_macs2_filt", ["rep1","rep2","pooled"], "true_reps/rep1-rep2" )
 	}
 	
@@ -707,7 +699,7 @@ void do_idr() {
 		idr_rep1_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep1" )
 
 		// idr on pseudo reps
-		(idr_pr_rep1, idr_pr_rep1_png) = _idr2( filt_peak_pr1{1}, filt_peak_pr2{1}, filt_peak{1}, idr_rep1_pr_o_dir, "rep1-pr", \
+		(idr_pr_rep1, idr_pr_rep1_png) = _idr2( filt_peak_pr1{1}, filt_peak_pr2{1}, filt_peak{1}, idr_thresh, idr_rep1_pr_o_dir, "rep1-pr", \
 						"peak_macs2_filt", ["rep1-pr1","rep1-pr2","rep1"], "pseudo_reps/rep1" )
 
 		if ( get_num_rep() > 1 ) {
@@ -715,11 +707,11 @@ void do_idr() {
 			idr_rep2_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep2" )
 			idr_ppr_o_dir 	  := mkdir( "$idr_o_dir/pooled_pseudo_reps" )
 
-			(idr_pr_rep2, idr_pr_rep2_png) = _idr2( filt_peak_pr1{2}, filt_peak_pr2{2}, filt_peak{2}, idr_rep2_pr_o_dir, "rep2-pr", \
+			(idr_pr_rep2, idr_pr_rep2_png) = _idr2( filt_peak_pr1{2}, filt_peak_pr2{2}, filt_peak{2}, idr_thresh, idr_rep2_pr_o_dir, "rep2-pr", \
 							"peak_macs2_filt", ["rep2-pr1","rep2-pr2","rep2"], "pseudo_reps/rep2" )
 
 			// idr on ppr
-			(idr_ppr, idr_ppr_png) = _idr2( filt_peak_ppr1, filt_peak_ppr2, filt_peak_pooled, idr_ppr_o_dir, "ppr", \
+			(idr_ppr, idr_ppr_png) = _idr2( filt_peak_ppr1, filt_peak_ppr2, filt_peak_pooled, idr_thresh, idr_ppr_o_dir, "ppr", \
 							"peak_macs2_filt", ["ppr1","ppr2","pooled"], "pooled_pseudo_reps" )
 		}
 		wait		
@@ -852,7 +844,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 			    --outprefix $prefix_basename \
 			    --genome $species \
 			    --ref $ref_fa \
-			    --tss $vplot_idx \
+			    --tss $tss_enrich \
 			    --dnase $dnase \
 			    --blacklist $blacklist \
 			    --prom $prom \
