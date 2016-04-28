@@ -690,7 +690,7 @@ void do_idr() {
 		idr_true_o_dir 	:= mkdir( "$idr_o_dir/true_reps/rep1-rep2" )
 
 		// idr for true reps
-		(idr_tr, idr_tr_png) = _idr2( filt_peak{1}, filt_peak{2}, filt_peak_pooled, idr_thresh, idr_true_o_dir, "rep1-rep2", \
+		(idr_tr, idr_tr_png) = _idr2( filt_peak{1}, filt_peak{2}, filt_peak_pooled, idr_thresh, "p.value", idr_true_o_dir, "rep1-rep2", \
 						"peak_macs2_filt", ["rep1","rep2","pooled"], "true_reps/rep1-rep2" )
 	}
 	
@@ -699,7 +699,7 @@ void do_idr() {
 		idr_rep1_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep1" )
 
 		// idr on pseudo reps
-		(idr_pr_rep1, idr_pr_rep1_png) = _idr2( filt_peak_pr1{1}, filt_peak_pr2{1}, filt_peak{1}, idr_thresh, idr_rep1_pr_o_dir, "rep1-pr", \
+		(idr_pr_rep1, idr_pr_rep1_png) = _idr2( filt_peak_pr1{1}, filt_peak_pr2{1}, filt_peak{1}, idr_thresh, "p.value", idr_rep1_pr_o_dir, "rep1-pr", \
 						"peak_macs2_filt", ["rep1-pr1","rep1-pr2","rep1"], "pseudo_reps/rep1" )
 
 		if ( get_num_rep() > 1 ) {
@@ -707,11 +707,11 @@ void do_idr() {
 			idr_rep2_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep2" )
 			idr_ppr_o_dir 	  := mkdir( "$idr_o_dir/pooled_pseudo_reps" )
 
-			(idr_pr_rep2, idr_pr_rep2_png) = _idr2( filt_peak_pr1{2}, filt_peak_pr2{2}, filt_peak{2}, idr_thresh, idr_rep2_pr_o_dir, "rep2-pr", \
+			(idr_pr_rep2, idr_pr_rep2_png) = _idr2( filt_peak_pr1{2}, filt_peak_pr2{2}, filt_peak{2}, idr_thresh, "p.value", idr_rep2_pr_o_dir, "rep2-pr", \
 							"peak_macs2_filt", ["rep2-pr1","rep2-pr2","rep2"], "pseudo_reps/rep2" )
 
 			// idr on ppr
-			(idr_ppr, idr_ppr_png) = _idr2( filt_peak_ppr1, filt_peak_ppr2, filt_peak_pooled, idr_thresh, idr_ppr_o_dir, "ppr", \
+			(idr_ppr, idr_ppr_png) = _idr2( filt_peak_ppr1, filt_peak_ppr2, filt_peak_pooled, idr_thresh, "p.value", idr_ppr_o_dir, "ppr", \
 							"peak_macs2_filt", ["ppr1","ppr2","pooled"], "pooled_pseudo_reps" )
 		}
 		wait		
