@@ -38,6 +38,8 @@ CONDA_INIT="$CONDA_ACTIVATE_D/init.sh"
 mkdir -p $CONDA_EXTRA $CONDA_ACTIVATE_D
 
 ### BDS
+mkdir -p $HOME/.bds
+cp bds.config $HOME/.bds/
 CONTENTS=("export PATH=\$PATH:\$HOME/.bds")
 add_to_activate
 

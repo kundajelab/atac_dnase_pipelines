@@ -2,7 +2,7 @@ ATAC Seq Pipeline
 ===================================================
 
 
-### Installation instruction
+### Installation instruction (for SCG3 and all others)
 
 Install java (jdk >= 1.7 or jre >= 1.7) and the latest git on your system. 
 
@@ -28,26 +28,29 @@ To FULLY pull the repo:
 $ git pull --recurse-submodules
 ```
 
-Install software dependencies automatically (DO NOT run this on kundaje clusters or SCG3). It will create two conda environments (aquas_chipseq and aquas_chipseq_py3) in Miniconda3.
+Install software dependencies automatically (DO NOT run this on kundaje clusters). It will create two conda environments (aquas_chipseq and aquas_chipseq_py3) in Miniconda3.
 ```
 $ ./install_dependencies.sh
 ```
 
 Replace BDS's default `bds.config` with a correct one:
 ```
-$ cp chipseq/bds.config $HOME/.bds
+$ cp bds.config $HOME/.bds
 ```
 
 
-### Installation instruction (for Kundaje lab clusters and SCG3)
+### Installation instruction (for Kundaje lab clusters)
 
-BDS and all dependencies have already been installed on lab servers (including SCG3). Do not run `install_dependencies.sh` on these servers. Get the latest version of chipseq pipelines. Don't forget to move bds.config to BigDataScript (BDS) directory
+BDS and all dependencies have already been installed on Kundaje lab servers. Do not run `install_dependencies.sh` on these servers. Get the latest version of chipseq pipelines. Don't forget to move bds.config to BigDataScript (BDS) directory
 ```
 $ git clone https://github.com/kundajelab/bds_atac --recursive
 $ cd bds_atac
 $ mkdir -p $HOME/.bds
 $ cp chipseq/bds.config $HOME/.bds/
 ```
+
+
+### Genome data files for SCG3 and Kundaje lab servers
 
 For Kundaje lab servers (mitra, nandi, durga, kali, vayu, amold and wotan) and SCG3 (carmack*, crick*, scg3*), the pipeline automatically determines the type of servers and set shell environments and species database.
 ```
@@ -80,6 +83,11 @@ For ATAQC, you need to define the following parameters. parameters `-preseq` and
 -species [hg19, mm9 or ...] -tss_enrich [] -ref_fa [] -blacklist [] -dnase [] -prom [] -enh [] -reg2map [] -roadmap_meta []
 ```
 
+If you want to just align your data (no peak calling or further steps like IDR).
+```
+-align
+```
+
 If you don't want ATAQC, add the following to command line. 
 ```
 -no_ataqc 
@@ -107,14 +115,24 @@ For raw bams,
 -bam1 [RAW_BAM_REP1] -bam2 [RWA_BAM_REP1] ...
 ```
 
-For deduped (filtered) bams, preseq analysis and v plot will not be available since they need sorted raw bam.
+For deduped (filtered) bams, preseq analysis and TSS enrichment plot will not be available since they need sorted raw bam.
 ```
 -filt_bam1 [NODUP_BAM_REP1] -filt_bam2 [NODUP_BAM_REP1] ...
+```
+
+For tagaligns (non-tn5-shifted), preseq analysis and TSS enrichment plot will not be available since they need sorted raw bam.
+```
+-tag1 [TAGALIGN_REP1] -tag2 [TAGALIGN_REP2] ...
 ```
 
 To subsample beds (tagaligns) add the following to the command line. This is different from subsampling for cross-corr. analysis. Peaks will be called with subsampled tagaligns.
 ```
 -subsample [NO_READS_TO_SUBSAMPLE]
+```
+
+To change # of lines to subsample for cross-corr. analysis.
+```
+-nreads [NO_READS_TO_SUBSAMPLE]
 ```
 
 To disable pseudo replicate generation. By default, IDR will be done for true replicates and pseudo replicates, but if you have `-true_rep` in the command line, you will also get IDR on true replicates only. IDR on a single replicate and naive overlapped peak is not avaiable when this flag is on:
