@@ -720,24 +720,7 @@ void do_idr() {
 
 			qc_o_dir := mkdir( "$out_dir/qc")
 
-			string idr_opt_, idr_consv_
-			(idr_qc, idr_opt_, idr_consv_)  = _idr_final_qc( idr_tr, idr_pr_rep1, idr_pr_rep2, idr_ppr, qc_o_dir, "" )
-
-			idr_opt_o_dir 	:= mkdir( "$idr_o_dir/optimal_set" )
-			idr_consv_o_dir := mkdir( "$idr_o_dir/conservative_set" )
-
-			// make a copy of (because genome browser checks duplicate track URLs)
-
-			idr_opt 	= replace_dir( idr_opt_, idr_opt_o_dir )
-			idr_consv 	= replace_dir( idr_consv_, idr_consv_o_dir )
-
-			in 	:= [idr_opt_,idr_consv_]
-			out 	:= [idr_opt,idr_consv]
-
-			task ( out<-in ) {
-				sys cp $idr_opt_ $idr_opt
-				sys cp $idr_consv_ $idr_consv
-			}
+			(idr_qc, idr_opt, idr_consv)  = _idr_final_qc( idr_tr, idr_pr_rep1, idr_pr_rep2, idr_ppr, idr_o_dir, qc_o_dir, "" )
 		}
 	}
 
@@ -959,14 +942,14 @@ string _html_atac_tracks() {
 
 	if ( peak_overlap != "" ) { track_types += "hammock"; track_names += "$title peak overlap"; track_files += _peak_to_hammock( peak_overlap ) }
 	if ( gpeak_overlap != "" ) { track_types += "hammock"; track_names += "$title gpeak overlap"; track_files += _peak_to_hammock( gpeak_overlap ) }
-	if ( idr_opt != "" ) {	track_types += "hammock"; track_names += "$title peak idr (opt. set)"; track_files += _peak_to_hammock( idr_opt ) }
+	if ( idr_opt != "" ) {	track_types += "hammock"; track_names += "$title peak idr (opt. set)"; track_files += _peak_to_hammock( _get_idr_peak_trk( idr_opt ) ) } // find IDR tracks
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 
 		if ( pval_bigwig_001.hasKey( "$rep" ) ) { track_types += "bigwig"; track_names += "$title pval (rep$rep)"; track_files += pval_bigwig_001{rep} }
 		if ( peak_001.hasKey( "$rep" ) ) { track_types += "hammock"; track_names += "$title peak (rep$rep)"; track_files += _peak_to_hammock( peak_001{rep} ) }
-		if ( rep==1 && idr_pr_rep1 != "" ) {	track_types += "hammock"; track_names += "$title peak idr (rep1_pr)"; track_files += _peak_to_hammock( idr_pr_rep1 ) }
-		if ( rep==2 && idr_pr_rep2 != "" ) {	track_types += "hammock"; track_names += "$title peak idr (rep2_pr)"; track_files += _peak_to_hammock( idr_pr_rep2 ) }
+		if ( rep==1 && idr_pr_rep1 != "" ) {	track_types += "hammock"; track_names += "$title peak idr (rep1_pr)"; track_files += _peak_to_hammock( _get_idr_peak_trk( idr_pr_rep1 ) ) }
+		if ( rep==2 && idr_pr_rep2 != "" ) {	track_types += "hammock"; track_names += "$title peak idr (rep2_pr)"; track_files += _peak_to_hammock( _get_idr_peak_trk( idr_pr_rep2 ) ) }
 	}
 
 	html := _html_epg_browser_viz( track_files, track_types, track_names )

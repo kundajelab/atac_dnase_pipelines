@@ -6,7 +6,7 @@ ATAC Seq Pipeline
 
 Install java (jdk >= 1.7 or jre >= 1.7) and the latest git on your system. 
 
-Install Anaconda Python3 (or Miniconda3) on your system. Open a new terminal after installation.
+Install Anaconda Python3 (or Miniconda3) on your system. If you already have Anaconda Python 3, skip it. Open a new terminal after installation.
 
 Install BigDataScript v0.9999 on your system.
 
@@ -266,6 +266,11 @@ Prepend a directory for `libncurses.so.5` to `LD_LIBRARY_PATH`. See `install_dep
 ```
 samtools: symbol lookup error: /lib/x86_64-linux-gnu/libncurses.so.5: undefined symbol: _nc_putchar
 ```
+
+4) Error: could not find environment: bds_atac
+
+Unload any Anaconda Python modules. Remove locally installed Anaconda Python from your `$PATH`
+
 
 
 ### Contributors
