@@ -955,18 +955,18 @@ string _html_atac_tracks() {
 
 	string[] track_files, track_types, track_names
 
-	if ( pval_bigwig_001.hasKey( "pooled" ) ) { track_types += "bigwig"; track_names += "pval (pooled)"; track_files += pval_bigwig_001{"pooled"} }
+	if ( pval_bigwig_001.hasKey( "pooled" ) ) { track_types += "bigwig"; track_names += "$title pval (pooled)"; track_files += pval_bigwig_001{"pooled"} }
 
-	if ( peak_overlap != "" ) { track_types += "hammock"; track_names += "peak overlap"; track_files += _peak_to_hammock( peak_overlap ) }
-	if ( gpeak_overlap != "" ) { track_types += "hammock"; track_names += "gpeak overlap"; track_files += _peak_to_hammock( gpeak_overlap ) }
-	if ( idr_opt != "" ) {	track_types += "hammock"; track_names += "peak idr (opt. set)"; track_files += _peak_to_hammock( idr_opt ) }
+	if ( peak_overlap != "" ) { track_types += "hammock"; track_names += "$title peak overlap"; track_files += _peak_to_hammock( peak_overlap ) }
+	if ( gpeak_overlap != "" ) { track_types += "hammock"; track_names += "$title gpeak overlap"; track_files += _peak_to_hammock( gpeak_overlap ) }
+	if ( idr_opt != "" ) {	track_types += "hammock"; track_names += "$title peak idr (opt. set)"; track_files += _peak_to_hammock( idr_opt ) }
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 
-		if ( pval_bigwig_001.hasKey( "$rep" ) ) { track_types += "bigwig"; track_names += "pval (rep$rep)"; track_files += pval_bigwig_001{rep} }
-		if ( peak_001.hasKey( "$rep" ) ) { track_types += "hammock"; track_names += "peak (rep$rep)"; track_files += _peak_to_hammock( peak_001{rep} ) }
-		if ( rep==1 && idr_pr_rep1 != "" ) {	track_types += "hammock"; track_names += "peak idr (rep1_pr)"; track_files += _peak_to_hammock( idr_pr_rep1 ) }
-		if ( rep==2 && idr_pr_rep2 != "" ) {	track_types += "hammock"; track_names += "peak idr (rep2_pr)"; track_files += _peak_to_hammock( idr_pr_rep2 ) }
+		if ( pval_bigwig_001.hasKey( "$rep" ) ) { track_types += "bigwig"; track_names += "$title pval (rep$rep)"; track_files += pval_bigwig_001{rep} }
+		if ( peak_001.hasKey( "$rep" ) ) { track_types += "hammock"; track_names += "$title peak (rep$rep)"; track_files += _peak_to_hammock( peak_001{rep} ) }
+		if ( rep==1 && idr_pr_rep1 != "" ) {	track_types += "hammock"; track_names += "$title peak idr (rep1_pr)"; track_files += _peak_to_hammock( idr_pr_rep1 ) }
+		if ( rep==2 && idr_pr_rep2 != "" ) {	track_types += "hammock"; track_names += "$title peak idr (rep2_pr)"; track_files += _peak_to_hammock( idr_pr_rep2 ) }
 	}
 
 	html := _html_epg_browser_viz( track_files, track_types, track_names )
