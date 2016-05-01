@@ -67,8 +67,9 @@ string gpeak_pooled, gpeak_pooled_001, gpeak_ppr1, gpeak_ppr2, gpeak_overlap
 
 string{} pval_bigwig_001, fc_bigwig_001
 
-string idr_tr, idr_pr_rep1, idr_pr_rep2, idr_ppr, idr_opt, idr_consv
-string idr_tr_png, idr_pr_rep1_png, idr_pr_rep2_png, idr_ppr_png
+string{} idr_tr, idr_pr, idr_tr_png, idr_pr_png
+string idr_ppr, idr_opt, idr_consv, idr_ppr_png
+
 string idr_qc
 
 
@@ -161,7 +162,7 @@ void chk_input_data() {
 	}
 
 	if ( is_input_fastq() ) chk_align_bwt2()
-	if ( !align ) 	chk_callpeak_macs2()
+	if ( !align ) 		chk_callpeak_macs2()
 	if ( !no_idr ) 		chk_idr()
 	if ( !no_ataqc ) 	chk_ataqc()
 
@@ -550,73 +551,76 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 
 	if ( align ) return
 
-	if ( get_num_rep() != 2 ) return
+	string[] tags, tags_pr1, tags_pr2
 
- 	aln_pooled_o_dir := mkdir( "$out_dir/align/pooled_rep" )
+	for ( int rep=1; rep<=get_num_rep(); rep++ ) {
 
-	peak_o_dir 	:= mkdir( "$out_dir/peak/macs2")
-	sig_o_dir 	:= mkdir( "$out_dir/signal/macs2")
+		tags.add( final_tag{rep} )
 
-	string final_tag_pooled
+	 	if ( !true_rep ) {
+			tags_pr1.add( final_tag_pr1{rep} )
+			tags_pr2.add( final_tag_pr2{rep} )
+		}
+	}
 
-	if ( !true_rep ) {
+	if ( get_num_rep() > 1 ) {
 
-	 	aln_ppr1_o_dir   := mkdir( "$out_dir/align/pooled_pseudo_reps/ppr1" )
-	 	aln_ppr2_o_dir   := mkdir( "$out_dir/align/pooled_pseudo_reps/ppr2" )
+	 	aln_pooled_o_dir := mkdir( "$out_dir/align/pooled_rep" )
+
+		final_tag{"pooled"} = _pool_tag( tags, aln_pooled_o_dir, "reps" )
 
 		// Make shifted tags for pooled pseudo rep (ppr).
 		string final_tag_ppr1, final_tag_ppr2
 
-		( final_tag_pooled, final_tag_ppr1, final_tag_ppr2 ) = \
-			_ppr( 	final_tag{1}, final_tag_pr1{1}, final_tag_pr2{1}, \
-				final_tag{2}, final_tag_pr1{2}, final_tag_pr2{2}, \
-				aln_pooled_o_dir, aln_ppr1_o_dir, aln_ppr2_o_dir, "" )
+		if ( !true_rep ) {
+
+		 	aln_ppr1_o_dir   := mkdir( "$out_dir/align/pooled_pseudo_reps/ppr1" )
+		 	aln_ppr2_o_dir   := mkdir( "$out_dir/align/pooled_pseudo_reps/ppr2" )
+
+			final_tag_ppr1 = _pool_tag( tags_pr1, aln_ppr1_o_dir, "reps-pr1" )
+			final_tag_ppr2 = _pool_tag( tags_pr2, aln_ppr2_o_dir, "reps-pr2" )
+		}
 		wait
 
-		ppr1_hrchy 	:= "pooled_pseudo_reps/ppr1"
-		ppr2_hrchy 	:= "pooled_pseudo_reps/ppr2"
+		peak_o_dir 	:= mkdir( "$out_dir/peak/macs2")
+		sig_o_dir 	:= mkdir( "$out_dir/signal/macs2")
 
-		ppr1_o_dir 	:= mkdir( "$peak_o_dir/$ppr1_hrchy" )
-		ppr2_o_dir 	:= mkdir( "$peak_o_dir/$ppr2_hrchy" )
+		pooled_hrchy 	:= "pooled_rep"
+		pooled_o_dir	:= mkdir( "$peak_o_dir/$pooled_hrchy" )
+		pooled_sig_o_dir:= mkdir( "$sig_o_dir/$pooled_hrchy" )
 
-		ppr1_sig_o_dir 	:= mkdir( "$sig_o_dir/$ppr1_hrchy" )
-		ppr2_sig_o_dir 	:= mkdir( "$sig_o_dir/$ppr2_hrchy" )
+		( peak_pooled, gpeak_pooled ) = _macs2_atac( final_tag{"pooled"}, "$smooth_win", 0.1, false, \
+						pooled_o_dir, pooled_sig_o_dir, "pooled", pooled_hrchy )
 
-		// call peaks on ppr
-		( peak_ppr1, gpeak_ppr1 ) = _macs2_atac( final_tag_ppr1, "$smooth_win", 0.1, false, \
-						ppr1_o_dir, ppr1_sig_o_dir, "ppr1", ppr1_hrchy )
+		( peak_pooled_001, gpeak_pooled_001, \
+			fc_bigwig_001{"pooled"}, \
+			pval_bigwig_001{"pooled"} ) \
+						= _macs2_atac( final_tag{"pooled"}, "$smooth_win", 0.01, true, \
+						pooled_o_dir, pooled_sig_o_dir, "pooled", pooled_hrchy )
 
-		( peak_ppr2, gpeak_ppr2 ) = _macs2_atac( final_tag_ppr2, "$smooth_win", 0.1, false, \
-						ppr2_o_dir, ppr2_sig_o_dir, "ppr2", ppr2_hrchy )
+		if ( !true_rep ) {
+
+			ppr1_hrchy 	:= "pooled_pseudo_reps/ppr1"
+			ppr2_hrchy 	:= "pooled_pseudo_reps/ppr2"
+			ppr1_o_dir 	:= mkdir( "$peak_o_dir/$ppr1_hrchy" )
+			ppr2_o_dir 	:= mkdir( "$peak_o_dir/$ppr2_hrchy" )
+			ppr1_sig_o_dir 	:= mkdir( "$sig_o_dir/$ppr1_hrchy" )
+			ppr2_sig_o_dir 	:= mkdir( "$sig_o_dir/$ppr2_hrchy" )
+
+			// call peaks on ppr
+			( peak_ppr1, gpeak_ppr1 ) = _macs2_atac( final_tag_ppr1, "$smooth_win", 0.1, false, \
+							ppr1_o_dir, ppr1_sig_o_dir, "ppr1", ppr1_hrchy )
+
+			( peak_ppr2, gpeak_ppr2 ) = _macs2_atac( final_tag_ppr2, "$smooth_win", 0.1, false, \
+							ppr2_o_dir, ppr2_sig_o_dir, "ppr2", ppr2_hrchy )
+		}
 	}
-	else {
-		final_tag_pooled = _pool_tag( final_tag{1}, final_tag{2}, aln_pooled_o_dir, "" )
-		wait
-	}
-
-	pooled_hrchy 	:= "pooled_rep"
-
-	pooled_o_dir	:= mkdir( "$peak_o_dir/$pooled_hrchy" )
-	pooled_sig_o_dir:= mkdir( "$sig_o_dir/$pooled_hrchy" )
-
-	( peak_pooled, gpeak_pooled ) = _macs2_atac( final_tag_pooled, "$smooth_win", 0.1, false, \
-					pooled_o_dir, pooled_sig_o_dir, "pooled", pooled_hrchy )
-
-	( peak_pooled_001, gpeak_pooled_001, \
-		fc_bigwig_001{"pooled"}, \
-		pval_bigwig_001{"pooled"} ) \
-					= _macs2_atac( final_tag_pooled, "$smooth_win", 0.01, true, \
-					pooled_o_dir, pooled_sig_o_dir, "pooled", pooled_hrchy )
 	wait
 }
 
 void do_idr() {
 	
-	if ( align ) return
-
-	if ( no_idr || get_num_rep() > 2 ) return
-
-	// take top $npeak_filt lines from narrowpeaks for idr
+	if ( align || no_idr ) return
 
 	string{} filt_peak, filt_peak_pr1, filt_peak_pr2
 	string filt_peak_pooled, filt_peak_ppr1, filt_peak_ppr2
@@ -624,30 +628,27 @@ void do_idr() {
 	string{} filt_gpeak, filt_gpeak_pr1, filt_gpeak_pr2
 	string filt_gpeak_pooled, filt_gpeak_ppr1, filt_gpeak_ppr2
 
-	filt_peak{1} 	= _filt_top_peaks( peak{1}, "", "rep1", "peak_macs2", "macs2/rep1" )
-	filt_gpeak{1} 	= _filt_top_peaks( gpeak{1}, "", "rep1", "gpeak_macs2", "macs2/rep1" )
+	// take top $npeak_filt lines from narrowpeaks for idr
+	for ( int rep=1; rep<=get_num_rep(); rep++ ) {
+
+		filt_peak{rep} 	= _filt_top_peaks( peak{rep}, "", "rep$rep", "peak_macs2", "macs2/rep$rep" )
+		filt_gpeak{rep} = _filt_top_peaks( gpeak{rep}, "", "rep$rep", "gpeak_macs2", "macs2/rep$rep" )
+
+		if ( !true_rep ) {
+
+			filt_peak_pr1{rep}  = _filt_top_peaks( peak_pr1{rep}, "", "rep$rep-pr1", "peak_macs2", "macs2/pseudo_reps/rep$rep/pr1" )
+			filt_peak_pr2{rep}  = _filt_top_peaks( peak_pr2{rep}, "", "rep$rep-pr2", "peak_macs2", "macs2/pseudo_reps/rep$rep/pr2" )
+			filt_gpeak_pr1{rep} = _filt_top_peaks( gpeak_pr1{rep}, "", "rep$rep-pr1", "gpeak_macs2", "macs2/pseudo_reps/rep$rep/pr1" )
+			filt_gpeak_pr2{rep} = _filt_top_peaks( gpeak_pr2{rep}, "", "rep$rep-pr2", "gpeak_macs2", "macs2/pseudo_reps/rep$rep/pr2" )
+		}
+	}
  
 	if ( get_num_rep() > 1 ) {
 
-		filt_peak{2} 	 = _filt_top_peaks( peak{2}, "", "rep2", "peak_macs2", "macs2/rep2" )
 		filt_peak_pooled = _filt_top_peaks( peak_pooled, "", "pooled", "peak_macs2", "macs2/pooled_rep" )
-		filt_gpeak{2} 	 = _filt_top_peaks( gpeak{2}, "", "rep2", "gpeak_macs2", "macs2/rep2" )
 		filt_gpeak_pooled= _filt_top_peaks( gpeak_pooled, "", "pooled", "gpeak_macs2", "macs2/pooled_rep" )
-	}
-	
-	if ( !true_rep ) {
 
-		filt_peak_pr1{1}  = _filt_top_peaks( peak_pr1{1}, "", "rep1-pr1", "peak_macs2", "macs2/pseudo_reps/rep1/pr1" )
-		filt_peak_pr2{1}  = _filt_top_peaks( peak_pr2{1}, "", "rep1-pr2", "peak_macs2", "macs2/pseudo_reps/rep1/pr2" )
-		filt_gpeak_pr1{1} = _filt_top_peaks( gpeak_pr1{1}, "", "rep1-pr1", "gpeak_macs2", "macs2/pseudo_reps/rep1/pr1" )
-		filt_gpeak_pr2{1} = _filt_top_peaks( gpeak_pr2{1}, "", "rep1-pr2", "gpeak_macs2", "macs2/pseudo_reps/rep1/pr2" )
-
-		if ( get_num_rep() > 1 ) {
-
-			filt_peak_pr1{2}  = _filt_top_peaks( peak_pr1{2}, "", "rep2-pr1", "peak_macs2", "macs2/pseudo_reps/rep2/pr1" )
-			filt_peak_pr2{2}  = _filt_top_peaks( peak_pr2{2}, "", "rep2-pr2", "peak_macs2", "macs2/pseudo_reps/rep2/pr2" )
-			filt_gpeak_pr1{2} = _filt_top_peaks( gpeak_pr1{2}, "", "rep2-pr1", "gpeak_macs2", "macs2/pseudo_reps/rep2/pr1" )
-			filt_gpeak_pr2{2} = _filt_top_peaks( gpeak_pr2{2}, "", "rep2-pr2", "gpeak_macs2", "macs2/pseudo_reps/rep2/pr2" )
+		if ( !true_rep ) {
 
 			filt_peak_ppr1 	   = _filt_top_peaks( peak_ppr1, "", "ppr1", "peak_macs2", "macs2/pooled_pseudo_reps/ppr1" )
 			filt_peak_ppr2 	   = _filt_top_peaks( peak_ppr2, "", "ppr2", "peak_macs2", "macs2/pooled_pseudo_reps/ppr2" )
@@ -655,7 +656,7 @@ void do_idr() {
 			filt_gpeak_ppr2    = _filt_top_peaks( gpeak_ppr2, "", "ppr2", "gpeak_macs2", "macs2/pooled_pseudo_reps/ppr2" )
 		}
 	}
-
+	
 	wait
 
 	// naive overlap peak
@@ -672,10 +673,10 @@ void do_idr() {
 									  "gpeak", "gpeak_macs2_filt", "macs2/overlap" )
 		}
 		else {
-			peak_overlap = _naive_overlap_peak( "narrowPeak", filt_peak_pooled, filt_peak{1}, filt_peak{2}, \
+			peak_overlap = _naive_overlap_peak( "narrowPeak", filt_peak_pooled, map_to_array( filt_peak ), \
 									  filt_peak_ppr1, filt_peak_ppr2, overlap_o_dir, \
 									  "peak", "peak_macs2_filt", "macs2/overlap" )
-			gpeak_overlap = _naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, filt_gpeak{1}, filt_gpeak{2}, \
+			gpeak_overlap = _naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, map_to_array( filt_gpeak ), \
 									  filt_gpeak_ppr1, filt_gpeak_ppr2, overlap_o_dir, \
 									  "gpeak", "gpeak_macs2_filt", "macs2/overlap" )
 		}
@@ -683,47 +684,40 @@ void do_idr() {
 
 	// do IDR
 
-	idr_o_dir 	:= mkdir( "$out_dir/peak/idr" )
+	idr_o_dir := mkdir( "$out_dir/peak/idr" )
 
-	if ( get_num_rep() > 1 ) {
+	for ( int i=1; i<=get_num_rep(); i++ ) {
 
-		idr_true_o_dir 	:= mkdir( "$idr_o_dir/true_reps/rep1-rep2" )
+		for ( int j=i+1; j<=get_num_rep(); j++ ) {
 
-		// idr for true reps
-		(idr_tr, idr_tr_png) = _idr2( filt_peak{1}, filt_peak{2}, filt_peak_pooled, idr_thresh, "p.value", idr_true_o_dir, "rep1-rep2", \
-						"peak_macs2_filt", ["rep1","rep2","pooled"], "true_reps/rep1-rep2" )
-	}
-	
-	if ( !true_rep ) {
+			idr_true_o_dir 	:= mkdir( "$idr_o_dir/true_reps/rep$i-rep$j" )
 
-		idr_rep1_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep1" )
-
-		// idr on pseudo reps
-		(idr_pr_rep1, idr_pr_rep1_png) = _idr2( filt_peak_pr1{1}, filt_peak_pr2{1}, filt_peak{1}, idr_thresh, "p.value", idr_rep1_pr_o_dir, "rep1-pr", \
-						"peak_macs2_filt", ["rep1-pr1","rep1-pr2","rep1"], "pseudo_reps/rep1" )
-
-		if ( get_num_rep() > 1 ) {
-
-			idr_rep2_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep2" )
-			idr_ppr_o_dir 	  := mkdir( "$idr_o_dir/pooled_pseudo_reps" )
-
-			(idr_pr_rep2, idr_pr_rep2_png) = _idr2( filt_peak_pr1{2}, filt_peak_pr2{2}, filt_peak{2}, idr_thresh, "p.value", idr_rep2_pr_o_dir, "rep2-pr", \
-							"peak_macs2_filt", ["rep2-pr1","rep2-pr2","rep2"], "pseudo_reps/rep2" )
-
-			// idr on ppr
-			(idr_ppr, idr_ppr_png) = _idr2( filt_peak_ppr1, filt_peak_ppr2, filt_peak_pooled, idr_thresh, "p.value", idr_ppr_o_dir, "ppr", \
-							"peak_macs2_filt", ["ppr1","ppr2","pooled"], "pooled_pseudo_reps" )
+			(idr_tr{"$i,$j"}, idr_tr_png{"$i,$j"} ) = _idr2( filt_peak{i}, filt_peak{j}, filt_peak_pooled, idr_thresh, "p.value", idr_true_o_dir, "rep$i-rep$j", \
+									"peak_macs2_filt", ["rep$i","rep$j","pooled"], "true_reps/rep$i-rep$j" )
 		}
-		wait		
 
-		if ( get_num_rep() > 1 ) {
+		if ( !true_rep ) {
 
-			qc_o_dir := mkdir( "$out_dir/qc")
+			idr_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep$i" )
 
-			(idr_qc, idr_opt, idr_consv)  = _idr_final_qc( idr_tr, idr_pr_rep1, idr_pr_rep2, idr_ppr, idr_o_dir, qc_o_dir, "" )
+			(idr_pr{i}, idr_pr_png{i}) = _idr2( filt_peak_pr1{i}, filt_peak_pr2{i}, filt_peak{i}, idr_thresh, "p.value", idr_pr_o_dir, "rep$i-pr", \
+							"peak_macs2_filt", ["rep$i-pr1","rep$i-pr2","rep$i"], "pseudo_reps/rep$i" )
 		}
 	}
 
+	if ( !true_rep && get_num_rep() > 1 ) {
+
+		idr_ppr_o_dir := mkdir( "$idr_o_dir/pooled_pseudo_reps" )
+
+		(idr_ppr, idr_ppr_png) = _idr2( filt_peak_ppr1, filt_peak_ppr2, filt_peak_pooled, idr_thresh, "p.value", idr_ppr_o_dir, "ppr", \
+						"peak_macs2_filt", ["ppr1","ppr2","pooled"], "pooled_pseudo_reps" )
+		wait
+
+		qc_o_dir    := mkdir( "$out_dir/qc" ) // create qc output dir.
+
+		// get final idr qc score, use idr final idr narrow peak files from true, pseudo and pooled pseudo reps
+		(idr_qc, idr_opt, idr_consv) = _idr_final_qc( idr_tr, idr_pr, idr_ppr, idr_o_dir, qc_o_dir, "" )
+	}
 	wait
 }
 
@@ -754,15 +748,15 @@ void _ataqc( int rep ) {
 
 		string idr_, graph_in_idr
 
-		if ( no_idr || get_num_rep() > 2 ) {
+		if ( no_idr ) {
 			idr_ = ""
 			graph_in_idr = ""
 		}
 		else if ( get_num_rep() == 1 ) {
-			idr_ = idr_pr_rep1
+			idr_ = idr_pr{1}
 			graph_in_idr = "idr_peak_(rep1-pr)"
 		}
-		else if ( get_num_rep() == 2 ) {
+		else {
 			idr_ = idr_opt
 			graph_in_idr = "idr_peak_(opt)"
 		}
@@ -925,9 +919,17 @@ string _html_atac_QC() {
 
 	if ( idr_qc != "" ) html += _parse_idr_to_html( "idr", idr_qc )
 
-	if ( idr_tr_png != "" ) html += _html_img( idr_tr_png, 800, "true reps" ) + "&nbsp"
-	if ( idr_pr_rep1_png != "" ) html += _html_img( idr_pr_rep1_png, 800, "rep1 pseudo-reps" ) + "&nbsp"
-	if ( idr_pr_rep2_png != "" ) html += _html_img( idr_pr_rep2_png, 800, "rep2 pseudo-reps" ) + "&nbsp"
+	for ( int i=1; i<=get_num_rep(); i++ ) {
+
+		for ( int j=i+1; j<=get_num_rep(); j++ ) {
+			if ( idr_tr_png.hasKey("$i,$j") ) html += _html_img( idr_tr_png{"$i,$j"}, 800, "true reps (rep$i-rep$j)" ) + "&nbsp"
+		}
+
+		if ( !true_rep ) {
+			if ( idr_pr_png.hasKey(i) ) html += _html_img( idr_pr_png{i}, 800, "rep$i pseudo-reps" ) + "&nbsp"
+		}
+	}
+
 	if ( idr_ppr_png != "" ) html += _html_img( idr_ppr_png, 800, "pooled pseudo-reps" ) + "&nbsp"
 
 	html += "</div><br>"
@@ -948,8 +950,7 @@ string _html_atac_tracks() {
 
 		if ( pval_bigwig_001.hasKey( "$rep" ) ) { track_types += "bigwig"; track_names += "$title pval (rep$rep)"; track_files += pval_bigwig_001{rep} }
 		if ( peak_001.hasKey( "$rep" ) ) { track_types += "hammock"; track_names += "$title peak (rep$rep)"; track_files += _peak_to_hammock( peak_001{rep} ) }
-		if ( rep==1 && idr_pr_rep1 != "" ) {	track_types += "hammock"; track_names += "$title peak idr (rep1_pr)"; track_files += _peak_to_hammock( _get_idr_peak_trk( idr_pr_rep1 ) ) }
-		if ( rep==2 && idr_pr_rep2 != "" ) {	track_types += "hammock"; track_names += "$title peak idr (rep2_pr)"; track_files += _peak_to_hammock( _get_idr_peak_trk( idr_pr_rep2 ) ) }
+		if ( idr_pr.hasKey(rep) ) {	track_types += "hammock"; track_names += "$title peak idr (rep$rep-pr)"; track_files += _peak_to_hammock( _get_idr_peak_trk( idr_pr{rep} ) ) }
 	}
 
 	html := _html_epg_browser_viz( track_files, track_types, track_names )
