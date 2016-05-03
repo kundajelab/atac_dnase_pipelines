@@ -140,9 +140,9 @@ To disable pseudo replicate generation. By default, IDR will be done for true re
 -true_rep
 ```
 
-IDR analysis is included in the pipeline by default. For better IDR QC, add path to blacklist idr (for hg19, http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz).
+IDR analysis is included in the pipeline by default. For better IDR QC, add path to blacklist idr (for hg19, http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz). For other genomes, <a href="https://sites.google.com/site/anshulkundaje/projects/blacklists">https://sites.google.com/site/anshulkundaje/projects/blacklists</a>
 ```
--blacklist_idr [BLACKLIST_IDR]
+-blacklist [BLACKLIST_BED]
 ```
 
 If you don't want IDR analysis on peaks (two replicates are needed) add the following:
