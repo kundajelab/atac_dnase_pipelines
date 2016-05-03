@@ -135,7 +135,7 @@ void print_atac() {
 	print( "Max. memory for ATAQC\t\t: $mem_ataqc\n")
 	print( "Smoothing window for MACS2\t: $smooth_win\n")
 	print( "DNase Seq\t\t\t: $dnase_seq\n")
-	print( "IDR threshold\t\t: $idr_thresh\n" )
+	print( "IDR threshold\t\t\t: $idr_thresh\n" )
 }
 
 void chk_input_data() {
@@ -711,14 +711,14 @@ void do_idr() {
 
 		(idr_ppr, idr_ppr_png) = _idr2( filt_peak_ppr1, filt_peak_ppr2, filt_peak_pooled, idr_thresh, "p.value", idr_ppr_o_dir, "ppr", \
 						"peak_macs2_filt", ["ppr1","ppr2","pooled"], "pooled_pseudo_reps" )
-		wait
-
-		qc_o_dir    := mkdir( "$out_dir/qc" ) // create qc output dir.
-
-		// get final idr qc score, use idr final idr narrow peak files from true, pseudo and pooled pseudo reps
-		(idr_qc, idr_opt, idr_consv) = _idr_final_qc( idr_tr, idr_pr, idr_ppr, idr_o_dir, qc_o_dir, "" )
 	}
+
 	wait
+
+	qc_o_dir    := mkdir( "$out_dir/qc" ) // create qc output dir.
+
+	// get final idr qc score, use idr final idr narrow peak files from true, pseudo and pooled pseudo reps
+	(idr_qc, idr_opt, idr_consv) = _idr_final_qc( idr_tr, idr_pr, idr_ppr, idr_o_dir, qc_o_dir, "" )
 }
 
 void ataqc() {

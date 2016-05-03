@@ -8,7 +8,7 @@ Install java (jdk >= 1.7 or jre >= 1.7) and the latest git on your system.
 
 Install Anaconda Python3 (or Miniconda3) on your system. If you already have Anaconda Python 3, skip it. Open a new terminal after installation.
 
-Install BigDataScript v0.9999 on your system.
+Install BigDataScript v0.999l on your system.
 
 See details <a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_PIPELINE.md" target=_blank>here</a>
 
