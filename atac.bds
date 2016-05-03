@@ -238,7 +238,7 @@ void chk_ataqc() {
 
 	if ( species == "" ) 	error("Genome name is missing ( '-species [GENOME_NAME; hg19, mm9, ...]' )!\n" )
 	if ( ref_fa == "" ) 	error("Specify your reference genome .fa ('-ref_fa [FA]')!\n")
-	if ( tss_enrich == "" ) 	error("V plot index is missing ( '-tss_enrich' )!\n")
+	if ( tss_enrich == "" ) error("V plot index is missing ( '-tss_enrich' )!\n")
 	if ( dnase == "" ) 	error("DNase bed is missing ( '-dnase' )!\n")
 	if ( blacklist == "" ) 	error("Blacklist bed is missing ( '-blacklist' )!\n")
 	if ( prom == "" ) 	error("Promoter bed is missing ( '-prom' )!\n")
