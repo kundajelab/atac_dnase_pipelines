@@ -5,6 +5,7 @@ conda config --add channels r # r-2.15.3
 conda config --add channels bioconda
 conda config --add channels astro # r-2.15.3
 conda config --add channels kalefranz # bug free readline
+conda config --add channels asmeurer # libtool
 
 conda create -n bds_atac --file requirements.txt -y
 conda install -n bds_atac --file requirements_r2.txt -y --force # force install R-2.15.3
@@ -37,6 +38,11 @@ CONDA_LIB="$CONDA_BIN/../lib"
 CONDA_ACTIVATE_D="$CONDA_BIN/../etc/conda/activate.d"
 CONDA_INIT="$CONDA_ACTIVATE_D/init.sh"
 mkdir -p $CONDA_EXTRA $CONDA_ACTIVATE_D
+
+## GRAPHVIZ
+# graphviz on bioconda is buggy (GLIBC 2.14 error)
+conda uninstall graphviz -y
+conda install graphviz -c defaults --override-channels -y
 
 ### BDS
 mkdir -p $HOME/.bds

@@ -1,9 +1,9 @@
 bowtie ==1.1.2
 bowtie2 ==2.2.6
 samtools ==1.2 # ncurses bug
-htslib
-readline ==6.2.5 # 
-bedtools ==2.22 #2.21.0
+htslib # bgzip and tabix not included in new samtools
+readline ==6.2.5 # ncurses bug
+bedtools ==2.22 # 2.21.0
 picard ==1.126 #wanted 1.129 here but doesn't exist. instead 1.139 has backward compatibility issue, so take 1.126
 ucsc-wigtobigwig
 ucsc-bedgraphtobigwig
@@ -14,19 +14,20 @@ macs2 ==2.1.0
 boost ==1.57.0
 gnuplot ==5.0.3
 trim-galore ==0.4.1
-numpy ==1.10.4 #1.9.0 # ==1.8.2 # 1.10.4 conflicts with ATAQC
+numpy ==1.10.4 #1.9.0 #1.8.2 conflicts with ATAQC
 scipy ==0.17.0 
-matplotlib #==1.5.1
-python-levenshtein
-pybedtools 
+matplotlib
+python-levenshtein # for trimAdapter.py
+pybedtools # ataqc
 libgfortran==3.0 # ataqc
 pandas ==0.18.0 #==0.16.1 # ataqc
 metaseq #==0.5.6 # ataqc
 jinja2 # ataqc
-graphviz # for HTML report
-ghostscript # for conver (pdf to png)
+graphviz # graphviz on bioconda channel is buggy, see/use install_dependencies.sh for solution
+ghostscript # for convert (pdf to png)
+libtool # graphviz needs it
 gsl # for preseq
-pysam ==0.8.3 # 0.9 has a issue with ATAQC
+pysam ==0.8.3 # 0.9 has an issue with ATAQC
 
 ## picard tool does not have a shell variable PICARDROOT
 ## PICARDROOT will be defined in conda activate.
