@@ -100,3 +100,27 @@ CONTENTS=("export PATH=\$PATH:$CONDA_EXTRA/phantompeakqualtools")
 add_to_activate
 
 source deactivate
+
+
+
+source activate bds_atac_py3
+
+if [ $? != 0 ]; then
+  echo Anaconda environment not found!
+  exit
+fi
+
+CONDA_BIN=$(dirname $(which activate))
+CONDA_EXTRA="$CONDA_BIN/../extra"
+mkdir -p $CONDA_EXTRA
+
+# uninstall IDR 2.0.2 and install beta
+conda uninstall idr -y
+cd $CONDA_EXTRA
+git clone https://github.com/nboley/idr
+cd idr
+python3 setup.py install
+cd $CONDA_EXTRA
+rm -rf idr
+
+source deactivate

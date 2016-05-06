@@ -259,6 +259,8 @@ void atac() {
 	}
 
 	wait
+
+	print( "\n== Done atac()\n" )	
 }
 
 void _atac( int rep ) {
@@ -616,6 +618,8 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 		}
 	}
 	wait
+
+	print( "\n== Done post_atac()\n" )
 }
 
 void do_idr() {
@@ -719,6 +723,8 @@ void do_idr() {
 
 	// get final idr qc score, use idr final idr narrow peak files from true, pseudo and pooled pseudo reps
 	(idr_qc, idr_opt, idr_consv) = _idr_final_qc( idr_tr, idr_pr, idr_ppr, idr_o_dir, qc_o_dir, "" )
+
+	print( "\n== Done do_idr()\n" )	
 }
 
 void ataqc() {
@@ -735,6 +741,8 @@ void ataqc() {
 	}
 
 	wait
+
+	print( "\n== Done ataqc()\n" )
 }
 
 void _ataqc( int rep ) {
@@ -773,7 +781,6 @@ void _ataqc( int rep ) {
 				peak_overlap, idr_, qc_o_dir, info, graph_in_idr )
 		}
 	}
-
 }
 
 string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, string pbc_log, \
@@ -875,6 +882,8 @@ void report() {
 	html += _html_atac_QC()	// show QC tables and images
 
 	report( html )
+
+	print( "\n== Done report()\n" )
 }
 
 string _html_atac_QC() {
