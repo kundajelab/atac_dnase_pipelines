@@ -2,11 +2,11 @@ ATAC Seq Pipeline
 ===================================================
 
 
-### Installation instruction (for SCG3 and all others)
+### Installation instruction (for SCG3/4 and all others)
 
 Install java (jdk >= 1.7 or jre >= 1.7) and the latest git on your system. 
 
-Install Anaconda Python3 (or Miniconda3) on your system. If you already have Anaconda Python 3, skip it. Open a new terminal after installation.
+Install Anaconda Python3 (or Miniconda3) on your system. If you already have it, skip this. Open a new terminal after installation.
 
 Install BigDataScript v0.999l on your system.
 
@@ -33,7 +33,7 @@ Install software dependencies automatically (DO NOT run this on kundaje clusters
 $ ./install_dependencies.sh
 ```
 
-Replace BDS's default `bds.config` with a correct one:
+If you don't use `install_dependencies.sh`, manually replace BDS's default `bds.config` with a correct one:
 ```
 $ cp bds.config $HOME/.bds
 ```
@@ -41,18 +41,22 @@ $ cp bds.config $HOME/.bds
 
 ### Installation instruction (for Kundaje lab clusters)
 
-BDS and all dependencies have already been installed on Kundaje lab servers. Do not run `install_dependencies.sh` on these servers. Get the latest version of chipseq pipelines. Don't forget to move bds.config to BigDataScript (BDS) directory
+BDS and all dependencies have already been installed on Kundaje lab servers. Do not run `install_dependencies.sh` on these servers. Get the latest version of chipseq pipelines.
 ```
 $ git clone https://github.com/kundajelab/bds_atac --recursive
 $ cd bds_atac
+```
+
+Replace BDS's default `bds.config` with a correct one:
+```
 $ mkdir -p $HOME/.bds
-$ cp chipseq/bds.config $HOME/.bds/
+$ cp bds.config $HOME/.bds/
 ```
 
 
-### Genome data files for SCG3 and Kundaje lab servers
+### Genome data files for SCG3/4 and Kundaje lab servers
 
-For Kundaje lab servers (mitra, nandi, durga, kali, vayu, amold and wotan) and SCG3 (carmack*, crick*, scg3*), the pipeline automatically determines the type of servers and set shell environments and species database.
+For Kundaje lab servers (mitra, nandi, durga, kali, vayu, amold, wotan and kadru) and SCG3/4 (carmack*, crick*, scg3*, scg4*), the pipeline automatically determines the type of servers and set shell environments and species database. Skip all genome-specific parameters (e.g. bwa index) and just specify species.
 ```
 $ bds bds_atac.bds ... -species [SPECIES; hg19, mm9, ... ]
 ```
@@ -62,6 +66,7 @@ $ bds bds_atac.bds ... -species [SPECIES; hg19, mm9, ... ]
 
 
 1) Define parameters in command line argument.
+
 For general use, use the following command line:
 ```
 $ bds atac.bds -fastq1 [READ1] -fastq2 [READ2] -bwt2_idx [BOWTIE2_INDEX] \
@@ -241,12 +246,9 @@ For R-2.x, <a href="https://github.com/kundajelab/bds_atac/blob/master/requireme
 
 ### Troubleshooting
 
-1) [main_samview] random alignment retrieval only works for indexed BAM or CRAM files.
+See more troubleshootings <a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_PIPELINE.md" target=_blank>here</a>
 
-If your pipeline starts from BAM files, make sure that bam index (.bam.bai) exists together with BAM file. If not, build index with `samtools index [YOUR_BAM_FILE]`. BAM and BAI should be in the same directory.
-
-
-2) pysam backward compatibility issue
+1) pysam backward compatibility issue
 
 ATAQC currently does not work with pysam >= 0.9. Lower it to 0.8.3.
 ```
@@ -260,14 +262,14 @@ Traceback (most recent call last):
 IndexError: list index out of range
 ```
 
-3) samtools ncurses bug
+2) samtools ncurses bug
 
 Prepend a directory for `libncurses.so.5` to `LD_LIBRARY_PATH`. See `install_dependencies.sh` for solution.
 ```
 samtools: symbol lookup error: /lib/x86_64-linux-gnu/libncurses.so.5: undefined symbol: _nc_putchar
 ```
 
-4) Error: could not find environment: bds_atac
+3) Error: could not find environment: bds_atac
 
 Unload any Anaconda Python modules. Remove locally installed Anaconda Python from your `$PATH`
 
