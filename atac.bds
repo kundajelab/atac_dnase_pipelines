@@ -160,6 +160,11 @@ void chk_input_data() {
 		print("Warning: IDR is available for one replicate or two replicates only. Disabling IDR...\n")
 		no_idr 	= true
 	}
+	/*
+	if ( multimapping > 0 && !se ) {
+		error("Multimapping is currently not available for paired-end (PE) data set!\n")
+	}
+	*/
 
 	if ( is_input_fastq() ) chk_align_bwt2()
 	if ( !align ) 		chk_callpeak_macs2()
