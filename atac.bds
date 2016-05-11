@@ -876,6 +876,8 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 
 void report() {
 
+	wait
+
 	html := _html_filetable() 	// treeview for directory and file structure 
 	html += _html_atac_tracks() 	// epigenome browser tracks
 	html += _html_graphviz()	// graphviz workflow diagram

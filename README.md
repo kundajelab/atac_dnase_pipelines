@@ -12,23 +12,17 @@ Install BigDataScript v0.999l on your system.
 
 See details <a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_PIPELINE.md" target=_blank>here</a>
 
-ATAC Seq pipeline is dependent on two external git repos and each has the following directory:
-```
-ataqc/ 		(public, https://bitbucket.org/csfoo/ataqc)
-chipseq/	(public, https://github.com/kundajelab/TF_chipseq_pipeline)
-```
-
-To FULLY clone the repo:
+To FULLY clone the repo including all sub-repos:
 ```
 $ git clone https://github.com/kundajelab/bds_atac --recursive
 ```
 
-To FULLY pull the repo:
+To FULLY pull the repo including all sub-repos:
 ```
 $ git pull --recurse-submodules
 ```
 
-Install software dependencies automatically (DO NOT run this on kundaje clusters). It will create two conda environments (aquas_chipseq and aquas_chipseq_py3) in Miniconda3.
+Install software dependencies automatically (DO NOT run this on Kundaje clusters). It will create two conda environments (aquas_chipseq and aquas_chipseq_py3) in Anaconda Python.
 ```
 $ ./install_dependencies.sh
 ```
@@ -67,9 +61,9 @@ $ bds bds_atac.bds ... -species [SPECIES; hg19, mm9, ... ]
 
 1) Define parameters in command line argument.
 
-For general use, use the following command line:
+For general use, use the following command line: (for PE data set)
 ```
-$ bds atac.bds -fastq1 [READ1] -fastq2 [READ2] -bwt2_idx [BOWTIE2_INDEX] \
+$ bds atac.bds -fastq1_1 [READ1] -fastq1_2 [READ2] -bwt2_idx [BOWTIE2_INDEX] \
 -gensz [GENOMESIZE; hs for human, mm for mouse] -chrsz [CHR_SIZES_FILE]
 ```
 
@@ -78,7 +72,7 @@ If your fastqs are already trimmed, add the following to the command line to ski
 -trimmed_fastq
 ```
 
-If your data are single ended, add the following to the command line.
+<b>IMPORTANT!</b> If your data set is single ended, add the following to the command line:
 ```
 -se
 ```
@@ -98,22 +92,22 @@ If you don't want ATAQC, add the following to command line.
 -no_ataqc 
 ```
 
-If you have just one replicate (PE), define fastqs with `-fastq[PAIR_NO]`.
+If you have just one replicate (PE), define fastqs with `-fastq[REP_ID]_[PAIR_ID]`.
 ```
--fastq1 [READ_PAIR1] -fastq2 [READ_PAIR2] \
+-fastq1_1 [READ_PAIR1] -fastq1_2 [READ_PAIR2] \
 ```
 
-For multiple replicates (PE), define fastqs with `-fastq[REP_NO]_[PAIR_NO]`. Add -fastq[]_[] for each replicate and pair to the command line:replicates.
+For multiple replicates (PE), define fastqs with `-fastq[REP_ID]_[PAIR_ID]`. Add -fastq[]_[] for each replicate and pair to the command line:replicates.
 ```
 -fastq1_1 [READ_REP1_PAIR1] -fastq1_2 [READ_REP1_PAIR2] -fastq2_1 [READ_REP2_PAIR1] -fastq2_2 [READ_REP2_PAIR2] ...
 ```
 
-For multiple replicates (SE), define fastqs with `-fastq[REP_NO]`:
+For multiple replicates (SE), define fastqs with `-fastq[REP_ID]`:
 ```
 -se -fastq1 [READ_REP1] -fastq2 [READ_REP2] ...
 ```
 
-You can also start from bam files. There are two kinds of bam files (raw or deduped) and you need to explicitly choose between raw bam (bam) and deduped one (nodup_bam) with `-input [BAM_TYPE]`. Don't forget to add `-se` if they are not paired end (PE).
+You can start from bam files. There are two kinds of bam files (raw or deduped) and you need to explicitly choose between raw bam (bam) and deduped one (nodup_bam) with `-input [BAM_TYPE]`. Don't forget to add `-se` if they are not paired end (PE).
 
 For raw bams,
 ```
@@ -188,8 +182,8 @@ or
 $ bds atac.bds -c [CONF_FILE]
 
 $ cat [CONF_FILE]
-fastq1= [READ1]
-fastq2= [READ2]
+fastq1_1= [READ1]
+fastq1_2= [READ2]
 ...
 ```
 
