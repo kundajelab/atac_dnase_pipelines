@@ -735,9 +735,9 @@ void ataqc() {
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 
-		par _ataqc( rep )
-
 		wait_par_rep() // count # of replicates being processed and wait (barrier) par.
+
+		par _ataqc( rep )
 	}
 
 	wait
@@ -789,7 +789,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 		 string o_dir, string info, string graph_in_idr ) {
 	
 	prefix 		:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir ) + ( (fastq2!="") ? ".PE2SE" : "" )
-	//prefix 		:= replace_dir( rm_ext( bam, ["bam"] ), o_dir )
+	
 	html 		:= "$prefix"+"_qc.html"
 	txt 		:= "$prefix"+"_qc.txt"
 	prefix_basename := get_basename( prefix )
