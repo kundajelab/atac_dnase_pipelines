@@ -276,6 +276,8 @@ void _atac_SE( int rep ) {
 	aln_o_dir := mkdir( "$out_dir/align/$info" ) // create align output directory
 	qc_o_dir  := mkdir( "$out_dir/qc/$info" ) // create qc output dir.
 
+	string bam_
+	
 	if ( is_input_fastq() ) {
 
 		fastqs := get_fastqs( rep )
@@ -285,28 +287,36 @@ void _atac_SE( int rep ) {
 		string p1
 		
 		if ( trimmed_fastq ) {
-			p1 = fastq{rep}
+			p1 = fastqs[0]
 		}
 		else {
-			p1 = _trim_adapters( fastq{rep}, aln_o_dir, info )
+			p1 = _trim_adapters( fastqs[0], aln_o_dir, info )
 		}
 		wait
 
  		if ( csem ) {
-			( bam{rep}, align_log{rep} ) = _bowtie2_csem( p1, aln_o_dir, qc_o_dir, info, !trimmed_fastq )
+			( bam_, align_log{rep} ) = _bowtie2_csem( p1, aln_o_dir, qc_o_dir, info, !trimmed_fastq )
+			bam{rep} = bam_
 		}
 		else {
-			( bam{rep}, align_log{rep} ) = _bowtie2( p1, aln_o_dir, qc_o_dir, info, !trimmed_fastq )
+			( bam_, align_log{rep} ) = _bowtie2( p1, aln_o_dir, qc_o_dir, info, !trimmed_fastq )
+			bam{rep} = bam_
 		}
 		wait
 	}
 
+	string filt_bam_
+
 	if ( is_input_fastq() || is_input_bam() ) {
 
-		if ( is_input_bam() ) bam{rep} = get_bam( 0, rep )			
+		if ( is_input_bam() ) {
+			bam_ = get_bam( 0, rep )
+			bam{rep} = bam_
+		}
 
-		( filt_bam{rep}, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) \
-						= _dedup_bam( bam{rep}, aln_o_dir, qc_o_dir, info )
+		( filt_bam_, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) \
+						= _dedup_bam( bam_, aln_o_dir, qc_o_dir, info )
+		filt_bam{rep} = filt_bam_
 		wait
 	}
 
@@ -314,11 +324,16 @@ void _atac_SE( int rep ) {
 
 	if ( is_input_fastq() || is_input_bam() || is_input_filt_bam() ) {
 
-		if ( is_input_filt_bam() ) filt_bam{rep} = get_filt_bam( 0, rep )
+		if ( is_input_filt_bam() ) {
+			filt_bam_ = get_filt_bam( 0, rep )
+			filt_bam{rep} = filt_bam_
+		}
 
-		tag = _bam_to_tag( filt_bam{rep}, aln_o_dir, info )
+		tag = _bam_to_tag( filt_bam_, aln_o_dir, info )
 		wait
 	}
+
+	string final_tag_, final_tag_pr1_, final_tag_pr2_
 
 	if ( is_input_fastq() || is_input_bam() || is_input_filt_bam() || is_input_tag() ) {
 
@@ -335,11 +350,12 @@ void _atac_SE( int rep ) {
 		}
 
 		if ( dnase_seq ) {
-			final_tag{rep} = subsampled_tag
+			final_tag_ = subsampled_tag
 		}
 		else { 
-			final_tag{rep} = _tn5_shift_tag( subsampled_tag, aln_o_dir, info )
+			final_tag_ = _tn5_shift_tag( subsampled_tag, aln_o_dir, info )
 		}
+		final_tag{rep} = final_tag_
 		wait
 
 		if ( !true_rep ) {
@@ -347,7 +363,9 @@ void _atac_SE( int rep ) {
 			aln_pr1_o_dir := mkdir( "$out_dir/align/pseudo_reps/$info/pr1" )
 			aln_pr2_o_dir := mkdir( "$out_dir/align/pseudo_reps/$info/pr2" )
 
-			( final_tag_pr1{rep}, final_tag_pr2{rep} ) = _spr( final_tag{rep}, aln_pr1_o_dir, aln_pr2_o_dir, info )
+			( final_tag_pr1_, final_tag_pr2_ ) = _spr( final_tag_, aln_pr1_o_dir, aln_pr2_o_dir, info )
+			final_tag_pr1{rep} = final_tag_pr1_
+			final_tag_pr2{rep} = final_tag_pr2_
 			wait
 		}
 	}
@@ -373,11 +391,11 @@ void _atac_SE( int rep ) {
 			sig_pr2_o_dir 	:= mkdir( "$out_dir/signal/macs2/$pr2_hrchy" )
 
 			( peak_pr1{rep}, gpeak_pr1{rep} ) \
-				= _macs2_atac( final_tag_pr1{rep}, "$smooth_win", 0.1, false, \
+				= _macs2_atac( final_tag_pr1_, "$smooth_win", 0.1, false, \
 						peak_pr1_o_dir, sig_pr1_o_dir, info+"-pr1", pr1_hrchy )
 
 			( peak_pr2{rep}, gpeak_pr2{rep} ) \
-				= _macs2_atac( final_tag_pr2{rep}, "$smooth_win", 0.1, false, \
+				= _macs2_atac( final_tag_pr2_, "$smooth_win", 0.1, false, \
 						peak_pr2_o_dir, sig_pr2_o_dir, info+"-pr2", pr2_hrchy )
 		}
 
@@ -386,12 +404,12 @@ void _atac_SE( int rep ) {
 		sig_o_dir 	:= mkdir( "$out_dir/signal/macs2/$info" )
 
 		( peak{rep}, gpeak{rep} )  \
-				= _macs2_atac( final_tag{rep}, "$smooth_win", 0.1, false, \
+				= _macs2_atac( final_tag_, "$smooth_win", 0.1, false, \
 						peak_o_dir, sig_o_dir, info, hrchy )
 
 		// macs2 pval thresh = 0.01
 		( peak_001{rep}, gpeak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) \
-				= _macs2_atac( final_tag{rep}, "$smooth_win", 0.01, true, \
+				= _macs2_atac( final_tag_, "$smooth_win", 0.01, true, \
 						peak_o_dir, sig_o_dir, info, hrchy )
 	}
 }
@@ -403,37 +421,43 @@ void _atac_PE( int rep ) {
 	aln_o_dir := mkdir( "$out_dir/align/$info" ) // create align output directory
 	qc_o_dir  := mkdir( "$out_dir/qc/$info" ) // create qc output dir.
 
+	string bam_
+
 	if ( is_input_fastq() ) {
 
 		fastqs := get_fastqs( rep )
 
-		fastq1 := fastqs[0]
-		fastq2 := fastqs[1]
-
-		fastq{rep+",1"} = fastq1
-		fastq{rep+",2"} = fastq2
+		fastq{rep+",1"} = fastqs[0]
+		fastq{rep+",2"} = fastqs[1]
 
 		string p1, p2
 
 		if ( trimmed_fastq ) {
-			p1 = fastq1
-			p2 = fastq2
+			p1 = fastqs[0]
+			p2 = fastqs[1]
 		}
 		else {
-			( p1, p2 ) = _trim_adapters_PE( fastq1, fastq2, aln_o_dir, info )
+			( p1, p2 ) = _trim_adapters_PE( fastqs[0], fastqs[1], aln_o_dir, info )
 			wait
 		}
 
-		( bam{rep}, align_log{rep} ) = _bowtie2_PE( p1, p2, aln_o_dir, qc_o_dir, info, !trimmed_fastq )
+		( bam_, align_log{rep} ) = _bowtie2_PE( p1, p2, aln_o_dir, qc_o_dir, info, !trimmed_fastq )
+		bam{rep} = bam_
 		wait
 	}
 
+	string filt_bam_
+
 	if ( is_input_fastq() || is_input_bam() ) {
 
-		if ( is_input_bam() ) bam{rep} = get_bam( 0, rep )			
+		if ( is_input_bam() ) {
+			bam_ = get_bam( 0, rep )
+			bam{rep} = bam_
+		}
 
-		(filt_bam{rep}, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) \
-			= _dedup_bam_PE( bam{rep}, aln_o_dir, qc_o_dir, info )
+		(filt_bam_, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) \
+			= _dedup_bam_PE( bam_, aln_o_dir, qc_o_dir, info )
+		filt_bam{rep} = filt_bam_
 		wait
 	}
 
@@ -441,9 +465,12 @@ void _atac_PE( int rep ) {
 
 	if ( is_input_fastq() || is_input_bam() || is_input_filt_bam() ) {
 
-		if ( is_input_filt_bam() ) filt_bam{rep} = get_filt_bam( 0, rep )
+		if ( is_input_filt_bam() ) {
+			filt_bam_ = get_filt_bam( 0, rep )
+			filt_bam{rep} = filt_bam_
+		}
 
-		bedpe = _bam_to_bedpe( filt_bam{rep}, aln_o_dir, info )
+		bedpe = _bam_to_bedpe( filt_bam_, aln_o_dir, info )
 		wait 
 
 		if ( subsample!=0 ) {
@@ -458,6 +485,8 @@ void _atac_PE( int rep ) {
 		tag = _bedpe_to_tag( subsampled_bedpe, aln_o_dir, info )			
 		wait
 	}
+
+	string final_tag_, final_tag_pr1_, final_tag_pr2_
 
 	if ( is_input_fastq() || is_input_bam() || is_input_filt_bam() || is_input_tag() ) {
 
@@ -481,22 +510,25 @@ void _atac_PE( int rep ) {
 		}
 
 		if ( dnase_seq ) {
-			final_tag{rep} = tag
+			final_tag_ = tag
 		}
 		else {
-			final_tag{rep} = _tn5_shift_tag( tag, aln_o_dir, info )
+			final_tag_ = _tn5_shift_tag( tag, aln_o_dir, info )
 		}
+		final_tag{rep} = final_tag_
 
 		if ( !true_rep ) {
 
 			if ( dnase_seq ) {
-				final_tag_pr1{rep} = tag_pr1
-				final_tag_pr2{rep} = tag_pr2
+				final_tag_pr1_ = tag_pr1
+				final_tag_pr2_ = tag_pr2
 			}
 			else {
-				final_tag_pr1{rep} = _tn5_shift_tag( tag_pr1, aln_pr1_o_dir, info )
-				final_tag_pr2{rep} = _tn5_shift_tag( tag_pr2, aln_pr2_o_dir, info )					
+				final_tag_pr1_ = _tn5_shift_tag( tag_pr1, aln_pr1_o_dir, info )
+				final_tag_pr2_ = _tn5_shift_tag( tag_pr2, aln_pr2_o_dir, info )					
 			}
+			final_tag_pr1{rep} = final_tag_pr1_
+			final_tag_pr2{rep} = final_tag_pr2_
 		}
 		wait
 	}
@@ -527,11 +559,11 @@ void _atac_PE( int rep ) {
 			sig_pr2_o_dir 	:= mkdir( "$out_dir/signal/macs2/$pr2_hrchy" )
 
 			( peak_pr1{rep}, gpeak_pr1{rep} ) \
-				= _macs2_atac( final_tag_pr1{rep}, "$smooth_win", 0.1, false, \
+				= _macs2_atac( final_tag_pr1_, "$smooth_win", 0.1, false, \
 						peak_pr1_o_dir, sig_pr1_o_dir, info+"-pr1", pr1_hrchy )
 
 			( peak_pr2{rep}, gpeak_pr2{rep} ) \
-				= _macs2_atac( final_tag_pr2{rep}, "$smooth_win", 0.1, false, \
+				= _macs2_atac( final_tag_pr2_, "$smooth_win", 0.1, false, \
 						peak_pr2_o_dir, sig_pr2_o_dir, info+"-pr2", pr2_hrchy )
 		}
 
@@ -540,11 +572,11 @@ void _atac_PE( int rep ) {
 		peak_o_dir 	:= mkdir( "$out_dir/peak/macs2/$info")
 		sig_o_dir 	:= mkdir( "$out_dir/signal/macs2/$info" )
 
-		( peak{rep}, gpeak{rep} ) = _macs2_atac( final_tag{rep}, "$smooth_win", 0.1, false, \
+		( peak{rep}, gpeak{rep} ) = _macs2_atac( final_tag_, "$smooth_win", 0.1, false, \
 						peak_o_dir, sig_o_dir, info, hrchy )
 
 		( peak_001{rep}, gpeak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) \
-				= _macs2_atac( final_tag{rep}, "$smooth_win", 0.01, true, \
+				= _macs2_atac( final_tag_, "$smooth_win", 0.01, true, \
 						peak_o_dir, sig_o_dir, info, hrchy )
 	}
 }
@@ -564,12 +596,12 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 			tags_pr2.add( final_tag_pr2{rep} )
 		}
 	}
-
+	
 	if ( get_num_rep() > 1 ) {
 
 	 	aln_pooled_o_dir := mkdir( "$out_dir/align/pooled_rep" )
 
-		final_tag{"pooled"} = _pool_tag( tags, aln_pooled_o_dir, "reps" )
+		final_tag_pooled := _pool_tag( tags, aln_pooled_o_dir, "reps" )
 
 		// Make shifted tags for pooled pseudo rep (ppr).
 		string final_tag_ppr1, final_tag_ppr2
@@ -591,13 +623,13 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 		pooled_o_dir	:= mkdir( "$peak_o_dir/$pooled_hrchy" )
 		pooled_sig_o_dir:= mkdir( "$sig_o_dir/$pooled_hrchy" )
 
-		( peak_pooled, gpeak_pooled ) = _macs2_atac( final_tag{"pooled"}, "$smooth_win", 0.1, false, \
+		( peak_pooled, gpeak_pooled ) = _macs2_atac( final_tag_pooled, "$smooth_win", 0.1, false, \
 						pooled_o_dir, pooled_sig_o_dir, "pooled", pooled_hrchy )
 
 		( peak_pooled_001, gpeak_pooled_001, \
 			fc_bigwig_001{"pooled"}, \
 			pval_bigwig_001{"pooled"} ) \
-						= _macs2_atac( final_tag{"pooled"}, "$smooth_win", 0.01, true, \
+						= _macs2_atac( final_tag_pooled, "$smooth_win", 0.01, true, \
 						pooled_o_dir, pooled_sig_o_dir, "pooled", pooled_hrchy )
 
 		if ( !true_rep ) {
