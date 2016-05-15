@@ -46,7 +46,7 @@ conda install graphviz -c defaults --override-channels -y
 
 ### BDS
 mkdir -p $HOME/.bds
-cp bds.config $HOME/.bds/
+cp bds_scr bds.config $HOME/.bds/
 CONTENTS=("export PATH=\$PATH:\$HOME/.bds")
 add_to_activate
 
