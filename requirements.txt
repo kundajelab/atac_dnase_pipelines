@@ -28,6 +28,8 @@ ghostscript # for convert (pdf to png)
 libtool # graphviz needs it
 gsl # for preseq
 pysam ==0.8.3 # 0.9 has an issue with ATAQC
+pigz
+zlib
 
 ## picard tool does not have a shell variable PICARDROOT
 ## PICARDROOT will be defined in conda activate.
