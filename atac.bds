@@ -696,26 +696,25 @@ void do_idr() {
 	wait
 
 	// naive overlap peak
+	
+	overlap_o_dir := mkdir( "$out_dir/peak/macs2/overlap" )
 
-	if ( !true_rep ) {
+	if ( get_num_rep() == 1 ) {
 
-		overlap_o_dir := mkdir( "$out_dir/peak/macs2/overlap" )
-
-		if ( get_num_rep() == 1 ) {
-
+		if ( !true_rep ) {
 			peak_overlap = _naive_overlap_peak( "narrowPeak", filt_peak{1}, filt_peak_pr1{1}, filt_peak_pr2{1}, overlap_o_dir, \
 									  "peak", "peak_macs2_filt", "macs2/overlap" )
 			gpeak_overlap = _naive_overlap_peak( "gappedPeak", filt_gpeak{1}, filt_gpeak_pr1{1}, filt_gpeak_pr2{1}, overlap_o_dir, \
 									  "gpeak", "gpeak_macs2_filt", "macs2/overlap" )
 		}
-		else {
-			peak_overlap = _naive_overlap_peak( "narrowPeak", filt_peak_pooled, map_to_array( filt_peak ), \
-									  filt_peak_ppr1, filt_peak_ppr2, overlap_o_dir, \
-									  "peak", "peak_macs2_filt", "macs2/overlap" )
-			gpeak_overlap = _naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, map_to_array( filt_gpeak ), \
-									  filt_gpeak_ppr1, filt_gpeak_ppr2, overlap_o_dir, \
-									  "gpeak", "gpeak_macs2_filt", "macs2/overlap" )
-		}
+	}
+	else {
+		peak_overlap = _naive_overlap_peak( "narrowPeak", filt_peak_pooled, map_to_array( filt_peak ), \
+								  filt_peak_ppr1, filt_peak_ppr2, overlap_o_dir, \
+								  "peak", "peak_macs2_filt", "macs2/overlap" )
+		gpeak_overlap = _naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, map_to_array( filt_gpeak ), \
+								  filt_gpeak_ppr1, filt_gpeak_ppr2, overlap_o_dir, \
+								  "gpeak", "gpeak_macs2_filt", "macs2/overlap" )
 	}
 
 	// do IDR
