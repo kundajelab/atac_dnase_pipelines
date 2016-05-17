@@ -103,8 +103,6 @@ add_to_activate
 
 source deactivate
 
-
-
 #source activate bds_atac_py3
 #
 #if [ $? != 0 ]; then
@@ -126,3 +124,6 @@ source deactivate
 #rm -rf idr
 #
 #source deactivate
+
+
+echo === Installing dependencies successfully done. ===

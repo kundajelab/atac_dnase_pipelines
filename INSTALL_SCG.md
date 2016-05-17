@@ -36,6 +36,7 @@ If you don't use `install_dependencies.sh`, manually replace BDS's default `bds.
 ```
 $ cp bds.config bds_scr $HOME/.bds
 ```
+If `install_dependencies.sh` fails, run `./uninstall_dependencies.sh`, fix problems and then try `./install_dependencies.sh` again.
 
 
 ### Genome data files
