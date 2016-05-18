@@ -603,6 +603,14 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 
 		final_tag_pooled := _pool_tag( tags, aln_pooled_o_dir, "reps" )
 
+			// graphviz, filetable for pooled tagalign
+			string[] graph_in
+			for ( int rep=1; rep<=get_num_rep(); rep++ ) graph_in.add("tagalign_(rep$rep)")
+
+			_add_to_graphviz( graph_in, tags, ["tagalign_(pooled)"], [final_tag_pooled] )
+			_add_to_filetable(["L1_align/pooled_rep/tagalign"], [final_tag_pooled] )
+			//
+
 		// Make shifted tags for pooled pseudo rep (ppr).
 		string final_tag_ppr1, final_tag_ppr2
 
@@ -611,8 +619,23 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 		 	aln_ppr1_o_dir   := mkdir( "$out_dir/align/pooled_pseudo_reps/ppr1" )
 		 	aln_ppr2_o_dir   := mkdir( "$out_dir/align/pooled_pseudo_reps/ppr2" )
 
-			final_tag_ppr1 = _pool_tag( tags_pr1, aln_ppr1_o_dir, "reps-pr1" )
-			final_tag_ppr2 = _pool_tag( tags_pr2, aln_ppr2_o_dir, "reps-pr2" )
+			final_tag_ppr1_ := _pool_tag( tags_pr1, aln_ppr1_o_dir, "reps-pr1" )
+			final_tag_ppr2_ := _pool_tag( tags_pr2, aln_ppr2_o_dir, "reps-pr2" )
+			final_tag_ppr1 = final_tag_ppr1_ // thread safety
+			final_tag_ppr2 = final_tag_ppr2_
+
+				// graphviz, filetable for ppr
+				string[] graph_in_pr1, graph_in_pr2
+				for ( int rep=1; rep<=get_num_rep(); rep++ ) {
+					graph_in_pr1.add("tagalign_(rep$rep-pr1)")
+					graph_in_pr2.add("tagalign_(rep$rep-pr2)")
+				}
+
+				_add_to_graphviz( graph_in_pr1, tags_pr1, ["tagalign_(ppr1)"], [final_tag_ppr1_] )
+				_add_to_graphviz( graph_in_pr2, tags_pr2, ["tagalign_(ppr2)"], [final_tag_ppr2_] )
+				_add_to_filetable(["L1_align/pooled_pseudo_reps/ppr1/tagalign"], [final_tag_ppr1_] )
+				_add_to_filetable(["L1_align/pooled_pseudo_reps/ppr2/tagalign"], [final_tag_ppr2_] )
+				//
 		}
 		wait
 
