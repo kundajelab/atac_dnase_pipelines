@@ -1,6 +1,0 @@
-r ==2.15.3
-
-#### packages not available in official channels
-# r-spp ==1.13
-# phantompeakqualtools ==2.0
-
