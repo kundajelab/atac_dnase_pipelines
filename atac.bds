@@ -33,6 +33,7 @@ mem_ataqc 	:= "8G"		help Max. memory for ATAQC (default: 8G).
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
 dnase_seq	:= false  	help DNase-Seq (no tn5 shifting, subsampling 50M by default for cross-corr. analysis).
 idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
+use_cutadapt 	:= false 	help Use cutadapt for trimming adapters.
 
 //ataqc(parameters to be defined: species, blacklist, dnase, tss, prom, enh, reg2map and roadmap_meta).
 
@@ -103,6 +104,7 @@ void init_atac() {
 	dnase_seq 	= get_conf_val_bool( dnase_seq, 	["dnase_seq"] )
 	idr_thresh 	= get_conf_val( idr_thresh, 		["idr_thresh"] )
 	nreads 		= get_conf_val_int( nreads,		["nreads"] )
+	use_cutadapt 	= get_conf_val_bool( use_cutadapt,	["use_cutadapt"] )
 
 	if ( input == "" ) { // determine input type
 		
@@ -136,6 +138,7 @@ void print_atac() {
 	print( "Smoothing window for MACS2\t: $smooth_win\n")
 	print( "DNase Seq\t\t\t: $dnase_seq\n")
 	print( "IDR threshold\t\t\t: $idr_thresh\n" )
+	print( "Use cutadapt for trimming adapters\t: $use_cutadapt\n" )
 }
 
 void chk_input_data() {
@@ -252,11 +255,7 @@ void atac() {
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 		
-		wait_par_rep() // wait if # replicate being processed exceeds limit (-reps_in_par) and then reset tids_rep
-
-		tid := par _atac( rep )	
-
-		tids_rep.add( tid )
+		par _atac( rep )	
 	}
 
 	wait
@@ -291,7 +290,8 @@ void _atac_SE( int rep ) {
 			p1 = fastqs[0]
 		}
 		else {
-			p1 = _trim_adapters( fastqs[0], aln_o_dir, info, "" )
+			if ( use_cutadapt ) p1 = _trim_adapters( fastqs[0], aln_o_dir, info, "" )
+			else 		    p1 = _trim_adapters_old( fastqs[0], aln_o_dir, info )
 		}
 		wait
 
@@ -438,7 +438,8 @@ void _atac_PE( int rep ) {
 			p2 = fastqs[1]
 		}
 		else {
-			( p1, p2 ) = _trim_adapters_PE( fastqs[0], fastqs[1], aln_o_dir, info )
+			if ( use_cutadapt ) ( p1, p2 ) = _trim_adapters_PE( fastqs[0], fastqs[1], aln_o_dir, info )
+			else 		    ( p1, p2 ) = _trim_adapters_PE_old( fastqs[0], fastqs[1], aln_o_dir, info )
 			wait
 		}
 
@@ -790,8 +791,6 @@ void ataqc() {
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 
-		wait_par_rep() // count # of replicates being processed and wait (barrier) par.
-
 		par _ataqc( rep )
 	}
 
@@ -859,7 +858,9 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 
 	taskName:= "ataqc "+info
 
-	task( out<-in ) {
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
 
 		sys $shcmd_init
 
@@ -896,6 +897,8 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 		    $param_idr
 	}
 
+	register_par( tid, cpus )
+
 	path_in := ( fastq2!="" ) ? [fastq1, fastq2, bam, filt_bam, bed, bigwig, peak, peak_naive_overlap, idr_peak] \
 				  : [fastq1,         bam, filt_bam, bed, bigwig, peak, peak_naive_overlap, idr_peak]
 
@@ -909,10 +912,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 	graph_out := ["ataqc rpt_($info)"] 
 
 	_add_to_graphviz( graph_in, path_in, graph_out, out, "ataqc_($info)", grp_color_ataqc )
-
 	_add_to_filetable( ["L1_qc/$info/ataqc"], out )
-
-	wait_par()
 
 	return out
 }
