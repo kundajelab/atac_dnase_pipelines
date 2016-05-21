@@ -14,7 +14,6 @@ ucsc-bigWigAverageOverBed
 macs2 ==2.1.0
 boost ==1.57.0
 gnuplot ==5.0.3
-trim-galore ==0.4.1
 numpy ==1.10.4 #1.9.0, 1.8.2 conflicts with ATAQC
 scipy ==0.17.0 
 matplotlib
@@ -39,6 +38,9 @@ r-bitops
 r-catools
 bioconductor-rsamtools
 r-spp ==1.13
+
+trim-galore ==0.4.1
+cutadapt
 
 ## picard tool does not have a shell variable PICARDROOT
 ## PICARDROOT will be defined in conda activate.
