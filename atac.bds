@@ -164,7 +164,8 @@ void chk_input_data() {
 		no_idr 	= true
 	}
 
-	if ( is_input_fastq() && !trimmed_fastq ) chk_align_trim_adapter()
+	if ( is_input_fastq() && !trimmed_fastq && use_cutadapt ) chk_align_trim_adapter()
+
 	if ( is_input_fastq() ) chk_align_bwt2()
 	if ( !align ) 		chk_callpeak_macs2()
 	if ( !no_idr ) 		chk_idr()
