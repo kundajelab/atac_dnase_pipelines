@@ -86,16 +86,8 @@ If you don't want IDR analysis on peaks (two replicates are needed) add the foll
 ```
 -no_idr
 ```
-To change resource settings (# of processor, max memory and walltime) for bowtie2, add the following to command line, please note that memory is PER CPU:
-```
--nth_bwt2 [NTHREADS_BWT2] -mem_bwt2 [MAX_MEMORY_PER_THREAD_BWT2; e.g. 20G] -wt_bwt2 [WALLTIME_BWT2; e.g. 20h]
-```
-For MACS2 peak calling:
-```
--nth_macs2 [NTHREADS_MACS2] -mem_macs2 [MEMORY_MACS2; e.g. 20G] -wt_macs2 [WALLTIME_MACS2; e.g. 20h]
-```
 
-For other clusters, add -mod, -addpath, -shcmd, -conda_env to set up enviroment variables for your jobs or make an environment file for your system. See details <a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">here</a>.
+For other clusters, add `-mod`, `-addpath`, `-shcmd`, `-conda_env` and `-conda_env3` to set up enviroment variables for your jobs or make an environment file for your system. See details <a href="https://github.com/kundajelab/ENCODE_chipseq_pipeline/blob/master/README_PIPELINE.md">here</a>.
 
 To list all parameters and default values for them,
 ```
@@ -125,16 +117,23 @@ See details <a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/mast
 
 
 
-### Parallelization (IMPORTANT!)
+### Parallelization and multi-threading (IMPORTANT!)
 
 For completely serialized jobs:
 ```
 -no_par
 ```
-You can also set up a limit for total # threads. Total # threads used by the pipeline will not exceed this limit.
+You can set up a limit for total # threads. Total # threads used by a pipeline will not exceed this limit.
 ```
--nth [MAX_TOTAL_NO_THREADS]
+-nth [MAX_TOTAL_NO_THREADS; 8 by default]
 ```
+A pipeline automatically distributes `[MAX_TOTAL_NO_THREADS]` threads for jobs according to corresponding input file sizes. For example of two fastqs (1GB and 2GB) with `-nth 6`, 2 and 4 threads are allocated for aligning 1GB and 2GB fastqs, respectively. The same policy applies to other multi-threaded tasks like deduping and peak calling.
+
+However, all multi-threaded tasks (like bwa, bowtie2, spp and macs2) still have their own max. memory (`-mem_APPNAME [MEM_APP]`) and walltime (`-wt_APPNAME [WALLTIME_APP]`) settings. Max. memory is <b>NOT PER CPU</b>. On Kundaje cluster (with SGE flag activated `bds -s sge chipseq.bds ...`) or on SCG3/4, the actual shell command submitted by BDS for each task is like the following:
+```
+qsub -pe shm [NTH_ALLOCATED_FOR_APP] -h_vmem=[MEM_APP]/[NTH_ALLOCATED_FOR_APP] -h_rt=[WALLTIME_APP] ...
+```
+This ensures that total memory reserved for a cluster job equals to `[MEM_APP]`.
 
 
 
