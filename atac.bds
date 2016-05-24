@@ -2,22 +2,6 @@
 #vim: syntax=java
 
 
-// Functions usually have the following structure. Output naming policy is included in the function.
-// They find prefix of input and add suffix to output and then change output's directory (o_dir).
-// Therefore, output naming is already defined in each file. e.g. in bwa, PREFIX.fastq.gz -> PREFIX.bam
-// e.g. output (string or array of str.) = _do_something( input1, input2, ... , o_dir, info )
-
-// Don't be confused with additional code lines for each underscored( _ ) function and 'hrchy' and 'graph' things.
-// They are for automatic generation of graphviz diagram and HTML filetable
-
-// Variables can be declared with help context, they are automatically set as 'parameter variables' and become parameters on shell command line.
-// You can omit type of variable with ':='. e.g. str1 := "abc" is equivalent to string str1 = "abc".
-
-// Important file names are stored in global variables (usually a string map string{} with a key with replicate id and peakcaller name)
-// e.g. filt_bam{"1"} = filtered bam for replicate 1, peak_pr1{"2"} = peak file for pseudo replicate 1 of replicate 2 generated from spp
-
-
-
 help == atac pipeline settings
 
 se 		:= false 	help Single ended data.
@@ -34,8 +18,6 @@ smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default
 dnase_seq	:= false  	help DNase-Seq (no tn5 shifting, subsampling 50M by default for cross-corr. analysis).
 idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
 use_cutadapt 	:= false 	help Use cutadapt for trimming adapters.
-
-//ataqc(parameters to be defined: species, blacklist, dnase, tss, prom, enh, reg2map and roadmap_meta).
 
 
 help() // show help contexts
@@ -56,7 +38,9 @@ include "modules/report.bds"
 input := "" 
 
 
-// Global variable for output filenames ( map with key $rep )
+// Important output file names are stored in global variables (usually a string map string{} with a key with replicate id, pair id and peakcaller name)
+// e.g. filt_bam{"1"} = filtered bam for replicate 1, peak_pr1{"2"} = peak file for pseudo replicate 1 of replicate 2
+
 string{} fastq, align_log, bam, filt_bam, dup_qc, flagstat_nodup_qc, pbc_qc, xcor_qc, xcor_plot
 string{} final_tag, final_tag_pr1, final_tag_pr2
 
@@ -74,20 +58,25 @@ string idr_ppr, idr_opt, idr_consv, idr_ppr_png
 string idr_qc
 
 
-init_atac()
+main() 
 
-chk_input_data()
 
-atac()
+void main() { // atac pipeline starts here
 
-post_atac()
+	init_atac()
 
-do_idr()
+	chk_input_data()
 
-ataqc()
+	atac()
 
-report()
+	post_atac()
 
+	do_idr()
+
+	ataqc()
+
+	report()
+}
 
 void init_atac() {
 	
