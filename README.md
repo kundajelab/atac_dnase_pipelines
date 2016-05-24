@@ -164,11 +164,16 @@ If you stop a BDS pipeline with `Ctrl+C` while calling peaks with `spp`. Tempora
 
 
 
+### How to add more functions to pipeline source code?
+
+<a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_CODE.md" target=_blank>https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_CODE.md</a>
+
+
+
 ### Requirements 
 
-For python2 (python 2.x >= 2.7), <a href="https://github.com/kundajelab/bds_atac/blob/master/requirements.txt" target=_blank>here</a>
+For python2 (python 2.x >= 2.7) and R-3.x, <a href="https://github.com/kundajelab/bds_atac/blob/master/requirements.txt" target=_blank>here</a>
 For python3, <a href="https://github.com/kundajelab/bds_atac/blob/master/requirements_py3.txt" target=_blank>here</a>
-For R-2.x, <a href="https://github.com/kundajelab/bds_atac/blob/master/requirements_r2.txt" target=_blank>here</a>
 
 
 
