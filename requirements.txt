@@ -17,6 +17,7 @@ gnuplot ==5.0.3
 numpy ==1.10.4 #1.9.0, 1.8.2 conflicts with ATAQC
 scipy ==0.17.0 
 matplotlib
+python-levenshtein # for trimAdapter.py
 pybedtools # ataqc
 libgfortran==3.0 # ataqc
 pandas ==0.18.0 #==0.16.1 # ataqc
