@@ -682,9 +682,10 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 		wait_clear_tids()
 
 		// distribute nth to macs2 peak calling for pooled replicates
-		int nth_peak_n_sig, nth_peak // weight=2 for peak n sig, weight=1 for peak only
-		(nth_peak_n_sig, nth_peak) = distribute_nth( nth, true_rep ? [2,1] : [2,1,1,1] )
+		int nth_pooled_sig, nth_pooled, nth_ppr
 
+		if ( !true_rep ) (nth_pooled_sig, nth_pooled, nth_ppr) = distribute_nth( nth, [4,2,1,1] )
+		else 		 (nth_pooled_sig, nth_pooled) = distribute_nth( nth, [4,2] )
 
 		peak_o_dir 	:= mkdir( "$out_dir/peak/macs2")
 		sig_o_dir 	:= mkdir( "$out_dir/signal/macs2")
@@ -693,14 +694,14 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 		pooled_o_dir	:= mkdir( "$peak_o_dir/$pooled_hrchy" )
 		pooled_sig_o_dir:= mkdir( "$sig_o_dir/$pooled_hrchy" )
 
-		( peak_pooled, gpeak_pooled ) = _macs2_atac( final_tag_pooled, "$smooth_win", 0.1, false, \
-						pooled_o_dir, pooled_sig_o_dir, "pooled", nth_peak, pooled_hrchy )
-
 		( peak_pooled_001, gpeak_pooled_001, \
 			fc_bigwig_001{"pooled"}, \
 			pval_bigwig_001{"pooled"} ) \
 						= _macs2_atac( final_tag_pooled, "$smooth_win", 0.01, true, \
-						pooled_o_dir, pooled_sig_o_dir, "pooled", nth_peak_n_sig, pooled_hrchy )
+						pooled_o_dir, pooled_sig_o_dir, "pooled", nth_pooled_sig, pooled_hrchy )
+
+		( peak_pooled, gpeak_pooled ) = _macs2_atac( final_tag_pooled, "$smooth_win", 0.1, false, \
+						pooled_o_dir, pooled_sig_o_dir, "pooled", nth_pooled, pooled_hrchy )
 
 		if ( !true_rep ) {
 
@@ -713,10 +714,10 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 
 			// call peaks on ppr
 			( peak_ppr1, gpeak_ppr1 ) = _macs2_atac( final_tag_ppr1, "$smooth_win", 0.1, false, \
-							ppr1_o_dir, ppr1_sig_o_dir, "ppr1", nth_peak, ppr1_hrchy )
+							ppr1_o_dir, ppr1_sig_o_dir, "ppr1", nth_ppr, ppr1_hrchy )
 
 			( peak_ppr2, gpeak_ppr2 ) = _macs2_atac( final_tag_ppr2, "$smooth_win", 0.1, false, \
-							ppr2_o_dir, ppr2_sig_o_dir, "ppr2", nth_peak, ppr2_hrchy )
+							ppr2_o_dir, ppr2_sig_o_dir, "ppr2", nth_ppr, ppr2_hrchy )
 		}
 	}
 	wait_clear_tids()
