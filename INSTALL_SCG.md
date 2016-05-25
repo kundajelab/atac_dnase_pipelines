@@ -34,7 +34,7 @@ $ ./install_dependencies.sh
 ```
 If you don't use `install_dependencies.sh`, manually replace BDS's default `bds.config` with a correct one:
 ```
-$ cp bds.config bds_scr $HOME/.bds
+$ cp bds.config ./utils/bds_scr $HOME/.bds
 ```
 If `install_dependencies.sh` fails, run `./uninstall_dependencies.sh`, fix problems and then try `./install_dependencies.sh` again.
 

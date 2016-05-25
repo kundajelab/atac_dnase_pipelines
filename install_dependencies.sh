@@ -29,7 +29,7 @@ mkdir -p $CONDA_EXTRA $CONDA_ACTIVATE_D
 
 ### BDS
 mkdir -p $HOME/.bds
-cp --remove-destination bds_scr bds.config $HOME/.bds/
+cp --remove-destination ./utils/bds_scr ./utils/kill_scr bds.config $HOME/.bds/
 CONTENTS=("export PATH=\$PATH:\$HOME/.bds")
 add_to_activate
 
