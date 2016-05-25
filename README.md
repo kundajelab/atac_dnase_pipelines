@@ -20,7 +20,7 @@ We recommend using BASH to run pipelines.
 For general use, use the following command line: (for PE data set)
 ```
 $ bds atac.bds -fastq1_1 [READ1] -fastq1_2 [READ2] -bwt2_idx [BOWTIE2_INDEX] \
--gensz [GENOMESIZE; hs for human, mm for mouse] -chrsz [CHR_SIZES_FILE]
+-gensz [GENOMESIZE; hs for human, mm for mouse] -chrsz [CHR_SIZES_FILE] -adapter [ADAPTER_TO_BE_TRIMMED]
 ```
 If your fastqs are already trimmed, add the following to the command line to skip trimming stage.
 ```
