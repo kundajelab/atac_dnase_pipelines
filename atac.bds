@@ -17,7 +17,6 @@ mem_ataqc 	:= "8G"		help Max. memory for ATAQC (default: 8G).
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
 dnase_seq	:= false  	help DNase-Seq (no tn5 shifting, subsampling 50M by default for cross-corr. analysis).
 idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
-use_cutadapt 	:= false 	help Use cutadapt for trimming adapters.
 
 
 help() // show help contexts
@@ -93,7 +92,6 @@ void init_atac() {
 	dnase_seq 	= get_conf_val_bool( dnase_seq, 	["dnase_seq"] )
 	idr_thresh 	= get_conf_val( idr_thresh, 		["idr_thresh"] )
 	nreads 		= get_conf_val_int( nreads,		["nreads"] )
-	use_cutadapt 	= get_conf_val_bool( use_cutadapt,	["use_cutadapt"] )
 
 	if ( input == "" ) { // determine input type
 		
@@ -127,7 +125,6 @@ void print_atac() {
 	print( "Smoothing window for MACS2\t: $smooth_win\n")
 	print( "DNase Seq\t\t\t: $dnase_seq\n")
 	print( "IDR threshold\t\t\t: $idr_thresh\n" )
-	print( "Use cutadapt for trimming adapters\t: $use_cutadapt\n" )
 }
 
 void chk_input_data() {
@@ -153,7 +150,7 @@ void chk_input_data() {
 		no_idr 	= true
 	}
 
-	if ( is_input_fastq() && !trimmed_fastq && use_cutadapt ) chk_align_trim_adapter()
+	if ( is_input_fastq() && !trimmed_fastq ) chk_align_trim_adapter()
 
 	if ( is_input_fastq() ) chk_align_bwt2()
 	if ( !align ) 		chk_callpeak_macs2()
@@ -312,8 +309,7 @@ void _atac_SE( int rep, int nth_rep ) {
 			p1 = fastqs[0]
 		}
 		else {
-			if ( use_cutadapt ) p1 = _trim_adapters( fastqs[0], aln_o_dir, info, nth_rep, "" )
-			else 		    p1 = _trim_adapters_old( fastqs[0], aln_o_dir, info, nth_rep )
+			p1 = _trim_adapters( fastqs[0], aln_o_dir, info, nth_rep, "" )
 		}
 		wait
 
@@ -464,8 +460,7 @@ void _atac_PE( int rep, int nth_rep ) {
 			p2 = fastqs[1]
 		}
 		else {
-			if ( use_cutadapt ) ( p1, p2 ) = _trim_adapters_PE( fastqs[0], fastqs[1], aln_o_dir, info, nth_rep )
-			else 		    ( p1, p2 ) = _trim_adapters_PE_old( fastqs[0], fastqs[1], aln_o_dir, info, nth_rep )
+			( p1, p2 ) = _trim_adapters_PE( fastqs[0], fastqs[1], aln_o_dir, info, nth_rep )
 			wait
 		}
 
