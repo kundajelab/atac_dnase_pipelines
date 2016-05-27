@@ -54,6 +54,8 @@ For multiple replicates (SE), define fastqs with `-fastq[REP_ID]`:
 ```
 -se -fastq1 [READ_REP1] -fastq2 [READ_REP2] ...
 ```
+You can also specify an adapter to be trimmed for each fastq. Example: `-adapter1_1 [ADAPTER1_1] -adapter1_2 [ADAPTER1_2] ...` for PE or `-adapter1 [ADAPTER1] -adapter2 [ADAPTER2] ...`. Define adapters just like how you defined your fastqs.
+
 You can start from bam files. There are two kinds of bam files (raw or deduped) and you need to explicitly choose between raw bam (bam) and deduped one (filt_bam) with `-input [BAM_TYPE]`. Don't forget to add `-se` if they are not paired end (PE). For raw bams,
 ```
 -bam1 [RAW_BAM_REP1] -bam2 [RWA_BAM_REP1] ...

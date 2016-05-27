@@ -172,9 +172,9 @@ void chk_input_data() {
 		if ( is_input_fastq() ) {
 			prefix = "Rep$rep fastq" + suffix
 			fastqs := get_fastqs( rep )
-			adapters := get_adapters( rep )
 
 			if ( !trimmed_fastq ) { // check adapters
+				adapters := get_adapters( rep )
 				prefix += "\t(adapters : "
 				err_msg := "Adapter sequence (-adapter, -adapter[REP_ID] for SE or -adapter[REP_ID]_[PAIR_ID] for PE) must be explicitly defined for adapter trimmer (cutadapt)!\n"
 
