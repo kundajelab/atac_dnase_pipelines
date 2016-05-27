@@ -21,6 +21,7 @@ idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
 
 help() // show help contexts
 
+include "modules/input_adapter.bds"
 include "modules/input_fastq.bds"
 include "modules/input_bam.bds"
 include "modules/input_tagalign.bds"
@@ -150,8 +151,6 @@ void chk_input_data() {
 		no_idr 	= true
 	}
 
-	if ( is_input_fastq() && !trimmed_fastq ) chk_align_trim_adapter()
-
 	if ( is_input_fastq() ) chk_align_bwt2()
 	if ( !align ) 		chk_callpeak_macs2()
 	if ( !no_idr ) 		chk_idr()
@@ -173,6 +172,23 @@ void chk_input_data() {
 		if ( is_input_fastq() ) {
 			prefix = "Rep$rep fastq" + suffix
 			fastqs := get_fastqs( rep )
+			adapters := get_adapters( rep )
+
+			if ( !trimmed_fastq ) { // check adapters
+				prefix += "\t(adapters : "
+				err_msg := "Adapter sequence (-adapter, -adapter[REP_ID] for SE or -adapter[REP_ID]_[PAIR_ID] for PE) must be explicitly defined for adapter trimmer (cutadapt)!\n"
+
+				if ( adapters.size()==0 ) error(err_msg)
+
+				for ( int i=0; i<adapters.size(); i++) {
+					prefix = prefix + adapters[i] + ", "
+					if ( adapters[i] == "" ) {
+						print("$prefix :\n")
+						error(err_msg)
+					}
+				}
+				prefix += ")"
+			}
 
 			if ( !se && fastqs.size() < 2 ) error("A pair of fastqs are needed for replicate $rep (if it's single-ended add '-se')\n")
  
@@ -309,7 +325,8 @@ void _atac_SE( int rep, int nth_rep ) {
 			p1 = fastqs[0]
 		}
 		else {
-			p1 = _trim_adapters( fastqs[0], aln_o_dir, info, nth_rep, "" )
+			adapters := get_adapters( rep )
+			p1 = _trim_adapters( fastqs[0], adapters[0], aln_o_dir, info, nth_rep, "" )
 		}
 		wait
 
@@ -460,7 +477,8 @@ void _atac_PE( int rep, int nth_rep ) {
 			p2 = fastqs[1]
 		}
 		else {
-			( p1, p2 ) = _trim_adapters_PE( fastqs[0], fastqs[1], aln_o_dir, info, nth_rep )
+			adapters := get_adapters( rep )
+			( p1, p2 ) = _trim_adapters_PE( fastqs[0], fastqs[1], adapters[0], adapters[1], aln_o_dir, info, nth_rep )
 			wait
 		}
 
@@ -1100,4 +1118,21 @@ string[] get_fastqs( int rep ) {
 		fastqs.add( get_fastq( 0, 2, 1 ) )
 
 	return fastqs
+}
+
+string[] get_adapters( int rep ) {
+
+	adapters := get_adapters( 0, rep )
+
+	// correct if user skipped replicate id like (-adapter[PAIR]) instead of (-adapter[REP]_[PAIR])
+	if ( !se && (get_num_rep()==1) && (adapters.size()<2) && (get_adapter( 0, 2, 1 )!="") ) \
+		adapters.add( get_adapter( 0, 2, 1 ) )
+
+	if ( adapters.size() == 0 ) adapters = get_adapters( 0, 1 )
+
+	fastqs := get_fastqs( 0, rep )
+
+	if ( fastqs.size() > 1 && adapters.size() == 1 ) adapters.add( adapters[0] )
+
+	return adapters
 }
