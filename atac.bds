@@ -290,7 +290,8 @@ void atac() {
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 		
-		par _atac( rep, nth_rep{rep} )
+		if ( no_par ) _atac( rep, nth_rep{rep} )
+		else 	  par _atac( rep, nth_rep{rep} )
 	}
 
 	wait_clear_tids()
@@ -839,7 +840,8 @@ void ataqc() {
 	
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 
-		par _ataqc( rep )
+		if ( no_par ) _ataqc( rep )
+		else 	  par _ataqc( rep )
 	}
 
 	wait_clear_tids()
