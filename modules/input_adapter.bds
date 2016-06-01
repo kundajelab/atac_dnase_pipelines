@@ -1,0 +1,85 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "conf.bds"
+
+
+help == adapter sequence definition :
+help         Single-ended : For replicate '-adapter[REP_ID]'
+help         Paired end : For replicate '-adapter[REP_ID]_[PAIR_ID]'
+
+
+
+string[] get_adapters( int ctl, int rep ) {  // if paired-end return [PE1, PE2], elseif single-end else return [PE1], else []	
+
+	string[] ret
+	for ( int pe=1; pe<=2; pe++ ) {
+		str := get_adapter( ctl, rep, pe )
+		if ( str.length() > 0 ) { // if not null, append
+			ret.add( str )
+		}
+	}
+
+	return ret
+}
+
+string get_adapter( int ctl, int rep, int p ) {
+
+	key_wo_p := ( ctl > 0 ? "ctl_adapter" : "adapter" ) + "_rep" + rep 
+	key := key_wo_p + "_p" + p
+
+	key_wo_p2 := ( ctl > 0 ? "ctl_adapter" : "adapter" ) + rep 
+	key2 := key_wo_p2 + "_" + p
+
+	key_wo_p3 := ( ctl > 0 ? "ctl_adapter" : "adapter" )
+	key3 := key_wo_p3 + "_" + p
+
+
+	if ( (p==1) && cmd_line_arg_has_key( key_wo_p ) ) {
+		return get_cmd_line_arg_val( key_wo_p )
+	}
+	else if ( (p==1) && cmd_line_arg_has_key( key_wo_p2 ) ) {
+		return get_cmd_line_arg_val( key_wo_p2 )
+	}
+	else if ( (p==1) && (rep==1) && cmd_line_arg_has_key( key_wo_p3 ) ) {
+		return get_cmd_line_arg_val( key_wo_p3 )
+	}
+	else if ( cmd_line_arg_has_key( key ) ) {
+		return get_cmd_line_arg_val( key )
+	}
+	else if ( cmd_line_arg_has_key( key2 ) ) {
+		return get_cmd_line_arg_val( key2 )
+	}	
+	else if ( (rep==1) && cmd_line_arg_has_key( key3 ) ) {
+		return get_cmd_line_arg_val( key3 )
+	}
+	else if ( (p==1) && conf.hasKey( key_wo_p ) ) {
+		return conf{ key_wo_p }
+	}
+	else if ( (p==1) && conf.hasKey( key_wo_p2 ) ) {
+		return conf{ key_wo_p2 }
+	}
+	else if ( (p==1) && (rep==1) && conf.hasKey( key_wo_p3 ) ) {
+		return conf{ key_wo_p3 }
+	}
+	else if ( conf.hasKey( key ) ) {
+		return conf{ key }
+	}
+	else if ( conf.hasKey( key2 ) ) {
+		return conf{ key2 }
+	}
+	else if ( (rep==1) && conf.hasKey( key3 ) ) {
+		return conf{ key3 }
+	}
+
+	return ""
+}
+
+int get_num_rep_adapter() {
+
+	rep := 1
+
+	while( get_adapters( 0, rep ).size() > 0 ) rep++
+
+	return rep-1
+}

@@ -429,10 +429,10 @@ void _atac_SE( int rep, int nth_rep ) {
 
 		// macs2 pval thresh = 0.01
 		( peak_001{rep}, gpeak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) \
-				= _macs2_atac( final_tag_, "$smooth_win", 0.01, true, \
+				= _macs2( final_tag_, "$smooth_win", 0.01, true, \
 						peak_o_dir, sig_o_dir, info, nth_peak_n_sig, hrchy )
 		( peak{rep}, gpeak{rep} )  \
-				= _macs2_atac( final_tag_, "$smooth_win", 0.1, false, \
+				= _macs2( final_tag_, "$smooth_win", 0.1, false, \
 						peak_o_dir, sig_o_dir, info, nth_peak, hrchy )
 		if ( !true_rep ) {
 
@@ -445,11 +445,11 @@ void _atac_SE( int rep, int nth_rep ) {
 			sig_pr2_o_dir 	:= mkdir( "$out_dir/signal/macs2/$pr2_hrchy" )
 
 			( peak_pr1{rep}, gpeak_pr1{rep} ) \
-				= _macs2_atac( final_tag_pr1_, "$smooth_win", 0.1, false, \
+				= _macs2( final_tag_pr1_, "$smooth_win", 0.1, false, \
 						peak_pr1_o_dir, sig_pr1_o_dir, info+"-pr1", nth_peak, pr1_hrchy )
 
 			( peak_pr2{rep}, gpeak_pr2{rep} ) \
-				= _macs2_atac( final_tag_pr2_, "$smooth_win", 0.1, false, \
+				= _macs2( final_tag_pr2_, "$smooth_win", 0.1, false, \
 						peak_pr2_o_dir, sig_pr2_o_dir, info+"-pr2", nth_peak, pr2_hrchy )
 		}
 	}
@@ -600,9 +600,9 @@ void _atac_PE( int rep, int nth_rep ) {
 		sig_o_dir 	:= mkdir( "$out_dir/signal/macs2/$info" )
 
 		( peak_001{rep}, gpeak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) \
-				= _macs2_atac( final_tag_, "$smooth_win", 0.01, true, \
+				= _macs2( final_tag_, "$smooth_win", 0.01, true, \
 						peak_o_dir, sig_o_dir, info, nth_peak_n_sig, hrchy )
-		( peak{rep}, gpeak{rep} ) = _macs2_atac( final_tag_, "$smooth_win", 0.1, false, \
+		( peak{rep}, gpeak{rep} ) = _macs2( final_tag_, "$smooth_win", 0.1, false, \
 						peak_o_dir, sig_o_dir, info, nth_peak, hrchy )
 
 		if ( !true_rep ) {
@@ -616,11 +616,11 @@ void _atac_PE( int rep, int nth_rep ) {
 			sig_pr2_o_dir 	:= mkdir( "$out_dir/signal/macs2/$pr2_hrchy" )
 
 			( peak_pr1{rep}, gpeak_pr1{rep} ) \
-				= _macs2_atac( final_tag_pr1_, "$smooth_win", 0.1, false, \
+				= _macs2( final_tag_pr1_, "$smooth_win", 0.1, false, \
 						peak_pr1_o_dir, sig_pr1_o_dir, info+"-pr1", nth_peak, pr1_hrchy )
 
 			( peak_pr2{rep}, gpeak_pr2{rep} ) \
-				= _macs2_atac( final_tag_pr2_, "$smooth_win", 0.1, false, \
+				= _macs2( final_tag_pr2_, "$smooth_win", 0.1, false, \
 						peak_pr2_o_dir, sig_pr2_o_dir, info+"-pr2", nth_peak, pr2_hrchy )
 		}
 	}
@@ -700,10 +700,10 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 		( peak_pooled_001, gpeak_pooled_001, \
 			fc_bigwig_001{"pooled"}, \
 			pval_bigwig_001{"pooled"} ) \
-						= _macs2_atac( final_tag_pooled, "$smooth_win", 0.01, true, \
+						= _macs2( final_tag_pooled, "$smooth_win", 0.01, true, \
 						pooled_o_dir, pooled_sig_o_dir, "pooled", nth_pooled_sig, pooled_hrchy )
 
-		( peak_pooled, gpeak_pooled ) = _macs2_atac( final_tag_pooled, "$smooth_win", 0.1, false, \
+		( peak_pooled, gpeak_pooled ) = _macs2( final_tag_pooled, "$smooth_win", 0.1, false, \
 						pooled_o_dir, pooled_sig_o_dir, "pooled", nth_pooled, pooled_hrchy )
 
 		if ( !true_rep ) {
@@ -716,10 +716,10 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 			ppr2_sig_o_dir 	:= mkdir( "$sig_o_dir/$ppr2_hrchy" )
 
 			// call peaks on ppr
-			( peak_ppr1, gpeak_ppr1 ) = _macs2_atac( final_tag_ppr1, "$smooth_win", 0.1, false, \
+			( peak_ppr1, gpeak_ppr1 ) = _macs2( final_tag_ppr1, "$smooth_win", 0.1, false, \
 							ppr1_o_dir, ppr1_sig_o_dir, "ppr1", nth_ppr, ppr1_hrchy )
 
-			( peak_ppr2, gpeak_ppr2 ) = _macs2_atac( final_tag_ppr2, "$smooth_win", 0.1, false, \
+			( peak_ppr2, gpeak_ppr2 ) = _macs2( final_tag_ppr2, "$smooth_win", 0.1, false, \
 							ppr2_o_dir, ppr2_sig_o_dir, "ppr2", nth_ppr, ppr2_hrchy )
 		}
 	}

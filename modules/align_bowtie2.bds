@@ -1,0 +1,153 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "species.bds"
+include "align_multimapping.bds"
+include "report.bds"
+
+
+help == align bowtie2 settings (requirements: -bwt2_idx)
+
+wt_bwt2		:= "23h"		help Walltime for bowtie2 (default: 23h, 23:00:00).
+mem_bwt2	:= "24G"	 	help Max. memory for bowtie2 (default: 24G).
+
+init_align_bwt2()
+
+
+void init_align_bwt2() {
+
+	wt_bwt2 	= get_conf_val( wt_bwt2, 		["wt_bwt2"] )
+	mem_bwt2 	= get_conf_val( mem_bwt2, 		["mem_bwt2"] )
+
+	print("\n\n== align bowtie2 settings\n")
+	print( "Walltime (bowtie2)\t: $wt_bwt2\n")
+	print( "Max. memory (bowtie2)\t: $mem_bwt2\n")
+}
+
+void chk_align_bwt2() {
+
+	if ( !path_exists("$bwt2_idx.1.bt2") && !path_exists("$bwt2_idx.1.bt2l") ) {
+		error("Bowtie2 index (-bwt2_idx) doesn't exists! (file: $bwt2_idx.1.bt2 or $bwt2_idx.1.bt2l)\n")
+	}
+}
+
+string[] _bowtie2( string fastq, string o_dir, string log_o_dir, string label, int nth_bwt2, bool trimmed ) { 
+
+	prefix 	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
+	prefix2	:= replace_dir( prefix, log_o_dir )
+	bam 	:= "$prefix.bam"
+	log 	:= "$prefix2.align.log"
+	param 	:= multimapping>0 ? "-k $multimapping" : ""
+
+	in 	:= [ fastq ]
+	out 	:= [ bam, log ]
+
+	taskName:= "bowtie2 "+label
+	cpus 	:= nth_bwt2; 	mem := get_res_mem(mem_bwt2,nth_bwt2); 	timeout := get_res_wt(wt_bwt2)
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys bowtie2 $param -x $bwt2_idx --threads $nth_bwt2 -U <(zcat -f $fastq) 2> $log | \
+			samtools view -Su /dev/stdin | sambamba sort /dev/stdin -t $nth_bwt2 -o $bam
+	}
+
+	register_par( tid, cpus )
+
+	graph_in := trimmed ? 	["trimmed_fastq_($label)"] : ["fastq_($label)"]
+	graph_out := ["bam_($label)"]//,"align_qc_($label)"]
+	hrchy_out := ["L1_align/$label/bam","L1_qc/$label/bwt2_qc"]
+
+	_add_to_graphviz( graph_in, in, graph_out, out, "bowtie2_($label)", grp_color_bwt2 )
+	_add_to_filetable( hrchy_out, out )	
+
+
+	return out
+}
+
+string[] _bowtie2_csem( string fastq, string o_dir, string log_o_dir, string label, int nth_bwt2, bool trimmed ) {
+
+	prefix 	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
+	prefix2 := replace_dir( prefix, log_o_dir )
+	sam 		:= "$prefix.sam"
+	log 		:= "$prefix2.align.log"
+	srt_bam		:= "$prefix.csem.sorted.bam"
+	srt_bam_prefix 	:= "$prefix.csem"
+	bam 		:= "$prefix.csem.bam"
+	param 	:= multimapping ? "-k 4" : ""
+
+	in 	:= [ fastq ]
+	out 	:= [ bam, log ]
+
+	taskName:= "bowtie2_csem "+label
+	cpus 	:= nth_bwt2; 	mem := get_res_mem(mem_bwt2,nth_bwt2); 	timeout := get_res_wt(wt_bwt2)
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys bowtie2 $param -x $bwt2_idx --threads $nth_bwt2 -U <(zcat -f $fastq) 2> $log > $sam
+		sys run-csem --sam -p $nth_bwt2 $sam 100 $srt_bam_prefix
+
+		sys mv $srt_bam $bam
+
+		sys sambamba index -t $nth_bwt2 $bam
+
+		sys rm -f $sam
+	}
+
+	register_par( tid, cpus )
+
+	graph_in  := trimmed ? 	["trimmed_fastq1_($label)"] : ["fastq_($label)"]
+	graph_out := ["bam_($label)"]//,"align_qc_($label)"]
+	hrchy_out := ["L1_align/$label/bam","L1_qc/$label/bwt2_qc"]
+
+	_add_to_graphviz( graph_in, in, graph_out, out, "bowtie2_csem_($label)", grp_color_bwt2 )
+	_add_to_filetable( hrchy_out, out )	
+
+	return out
+}
+
+// trimmed_fastq : fastqs are trimmed or not
+string[] _bowtie2_PE( string fastq1, string fastq2, string o_dir, string log_o_dir, string label, int nth_bwt2, bool trimmed ) { 
+
+	prefix 	:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir ) + ".PE2SE"
+	prefix2 := replace_dir( prefix, log_o_dir )
+	bam 	:= "$prefix.bam"
+	log 	:= "$prefix2.align.log"
+	param 	:= multimapping ? "-k 4" : ""
+
+	in 	:= [ fastq1, fastq2 ]
+	out 	:= [ bam, log ]
+
+	taskName:= "bowtie2_PE "+label
+	cpus 	:= nth_bwt2; 	mem := get_res_mem(mem_bwt2,nth_bwt2); 	timeout := get_res_wt(wt_bwt2)
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys bowtie2 $param -X2000 --mm --threads $nth_bwt2 -x $bwt2_idx \
+			-1 $fastq1 -2 $fastq2 2>$log | \
+			samtools view -Su /dev/stdin | sambamba sort /dev/stdin -t $nth_bwt2 -o $bam
+	}
+
+	register_par( tid, cpus )
+
+	graph_in := trimmed ? 	["trimmed_fastq1_($label)","trimmed_fastq2_($label)"] : \
+				["fastq1_($label)","fastq2_($label)"]
+	graph_out := ["bam_($label)"]//,"align_qc_($label)"]
+	hrchy_out := ["L1_align/$label/bam","L1_qc/$label/bwt2_qc"]
+
+	_add_to_graphviz( graph_in, in, graph_out, out, "bowtie2_($label)", grp_color_bwt2 )
+	_add_to_filetable( hrchy_out, out )	
+
+	return out
+}

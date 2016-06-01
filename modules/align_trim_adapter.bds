@@ -1,0 +1,68 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "species.bds"
+include "report.bds"
+
+
+help == adapter trimmer settings
+adapter_err_rate	:= "0.20" 		help Maximum allowed adapter error rate (# errors divided by the length of the matching adapter region, default: 0.20).
+
+wt_trim			:= "23h"		help Walltime for adapter trimming (default: 23h, 23:00:00).
+mem_trim		:= "16G"	 	help Max. memory for adapter trimming (default: 16G).
+
+init_align_trim_adapter()
+
+
+void init_align_trim_adapter() {
+	adapter_err_rate 	= get_conf_val( adapter_err_rate, 	["adapter_err_rate"] )
+	wt_trim 		= get_conf_val( wt_trim, 		["wt_trim"] )
+	mem_trim 		= get_conf_val( mem_trim, 		["mem_trim"] )
+
+	print("\n\n== adapter trimmer settings\n")
+	print( "Maximum allowed error rate for cutadapt\t: $adapter_err_rate\n")
+	print( "Walltime (adapter trimming)\t\t: $wt_trim\n")
+	print( "Max. memory (adapter trimming)\t\t: $mem_trim\n")
+}
+
+string _trim_adapters( string fastq, string adapter, string o_dir, string label, int nth_trim, string graph_id ) {
+
+	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
+	p_gz	:= "$prefix"+".trim.fastq.gz"
+
+	in 	:= [ fastq ]
+	out 	:= p_gz
+
+	taskName:= "trim_adapters $label $graph_id"
+	cpus 	:= nth_trim; 	mem := get_res_mem(mem_trim,nth_trim); 	timeout := get_res_wt(wt_trim)
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys cutadapt -e $adapter_err_rate -a $adapter $fastq | pigz -p $nth_trim > $p_gz
+	}
+
+	register_par( tid, cpus )
+
+	_add_to_graphviz( ["fastq$graph_id"+"_($label)"], in, \
+			["trimmed_fastq$graph_id"+"_($label)"] , [out], \
+			"cutadapt\\n($label)", grp_color_trim_adapter )
+	_add_to_filetable( ["L1_align/$label/trimmed_fastq$graph_id"], [out] )
+
+	return out
+}
+
+string[] _trim_adapters_PE( string fastq1, string fastq2, string adapter1, string adapter2, string o_dir, string label, int nth_trim ) {
+
+	// distribute # threads according to fastq file size
+	int nth_trim1, nth_trim2
+	(nth_trim1, nth_trim2) = distribute_nth( nth_trim, [fastq1.size(), fastq2.size()] )
+
+	out1 := _trim_adapters(fastq1, adapter1, o_dir, label, nth_trim1, 1 )
+	out2 := _trim_adapters(fastq2, adapter2, o_dir, label, nth_trim2, 2 )
+
+	return [out1, out2]
+}
