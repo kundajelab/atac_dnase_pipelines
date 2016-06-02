@@ -6,21 +6,24 @@ include "report.bds"
 
 
 help == adapter trimmer settings
-adapter_err_rate	:= "0.20" 		help Maximum allowed adapter error rate (# errors divided by the length of the matching adapter region, default: 0.20).
+adapter_err_rate	:= "0.20" 	help Maximum allowed adapter error rate (# errors divided by the length of the matching adapter region, default: 0.20).
+min_trim_len		:= 5 		help Minimum trim length for cutadapt -m, throwing away processed reads shorter than this (default: 5).
 
-wt_trim			:= "23h"		help Walltime for adapter trimming (default: 23h, 23:00:00).
-mem_trim		:= "16G"	 	help Max. memory for adapter trimming (default: 16G).
+wt_trim			:= "23h"	help Walltime for adapter trimming (default: 23h, 23:00:00).
+mem_trim		:= "16G"	help Max. memory for adapter trimming (default: 16G).
 
 init_align_trim_adapter()
 
 
 void init_align_trim_adapter() {
 	adapter_err_rate 	= get_conf_val( adapter_err_rate, 	["adapter_err_rate"] )
+	min_trim_len 	= get_conf_val_int( min_trim_len, 		["min_trim_len"] )
 	wt_trim 		= get_conf_val( wt_trim, 		["wt_trim"] )
 	mem_trim 		= get_conf_val( mem_trim, 		["mem_trim"] )
 
 	print("\n\n== adapter trimmer settings\n")
 	print( "Maximum allowed error rate for cutadapt\t: $adapter_err_rate\n")
+	print( "Minimum trim. length for cutadapt -m\t: $min_trim_len\n")
 	print( "Walltime (adapter trimming)\t\t: $wt_trim\n")
 	print( "Max. memory (adapter trimming)\t\t: $mem_trim\n")
 }
@@ -84,7 +87,7 @@ string _trim_adapters( string fastq, string adapter, string o_dir, string label,
 
 		sys $shcmd_init
 
-		sys cutadapt -e $adapter_err_rate -a $adapter $fastq | pigz -p $nth_trim > $p_gz
+		sys cutadapt -m $min_trim_len -e $adapter_err_rate -a $adapter $fastq | pigz -p $nth_trim > $p_gz
 	}
 
 	register_par( tid, cpus )
