@@ -4,7 +4,3 @@
 [submodule "ataqc"]
 	path = ataqc
 	url = https://bitbucket.org/csfoo/ataqc
-[submodule "GGR_code"]
-	path = GGR_code
-	url = https://github.com/nboley/GGR_code
-

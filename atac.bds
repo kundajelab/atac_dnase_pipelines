@@ -338,10 +338,10 @@ void _atac_SE( int rep, int nth_rep ) {
 				adapters := get_adapters( rep )
 
 				if ( adapters.size()==0 ) {
-					GGR_log := _detect_adapter( fastqs[0], qc_o_dir, info )
+					adapter_log := _detect_adapter( fastqs[0], qc_o_dir, info )
 					wait
 
-					adapter := _parse_GGR_log( GGR_log )
+					adapter := _parse_adapter_log( adapter_log )
 
 					print("\nDetected adapter for $info (SE) : $adapter\n")
 					adapters.add( adapter )
@@ -506,12 +506,12 @@ void _atac_PE( int rep, int nth_rep ) {
 				adapters := get_adapters( rep )
 
 				if ( adapters.size()==0 ) {
-					GGR_log1 := _detect_adapter( fastqs[0], qc_o_dir, info )
-					GGR_log2 := _detect_adapter( fastqs[1], qc_o_dir, info )
+					adapter_log1 := _detect_adapter( fastqs[0], qc_o_dir, info )
+					adapter_log2 := _detect_adapter( fastqs[1], qc_o_dir, info )
 					wait
 
-					adapter1 := _parse_GGR_log( GGR_log1 )
-					adapter2 := _parse_GGR_log( GGR_log2 )
+					adapter1 := _parse_adapter_log( adapter_log1 )
+					adapter2 := _parse_adapter_log( adapter_log2 )
 
 					print("\nDetected adapter for $info (PE) : $adapter1, $adapter2\n")
 					adapters.add( adapter1 )

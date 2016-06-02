@@ -44,13 +44,13 @@ string _detect_adapter( string fastq, string o_dir, string label ) {
 
 		sys $shcmd_init_py3
 
-		sys python3 $script_dir/GGR_code/scripts/detect_adapter.py $fastq > $log
+		sys python3 $(which detect_adapter.py) $fastq > $log
 	}
 
 	return out
 }
 
-string _parse_GGR_log( string log ) {
+string _parse_adapter_log( string log ) {
 
 	string adapter
 
