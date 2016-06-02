@@ -25,6 +25,48 @@ void init_align_trim_adapter() {
 	print( "Max. memory (adapter trimming)\t\t: $mem_trim\n")
 }
 
+string _detect_adapter( string fastq, string o_dir, string label ) {
+
+	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
+	log	:= "$prefix.adapter.txt"
+
+	in 	:= [ fastq ]
+	out 	:= log
+
+	taskName:= "detect_adapter $label"
+
+	system 	:= "local"
+
+	task( out<-in ) {
+
+		sys $shcmd_init_py3
+
+		sys python3 $script_dir/GGR_code/scripts/detect_adapter.py $fastq > $log
+	}
+
+	return out
+}
+
+string _parse_GGR_log( string log ) {
+
+	string adapter
+
+	lines := log.readLines()
+
+	for ( int i=0; i<lines.size(); i++ ) {
+		if ( lines[i].indexOf("Sequences analysed") > -1 ) {
+			line := lines[i+1]
+			arr := line.split("\t")
+			adapter = arr[2]
+			break;
+		}
+	}
+
+	if ( adapter == "" ) error("No adapter found ($log)!")
+
+	return adapter
+}
+
 string _trim_adapters( string fastq, string adapter, string o_dir, string label, int nth_trim, string graph_id ) {
 
 	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
@@ -65,4 +107,80 @@ string[] _trim_adapters_PE( string fastq1, string fastq2, string adapter1, strin
 	out2 := _trim_adapters(fastq2, adapter2, o_dir, label, nth_trim2, 2 )
 
 	return [out1, out2]
+}
+
+string _trim_adapters_old( string fastq, string o_dir, string label, int nth_trim ) {
+
+	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
+	p 	:= "$prefix"+"_trimmed.fq"
+	p_gz	:= "$p.gz"
+	p2 	:= "$prefix"+"_trimmed.fastq"
+	p2_gz 	:= "$p2.gz"
+	in 	:= [ fastq ]
+	out 	:= p2_gz
+
+	taskName:= "trim_adapters " + label
+	cpus 	:= nth_trim; 	mem := get_res_mem(mem_trim,nth_trim); 	timeout := get_res_wt(wt_trim)
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys trim_galore $fastq -o $o_dir --dont_gzip
+		sys pigz -p $nth_trim -f $p
+		sys mv $p_gz $p2_gz
+		sys rm -f $p_gz $p
+	}
+
+	register_par( tid, cpus )
+
+	graph_in  := ["fastq_($label)"]
+	graph_out := ["trimmed_fastq_($label)"]
+	hrchy_out := ["L1_align/$label/trimmed_fastq"]
+
+	_add_to_graphviz( graph_in, in, graph_out, [out], "trim_galore\\n($label)", grp_color_trim_adapter )
+	_add_to_filetable( hrchy_out, [out] )
+
+	return out
+}
+
+string[] _trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, string label, int nth_trim ) {
+
+	prefix1	:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir )
+	prefix2	:= replace_dir( rm_ext( fastq2, ["fastq","fq"] ), o_dir )
+	p1 	:= "$prefix1.trim.fastq"
+	p2 	:= "$prefix2.trim.fastq"
+	p1_gz	:= "$p1.gz"
+	p2_gz 	:= "$p2.gz"
+
+	in 	:= [ fastq1, fastq2 ]
+	out 	:= [ p1_gz, p2_gz ]
+
+	taskName:= "trim_adapters_PE " + label
+	cpus 	:= nth_trim; 	mem := get_res_mem(mem_trim,nth_trim); 	timeout := get_res_wt(wt_trim)
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys cd $o_dir
+		sys $(which trimAdapters.py) -a $fastq1 -b $fastq2
+		sys pigz -p $nth_trim -f $p1
+		sys pigz -p $nth_trim -f $p2
+	}
+
+	register_par( tid, cpus )
+
+	graph_in  := ["fastq1_($label)","fastq2_($label)"]
+	graph_out := ["trimmed_fastq1_($label)","trimmed_fastq2_($label)"]
+	hrchy_out := ["L1_align/$label/trimmed_fastq1","L1_align/$label/trimmed_fastq2"]
+
+	_add_to_graphviz( graph_in, in, graph_out, out, "trim_adaptor\\n($label)", grp_color_trim_adapter )
+	_add_to_filetable( hrchy_out, out )
+
+	return out
 }

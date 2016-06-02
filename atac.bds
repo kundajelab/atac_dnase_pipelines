@@ -17,7 +17,7 @@ mem_ataqc 	:= "8G"		help Max. memory for ATAQC (default: 8G).
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
 dnase_seq	:= false  	help DNase-Seq (no tn5 shifting, subsampling 50M by default for cross-corr. analysis).
 idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
-
+old_trimmer 	:= false 	help Use legacy trim adapters (trim_galore and trimAdapter.py).
 
 help() // show help contexts
 
@@ -93,6 +93,7 @@ void init_atac() {
 	dnase_seq 	= get_conf_val_bool( dnase_seq, 	["dnase_seq"] )
 	idr_thresh 	= get_conf_val( idr_thresh, 		["idr_thresh"] )
 	nreads 		= get_conf_val_int( nreads,		["nreads"] )
+	old_trimmer 	= get_conf_val_bool( old_trimmer,	["old_trimmer"] )
 
 	if ( input == "" ) { // determine input type
 		
@@ -126,6 +127,7 @@ void print_atac() {
 	print( "Smoothing window for MACS2\t: $smooth_win\n")
 	print( "DNase Seq\t\t\t: $dnase_seq\n")
 	print( "IDR threshold\t\t\t: $idr_thresh\n" )
+	print( "Use legacy trim adapters \t: $old_trimmer\n" )
 }
 
 void chk_input_data() {
@@ -173,21 +175,24 @@ void chk_input_data() {
 			prefix = "Rep$rep fastq" + suffix
 			fastqs := get_fastqs( rep )
 
-			if ( !trimmed_fastq ) { // check adapters
+			if ( !trimmed_fastq && !old_trimmer ) { // check adapters
 				adapters := get_adapters( rep )
 				prefix += "\t(adapters : "
-				err_msg := "Adapter sequence (-adapter, -adapter[REP_ID] for SE or -adapter[REP_ID]_[PAIR_ID] for PE) must be explicitly defined for adapter trimmer (cutadapt)!\n"
 
-				if ( adapters.size()==0 ) error(err_msg)
-
-				for ( int i=0; i<adapters.size(); i++) {
-					prefix = prefix + adapters[i] + ", "
-					if ( adapters[i] == "" ) {
-						print("$prefix :\n")
-						error(err_msg)
-					}
+				if ( adapters.size()==0 ) {
+					prefix += "automatically detecting with GGR_code)"
 				}
-				prefix += ")"
+				else {
+
+					for ( int i=0; i<adapters.size(); i++) {
+						prefix = prefix + adapters[i] + ", "
+						if ( adapters[i] == "" ) {
+							print("$prefix :\n")
+							error("Adapter sequence (-adapter, -adapter[REP_ID] for SE or -adapter[REP_ID]_[PAIR_ID] for PE) must be defined for adapter trimmer!\n")
+						}
+					}
+					prefix += ")"
+				}
 			}
 
 			if ( !se && fastqs.size() < 2 ) error("A pair of fastqs are needed for replicate $rep (if it's single-ended add '-se')\n")
@@ -326,10 +331,26 @@ void _atac_SE( int rep, int nth_rep ) {
 			p1 = fastqs[0]
 		}
 		else {
-			adapters := get_adapters( rep )
-			p1 = _trim_adapters( fastqs[0], adapters[0], aln_o_dir, info, nth_rep, "" )
+			if ( old_trimmer ) {
+				p1 = _trim_adapters_old( fastqs[0], aln_o_dir, info, nth_rep )
+			}
+			else {
+				adapters := get_adapters( rep )
+
+				if ( adapters.size()==0 ) {
+					GGR_log := _detect_adapter( fastqs[0], qc_o_dir, info )
+					wait
+
+					adapter := _parse_GGR_log( GGR_log )
+
+					print("\nDetected adapter for $info (SE) : $adapter\n")
+					adapters.add( adapter )
+				}
+
+				p1 = _trim_adapters( fastqs[0], adapters[0], aln_o_dir, info, nth_rep, "" )
+			}
+			wait
 		}
-		wait
 
  		if ( csem ) {
 			( bam_, align_log{rep} ) = _bowtie2_csem( p1, aln_o_dir, qc_o_dir, info, nth_rep, !trimmed_fastq )
@@ -478,8 +499,27 @@ void _atac_PE( int rep, int nth_rep ) {
 			p2 = fastqs[1]
 		}
 		else {
-			adapters := get_adapters( rep )
-			( p1, p2 ) = _trim_adapters_PE( fastqs[0], fastqs[1], adapters[0], adapters[1], aln_o_dir, info, nth_rep )
+			if ( old_trimmer ) {
+				( p1, p2 ) = _trim_adapters_PE_old( fastqs[0], fastqs[1], aln_o_dir, info, nth_rep )
+			}
+			else {
+				adapters := get_adapters( rep )
+
+				if ( adapters.size()==0 ) {
+					GGR_log1 := _detect_adapter( fastqs[0], qc_o_dir, info )
+					GGR_log2 := _detect_adapter( fastqs[1], qc_o_dir, info )
+					wait
+
+					adapter1 := _parse_GGR_log( GGR_log1 )
+					adapter2 := _parse_GGR_log( GGR_log2 )
+
+					print("\nDetected adapter for $info (PE) : $adapter1, $adapter2\n")
+					adapters.add( adapter1 )
+					adapters.add( adapter2 )
+				}
+
+				( p1, p2 ) = _trim_adapters_PE( fastqs[0], fastqs[1], adapters[0], adapters[1], aln_o_dir, info, nth_rep )
+			}
 			wait
 		}
 
