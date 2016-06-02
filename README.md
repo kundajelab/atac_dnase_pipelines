@@ -22,6 +22,14 @@ For general use, use the following command line: (for PE data set)
 $ bds atac.bds -fastq1_1 [READ1] -fastq1_2 [READ2] -bwt2_idx [BOWTIE2_INDEX] \
 -gensz [GENOMESIZE; hs for human, mm for mouse] -chrsz [CHR_SIZES_FILE] -adapter [ADAPTER_TO_BE_TRIMMED]
 ```
+
+The pipeline can automatically detect adapters if you remove `-adapter` from your command line. (<b>You need to have an access to the git repo https://github.com/nboley/GGR_code</b>)
+
+To use old adapter trimmers (`trim_galore` for SE and `trimAdapter.py` for PE):
+```
+-old_trimmer
+```
+
 If your fastqs are already trimmed, add the following to the command line to skip trimming stage.
 ```
 -trimmed_fastq
