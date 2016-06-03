@@ -108,8 +108,6 @@ string[] _trim_adapters_PE( string fastq1, string fastq2, string adapter1, strin
 	prefix2	:= replace_dir( rm_ext( fastq2, ["fastq","fq"] ), o_dir )
 	p1 	:= "$prefix1.trim.fastq"
 	p2 	:= "$prefix2.trim.fastq"
-	p1_tmp 	:= "$prefix1.trim.tmp.fastq"
-	p2_tmp 	:= "$prefix2.trim.tmp.fastq"
 	p1_gz	:= "$p1.gz"
 	p2_gz 	:= "$p2.gz"
 
@@ -127,13 +125,10 @@ string[] _trim_adapters_PE( string fastq1, string fastq2, string adapter1, strin
 
 		sys $shcmd_init
 
-		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter1 --paired-output $p2_tmp -o $p1_tmp $fastq1 $fastq2
-		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter2 --paired-output $p1 -o $p2 $p2_tmp $p1_tmp
+		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter1 -A $adapter2 -o $p1 -p $p2 $fastq1 $fastq2
 
 		sys pigz -p $nth_trim -f $p1
 		sys pigz -p $nth_trim -f $p2
-
-		sys rm -f $p1_tmp $p2_tmp $p1 $p2
 	}
 
 	register_par( tid, cpus )
