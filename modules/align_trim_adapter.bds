@@ -78,6 +78,8 @@ string _trim_adapters( string fastq, string adapter, string o_dir, string label,
 	in 	:= [ fastq ]
 	out 	:= p_gz
 
+	param_min_trim_len := min_trim_len==0 ? "" : "-m $min_trim_len"
+
 	taskName:= "trim_adapters $label $graph_id"
 	cpus 	:= nth_trim; 	mem := get_res_mem(mem_trim,nth_trim); 	timeout := get_res_wt(wt_trim)
 
@@ -87,7 +89,7 @@ string _trim_adapters( string fastq, string adapter, string o_dir, string label,
 
 		sys $shcmd_init
 
-		sys cutadapt -m $min_trim_len -e $adapter_err_rate -a $adapter $fastq | pigz -p $nth_trim > $p_gz
+		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter $fastq | pigz -p $nth_trim > $p_gz
 	}
 
 	register_par( tid, cpus )
@@ -102,14 +104,48 @@ string _trim_adapters( string fastq, string adapter, string o_dir, string label,
 
 string[] _trim_adapters_PE( string fastq1, string fastq2, string adapter1, string adapter2, string o_dir, string label, int nth_trim ) {
 
-	// distribute # threads according to fastq file size
-	int nth_trim1, nth_trim2
-	(nth_trim1, nth_trim2) = distribute_nth( nth_trim, [fastq1.size(), fastq2.size()] )
+	prefix1	:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir )
+	prefix2	:= replace_dir( rm_ext( fastq2, ["fastq","fq"] ), o_dir )
+	p1 	:= "$prefix1.trim.fastq"
+	p2 	:= "$prefix2.trim.fastq"
+	p1_tmp 	:= "$prefix1.trim.tmp.fastq"
+	p2_tmp 	:= "$prefix2.trim.tmp.fastq"
+	p1_gz	:= "$p1.gz"
+	p2_gz 	:= "$p2.gz"
 
-	out1 := _trim_adapters(fastq1, adapter1, o_dir, label, nth_trim1, 1 )
-	out2 := _trim_adapters(fastq2, adapter2, o_dir, label, nth_trim2, 2 )
+	in 	:= [ fastq1, fastq2 ]
+	out 	:= [ p1_gz, p2_gz ]
 
-	return [out1, out2]
+	param_min_trim_len := min_trim_len==0 ? "" : "-m $min_trim_len"
+
+	taskName:= "trim_adapters_PE " + label
+	cpus 	:= nth_trim; 	mem := get_res_mem(mem_trim,nth_trim); 	timeout := get_res_wt(wt_trim)
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter1 --paired-output $p2_tmp -o $p1_tmp $fastq1 $fastq2
+		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter2 --paired-output $p1 -o $p2 $p2_tmp $p1_tmp
+
+		sys pigz -p $nth_trim -f $p1
+		sys pigz -p $nth_trim -f $p2
+
+		sys rm -f $p1_tmp $p2_tmp $p1 $p2
+	}
+
+	register_par( tid, cpus )
+
+	graph_in  := ["fastq1_($label)","fastq2_($label)"]
+	graph_out := ["trimmed_fastq1_($label)","trimmed_fastq2_($label)"]
+	hrchy_out := ["L1_align/$label/trimmed_fastq1","L1_align/$label/trimmed_fastq2"]
+
+	_add_to_graphviz( graph_in, in, graph_out, out, "trim_adaptor\\n($label)", grp_color_trim_adapter )
+	_add_to_filetable( hrchy_out, out )
+
+	return out
 }
 
 string _trim_adapters_old( string fastq, string o_dir, string label, int nth_trim ) {
