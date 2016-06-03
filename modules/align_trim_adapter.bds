@@ -142,7 +142,7 @@ string[] _trim_adapters_PE( string fastq1, string fastq2, string adapter1, strin
 	graph_out := ["trimmed_fastq1_($label)","trimmed_fastq2_($label)"]
 	hrchy_out := ["L1_align/$label/trimmed_fastq1","L1_align/$label/trimmed_fastq2"]
 
-	_add_to_graphviz( graph_in, in, graph_out, out, "trim_adaptor\\n($label)", grp_color_trim_adapter )
+	_add_to_graphviz( graph_in, in, graph_out, out, "cutadapt\\n($label)", grp_color_trim_adapter )
 	_add_to_filetable( hrchy_out, out )
 
 	return out
@@ -218,7 +218,7 @@ string[] _trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, stri
 	graph_out := ["trimmed_fastq1_($label)","trimmed_fastq2_($label)"]
 	hrchy_out := ["L1_align/$label/trimmed_fastq1","L1_align/$label/trimmed_fastq2"]
 
-	_add_to_graphviz( graph_in, in, graph_out, out, "trim_adaptor\\n($label)", grp_color_trim_adapter )
+	_add_to_graphviz( graph_in, in, graph_out, out, "trimAdaptor.py\\n($label)", grp_color_trim_adapter )
 	_add_to_filetable( hrchy_out, out )
 
 	return out
