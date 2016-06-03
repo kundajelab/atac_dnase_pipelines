@@ -437,7 +437,7 @@ void _atac_SE( int rep, int nth_rep ) {
 
 		// distribute # threads (nth) to macs2 peak calling and xcor
 		int nth_xcor, nth_tmp // weight=2 for peak n sig, weight=1 for peak only and xcor
-		(nth_xcor, nth_tmp) = distribute_nth( nth_rep, true_rep ? [2,1] : [1,1] )
+		(nth_xcor, nth_tmp) = distribute_nth( nth_rep, true_rep ? [3,1] : [2,1] )
 
 		// xcor
 		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag_xcor, qc_o_dir, info, nth_xcor, info ) // 1 cpu
@@ -629,7 +629,7 @@ void _atac_PE( int rep, int nth_rep ) {
 
 		// distribute # threads (nth) to macs2 peak calling and xcor
 		int nth_xcor, nth_tmp // weight=2 for peak n sig, weight=1 for peak only and xcor
-		(nth_xcor, nth_tmp) = distribute_nth( nth_rep, true_rep ? [2,1] : [1,1] )
+		(nth_xcor, nth_tmp) = distribute_nth( nth_rep, true_rep ? [3,1] : [2,1] )
 
 		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag_xcor, qc_o_dir, info, nth_xcor, info ) // 1 cpu
 
