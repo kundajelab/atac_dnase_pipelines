@@ -436,8 +436,8 @@ void _atac_SE( int rep, int nth_rep ) {
 		wait
 
 		// distribute # threads (nth) to macs2 peak calling and xcor
-		int nth_peak_n_sig, nth_peak, nth_xcor // weight=2 for peak n sig, weight=1 for peak only and xcor
-		(nth_peak_n_sig, nth_peak, nth_xcor) = distribute_nth( nth, true_rep ? [2,1,1] : [2,1,1,1,1] )
+		int nth_xcor, nth_tmp // weight=2 for peak n sig, weight=1 for peak only and xcor
+		(nth_xcor, nth_tmp) = distribute_nth( nth_rep, true_rep ? [2,1] : [1,1] )
 
 		// xcor
 		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag_xcor, qc_o_dir, info, nth_xcor, info ) // 1 cpu
@@ -451,10 +451,10 @@ void _atac_SE( int rep, int nth_rep ) {
 		// macs2 pval thresh = 0.01
 		( peak_001{rep}, gpeak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) \
 				= _macs2( final_tag_, "$smooth_win", 0.01, true, \
-						peak_o_dir, sig_o_dir, info, nth_peak_n_sig, hrchy )
+						peak_o_dir, sig_o_dir, info, hrchy )
 		( peak{rep}, gpeak{rep} )  \
 				= _macs2( final_tag_, "$smooth_win", 0.1, false, \
-						peak_o_dir, sig_o_dir, info, nth_peak, hrchy )
+						peak_o_dir, sig_o_dir, info, hrchy )
 		if ( !true_rep ) {
 
 			pr1_hrchy 	:= "pseudo_reps/$info/pr1"
@@ -467,11 +467,11 @@ void _atac_SE( int rep, int nth_rep ) {
 
 			( peak_pr1{rep}, gpeak_pr1{rep} ) \
 				= _macs2( final_tag_pr1_, "$smooth_win", 0.1, false, \
-						peak_pr1_o_dir, sig_pr1_o_dir, info+"-pr1", nth_peak, pr1_hrchy )
+						peak_pr1_o_dir, sig_pr1_o_dir, info+"-pr1", pr1_hrchy )
 
 			( peak_pr2{rep}, gpeak_pr2{rep} ) \
 				= _macs2( final_tag_pr2_, "$smooth_win", 0.1, false, \
-						peak_pr2_o_dir, sig_pr2_o_dir, info+"-pr2", nth_peak, pr2_hrchy )
+						peak_pr2_o_dir, sig_pr2_o_dir, info+"-pr2", pr2_hrchy )
 		}
 	}
 }
@@ -627,9 +627,9 @@ void _atac_PE( int rep, int nth_rep ) {
 		}
 		wait
 
-		// distribute # threads (nth) for macs2 peak calling and xcor
-		int nth_peak_n_sig, nth_peak, nth_xcor // weight=2 for peak n sig, weight=1 for peak only and xcor
-		(nth_peak_n_sig, nth_peak, nth_xcor) = distribute_nth( nth, true_rep ? [2,1,1] : [2,1,1,1,1] )
+		// distribute # threads (nth) to macs2 peak calling and xcor
+		int nth_xcor, nth_tmp // weight=2 for peak n sig, weight=1 for peak only and xcor
+		(nth_xcor, nth_tmp) = distribute_nth( nth_rep, true_rep ? [2,1] : [1,1] )
 
 		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag_xcor, qc_o_dir, info, nth_xcor, info ) // 1 cpu
 
@@ -641,9 +641,9 @@ void _atac_PE( int rep, int nth_rep ) {
 
 		( peak_001{rep}, gpeak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) \
 				= _macs2( final_tag_, "$smooth_win", 0.01, true, \
-						peak_o_dir, sig_o_dir, info, nth_peak_n_sig, hrchy )
+						peak_o_dir, sig_o_dir, info, hrchy )
 		( peak{rep}, gpeak{rep} ) = _macs2( final_tag_, "$smooth_win", 0.1, false, \
-						peak_o_dir, sig_o_dir, info, nth_peak, hrchy )
+						peak_o_dir, sig_o_dir, info, hrchy )
 
 		if ( !true_rep ) {
 
@@ -657,11 +657,11 @@ void _atac_PE( int rep, int nth_rep ) {
 
 			( peak_pr1{rep}, gpeak_pr1{rep} ) \
 				= _macs2( final_tag_pr1_, "$smooth_win", 0.1, false, \
-						peak_pr1_o_dir, sig_pr1_o_dir, info+"-pr1", nth_peak, pr1_hrchy )
+						peak_pr1_o_dir, sig_pr1_o_dir, info+"-pr1", pr1_hrchy )
 
 			( peak_pr2{rep}, gpeak_pr2{rep} ) \
 				= _macs2( final_tag_pr2_, "$smooth_win", 0.1, false, \
-						peak_pr2_o_dir, sig_pr2_o_dir, info+"-pr2", nth_peak, pr2_hrchy )
+						peak_pr2_o_dir, sig_pr2_o_dir, info+"-pr2", pr2_hrchy )
 		}
 	}
 }
@@ -724,12 +724,6 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 		}
 		wait_clear_tids()
 
-		// distribute nth to macs2 peak calling for pooled replicates
-		int nth_pooled_sig, nth_pooled, nth_ppr
-
-		if ( !true_rep ) (nth_pooled_sig, nth_pooled, nth_ppr) = distribute_nth( nth, [4,2,1,1] )
-		else 		 (nth_pooled_sig, nth_pooled) = distribute_nth( nth, [4,2] )
-
 		peak_o_dir 	:= mkdir( "$out_dir/peak/macs2")
 		sig_o_dir 	:= mkdir( "$out_dir/signal/macs2")
 
@@ -741,10 +735,10 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 			fc_bigwig_001{"pooled"}, \
 			pval_bigwig_001{"pooled"} ) \
 						= _macs2( final_tag_pooled, "$smooth_win", 0.01, true, \
-						pooled_o_dir, pooled_sig_o_dir, "pooled", nth_pooled_sig, pooled_hrchy )
+						pooled_o_dir, pooled_sig_o_dir, "pooled", pooled_hrchy )
 
 		( peak_pooled, gpeak_pooled ) = _macs2( final_tag_pooled, "$smooth_win", 0.1, false, \
-						pooled_o_dir, pooled_sig_o_dir, "pooled", nth_pooled, pooled_hrchy )
+						pooled_o_dir, pooled_sig_o_dir, "pooled", pooled_hrchy )
 
 		if ( !true_rep ) {
 
@@ -757,10 +751,10 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 
 			// call peaks on ppr
 			( peak_ppr1, gpeak_ppr1 ) = _macs2( final_tag_ppr1, "$smooth_win", 0.1, false, \
-							ppr1_o_dir, ppr1_sig_o_dir, "ppr1", nth_ppr, ppr1_hrchy )
+							ppr1_o_dir, ppr1_sig_o_dir, "ppr1", ppr1_hrchy )
 
 			( peak_ppr2, gpeak_ppr2 ) = _macs2( final_tag_ppr2, "$smooth_win", 0.1, false, \
-							ppr2_o_dir, ppr2_sig_o_dir, "ppr2", nth_ppr, ppr2_hrchy )
+							ppr2_o_dir, ppr2_sig_o_dir, "ppr2", ppr2_hrchy )
 		}
 	}
 	wait_clear_tids()

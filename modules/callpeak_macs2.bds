@@ -31,8 +31,7 @@ void chk_callpeak_macs2() {
 }
 
 string[] _macs2( string tag, string smooth_window, string pval_thresh, bool make_sig, \
-			string peak_o_dir, string sig_o_dir, string label, \
-			int nth_macs2, string hrchy ) {
+			string peak_o_dir, string sig_o_dir, string label, string hrchy ) {
 
 	pval_str 	:= (pval_thresh=="0.01") ? "" : ".pval$pval_thresh"	
 	prefix 		:= replace_dir( rm_ext( tag, ["bed","tagAlign"] ), peak_o_dir ) + ".pf$pval_str"
@@ -58,7 +57,7 @@ string[] _macs2( string tag, string smooth_window, string pval_thresh, bool make
 	out 	:= make_sig ? [ peakfile, gpeakfile, fc_bigwig, pval_bigwig ] : [ peakfile, gpeakfile ]
 
 	taskName:= "macs2_atac " + label + pval_str
-	cpus	:= nth_macs2;	mem := get_res_mem(mem_macs2,nth_macs2);	timeout := get_res_wt(wt_macs2)
+	mem := get_res_mem(mem_macs2,1);	timeout := get_res_wt(wt_macs2)
 
 	wait_par( cpus )
 
