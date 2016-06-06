@@ -192,28 +192,15 @@ For python3, <a href="https://github.com/kundajelab/bds_atac/blob/master/require
 
 See more troubleshootings <a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_PIPELINE.md" target=_blank>here</a>
 
-1) pysam backward compatibility issue
 
-ATAQC currently does not work with pysam >= 0.9. Lower it to 0.8.3.
-```
-Traceback (most recent call last):
-  File "/users/leepc12/code/bds_atac/ataqc/run_ataqc.py", line 1303, in <module>
-    main()
-  File "/users/leepc12/code/bds_atac/ataqc/run_ataqc.py", line 1120, in main
-    chr_m_reads, fraction_chr_m = get_chr_m(COORDSORT_BAM)
-  File "/users/leepc12/code/bds_atac/ataqc/run_ataqc.py", line 160, in get_chr_m
-    tot_reads += int(chrom_stats[2])
-IndexError: list index out of range
-```
-
-2) samtools ncurses bug
+1) samtools ncurses bug
 
 Prepend a directory for `libncurses.so.5` to `LD_LIBRARY_PATH`. See `install_dependencies.sh` for solution.
 ```
 samtools: symbol lookup error: /lib/x86_64-linux-gnu/libncurses.so.5: undefined symbol: _nc_putchar
 ```
 
-3) Error: could not find environment: bds_atac
+2) Error: could not find environment: bds_atac
 
 Unload any Anaconda Python modules. Remove locally installed Anaconda Python from your `$PATH`.
 
