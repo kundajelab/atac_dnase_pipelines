@@ -308,6 +308,8 @@ void _atac( int rep, int nth_rep ) {
 
 	if ( se ) 	_atac_SE( rep, nth_rep )
 	else 		_atac_PE( rep, nth_rep )
+	
+	if ( !no_par ) monitor_par()
 }
 
 void _atac_SE( int rep, int nth_rep ) {
@@ -919,6 +921,8 @@ void _ataqc( int rep ) {
 				peak_overlap, idr_, qc_o_dir, info, graph_in_idr )
 		}
 	}
+
+	if ( !no_par ) monitor_par()
 }
 
 string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, string pbc_log, \
