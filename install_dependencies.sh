@@ -46,6 +46,8 @@ git clone https://github.com/smithlabcode/preseq --recursive
 cd preseq
 git checkout tags/v2.0.2
 export CPLUS_INCLUDE_PATH=$CONDA_BIN/../include
+export C_INCLUDE_PATH=$CONDA_BIN/../include
+export CPATH=$CONDA_BIN/../include
 export LIBRARY_PATH=$CONDA_BIN/../lib
 make all
 cd $CONDA_BIN
