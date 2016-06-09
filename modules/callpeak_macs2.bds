@@ -64,7 +64,7 @@ string[] _macs2( string tag, string smooth_window, string pval_thresh, bool make
 	tid := task( out<-in ) {
 	
 		sys $shcmd_init
-		sys LC_COLLATE=C
+		sys export LC_COLLATE=C
 
 		sys macs2 callpeak \
 			-t $tag -f BED -n "$prefix" -g "$gensz" -p $pval_thresh \
