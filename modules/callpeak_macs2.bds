@@ -113,6 +113,8 @@ string[] _macs2( string tag, string smooth_window, string pval_thresh, bool make
 			fi
 
 		sys rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg
+
+		sys $shcmd_finalize
 	}
 
 	register_par( tid, cpus )

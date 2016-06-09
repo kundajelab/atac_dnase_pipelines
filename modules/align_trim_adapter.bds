@@ -45,6 +45,8 @@ string _detect_adapter( string fastq, string o_dir, string label ) {
 		sys $shcmd_init_py3
 
 		sys python3 $(which detect_adapter.py) $fastq > $log
+
+		sys $shcmd_finalize
 	}
 
 	return out
@@ -90,6 +92,8 @@ string _trim_adapters( string fastq, string adapter, string o_dir, string label,
 		sys $shcmd_init
 
 		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter $fastq | pigz -p $nth_trim > $p_gz
+
+		sys $shcmd_finalize
 	}
 
 	register_par( tid, cpus )
@@ -129,6 +133,8 @@ string[] _trim_adapters_PE( string fastq1, string fastq2, string adapter1, strin
 
 		sys pigz -p $nth_trim -f $p1
 		sys pigz -p $nth_trim -f $p2
+
+		sys $shcmd_finalize
 	}
 
 	register_par( tid, cpus )
@@ -166,6 +172,8 @@ string _trim_adapters_old( string fastq, string o_dir, string label, int nth_tri
 		sys pigz -p $nth_trim -f $p
 		sys mv $p_gz $p2_gz
 		sys rm -f $p_gz $p
+
+		sys $shcmd_finalize
 	}
 
 	register_par( tid, cpus )
@@ -205,6 +213,8 @@ string[] _trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, stri
 		sys $(which trimAdapters.py) -a $fastq1 -b $fastq2
 		sys pigz -p $nth_trim -f $p1
 		sys pigz -p $nth_trim -f $p2
+
+		sys $shcmd_finalize
 	}
 
 	register_par( tid, cpus )
