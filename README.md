@@ -38,7 +38,7 @@ If your fastqs are already trimmed, add the following to the command line to ski
 ```
 -se 
 ```
-For ATAQC, define the following parameters. See help (`$ bds atac.bds`) for description of all parameters. Even though you don't use a species file `-species_file`, you need to specify a species name for ATAQC. You will get an ATAQC report per replicate. ATAQC is avaible only when you start a pipeline with FASTQ inputs.
+For ATAQC, define the following parameters. See help (`$ bds atac.bds`) for description of all parameters. Data files for running ataqc (hg19 and mm9) can be found here: http://mitra.stanford.edu/kundaje/dskim89/public/ataqc/. Even though you don't use a species file `-species_file`, you need to specify a species name for ATAQC. You will get an ATAQC report per replicate. ATAQC is avaible only when you start a pipeline with FASTQ inputs.
 ```
 -species [hg19, mm9 or ...] -tss_enrich [] -ref_fa [] -blacklist [] -dnase [] -prom [] -enh [] -reg2map [] -roadmap_meta []
 ```
