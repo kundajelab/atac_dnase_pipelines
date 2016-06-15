@@ -38,6 +38,7 @@ r-catools
 bioconductor-rsamtools
 r-spp ==1.13
 cutadapt
+preseq ==2.0.2 
 
 trim-galore ==0.4.1 # old trimmer
 python-levenshtein # old trimmer (trimAdapter.py)
@@ -46,11 +47,6 @@ python-levenshtein # old trimmer (trimAdapter.py)
 ## PICARDROOT will be defined in conda activate.
 ## see install_dependencies.sh
 
-## samtools could not find libncurse. 
-## need to prepend conda library dir. to LD_LIBRARY_PATH
-## see install_dependencies.sh
-
 ## there are packages that are not in official conda repos
 ## run install_dependencies.sh to install these softwares
 
-# preseq ==2.0.2 

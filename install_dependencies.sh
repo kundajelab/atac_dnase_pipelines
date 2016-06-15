@@ -39,20 +39,6 @@ add_to_activate
 cd $CONDA_BIN
 ln -s ../share/picard-1.126-3/picard.jar picard.jar
 
-##### preseq ==2.0.2 
-cd $CONDA_EXTRA
-rm -rf preseq
-git clone https://github.com/smithlabcode/preseq --recursive
-cd preseq
-git checkout tags/v2.0.2
-export CPLUS_INCLUDE_PATH=$CONDA_BIN/../include
-export C_INCLUDE_PATH=$CONDA_BIN/../include
-export CPATH=$CONDA_BIN/../include
-export LIBRARY_PATH=$CONDA_BIN/../lib
-make all
-cd $CONDA_BIN
-ln -s $CONDA_EXTRA/preseq/preseq preseq
-
 #### install run_spp.R (Anshul's phantompeakqualtool)
 cd $CONDA_EXTRA
 wget https://phantompeakqualtools.googlecode.com/files/ccQualityControl.v.1.1.tar.gz -N
