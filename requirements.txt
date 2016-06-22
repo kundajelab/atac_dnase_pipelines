@@ -2,6 +2,7 @@
 
 bowtie ==1.1.2
 bowtie2 ==2.2.6
+ncurses
 samtools ==1.2
 htslib # bgzip and tabix not included in new samtools
 bedtools ==2.22 # 2.21.0
