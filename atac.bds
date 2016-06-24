@@ -984,6 +984,8 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 		    --peaks $peak \
 		    $param_overlap \
 		    $param_idr
+
+		sys $shcmd_finalize
 	}
 
 	register_par( tid, cpus )
