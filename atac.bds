@@ -947,6 +947,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 	wait_par( cpus )
 
 	taskName:= "ataqc "+info
+	mem := get_res_mem(mem_ataqc,1);
 	max_java_heap 	:= number_with_metric_prefix( mem )
 
 	tid := task( out<-in ) {
@@ -954,7 +955,6 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 		sys $shcmd_init
 
 		// To prevent java heap space error (Exception in thread "main" java.lang.OutOfMemoryError: Java heap space)
-		// increae -Xmx if you still have it
 		sys export _JAVA_OPTIONS="-Xms256M -Xmx$max_java_heap -XX:ParallelGCThreads=1"
 
 		sys cd $o_dir
