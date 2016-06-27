@@ -7,11 +7,11 @@ help == atac pipeline settings
 se 		:= false 	help Single ended data.
 trimmed_fastq 	:= false	help Skip fastq-trimming stage.
 align	 	:= false	help Align only (no MACS2 peak calling or IDR or ataqc analysis).
-subsample 	:= 0 		help # of reads to subsample replicates. Subsampled tagalign will be used for steps downstream (default: 0; no subsampling). 
+subsample 	:= 0 		help # of reads to subsample replicates. Subsampled tagalign will be used for steps downstream (default: 0; no subsampling).
 nreads 		:= 25000000	help # reads to be subsampled for cross corr. analysis (default: 25000000).
 true_rep 	:= false 	help No pseudo-replicates.
 no_idr 		:= false 	help No IDR analysis on called peaks. This will change p-value threshold (0.1->0.01) in MACS2 peak calling.
-no_ataqc 	:= false 	help No ATAQC 
+no_ataqc 	:= false 	help No ATAQC
 csem	 	:= false	help Use CSEM for alignment.
 mem_ataqc 	:= "15G"	help Max. memory for ATAQC (default: 15G).
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
@@ -35,7 +35,7 @@ include "modules/idr.bds"
 include "modules/report.bds"
 
 
-input := "" 
+input := ""
 
 
 // Important output file names are stored in global variables (usually a string map string{} with a key with replicate id, pair id and peakcaller name)
@@ -58,7 +58,7 @@ string idr_ppr, idr_opt, idr_consv, idr_ppr_png
 string idr_qc
 
 
-main() 
+main()
 
 
 void main() { // atac pipeline starts here
@@ -79,7 +79,7 @@ void main() { // atac pipeline starts here
 }
 
 void init_atac() {
-	
+
 	se 		= get_conf_val_bool( se,		["se"] )
 	trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
 	align		= get_conf_val_bool( align,		["align"] )
@@ -94,9 +94,10 @@ void init_atac() {
 	idr_thresh 	= get_conf_val( idr_thresh, 		["idr_thresh"] )
 	nreads 		= get_conf_val_int( nreads,		["nreads"] )
 	old_trimmer 	= get_conf_val_bool( old_trimmer,	["old_trimmer"] )
+	use_sambamba_markdup	= get_conf_val_bool( use_sambamba_markdup, ["use_sambamba_markdup"] )
 
 	if ( input == "" ) { // determine input type
-		
+
 		if ( get_tag(0,1) != "" ) 	input = "tag"
 		if ( get_filt_bam(0,1) != "" ) 	input = "filt_bam"
 		if ( get_bam(0,1) != "" ) 	input = "bam"
@@ -113,12 +114,12 @@ void print_atac() {
 
 	print( "\n\n== atac pipeline settings\n")
 	print( "Single ended data set?\t\t: $se\n")
-	print( "Input data type\t\t\t: $input\n")		
+	print( "Input data type\t\t\t: $input\n")
 	print( "Fastqs are trimmed?\t\t: $trimmed_fastq\n")
 	print( "# Replicates\t\t\t: "+ get_num_rep() + "\n")
 	print( "MACS2 peak calling\t\t: " + !align + "\n")
 	print( "Subsample # lines in replicates (0 if no subsampling)\t: $subsample\n")
-	print( "Subsample # read for cross-corr. analysis \t: $nreads\n")	
+	print( "Subsample # read for cross-corr. analysis \t: $nreads\n")
 	print( "No pseudo replicates\t\t: $true_rep\n")
 	print( "No IDR analysis on peaks\t: $no_idr\n")
 	print( "No ATAQC (advanced QC report)\t: $no_ataqc\n")
@@ -136,7 +137,7 @@ void chk_input_data() {
 
 	if ( is_input_tag() && !se && subsample > 0 ) {
 		print("Warning: Cannot subsample paried end tagaligns. Disabling subsampling...\n")
-		subsample = 0		
+		subsample = 0
 	}
 
 	if ( !is_input_fastq() && !no_ataqc ) {
@@ -147,7 +148,7 @@ void chk_input_data() {
 	if ( !se && csem ) {
 		error("CSEM (-csem) is not available for paired end data set!\n")
 	}
-	
+
 	if ( get_num_rep() > 2 && !no_idr ) {
 		print("Warning: IDR is available for one replicate or two replicates only. Disabling IDR...\n")
 		no_idr 	= true
@@ -196,7 +197,7 @@ void chk_input_data() {
 			}
 
 			if ( !se && fastqs.size() < 2 ) error("A pair of fastqs are needed for replicate $rep (if it's single-ended add '-se')\n")
- 
+
 			if ( fastqs.size()==0 ) {
 				data.push( "" )
 			}
@@ -274,7 +275,7 @@ void atac() {
 
 			fastqs := get_fastqs( rep )
 			filesize{rep} = (fastqs[0]).size()
-			if ( fastqs.size() > 1) filesize{rep} += (fastqs[1]).size()				
+			if ( fastqs.size() > 1) filesize{rep} += (fastqs[1]).size()
 		}
 		else if ( is_input_bam() ) {
 
@@ -294,21 +295,21 @@ void atac() {
 	nth_rep := distribute_nth( nth, filesize ) // distribute_nth # threads according to input filesize
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
-		
+
 		if ( no_par ) _atac( rep, nth_rep{rep} )
 		else 	  par _atac( rep, nth_rep{rep} )
 	}
 
 	wait_clear_tids()
 
-	print( "\n== Done atac()\n" )	
+	print( "\n== Done atac()\n" )
 }
 
 void _atac( int rep, int nth_rep ) {
 
 	if ( se ) 	_atac_SE( rep, nth_rep )
 	else 		_atac_PE( rep, nth_rep )
-	
+
 	if ( !no_par ) monitor_par()
 }
 
@@ -320,7 +321,7 @@ void _atac_SE( int rep, int nth_rep ) {
 	qc_o_dir  := mkdir( "$out_dir/qc/$info" ) // create qc output dir.
 
 	string bam_
-	
+
 	if ( is_input_fastq() ) {
 
 		fastqs := get_fastqs( rep )
@@ -328,7 +329,7 @@ void _atac_SE( int rep, int nth_rep ) {
 		fastq{rep} = fastqs[0]
 
 		string p1
-		
+
 		if ( trimmed_fastq ) {
 			p1 = fastqs[0]
 		}
@@ -412,7 +413,7 @@ void _atac_SE( int rep, int nth_rep ) {
 		if ( dnase_seq ) {
 			final_tag_ = subsampled_tag
 		}
-		else { 
+		else {
 			final_tag_ = _tn5_shift_tag( subsampled_tag, aln_o_dir, info )
 		}
 		final_tag{rep} = final_tag_
@@ -555,7 +556,7 @@ void _atac_PE( int rep, int nth_rep ) {
 		}
 
 		bedpe = _bam_to_bedpe( filt_bam_, aln_o_dir, info )
-		wait 
+		wait
 
 		if ( subsample!=0 ) {
 
@@ -566,7 +567,7 @@ void _atac_PE( int rep, int nth_rep ) {
 		}
 		wait
 
-		tag = _bedpe_to_tag( subsampled_bedpe, aln_o_dir, info )			
+		tag = _bedpe_to_tag( subsampled_bedpe, aln_o_dir, info )
 		wait
 	}
 
@@ -609,7 +610,7 @@ void _atac_PE( int rep, int nth_rep ) {
 			}
 			else {
 				final_tag_pr1_ = _tn5_shift_tag( tag_pr1, aln_pr1_o_dir, info )
-				final_tag_pr2_ = _tn5_shift_tag( tag_pr2, aln_pr2_o_dir, info )					
+				final_tag_pr2_ = _tn5_shift_tag( tag_pr2, aln_pr2_o_dir, info )
 			}
 			final_tag_pr1{rep} = final_tag_pr1_
 			final_tag_pr2{rep} = final_tag_pr2_
@@ -683,7 +684,7 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 			tags_pr2.add( final_tag_pr2{rep} )
 		}
 	}
-	
+
 	if ( get_num_rep() > 1 ) {
 
 	 	aln_pooled_o_dir := mkdir( "$out_dir/align/pooled_rep" )
@@ -765,7 +766,7 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 }
 
 void do_idr() {
-	
+
 	if ( align || no_idr ) return
 
 	string{} filt_peak, filt_peak_pr1, filt_peak_pr2
@@ -788,7 +789,7 @@ void do_idr() {
 			filt_gpeak_pr2{rep} = _filt_top_peaks( gpeak_pr2{rep}, "", "rep$rep-pr2", "gpeak_macs2", "macs2/pseudo_reps/rep$rep/pr2" )
 		}
 	}
- 
+
 	if ( get_num_rep() > 1 ) {
 
 		filt_peak_pooled = _filt_top_peaks( peak_pooled, "", "pooled", "peak_macs2", "macs2/pooled_rep" )
@@ -802,11 +803,11 @@ void do_idr() {
 			filt_gpeak_ppr2    = _filt_top_peaks( gpeak_ppr2, "", "ppr2", "gpeak_macs2", "macs2/pooled_pseudo_reps/ppr2" )
 		}
 	}
-	
+
 	wait_clear_tids()
 
 	// naive overlap peak
-	
+
 	overlap_o_dir := mkdir( "$out_dir/peak/macs2/overlap" )
 
 	if ( get_num_rep() == 1 ) {
@@ -867,13 +868,13 @@ void do_idr() {
 
 	wait_clear_tids()
 
-	print( "\n== Done do_idr()\n" )	
+	print( "\n== Done do_idr()\n" )
 }
 
 void ataqc() {
 
 	if ( no_ataqc || align ) return
-	
+
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 
 		if ( no_par ) _ataqc( rep )
@@ -929,9 +930,9 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 		 string dup_log, string filt_bam, string bed, string bigwig, string peak, \
 		 string peak_naive_overlap, string idr_peak, \
 		 string o_dir, string info, string graph_in_idr ) {
-	
+
 	prefix 		:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir ) + ( (fastq2!="") ? ".PE2SE" : "" )
-	
+
 	html 		:= "$prefix"+"_qc.html"
 	txt 		:= "$prefix"+"_qc.txt"
 	prefix_basename := get_basename( prefix )
@@ -939,6 +940,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 	param_fastq 	:= (fastq2!="") ? "--fastq1 $fastq1 --fastq2 $fastq2" : "--fastq1 $fastq1"
 	param_overlap 	:= (peak_naive_overlap!="") ? "--naive_overlap_peaks $peak_naive_overlap" : ""
 	param_idr 	:= (idr_peak!="") ? "--idr_peaks $idr_peak" : ""
+	param_use_sambamba	:=	(use_sambamba_markdup) ? "--use_sambamba_markdup" : ""
 
 	in  	:= (fastq2!="") ? [ fastq1, fastq2, bam, align_log, pbc_log, dup_log, filt_bam, bed, bigwig, peak ] \
 				: [ fastq1, bam, align_log, pbc_log, dup_log, filt_bam, bed, bigwig, peak ]
@@ -983,7 +985,8 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 		    --bigwig $bigwig \
 		    --peaks $peak \
 		    $param_overlap \
-		    $param_idr
+		    $param_idr \
+			$param_use_sambamba
 
 		sys $shcmd_finalize
 	}
@@ -999,8 +1002,8 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 				     ["fastq_($info)","bam_($info)","filt_bam_($info)",\
 					"tagalign_($info)","p-val_sig._0.01_($info)","peak_macs2_0.01_($info)", \
 					"peak_macs2_filt_(overlap)", graph_in_idr]
-	
-	graph_out := ["ataqc rpt_($info)"] 
+
+	graph_out := ["ataqc rpt_($info)"]
 
 	_add_to_graphviz( graph_in, path_in, graph_out, out, "ataqc_($info)", grp_color_ataqc )
 	_add_to_filetable( ["L1_qc/$info/ataqc"], out )
@@ -1012,7 +1015,7 @@ void report() {
 
 	wait_clear_tids()
 
-	html := _html_filetable() 	// treeview for directory and file structure 
+	html := _html_filetable() 	// treeview for directory and file structure
 	html += _html_atac_tracks() 	// epigenome browser tracks
 	html += _html_graphviz()	// graphviz workflow diagram
 	html += _html_atac_QC()	// show QC tables and images
@@ -1053,8 +1056,8 @@ string _html_atac_QC() {
 	}
 
 	html := "<div id='atac_qc'>"
-	
-	html += _parse_align_log_to_html( "all", 	align_headers, align_qcs, align_headers ) 
+
+	html += _parse_align_log_to_html( "all", 	align_headers, align_qcs, align_headers )
 	html += _parse_dup_to_html( "all", 		dup_headers, dup_qcs, dup_headers )
 	html += _parse_flagstat_to_html( "all, filtered",flagstat_nodup_headers, flagstat_nodup_qcs, flagstat_nodup_headers )
 	html += _parse_pbc_to_html( "all", 		pbc_headers, pbc_qcs, pbc_headers )
@@ -1138,7 +1141,7 @@ int get_num_rep() {
 
 		if ( get_num_rep_fastq()==2 ) {
 
-			fastqs := get_fastqs( 0, 1 )			
+			fastqs := get_fastqs( 0, 1 )
 
 			if ( !se && fastqs.size()<2 ) return 1
 		}
