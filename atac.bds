@@ -181,7 +181,7 @@ void chk_input_data() {
 				prefix += "\t(adapters : "
 
 				if ( adapters.size()==0 ) {
-					prefix += "automatically detecting with GGR_code)"
+					prefix += "automatically detecting)"
 				}
 				else {
 
@@ -949,14 +949,14 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 	wait_par( cpus )
 
 	taskName:= "ataqc "+info
-	max_java_heap 	:= number_with_metric_prefix( mem )
+	mem := get_res_mem(mem_ataqc,1);
+	max_java_heap 	:= number_with_binary_prefix( (mem==-1) ? parse_mem( mem_ataqc ) : mem )
 
 	tid := task( out<-in ) {
 
 		sys $shcmd_init
 
 		// To prevent java heap space error (Exception in thread "main" java.lang.OutOfMemoryError: Java heap space)
-		// increae -Xmx if you still have it
 		sys export _JAVA_OPTIONS="-Xms256M -Xmx$max_java_heap -XX:ParallelGCThreads=1"
 
 		sys cd $o_dir
