@@ -7,15 +7,15 @@ help == atac pipeline settings
 se 		:= false 	help Single ended data.
 trimmed_fastq 	:= false	help Skip fastq-trimming stage.
 align	 	:= false	help Align only (no MACS2 peak calling or IDR or ataqc analysis).
-subsample 	:= 0 		help # of reads to subsample replicates. Subsampled tagalign will be used for steps downstream (default: 0; no subsampling).
-nreads 		:= 25000000	help # reads to be subsampled for cross corr. analysis (default: 25000000).
+subsample_xcor	:= "25M"	help # reads to subsample for cross corr. analysis (default: 25M).
+subsample 	:= "0" 		help # reads to subsample exp. replicates. Subsampled tagalign will be used for steps downstream (default: 0; no subsampling).
 true_rep 	:= false 	help No pseudo-replicates.
 no_idr 		:= false 	help No IDR analysis on called peaks. This will change p-value threshold (0.1->0.01) in MACS2 peak calling.
 no_ataqc 	:= false 	help No ATAQC
 csem	 	:= false	help Use CSEM for alignment.
 mem_ataqc 	:= "15G"	help Max. memory for ATAQC (default: 15G).
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
-dnase_seq	:= false  	help DNase-Seq (no tn5 shifting, subsampling 50M by default for cross-corr. analysis).
+dnase_seq	:= false  	help DNase-Seq (no tn5 shifting).
 idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
 old_trimmer 	:= false 	help Use legacy trim adapters (trim_galore and trimAdapter.py).
 
@@ -36,7 +36,8 @@ include "modules/report.bds"
 
 
 input := ""
-
+nreads_subsample_xcor 	:= 25000000
+nreads_subsample 	:= 0
 
 // Important output file names are stored in global variables (usually a string map string{} with a key with replicate id, pair id and peakcaller name)
 // e.g. filt_bam{"1"} = filtered bam for replicate 1, peak_pr1{"2"} = peak file for pseudo replicate 1 of replicate 2
@@ -83,7 +84,6 @@ void init_atac() {
 	se 		= get_conf_val_bool( se,		["se"] )
 	trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
 	align		= get_conf_val_bool( align,		["align"] )
-	subsample	= get_conf_val_int( subsample, 		["subsample"] )
 	true_rep	= get_conf_val_bool( true_rep, 		["true_rep"] )
 	no_idr 		= get_conf_val_bool( no_idr, 		["no_idr"] )
 	no_ataqc 	= get_conf_val_bool( no_ataqc, 		["no_ataqc"] )
@@ -92,7 +92,8 @@ void init_atac() {
 	smooth_win	= get_conf_val( smooth_win,		["smooth_win"] )
 	dnase_seq 	= get_conf_val_bool( dnase_seq, 	["dnase_seq"] )
 	idr_thresh 	= get_conf_val( idr_thresh, 		["idr_thresh"] )
-	nreads 		= get_conf_val_int( nreads,		["nreads"] )
+	subsample_xcor 	= get_conf_val( subsample_xcor,		["subsample_xcor"] )
+	subsample	= get_conf_val( subsample, 		["subsample"] )
 	old_trimmer 	= get_conf_val_bool( old_trimmer,	["old_trimmer"] )
 	use_sambamba_markdup	= get_conf_val_bool( use_sambamba_markdup, ["use_sambamba_markdup"] )
 
@@ -107,6 +108,10 @@ void init_atac() {
 	fraglen0 = true // set fragment length as zero for cross corr. analysis
 	rm_chr_from_tag = "chrM"; // remove lines with chrM in _bam_to_tag
 
+	// parse number of reads to subsample
+	nreads_subsample_xcor 	= parse_number( subsample_xcor )
+	nreads_subsample 	= parse_number( subsample )
+
 	print_atac()
 }
 
@@ -118,8 +123,8 @@ void print_atac() {
 	print( "Fastqs are trimmed?\t\t: $trimmed_fastq\n")
 	print( "# Replicates\t\t\t: "+ get_num_rep() + "\n")
 	print( "MACS2 peak calling\t\t: " + !align + "\n")
-	print( "Subsample # lines in replicates (0 if no subsampling)\t: $subsample\n")
-	print( "Subsample # read for cross-corr. analysis \t: $nreads\n")
+	print( "# reads to subsample replicates (0 if no subsampling)\t: $nreads_subsample\n")
+	print( "# reads to subsample for cross-corr. analysis \t: $nreads_subsample_xcor\n")
 	print( "No pseudo replicates\t\t: $true_rep\n")
 	print( "No IDR analysis on peaks\t: $no_idr\n")
 	print( "No ATAQC (advanced QC report)\t: $no_ataqc\n")
@@ -128,7 +133,7 @@ void print_atac() {
 	print( "Smoothing window for MACS2\t: $smooth_win\n")
 	print( "DNase Seq\t\t\t: $dnase_seq\n")
 	print( "IDR threshold\t\t\t: $idr_thresh\n" )
-	print( "Use legacy trim adapters \t: $old_trimmer\n" )
+	print( "Use old trim adapters\t: $old_trimmer\n" )
 }
 
 void chk_input_data() {
@@ -402,8 +407,8 @@ void _atac_SE( int rep, int nth_rep ) {
 
 		string subsampled_tag
 
-		if ( subsample != 0 ) {
-			subsampled_tag = _subsample_tag( tag, subsample, aln_o_dir, info )
+		if ( nreads_subsample != 0 ) {
+			subsampled_tag = _subsample_tag( tag, nreads_subsample, aln_o_dir, info )
 			wait
 		}
 		else {
@@ -435,7 +440,7 @@ void _atac_SE( int rep, int nth_rep ) {
 	if ( !align ) {
 
 		// cross-corr. analysis
-		subsampled_tag_xcor := _subsample_tag( tag, nreads, aln_o_dir, info )
+		subsampled_tag_xcor := _subsample_tag( tag, nreads_subsample_xcor, aln_o_dir, info )
 		wait
 
 		// distribute # threads (nth) to macs2 peak calling and xcor
@@ -558,9 +563,9 @@ void _atac_PE( int rep, int nth_rep ) {
 		bedpe = _bam_to_bedpe( filt_bam_, aln_o_dir, info )
 		wait
 
-		if ( subsample!=0 ) {
+		if ( nreads_subsample!=0 ) {
 
-			subsampled_bedpe = _subsample_bedpe( bedpe, subsample, aln_o_dir, info )
+			subsampled_bedpe = _subsample_bedpe( bedpe, nreads_subsample, aln_o_dir, info )
 		}
 		else {
 			subsampled_bedpe = bedpe
@@ -623,10 +628,10 @@ void _atac_PE( int rep, int nth_rep ) {
 		string subsampled_tag_xcor
 
 		if ( bedpe == "" ) {
-			subsampled_tag_xcor = _subsample_tag_PE_xcor( tag, nreads, aln_o_dir, info )
+			subsampled_tag_xcor = _subsample_tag_PE_xcor( tag, nreads_subsample_xcor, aln_o_dir, info )
 		}
 		else {
-			subsampled_tag_xcor = _subsample_bedpe_to_tag_xcor( bedpe, nreads, aln_o_dir, info )
+			subsampled_tag_xcor = _subsample_bedpe_to_tag_xcor( bedpe, nreads_subsample_xcor, aln_o_dir, info )
 		}
 		wait
 
