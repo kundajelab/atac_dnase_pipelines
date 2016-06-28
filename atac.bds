@@ -180,7 +180,7 @@ void chk_input_data() {
 				prefix += "\t(adapters : "
 
 				if ( adapters.size()==0 ) {
-					prefix += "automatically detecting with GGR_code)"
+					prefix += "automatically detecting)"
 				}
 				else {
 
@@ -948,7 +948,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 
 	taskName:= "ataqc "+info
 	mem := get_res_mem(mem_ataqc,1);
-	max_java_heap 	:= number_with_metric_prefix( mem )
+	max_java_heap 	:= number_with_binary_prefix( (mem==-1) ? parse_mem( mem_ataqc ) : mem )
 
 	tid := task( out<-in ) {
 
