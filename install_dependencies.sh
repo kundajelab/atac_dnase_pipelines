@@ -37,7 +37,7 @@ add_to_activate
 CONTENTS=("export PICARDROOT=$CONDA_BIN")
 add_to_activate
 cd $CONDA_BIN
-ln -s ../share/picard-1.126-3/picard.jar picard.jar
+ln -s ../share/picard-1.126-4/picard.jar picard.jar
 
 #### install run_spp.R (Anshul's phantompeakqualtool)
 cd $CONDA_EXTRA
