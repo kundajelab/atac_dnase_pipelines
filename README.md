@@ -204,7 +204,11 @@ samtools: symbol lookup error: /lib/x86_64-linux-gnu/libncurses.so.5: undefined 
 
 Unload any Anaconda Python modules. Remove locally installed Anaconda Python from your `$PATH`.
 
+### Alternate Cloud-based Implementations
 
+* The <a href="https://www.encodeproject.org/pipelines/" target=_blank>Encyclopedia of DNA Elements (ENCODE) Project</a> is in the process of adopting this pipeline for uniform processing of ENCODE ATAC-seq data. The <a href="https://github.com/ENCODE-DCC" target=_blank>official ENCODE implementation</a> by the ENCODE Data Coordination Center will be an exact mirror of our pipeline on <a href="https://www.dnanexus.com/" target=_blank>the DNAnexus cloud</a> (i.e. results will be exactly reproducible). Note that using this service requires a user to pay for cloud compute time.
+
+* <a href="http://www.epinomics.co/" target=_blank>Epinomics</a> provides an independent, *free*, cloud-based pipeline implementation that adheres to the analysis protocol specifications of our pipeline. This implementation can be accessed at <a href="https://open.epigenomics.co/#/encode" target=_blank>https://open.epigenomics.co/#/encode</a>
 
 ### Contributors
 
