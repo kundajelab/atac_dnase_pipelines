@@ -13,7 +13,7 @@ true_rep 	:= false 	help No pseudo-replicates.
 no_idr 		:= false 	help No IDR analysis on called peaks. This will change p-value threshold (0.1->0.01) in MACS2 peak calling.
 no_ataqc 	:= false 	help No ATAQC
 csem	 	:= false	help Use CSEM for alignment.
-mem_ataqc 	:= "15G"	help Max. memory for ATAQC (default: 15G).
+mem_ataqc 	:= "10G"	help Max. memory for ATAQC (default: 10G).
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
 dnase_seq	:= false  	help DNase-Seq (no tn5 shifting).
 idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
@@ -95,7 +95,6 @@ void init_atac() {
 	subsample_xcor 	= get_conf_val( subsample_xcor,		["subsample_xcor"] )
 	subsample	= get_conf_val( subsample, 		["subsample"] )
 	old_trimmer 	= get_conf_val_bool( old_trimmer,	["old_trimmer"] )
-	use_sambamba_markdup	= get_conf_val_bool( use_sambamba_markdup, ["use_sambamba_markdup"] )
 
 	if ( input == "" ) { // determine input type
 
@@ -955,7 +954,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 
 	taskName:= "ataqc "+info
 	mem := get_res_mem(mem_ataqc,1);
-	max_java_heap 	:= number_with_binary_prefix( (mem==-1) ? parse_mem( mem_ataqc ) : mem )
+	max_java_heap 	:= number_with_binary_prefix( (mem==-1) ? parse_mem( mem_ataqc ) : (mem*3)/4 )
 
 	tid := task( out<-in ) {
 
@@ -991,7 +990,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 		    --peaks $peak \
 		    $param_overlap \
 		    $param_idr \
-			$param_use_sambamba
+		    $param_use_sambamba
 
 		sys $shcmd_finalize
 	}
