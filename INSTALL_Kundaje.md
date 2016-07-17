@@ -23,6 +23,10 @@ If you want to keep using your local Anaconda Python, run the following to insta
 ```
 ./install_dependencies.sh
 ```
+If you see the following error, then update your Anaconda with `conda update conda`.
+```
+Error: ERROR: placeholder '/root/miniconda3/envs/_build_placehold_placehold_placehold_placehold_placehold_p' too short in: glib-2.43.0-2
+```
 
 
 

@@ -34,6 +34,10 @@ Install software dependencies automatically. It will create two conda environmen
 ```
 $ ./install_dependencies.sh
 ```
+If you see the following error, then update your Anaconda with `conda update conda`.
+```
+Error: ERROR: placeholder '/root/miniconda3/envs/_build_placehold_placehold_placehold_placehold_placehold_p' too short in: glib-2.43.0-2
+```
 If you don't use `install_dependencies.sh`, manually replace BDS's default `bds.config` with a correct one:
 ```
 $ cp bds.config ./utils/bds_scr $HOME/.bds
