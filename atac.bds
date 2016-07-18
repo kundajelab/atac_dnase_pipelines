@@ -36,8 +36,6 @@ include "modules/report.bds"
 
 
 input := ""
-nreads_subsample_xcor 	:= 25000000
-nreads_subsample 	:= 0
 
 // Important output file names are stored in global variables (usually a string map string{} with a key with replicate id, pair id and peakcaller name)
 // e.g. filt_bam{"1"} = filtered bam for replicate 1, peak_pr1{"2"} = peak file for pseudo replicate 1 of replicate 2
@@ -85,8 +83,6 @@ void init_atac() {
 
 	detect_input()
 
-	parse_nreads_subsample()
-
 	init_etc_atac()
 
 	print_atac()
@@ -118,12 +114,6 @@ void detect_input() {
 	if ( get_fastq(0,1,1) != "" ) 	input = "fastq"
 }
 
-void parse_nreads_subsample() { // parse number of reads to subsample
-	
-	nreads_subsample_xcor 	= parse_number( subsample_xcor )
-	nreads_subsample 	= parse_number( subsample )
-}
-
 void init_etc_atac() {
 
 	fraglen0 = true // set fragment length explicitly as zero for cross corr. analysis
@@ -138,8 +128,8 @@ void print_atac() {
 	print( "Fastqs are trimmed?\t\t: $trimmed_fastq\n")
 	print( "# Replicates\t\t\t: "+ get_num_rep() + "\n")
 	print( "MACS2 peak calling\t\t: " + !align + "\n")
-	print( "# reads to subsample replicates (0 if no subsampling)\t: $nreads_subsample\n")
-	print( "# reads to subsample for cross-corr. analysis \t: $nreads_subsample_xcor\n")
+	print( "# reads to subsample replicates (0 if no subsampling)\t: "+parse_number( subsample )+"\n")
+	print( "# reads to subsample for cross-corr. analysis \t: " +parse_number( subsample_xcor)+"\n")
 	print( "No pseudo replicates\t\t: $true_rep\n")
 	print( "No IDR analysis on peaks\t: $no_idr\n")
 	print( "No ATAQC (advanced QC report)\t: $no_ataqc\n")
@@ -422,8 +412,8 @@ void _atac_SE( int rep, int nth_rep ) {
 
 		string subsampled_tag
 
-		if ( nreads_subsample != 0 ) {
-			subsampled_tag = _subsample_tag( tag, nreads_subsample, aln_o_dir, info )
+		if ( parse_number( subsample ) != 0 ) {
+			subsampled_tag = _subsample_tag( tag, parse_number( subsample ), aln_o_dir, info )
 			wait
 		}
 		else {
@@ -455,7 +445,7 @@ void _atac_SE( int rep, int nth_rep ) {
 	if ( !align ) {
 
 		// cross-corr. analysis
-		subsampled_tag_xcor := _subsample_tag( tag, nreads_subsample_xcor, aln_o_dir, info )
+		subsampled_tag_xcor := _subsample_tag( tag, parse_number( subsample_xcor ), aln_o_dir, info )
 		wait
 
 		// distribute # threads (nth) to macs2 peak calling and xcor
@@ -578,9 +568,9 @@ void _atac_PE( int rep, int nth_rep ) {
 		bedpe = _bam_to_bedpe( filt_bam_, aln_o_dir, info )
 		wait
 
-		if ( nreads_subsample!=0 ) {
+		if ( parse_number( subsample )!=0 ) {
 
-			subsampled_bedpe = _subsample_bedpe( bedpe, nreads_subsample, aln_o_dir, info )
+			subsampled_bedpe = _subsample_bedpe( bedpe, parse_number( subsample ), aln_o_dir, info )
 		}
 		else {
 			subsampled_bedpe = bedpe
@@ -643,10 +633,10 @@ void _atac_PE( int rep, int nth_rep ) {
 		string subsampled_tag_xcor
 
 		if ( bedpe == "" ) {
-			subsampled_tag_xcor = _subsample_tag_PE_xcor( tag, nreads_subsample_xcor, aln_o_dir, info )
+			subsampled_tag_xcor = _subsample_tag_PE_xcor( tag, parse_number( subsample_xcor ), aln_o_dir, info )
 		}
 		else {
-			subsampled_tag_xcor = _subsample_bedpe_to_tag_xcor( bedpe, nreads_subsample_xcor, aln_o_dir, info )
+			subsampled_tag_xcor = _subsample_bedpe_to_tag_xcor( bedpe, parse_number( subsample_xcor ), aln_o_dir, info )
 		}
 		wait
 
