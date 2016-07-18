@@ -81,6 +81,19 @@ void main() { // atac pipeline starts here
 
 void init_atac() {
 
+	read_conf_atac()
+
+	detect_input()
+
+	parse_nreads_subsample()
+
+	init_etc_atac()
+
+	print_atac()
+}
+
+void read_conf_atac() {
+
 	se 		= get_conf_val_bool( se,		["se"] )
 	trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
 	align		= get_conf_val_bool( align,		["align"] )
@@ -95,23 +108,26 @@ void init_atac() {
 	subsample_xcor 	= get_conf_val( subsample_xcor,		["subsample_xcor"] )
 	subsample	= get_conf_val( subsample, 		["subsample"] )
 	old_trimmer 	= get_conf_val_bool( old_trimmer,	["old_trimmer"] )
+}
 
-	if ( input == "" ) { // determine input type
+void detect_input() {
 
-		if ( get_tag(0,1) != "" ) 	input = "tag"
-		if ( get_filt_bam(0,1) != "" ) 	input = "filt_bam"
-		if ( get_bam(0,1) != "" ) 	input = "bam"
-		if ( get_fastq(0,1,1) != "" ) 	input = "fastq"
-	}
+	if ( get_tag(0,1) != "" ) 	input = "tag"
+	if ( get_filt_bam(0,1) != "" ) 	input = "filt_bam"
+	if ( get_bam(0,1) != "" ) 	input = "bam"
+	if ( get_fastq(0,1,1) != "" ) 	input = "fastq"
+}
 
-	fraglen0 = true // set fragment length as zero for cross corr. analysis
-	rm_chr_from_tag = "chrM"; // remove lines with chrM in _bam_to_tag
-
-	// parse number of reads to subsample
+void parse_nreads_subsample() { // parse number of reads to subsample
+	
 	nreads_subsample_xcor 	= parse_number( subsample_xcor )
 	nreads_subsample 	= parse_number( subsample )
+}
 
-	print_atac()
+void init_etc_atac() {
+
+	fraglen0 = true // set fragment length explicitly as zero for cross corr. analysis
+	rm_chr_from_tag = "chrM"; // remove lines with chrM in _bam_to_tag
 }
 
 void print_atac() {
