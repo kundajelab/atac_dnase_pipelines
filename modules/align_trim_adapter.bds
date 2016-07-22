@@ -100,9 +100,9 @@ string _trim_adapters( string fastq, string adapter, string o_dir, string label,
 	register_par( tid, cpus )
 
 	_add_to_graphviz( ["fastq$graph_id"+"_($label)"], in, \
-			["trimmed_fastq$graph_id"+"_($label)"] , [out], \
+			["trimmed_fastq$graph_id"+"_($label)"] , out, \
 			"cutadapt\\n($label)", grp_color_trim_adapter )
-	_add_to_filetable( ["L1_align/$label/trimmed_fastq$graph_id"], [out] )
+	_add_to_filetable( ["L1_align/$label/trimmed_fastq$graph_id"], out )
 
 	return out
 }
