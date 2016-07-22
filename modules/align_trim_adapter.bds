@@ -76,9 +76,10 @@ string _trim_adapters( string fastq, string adapter, string o_dir, string label,
 
 	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	p_gz	:= "$prefix"+".trim.fastq.gz"
+	log		:= "$prefix.trimadapters.log"
 
 	in 	:= [ fastq ]
-	out 	:= p_gz
+	out 	:= [ p_gz, log ]
 
 	param_min_trim_len := min_trim_len==0 ? "" : "-m $min_trim_len"
 
@@ -91,7 +92,7 @@ string _trim_adapters( string fastq, string adapter, string o_dir, string label,
 
 		sys $shcmd_init
 
-		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter $fastq | pigz -p $nth_trim > $p_gz
+		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter $fastq 2> $log | pigz -p $nth_trim > $p_gz
 
 		sys $shcmd_finalize
 	}
@@ -114,9 +115,10 @@ string[] _trim_adapters_PE( string fastq1, string fastq2, string adapter1, strin
 	p2 	:= "$prefix2.trim.fastq"
 	p1_gz	:= "$p1.gz"
 	p2_gz 	:= "$p2.gz"
+	log := "$prefix1.trimadapters.log"
 
 	in 	:= [ fastq1, fastq2 ]
-	out 	:= [ p1_gz, p2_gz ]
+	out 	:= [ p1_gz, p2_gz, log ]
 
 	param_min_trim_len := min_trim_len==0 ? "" : "-m $min_trim_len"
 
@@ -129,7 +131,7 @@ string[] _trim_adapters_PE( string fastq1, string fastq2, string adapter1, strin
 
 		sys $shcmd_init
 
-		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter1 -A $adapter2 -o $p1 -p $p2 $fastq1 $fastq2
+		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter1 -A $adapter2 -o $p1 -p $p2 $fastq1 $fastq2 &> $log
 
 		sys pigz -p $nth_trim -f $p1
 		sys pigz -p $nth_trim -f $p2
