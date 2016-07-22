@@ -13,6 +13,7 @@ help         Paired end : For replicate '-adapter[REP_ID]_[PAIR_ID]'
 string[] get_adapters( int ctl, int rep ) {  // if paired-end return [PE1, PE2], elseif single-end else return [PE1], else []	
 
 	string[] ret
+
 	for ( int pe=1; pe<=2; pe++ ) {
 		str := get_adapter( ctl, rep, pe )
 		if ( str.length() > 0 ) { // if not null, append
@@ -21,6 +22,11 @@ string[] get_adapters( int ctl, int rep ) {  // if paired-end return [PE1, PE2],
 	}
 
 	return ret
+}
+
+string[] get_adapters( int rep ) {
+
+	return get_adapters( 0, rep )
 }
 
 string get_adapter( int ctl, int rep, int p ) {
@@ -33,7 +39,6 @@ string get_adapter( int ctl, int rep, int p ) {
 
 	key_wo_p3 := ( ctl > 0 ? "ctl_adapter" : "adapter" )
 	key3 := key_wo_p3 + "_" + p
-
 
 	if ( (p==1) && cmd_line_arg_has_key( key_wo_p ) ) {
 		return get_cmd_line_arg_val( key_wo_p )
@@ -74,12 +79,22 @@ string get_adapter( int ctl, int rep, int p ) {
 
 	return ""
 }
+/*
+string get_adapter( int rep, int p ) {
 
-int get_num_rep_adapter() {
+	return get_adapter( 0, rep, p )
+}
+*/
+int get_num_adapter( int ctl ) {
 
 	rep := 1
 
-	while( get_adapters( 0, rep ).size() > 0 ) rep++
+	while( get_adapters( ctl, rep ).size() > 0 ) rep++
 
 	return rep-1
+}
+
+int get_num_adapter() {
+
+	return get_num_adapter( 0 )
 }

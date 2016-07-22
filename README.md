@@ -38,6 +38,10 @@ If your fastqs are already trimmed, add the following to the command line to ski
 ```
 -se 
 ```
+You can also individually specify endedness for each replicate.
+```
+-se[REPLICATE_ID] 	# for exp. replicates, 
+```
 For ATAQC, define the following parameters. See help (`$ bds atac.bds`) for description of all parameters. Data files for running ataqc (hg19 and mm9) can be found here: http://mitra.stanford.edu/kundaje/dskim89/public/ataqc/. Even though you don't use a species file `-species_file`, you need to specify a species name for ATAQC. You will get an ATAQC report per replicate. ATAQC is avaible only when you start a pipeline with FASTQ inputs.
 ```
 -species [hg19, mm9 or ...] -tss_enrich [] -ref_fa [] -blacklist [] -dnase [] -prom [] -enh [] -reg2map [] -roadmap_meta []
@@ -76,6 +80,10 @@ For tagaligns (non-tn5-shifted):
 ```
 -tag1 [TAGALIGN_REP1] -tag2 [TAGALIGN_REP2] ...
 ```
+You can also mix up any data types.
+```
+-bam1 [RAW_BAM_REP1] -tag2 [TAGALIGN_REP2] ...
+```
 To subsample beds (tagaligns) add the following to the command line. This is different from subsampling for cross-corr. analysis. Peaks will be called with subsampled tagaligns.
 ```
 -subsample [NO_READS_TO_SUBSAMPLE]
@@ -88,7 +96,8 @@ To disable pseudo replicate generation, add the following. By default, peak call
 ```
 -true_rep
 ```
-IDR analysis is included in the pipeline by default. For better IDR QC, define blacklist idr (for `hg19`, http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz). For other genomes, <a href="https://sites.google.com/site/anshulkundaje/projects/blacklists">https://sites.google.com/site/anshulkundaje/projects/blacklists</a>
+IDR analysis is included in the pipeline by default. If there are more than two replicates, IDR will be done for every pair of replicates.
+For better IDR QC, define blacklist idr (for `hg19`, http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz). For other genomes, <a href="https://sites.google.com/site/anshulkundaje/projects/blacklists">https://sites.google.com/site/anshulkundaje/projects/blacklists</a>.
 ```
 -blacklist [BLACKLIST_BED]
 ```

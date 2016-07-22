@@ -4,7 +4,6 @@
 
 help == atac pipeline settings
 
-se 		:= false 	help Single ended data.
 trimmed_fastq 	:= false	help Skip fastq-trimming stage.
 align	 	:= false	help Align only (no MACS2 peak calling or IDR or ataqc analysis).
 subsample_xcor	:= "25M"	help # reads to subsample for cross corr. analysis (default: 25M).
@@ -21,22 +20,22 @@ old_trimmer 	:= false 	help Use legacy trim adapters (trim_galore and trimAdapte
 
 help() // show help contexts
 
+include "modules/input.bds"
 include "modules/input_adapter.bds"
-include "modules/input_fastq.bds"
-include "modules/input_bam.bds"
-include "modules/input_tagalign.bds"
+
 include "modules/align_bowtie2.bds"
 include "modules/align_trim_adapter.bds"
+
 include "modules/postalign_bam.bds"
 include "modules/postalign_bed.bds"
+
 include "modules/callpeak_macs2.bds"
 include "modules/callpeak_naive_overlap.bds"
 include "modules/callpeak_etc.bds"
 include "modules/idr.bds"
+
 include "modules/report.bds"
 
-
-input := ""
 
 // Important output file names are stored in global variables (usually a string map string{} with a key with replicate id, pair id and peakcaller name)
 // e.g. filt_bam{"1"} = filtered bam for replicate 1, peak_pr1{"2"} = peak file for pseudo replicate 1 of replicate 2
@@ -65,7 +64,11 @@ void main() { // atac pipeline starts here
 
 	init_atac()
 
-	chk_input_data()
+	chk_param() // check if parameters are valid
+
+	chk_adapters()
+
+	chk_input( true_rep )
 
 	atac()
 
@@ -82,8 +85,6 @@ void init_atac() {
 
 	read_conf_atac()
 
-	detect_input()
-
 	init_etc_atac()
 
 	print_atac()
@@ -91,7 +92,6 @@ void init_atac() {
 
 void read_conf_atac() {
 
-	se 		= get_conf_val_bool( se,		["se"] )
 	trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
 	align		= get_conf_val_bool( align,		["align"] )
 	true_rep	= get_conf_val_bool( true_rep, 		["true_rep"] )
@@ -107,28 +107,18 @@ void read_conf_atac() {
 	old_trimmer 	= get_conf_val_bool( old_trimmer,	["old_trimmer"] )
 }
 
-void detect_input() {
-
-	if ( get_tag(0,1) != "" ) 	input = "tag"
-	if ( get_filt_bam(0,1) != "" ) 	input = "filt_bam"
-	if ( get_bam(0,1) != "" ) 	input = "bam"
-	if ( get_fastq(0,1,1) != "" ) 	input = "fastq"
-}
-
 void init_etc_atac() {
 
-	fraglen0 = true // set fragment length explicitly as zero for cross corr. analysis
+	default_is_pe 	= true
+	fraglen0 	= true // set fragment length explicitly as zero for cross corr. analysis
 	rm_chr_from_tag = "chrM"; // remove lines with chrM in _bam_to_tag
 }
 
 void print_atac() {
 
 	print( "\n\n== atac pipeline settings\n")
-	print( "Single ended data set?\t\t: $se\n")
-	print( "Input data type\t\t\t: $input\n")
 	print( "Fastqs are trimmed?\t\t: $trimmed_fastq\n")
-	print( "# Replicates\t\t\t: "+ get_num_rep() + "\n")
-	print( "MACS2 peak calling\t\t: " + !align + "\n")
+	print( "Align only\t\t\t: " + align + "\n")
 	print( "# reads to subsample replicates (0 if no subsampling)\t: "+parse_number( subsample )+"\n")
 	print( "# reads to subsample for cross-corr. analysis \t: " +parse_number( subsample_xcor)+"\n")
 	print( "No pseudo replicates\t\t: $true_rep\n")
@@ -142,118 +132,72 @@ void print_atac() {
 	print( "Use old trim adapters\t: $old_trimmer\n" )
 }
 
-void chk_input_data() {
+void chk_param() {
 
-	print( "\n== checking atac inputs (data type = $input) ...\n" );
+	print( "\n== checking atac parameters ...\n" );
 
-	if ( is_input_tag() && !se && subsample > 0 ) {
-		print("Warning: Cannot subsample paried end tagaligns. Disabling subsampling...\n")
+	if ( has_input_fastq() ) chk_align_bwt2()
+	if ( !align ) 		chk_callpeak_macs2()
+	if ( !no_idr ) 		chk_idr()
+	if ( !no_ataqc ) 	chk_ataqc()
+
+	if ( has_pe_input_tag() && subsample > 0 ) {
+		print("Warning: Cannot subsample paired end tagaligns. Disabling subsampling...\n")
 		subsample = 0
 	}
 
-	if ( !is_input_fastq() && !no_ataqc ) {
+	if ( !has_input_fastq() && !no_ataqc ) {
 		print("Warning: ATAQC is available for fastq inputs only. Disabling ATAQC...\n")
 		no_ataqc = true
 	}
 
-	if ( !se && csem ) {
-		error("CSEM (-csem) is not available for paired end data set!\n")
+	if ( has_pe_input_fastq() && csem ) {
+		error("CSEM (-csem) is not available for paired end fastqs!\n")
 	}
 
 	if ( get_num_rep() > 2 && !no_idr ) {
 		print("Warning: IDR is available for one replicate or two replicates only. Disabling IDR...\n")
 		no_idr 	= true
 	}
+}
 
-	if ( is_input_fastq() ) chk_align_bwt2()
-	if ( !align ) 		chk_callpeak_macs2()
-	if ( !no_idr ) 		chk_idr()
-	if ( !no_ataqc ) 	chk_ataqc()
+void chk_adapters() {
 
-	print("\n")
+	print( "\n== checking adapters to be trimmed ...\n" );
 
-	// check data files
-	suffix := se ? " (SE)" : " (PE)"
-
-	string[] data_all
-
+	// check adapters
 	for ( int rep=1; rep <= get_num_rep(); rep++) {
 
-		string[] data
-
 		string prefix
-
-		if ( is_input_fastq() ) {
-			prefix = "Rep$rep fastq" + suffix
-			fastqs := get_fastqs( rep )
+		if ( is_input_fastq( rep ) ) {
+			//fastqs := get_fastqs( rep )
 
 			if ( !trimmed_fastq && !old_trimmer ) { // check adapters
 				adapters := get_adapters( rep )
-				prefix += "\t(adapters : "
+				
+				prefix += "Replicate $rep adapters : "
 
 				if ( adapters.size()==0 ) {
-					prefix += "automatically detecting)"
+					prefix += "automatically detected"
 				}
 				else {
-
 					for ( int i=0; i<adapters.size(); i++) {
 						prefix = prefix + adapters[i] + ", "
 						if ( adapters[i] == "" ) {
 							print("$prefix :\n")
-							error("Adapter sequence (-adapter, -adapter[REP_ID] for SE or -adapter[REP_ID]_[PAIR_ID] for PE) must be defined for adapter trimmer!\n")
+							error("Adapter sequence (-adapter, -adapter[REP_ID] for SE or "\
+								+"-adapter[REP_ID]_[PAIR_ID] for PE) must be defined for adapter trimmer!\n")
 						}
 					}
-					prefix += ")"
 				}
+				
 			}
 
-			if ( !se && fastqs.size() < 2 ) error("A pair of fastqs are needed for replicate $rep (if it's single-ended add '-se')\n")
-
-			if ( fastqs.size()==0 ) {
-				data.push( "" )
-			}
-			else {
-				for ( string fastq : fastqs ) data.push( fastq )
-			}
-
-			if ( fastqs.size()==0 ) error("No fastq defined for replicate $rep\n")
+			//if ( !is_se( rep ) && fastqs.size() < 2 ) \
+			//	error("A pair of fastqs are needed for replicate $rep (if it's single-ended add '-se')\n")
 		}
-		else if ( is_input_bam() ) {
-			prefix = "Rep$rep bam" + suffix
-			data.push( get_bam( 0, rep ) )
-		}
-		else if ( is_input_filt_bam() ) {
-			prefix = "Rep$rep filt_bam" + suffix
-			data.push( get_filt_bam( 0, rep ) )
-		}
-		else if ( is_input_tag() ) {
-			prefix = "Rep$rep tagalign" + suffix
-			data.push( get_tag( 0, rep ) )
-		}
-		else {
-			error("Unspported input type (-input)!")
-		}
-
-		print("$prefix :\n")
-
-		for ( string s : data ) {
-			print("\t$s\n")
-			if ( (s != "") && !path_exists(s) ) error("\t\tFile not found!\n")
-		}
-
-		if ( data[0] == "" ) {
-			error( "\t$prefix missing!\n")
-		}
-
-		// check any duplicate input filename
-		for ( string s : data ) {
-			if ( is_in_array( get_basename( s ), get_basename( data_all ) ) ) \
-				error( "\t$prefix has duplicate filename!\n")
-		}
-
-		data_all = concat( data_all, data )
+		print("$prefix\n")
 	}
-
 }
 
 void chk_ataqc() {
@@ -282,24 +226,15 @@ void atac() {
 		// determine # threads for each app related to alignment
 
 		// get file size in bytes
-		if ( is_input_fastq() ) {
+		if ( is_input_fastq( rep ) ) {
 
 			fastqs := get_fastqs( rep )
 			filesize{rep} = (fastqs[0]).size()
-			if ( fastqs.size() > 1) filesize{rep} += (fastqs[1]).size()
+			if ( fastqs.size() > 1) filesize{rep} += (fastqs[1]).size()*3 // multiply 3 to allocate more cpus for align
 		}
-		else if ( is_input_bam() ) {
-
-			filesize{rep} = (get_bam( 0, rep )).size()
-		}
-		else if ( is_input_filt_bam() ) {
-
-			filesize{rep} = (get_filt_bam( 0, rep )).size()
-		}
-		else if ( is_input_tag() ) {
-
-			filesize{rep} = (get_tag( 0, rep )).size()
-		}
+		else if ( is_input_bam( rep ) ) 	filesize{rep} = (get_bam( 0, rep )).size()
+		else if ( is_input_filt_bam( rep ) ) 	filesize{rep} = (get_filt_bam( 0, rep )).size()
+		else if ( is_input_tag( rep ) ) 	filesize{rep} = (get_tag( 0, rep )).size()*10
 	}
 
 	//// distribute # threads for each replicate/control
@@ -318,8 +253,8 @@ void atac() {
 
 void _atac( int rep, int nth_rep ) {
 
-	if ( se ) 	_atac_SE( rep, nth_rep )
-	else 		_atac_PE( rep, nth_rep )
+	if ( is_se( rep ) ) 	_atac_SE( rep, nth_rep )
+	else 				_atac_PE( rep, nth_rep )
 
 	if ( !no_par ) monitor_par()
 }
@@ -333,7 +268,7 @@ void _atac_SE( int rep, int nth_rep ) {
 
 	string bam_
 
-	if ( is_input_fastq() ) {
+	if ( is_input_fastq( rep ) ) {
 
 		fastqs := get_fastqs( rep )
 
@@ -379,9 +314,9 @@ void _atac_SE( int rep, int nth_rep ) {
 
 	string filt_bam_
 
-	if ( is_input_fastq() || is_input_bam() ) {
+	if ( is_input_fastq( rep ) || is_input_bam( rep ) ) {
 
-		if ( is_input_bam() ) {
+		if ( is_input_bam( rep ) ) {
 			bam_ = get_bam( 0, rep )
 			bam{rep} = bam_
 		}
@@ -394,9 +329,9 @@ void _atac_SE( int rep, int nth_rep ) {
 
 	string tag
 
-	if ( is_input_fastq() || is_input_bam() || is_input_filt_bam() ) {
+	if ( is_input_fastq( rep ) || is_input_bam( rep ) || is_input_filt_bam( rep ) ) {
 
-		if ( is_input_filt_bam() ) {
+		if ( is_input_filt_bam( rep ) ) {
 			filt_bam_ = get_filt_bam( 0, rep )
 			filt_bam{rep} = filt_bam_
 		}
@@ -407,9 +342,9 @@ void _atac_SE( int rep, int nth_rep ) {
 
 	string final_tag_, final_tag_pr1_, final_tag_pr2_
 
-	if ( is_input_fastq() || is_input_bam() || is_input_filt_bam() || is_input_tag() ) {
+	if ( is_input_fastq( rep ) || is_input_bam( rep ) || is_input_filt_bam( rep ) || is_input_tag( rep ) ) {
 
-		if ( is_input_tag() ) tag = get_tag( 0, rep )
+		if ( is_input_tag( rep ) ) tag = get_tag( 0, rep )
 
 		string subsampled_tag
 
@@ -499,7 +434,7 @@ void _atac_PE( int rep, int nth_rep ) {
 
 	string bam_
 
-	if ( is_input_fastq() ) {
+	if ( is_input_fastq( rep ) ) {
 
 		fastqs := get_fastqs( rep )
 
@@ -544,9 +479,9 @@ void _atac_PE( int rep, int nth_rep ) {
 
 	string filt_bam_
 
-	if ( is_input_fastq() || is_input_bam() ) {
+	if ( is_input_fastq( rep ) || is_input_bam( rep ) ) {
 
-		if ( is_input_bam() ) {
+		if ( is_input_bam( rep ) ) {
 			bam_ = get_bam( 0, rep )
 			bam{rep} = bam_
 		}
@@ -559,9 +494,9 @@ void _atac_PE( int rep, int nth_rep ) {
 
 	string bedpe, subsampled_bedpe, tag
 
-	if ( is_input_fastq() || is_input_bam() || is_input_filt_bam() ) {
+	if ( is_input_fastq( rep ) || is_input_bam( rep ) || is_input_filt_bam( rep ) ) {
 
-		if ( is_input_filt_bam() ) {
+		if ( is_input_filt_bam( rep ) ) {
 			filt_bam_ = get_filt_bam( 0, rep )
 			filt_bam{rep} = filt_bam_
 		}
@@ -584,9 +519,9 @@ void _atac_PE( int rep, int nth_rep ) {
 
 	string final_tag_, final_tag_pr1_, final_tag_pr2_
 
-	if ( is_input_fastq() || is_input_bam() || is_input_filt_bam() || is_input_tag() ) {
+	if ( is_input_fastq( rep ) || is_input_bam( rep ) || is_input_filt_bam( rep ) || is_input_tag( rep ) ) {
 
-		if ( is_input_tag() ) tag = get_tag( 0, rep )
+		if ( is_input_tag( rep ) ) tag = get_tag( 0, rep )
 
 		string aln_pr1_o_dir, aln_pr2_o_dir
 		string tag_pr1, tag_pr2
@@ -596,7 +531,7 @@ void _atac_PE( int rep, int nth_rep ) {
 			aln_pr1_o_dir = mkdir( "$out_dir/align/pseudo_reps/$info/pr1" )
 			aln_pr2_o_dir = mkdir( "$out_dir/align/pseudo_reps/$info/pr2" )
 
-			if ( is_input_tag() ) {
+			if ( is_input_tag( rep ) ) {
 				( tag_pr1, tag_pr2 ) = _spr_tag_PE( tag, aln_pr1_o_dir, aln_pr2_o_dir, info )
 			}
 			else {
@@ -921,7 +856,7 @@ void _ataqc( int rep ) {
 			graph_in_idr = "idr_peak_(opt)"
 		}
 
-		if ( se ) {
+		if ( is_se( rep ) ) {
 
 			_ataqc( fastq{rep}, "", bam{rep}, align_log{rep}, pbc_qc{rep}, \
 				dup_qc{rep}, filt_bam{rep}, final_tag{rep}, pval_bigwig_001{rep}, peak_001{rep}, \
@@ -1126,63 +1061,13 @@ void help() {
 	}
 }
 
-bool is_input_fastq() {
-
-	return input.toLower() == "fastq"
-}
-
-bool is_input_bam() {
-
-	return input.toLower() == "bam"
-}
-
-bool is_input_filt_bam() {
-
-	return input.toLower() == "filt_bam"
-}
-
-bool is_input_tag() {
-
-	return input.toLower() == "tag"
-}
-
-int get_num_rep() {
-
-	if ( is_input_fastq() ) {
-
-		if ( get_num_rep_fastq()==2 ) {
-
-			fastqs := get_fastqs( 0, 1 )
-
-			if ( !se && fastqs.size()<2 ) return 1
-		}
-
-		return get_num_rep_fastq()
-	}
-	else if ( is_input_bam() )  	return get_num_rep_bam()
-	else if ( is_input_filt_bam() ) return get_num_rep_filt_bam()
-	else if ( is_input_tag() ) 	return get_num_rep_tag()
-
-	return 0
-}
-
-string[] get_fastqs( int rep ) {
-
-	fastqs := get_fastqs( 0, rep )
-
-	// correct if user skipped replicate id like (-fastq[PAIR]) instead of (-fastq[REP]_[PAIR])
-	if ( !se && (get_num_rep()==1) && (fastqs.size()<2) && (get_fastq( 0, 2, 1 )!="") ) \
-		fastqs.add( get_fastq( 0, 2, 1 ) )
-
-	return fastqs
-}
-
-string[] get_adapters( int rep ) {
+/*
+// correct if user skipped replicate id like (-adapter[PAIR]) instead of (-adapter[REP]_[PAIR])
+string[] get_adapters_c( int rep ) {
 
 	adapters := get_adapters( 0, rep )
 
-	// correct if user skipped replicate id like (-adapter[PAIR]) instead of (-adapter[REP]_[PAIR])
-	if ( !se && (get_num_rep()==1) && (adapters.size()<2) && (get_adapter( 0, 2, 1 )!="") ) \
+	if ( is_pe( rep ) && (get_num_rep()==1) && (adapters.size()<2) && (get_adapter( 0, 2, 1 )!="") ) \
 		adapters.add( get_adapter( 0, 2, 1 ) )
 
 	if ( adapters.size() == 0 ) adapters = get_adapters( 0, 1 )
@@ -1193,3 +1078,4 @@ string[] get_adapters( int rep ) {
 
 	return adapters
 }
+*/
