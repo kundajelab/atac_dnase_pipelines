@@ -117,19 +117,19 @@ void init_etc_atac() {
 void print_atac() {
 
 	print( "\n\n== atac pipeline settings\n")
-	print( "Fastqs are trimmed?\t\t: $trimmed_fastq\n")
-	print( "Align only\t\t\t: " + align + "\n")
+	print( "Fastqs are trimmed?\t\t\t: $trimmed_fastq\n")
+	print( "Align only\t\t\t\t: " + align + "\n")
 	print( "# reads to subsample replicates (0 if no subsampling)\t: "+parse_number( subsample )+"\n")
 	print( "# reads to subsample for cross-corr. analysis \t: " +parse_number( subsample_xcor)+"\n")
-	print( "No pseudo replicates\t\t: $true_rep\n")
-	print( "No IDR analysis on peaks\t: $no_idr\n")
-	print( "No ATAQC (advanced QC report)\t: $no_ataqc\n")
-	print( "Use CSEM for alignment\t\t: $csem\n")
-	print( "Max. memory for ATAQC\t\t: $mem_ataqc\n")
-	print( "Smoothing window for MACS2\t: $smooth_win\n")
-	print( "DNase Seq\t\t\t: $dnase_seq\n")
-	print( "IDR threshold\t\t\t: $idr_thresh\n" )
-	print( "Use old trim adapters\t: $old_trimmer\n" )
+	print( "No pseudo replicates\t\t\t: $true_rep\n")
+	print( "No IDR analysis on peaks\t\t: $no_idr\n")
+	print( "No ATAQC (advanced QC report)\t\t: $no_ataqc\n")
+	print( "Use CSEM for alignment\t\t\t: $csem\n")
+	print( "Max. memory for ATAQC\t\t\t: $mem_ataqc\n")
+	print( "Smoothing window for MACS2\t\t: $smooth_win\n")
+	print( "DNase Seq\t\t\t\t: $dnase_seq\n")
+	print( "IDR threshold\t\t\t\t: $idr_thresh\n" )
+	print( "Use old trim adapters\t\t\t: $old_trimmer\n" )
 }
 
 void chk_param() {

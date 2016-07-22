@@ -20,8 +20,8 @@ void init_callpeak_macs2() {
 	mem_macs2 		= get_conf_val( mem_macs2, 		["mem_macs2"] )
 
 	print("\n\n== callpeak macs2 settings\n")
-	print( "Walltime (macs2)\t\t: $wt_macs2\n")
-	print( "Max. memory (macs2)\t\t: $mem_macs2\n")
+	print( "Walltime (macs2)\t\t\t: $wt_macs2\n")
+	print( "Max. memory (macs2)\t\t\t: $mem_macs2\n")
 }
 
 void chk_callpeak_macs2() {
