@@ -68,7 +68,7 @@ void main() { // atac pipeline starts here
 
 	chk_adapters()
 
-	chk_input( true_rep )
+	chk_input( true_rep, false )
 
 	atac()
 
