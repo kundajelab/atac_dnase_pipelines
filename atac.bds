@@ -155,10 +155,10 @@ void chk_param() {
 		error("CSEM (-csem) is not available for paired end fastqs!\n")
 	}
 
-	if ( get_num_rep() > 2 && !no_idr ) {
-		print("Warning: IDR is available for one replicate or two replicates only. Disabling IDR...\n")
-		no_idr 	= true
-	}
+	//if ( get_num_rep() > 2 && !no_idr ) {
+	//	print("Warning: IDR is available for one replicate or two replicates only. Disabling IDR...\n")
+	//	no_idr 	= true
+	//}
 }
 
 void chk_adapters() {
