@@ -8,7 +8,7 @@ ATAC Seq Pipeline
 
 <a href="https://github.com/kundajelab/bds_atac/blob/master/INSTALL_Kundaje.md">Kundaje lab</a>
 
-<a href="https://github.com/kundajelab/bds_atac/blob/master/INSTALL_SCG.md">SCG3/4</a>
+<a href="https://github.com/kundajelab/bds_atac/blob/master/INSTALL_SCG_Sherlock.md">SCG3/4 and Stanford Sherlock clusters</a>
 
 
 ### Usage
