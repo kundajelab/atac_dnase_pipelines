@@ -8,7 +8,7 @@ include "report.bds"
 help == callpeak macs2 settings (requirements: -chrsz -gensz)
 
 wt_macs2		:= "23h"	help Walltime for MACS2 (default: 23h, 23:00:00).
-mem_macs2		:= "16G" 	help Max. memory for MACS2 (default: 16G).
+mem_macs2		:= "10G" 	help Max. memory for MACS2 (default: 10G).
 
 
 init_callpeak_macs2()

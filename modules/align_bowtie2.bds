@@ -9,7 +9,7 @@ include "report.bds"
 help == align bowtie2 settings (requirements: -bwt2_idx)
 
 wt_bwt2		:= "23h"		help Walltime for bowtie2 (default: 23h, 23:00:00).
-mem_bwt2	:= "24G"	 	help Max. memory for bowtie2 (default: 24G).
+mem_bwt2	:= "12G"	 	help Max. memory for bowtie2 (default: 12G).
 
 init_align_bwt2()
 
