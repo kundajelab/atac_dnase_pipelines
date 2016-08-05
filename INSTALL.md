@@ -2,10 +2,10 @@
 
 Install java (jdk >= 1.7 or jre >= 1.7) and the latest git on your system. For Debian/Ubuntu based Linux, `$ sudo apt-get install git openjdk-8-jre`. For Fedora/Red-Hat based Linux,`$ sudo yum install git java-1.8.0-openjdk`. If you don't have super-user privileges on your system, locally install them and add them to `$PATH`.
 
-Install Anaconda Python3 (or Miniconda3) on your system. If you already have it, skip this. Get the latest Miniconda3 installer at <a href="http://conda.pydata.org/miniconda.html" target=_blank>http://conda.pydata.org/miniconda.html</a> and install it. The following command is for Anaconda Python3 on 64bit Linux system.
+Install Anaconda Python3 (or Miniconda3) on your system. If you already have it, skip this. Get the Miniconda3 installer (4.0.5) at <a href="https://repo.continuum.io/miniconda/Miniconda3-4.0.5-Linux-x86_64.sh" target=_blank>https://repo.continuum.io/miniconda/Miniconda3-4.0.5-Linux-x86_64.sh</a> and install it.
 ```
-$ wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
-$ bash Miniconda3-latest-Linux-x86_64.sh
+$ wget https://repo.continuum.io/miniconda/Miniconda3-4.0.5-Linux-x86_64.sh
+$ bash Miniconda3-4.0.5-Linux-x86_64.sh
 ```
 Choose `yes` for the final question. If you choose `no`, you need to manually add Miniconda3 to your `$HOME/.bashrc`.
 ```

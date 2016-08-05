@@ -219,6 +219,11 @@ Unload any Anaconda Python modules. Remove locally installed Anaconda Python fro
 
 * <a href="http://www.epinomics.co/" target=_blank>Epinomics</a> provides an independent, *free*, cloud-based pipeline implementation that adheres to the analysis protocol specifications of our pipeline. This implementation can be accessed at <a href="https://open.epigenomics.co/#/encode" target=_blank>https://open.epigenomics.co/#/encode</a>
 
+
+
+<a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_PIPELINE.md" target=_blank>More troubleshooting</a>
+
+
 ### Contributors
 
 * Jin wook Lee - PhD Student, Mechanical Engineering Dept., Stanford University
