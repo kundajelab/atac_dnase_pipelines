@@ -281,7 +281,7 @@ void _atac_SE( int rep, int nth_rep ) {
 		}
 		else {
 			if ( old_trimmer ) {
-				p1 = _trim_adapters_old( fastqs[0], aln_o_dir, info, nth_rep )
+				p1 = _trim_adapters_old( fastqs[0], aln_o_dir, info, 1 )
 			}
 			else {
 				adapters := get_adapters( rep )
@@ -296,7 +296,7 @@ void _atac_SE( int rep, int nth_rep ) {
 					adapters.add( adapter )
 				}
 
-				p1 = _trim_adapters( fastqs[0], adapters[0], aln_o_dir, info, nth_rep, "" )
+				p1 = _trim_adapters( fastqs[0], adapters[0], aln_o_dir, info, 1, "" )
 			}
 			wait
 		}
@@ -449,7 +449,7 @@ void _atac_PE( int rep, int nth_rep ) {
 		}
 		else {
 			if ( old_trimmer ) {
-				( p1, p2 ) = _trim_adapters_PE_old( fastqs[0], fastqs[1], aln_o_dir, info, nth_rep )
+				( p1, p2 ) = _trim_adapters_PE_old( fastqs[0], fastqs[1], aln_o_dir, info, 1 )
 			}
 			else {
 				adapters := get_adapters( rep )
@@ -467,7 +467,7 @@ void _atac_PE( int rep, int nth_rep ) {
 					adapters.add( adapter2 )
 				}
 
-				( p1, p2 ) = _trim_adapters_PE( fastqs[0], fastqs[1], adapters[0], adapters[1], aln_o_dir, info, nth_rep )
+				( p1, p2 ) = _trim_adapters_PE( fastqs[0], fastqs[1], adapters[0], adapters[1], aln_o_dir, info, 1 )
 			}
 			wait
 		}

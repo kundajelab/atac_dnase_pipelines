@@ -10,7 +10,7 @@ adapter_err_rate	:= "0.20" 	help Maximum allowed adapter error rate (# errors di
 min_trim_len		:= 5 		help Minimum trim length for cutadapt -m, throwing away processed reads shorter than this (default: 5).
 
 wt_trim			:= "23h"	help Walltime for adapter trimming (default: 23h, 23:00:00).
-mem_trim		:= "16G"	help Max. memory for adapter trimming (default: 16G).
+mem_trim		:= "12G"	help Max. memory for adapter trimming (default: 12G).
 
 init_align_trim_adapter()
 
