@@ -12,7 +12,6 @@ If you don't have super-user privileges on your system, locally install Java 8 a
 ### Installation instruction (conda)
 
 Install Anaconda Python3 (or Miniconda3 4.0.5) on your system. Recent versions of conda (>4.0.10) is buggy in parallel activation and do not work correctly with BDS. If you already have your own conda, downgrade it to 4.0.5 and skip Miniconda3 installation: `conda install conda=4.0.5`.
-```
 Get the Miniconda3 installer (4.0.5) at <a href="https://repo.continuum.io/miniconda/Miniconda3-4.0.5-Linux-x86_64.sh" target=_blank>https://repo.continuum.io/miniconda/Miniconda3-4.0.5-Linux-x86_64.sh</a> and install it.
 ```
 $ wget https://repo.continuum.io/miniconda/Miniconda3-4.0.5-Linux-x86_64.sh
