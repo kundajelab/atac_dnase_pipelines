@@ -20,8 +20,8 @@ Check your loaded modules with `$ module list` and unload any Anaconda Python mo
 
 Install BigDataScript v0.99999e on your system.
 ```
-$ git clone https://github.com/leepc12/BigDataScript
-$ cp BigDataScript/distro/bds_Linux.tgz $HOME
+$ wget https://github.com/leepc12/BigDataScript/blob/master/distro/bds_Linux.tgz?raw=true -O bds_Linux.tgz
+$ mv bds_Linux.tgz $HOME
 $ cd $HOME && tar zxvf bds_Linux.tgz
 ```
 Add `export PATH=$PATH:$HOME/.bds` to your bash initialization script (`$HOME/.bashrc` or `$HOME/.bash_profile`).
