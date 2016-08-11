@@ -125,7 +125,7 @@ fastq1_2= [READ2]
 
 ### Species file and Environment file
 
-For Kundaje clusters and SCG3/4, do not define any species specific parameters like `-tss_enrich`, `-ref_fa`, `-blacklist`, `-dnase`, `-prom`, `-enh`, `-reg2map`, `-roadmap_meta`, `-bwt2_idx`, `-gensz`, `-chrsz`. They are already defined in `./species/kundaje.env` and `./species/scg3.env`. You just need to define the name of species `-species [SPECIES; hg19, mm9, ...]`.
+For Kundaje clusters, SCG3/4 and Sherlock cluster, do not define any species specific parameters like `-tss_enrich`, `-ref_fa`, `-blacklist`, `-dnase`, `-prom`, `-enh`, `-reg2map`, `-roadmap_meta`, `-bwt2_idx`, `-gensz`, `-chrsz`. They are already defined in `./species/kundaje.env` and `./species/scg3.env`. You just need to define the name of species `-species [SPECIES; hg19, mm9, ...]`.
 ```
 $ bds atac.bds -species [hg19 or mm9] ...
 ```
