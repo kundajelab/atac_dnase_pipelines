@@ -15,12 +15,9 @@ ATAC Seq Pipeline
 
 We recommend using BASH to run pipelines.
 
-1) Define parameters in command line argument.
-
 For general use, use the following command line: (for PE data set)
 ```
-$ bds atac.bds -fastq1_1 [READ1] -fastq1_2 [READ2] -bwt2_idx [BOWTIE2_INDEX] \
--gensz [GENOMESIZE; hs for human, mm for mouse] -chrsz [CHR_SIZES_FILE] -adapter [ADAPTER_TO_BE_TRIMMED]
+$ bds atac.bds -species [SPECIES; hg19, mm9, ... ]-fastq1_1 [READ1] -fastq1_2 [READ2]
 ```
 
 The pipeline can automatically detect adapters if you remove `-adapter` from your command line. (<b>You need to have an access to the git repo https://github.com/nboley/GGR_code</b>)
@@ -96,12 +93,7 @@ To disable pseudo replicate generation, add the following. By default, peak call
 ```
 -true_rep
 ```
-IDR analysis is included in the pipeline by default. If there are more than two replicates, IDR will be done for every pair of replicates.
-For better IDR QC, define blacklist idr (for `hg19`, http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz). For other genomes, <a href="https://sites.google.com/site/anshulkundaje/projects/blacklists">https://sites.google.com/site/anshulkundaje/projects/blacklists</a>.
-```
--blacklist [BLACKLIST_BED]
-```
-If you don't want IDR, add the following:
+IDR analysis is included in the pipeline by default. If there are more than two replicates, IDR will be done for every pair of replicates. If you don't want IDR, add the following:
 ```
 -no_idr
 ```
@@ -110,27 +102,16 @@ To list all parameters and default values for them,
 $ bds atac.bds
 ```
 
-
-2) Define parameters in configuration file.
-Key names in a configruation file are identical to parameter names on command line. 
+You can also define parameters in a configuration file. Key names in a configruation file are identical to parameter names on command line. 
 ```
 $ bds atac.bds [CONF_FILE]
 
 $ cat [CONF_FILE]
+species = [SPECIES; hg19, mm9, ...]
 fastq1_1= [READ1]
 fastq1_2= [READ2]
 ...
 ```
-
-
-### Species file and Environment file
-
-For Kundaje clusters, SCG3/4 and Sherlock cluster, do not define any species specific parameters like `-tss_enrich`, `-ref_fa`, `-blacklist`, `-dnase`, `-prom`, `-enh`, `-reg2map`, `-roadmap_meta`, `-bwt2_idx`, `-gensz`, `-chrsz`. They are already defined in `./species/kundaje.env` and `./species/scg3.env`. You just need to define the name of species `-species [SPECIES; hg19, mm9, ...]`.
-```
-$ bds atac.bds -species [hg19 or mm9] ...
-```
-See details <a href="https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_PIPELINE.md" target=_blank>here</a>
-
 
 
 ### Parallelization and multi-threading (IMPORTANT!)
@@ -147,7 +128,7 @@ A pipeline automatically distributes `[MAX_TOTAL_NO_THREADS]` threads for jobs a
 
 However, all multi-threaded tasks (like bwa, bowtie2, spp and macs2) still have their own max. memory (`-mem_APPNAME [MEM_APP]`) and walltime (`-wt_APPNAME [WALLTIME_APP]`) settings. Max. memory is <b>NOT PER CPU</b>. On Kundaje cluster (with SGE flag activated `bds -s sge chipseq.bds ...`) or on SCG3/4, the actual shell command submitted by BDS for each task is like the following:
 ```
-qsub -pe shm [NTH_ALLOCATED_FOR_APP] -h_vmem=[MEM_APP]/[NTH_ALLOCATED_FOR_APP] -h_rt=[WALLTIME_APP] ...
+qsub -V -pe shm [NTH_ALLOCATED_FOR_APP] -h_vmem=[MEM_APP]/[NTH_ALLOCATED_FOR_APP] -h_rt=[WALLTIME_APP] -s_rt=[WALLTIME_APP] ...
 ```
 This ensures that total memory reserved for a cluster job equals to `[MEM_APP]`.
 

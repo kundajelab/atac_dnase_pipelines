@@ -20,6 +20,8 @@ old_trimmer 	:= false 	help Use legacy trim adapters (trim_galore and trimAdapte
 
 help() // show help contexts
 
+include "modules/species_atac.bds"
+
 include "modules/input.bds"
 include "modules/input_adapter.bds"
 
