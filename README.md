@@ -17,7 +17,12 @@ We recommend using BASH to run pipelines.
 
 For general use, use the following command line: (for PE data set)
 ```
-$ bds atac.bds -species [SPECIES; hg19, mm9, ... ]-fastq1_1 [READ1] -fastq1_2 [READ2]
+$ bds atac.bds -species [SPECIES; hg19, mm9, ... ] -nth [NUM_THREADS] -fastq1_1 [READ1] -fastq1_2 [READ2]
+```
+
+For DNase-seq: (it's <b>NOT `-dnase`</b>!)
+```
+-dnase_seq
 ```
 
 The pipeline can automatically detect adapters if you remove `-adapter` from your command line. (<b>You need to have an access to the git repo https://github.com/nboley/GGR_code</b>)
@@ -38,10 +43,6 @@ If your fastqs are already trimmed, add the following to the command line to ski
 You can also individually specify endedness for each replicate.
 ```
 -se[REPLICATE_ID] 	# for exp. replicates, 
-```
-For ATAQC, define the following parameters. See help (`$ bds atac.bds`) for description of all parameters. Data files for running ataqc (hg19 and mm9) can be found here: http://mitra.stanford.edu/kundaje/dskim89/public/ataqc/. Even though you don't use a species file `-species_file`, you need to specify a species name for ATAQC. You will get an ATAQC report per replicate. ATAQC is avaible only when you start a pipeline with FASTQ inputs.
-```
--species [hg19, mm9 or ...] -tss_enrich [] -ref_fa [] -blacklist [] -dnase [] -prom [] -enh [] -reg2map [] -roadmap_meta []
 ```
 If you want to just align your data (no peak calling or further steps like IDR).
 ```
@@ -108,6 +109,7 @@ $ bds atac.bds [CONF_FILE]
 
 $ cat [CONF_FILE]
 species = [SPECIES; hg19, mm9, ...]
+nth 	= [NUM_THREADS]
 fastq1_1= [READ1]
 fastq1_2= [READ2]
 ...
