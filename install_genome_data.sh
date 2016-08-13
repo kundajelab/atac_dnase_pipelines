@@ -165,4 +165,4 @@ fi
 # Add species file to ./default.env
 sed -i "/DEF_SPECIES_FILE/c\species_file\t= ${SPECIES_FILE}\t# DEF_SPECIES_FILE: DO NOT MODIFY THIS COMMENT (install_genome_data.sh WILL NOT WORK)." "$SCRIPT_DIR/default.env"
 
-echo "=== Installing genome data ($GENOME) successfully done. ==="
+echo "=== Genome data ($GENOME) has been successfully installed. ==="
