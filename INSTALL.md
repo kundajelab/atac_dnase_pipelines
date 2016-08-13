@@ -64,6 +64,8 @@ If `install_dependencies.sh` fails, run `./uninstall_dependencies.sh`, fix probl
 ### Installation instruction (genome data)
 
 Install genome data for a specific genome `[GENOME]`. Currently `hg19` and `mm9` are available. Specify a directory `[DATA_DIR]` to download/process all genome data. A species file generated on `[DATA_DIR]` will be automatically added to your `./default.env` so that the pipeline knows that you have installed genome data using `install_genome_data.sh`. If you want to install both genomes (`hg19` and `mm9`), make sure that you use the same directory `[DATA_DIR]` for them. Each genome data will be installed on `[DATA_DIR]/[GENOME]`. If you use other BDS pipelines, it is recommended to use the same directory `[DATA_DIR]` to save disk space.
+
+`./install_genome_data.sh` can take longer than an hour for downloading data and building bowtie2 index.
 ```
 $ ./install_genome_data.sh [GENOME] [DATA_DIR]
 ```
