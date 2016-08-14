@@ -1,15 +1,148 @@
 ATAC-Seq / DNase-Seq Pipeline
 ===================================================
 
+* Jump to [Usage](#usage)
+* Jump to [Troubleshooting](#troubleshooting)
 
 # Installation
 
-<a href="https://github.com/kundajelab/bds_atac/blob/master/INSTALL.md">General</a>
+* General computer
+  * [Java](#java)
+  * [Conda](#conda)
+  * [BigDataScript](#bigdatascript)
+  * [Pipeline](#pipeline)
+  * [Dependencies](#dependencies)
+  * [Genome data](#genome-data)
 
-<a href="https://github.com/kundajelab/bds_atac/blob/master/INSTALL_Kundaje.md">Kundaje lab</a>
+* Kundaje lab's clusters
+  * [Pipeline](#pipeline)
 
-<a href="https://github.com/kundajelab/bds_atac/blob/master/INSTALL_SCG_Sherlock.md">SCG3/4 and Stanford Sherlock clusters</a>
+* Stanford SCG cluster
+  * [Conda](#conda)
+  * [BigDataScript](#bigdatascript)
+  * [Pipeline](#pipeline)
+  * [Dependencies](#dependencies)
+  * [Genome data](#genome-data)
 
+* Stanford Sherlock cluster
+  * [Conda](#conda)
+  * [BigDataScript](#bigdatascript)
+  * [Pipeline](#pipeline)
+  * [Dependencies](#dependencies)
+  * [Genome data](#genome-data)
+
+## Java
+
+Install Java 8 (jdk >= 1.8 or jre >= 1.8) on your system. If you don't have super-user privileges on your system, locally install it and add it to your `$PATH`.
+
+* For Debian/Ubuntu (>14.10) based Linux:
+
+      $ sudo apt-get install git openjdk-8-jre```
+
+* For Fedora/Red-Hat based Linux: 
+ 
+      $ sudo yum install git java-1.8.0-openjdk```
+
+* For Ubuntu 14.04 (trusty):
+
+      $ sudo add-apt-repository ppa:webupd8team/java -y
+      $ sudo apt-get update
+      $ sudo apt-get install oracle-java8-installer
+
+## Conda
+
+Install Miniconda3 [4.0.5](https://repo.continuum.io/miniconda/Miniconda3-4.0.5-Linux-x86_64.sh) on your system. Recent versions of conda (>4.0.10) is buggy in parallel activation and do not work correctly with the pipeline. If you already have your own conda, downgrade it to 4.0.5 (`conda install conda=4.0.5`).
+
+```
+$ wget https://repo.continuum.io/miniconda/Miniconda3-4.0.5-Linux-x86_64.sh
+$ bash Miniconda3-4.0.5-Linux-x86_64.sh
+```
+
+Answer `yes` for the final question. If you choose `no`, you need to manually add Miniconda3 to your `$HOME/.bashrc`.
+
+```
+Do you wish the installer to prepend the Miniconda3 install location
+to PATH in your /your/home/.bashrc ? [yes|no]
+[no] >>> yes
+```
+
+Remove any other Anaconda from your `$PATH`. Check your loaded modules with `$ module list` and unload any Anaconda modules in your `$HOME/.bashrc`. Open a new terminal after installation.
+
+## BigDataScript
+
+Install BigDataScript v0.99999e ([forked](https://github.com/leepc12/BigDataScript), [original](https://github.com/pcingola/BigDataScript)) on your system.
+
+```
+$ wget https://github.com/leepc12/BigDataScript/blob/master/distro/bds_Linux.tgz?raw=true -O bds_Linux.tgz
+$ mv bds_Linux.tgz $HOME && cd $HOME && tar zxvf bds_Linux.tgz
+```
+
+Add `export PATH=$PATH:$HOME/.bds` to your `$HOME/.bashrc`. If Java memory occurs, add `export _JAVA_OPTIONS="-Xms256M -Xmx728M -XX:ParallelGCThreads=1"` too.
+
+
+## Pipeline
+
+Get the latest version of the pipeline. **Don't forget to add `--recursive`**. ATAC-Seq pipeline uses modules in two external git repos (ataqc, TF_chipseq_pipeline). It will not work correctly without `--recursive`.
+
+```
+$ git clone https://github.com/kundajelab/bds_atac --recursive
+```
+
+## Dependencies
+
+Install software dependencies automatically. It will create two conda environments (bds_atac and bds_atac_py3) under your conda.
+
+```
+$ ./install_dependencies.sh
+```
+
+If you see the following error, see [issue #8](https://github.com/kundajelab/TF_chipseq_pipeline/issues/8)
+
+```
+Error: ERROR: placeholder '/root/miniconda3/envs/_build_placehold_placehold_placehold_placehold_placehold_p' too short in: glib-2.43.0-2
+```
+
+If you don't use `install_dependencies.sh`, manually replace BDS's default `bds.config` with a correct one:
+
+```
+$ cp bds.config ./utils/bds_scr $HOME/.bds
+```
+
+If `install_dependencies.sh` fails, run `./uninstall_dependencies.sh`, fix problems and then try `./install_dependencies.sh` again.
+
+If you have super-user privileges on your system, it is recommended to install Miniconda3 on `/opt/miniconda3/` and share conda environment with others.
+
+```
+$ sudo su
+$ ./install_dependencies.sh
+$ chmod 755 -R /opt/miniconda3/  # if you get some annoying permission issues.
+```
+
+In order to make Miniconda3 accessible for all users, create an intialization script `/etc/profile.d/conda_init.sh`.
+
+```
+$ echo '#!/bin/bash' > /etc/profile.d/conda_init.sh
+$ echo 'export PATH=$PATH:/opt/miniconda3/bin' >> /etc/profile.d/conda_init.sh
+```
+
+## Genome data
+
+Install genome data for a specific genome `[GENOME]`. Currently `hg19`, `mm9`, `hg38`(BETA) and `mm10`(BETA) are available. Specify a directory `[DATA_DIR]` to download genome data. A species file generated on `[DATA_DIR]` will be automatically added to your `./default.env` so that the pipeline knows that you have installed genome data using `install_genome_data.sh`. If you want to install multiple genomes make sure that you use the same directory `[DATA_DIR]` for them. Each genome data will be installed on `[DATA_DIR]/[GENOME]`. If you use other BDS pipelines, it is recommended to use the same directory `[DATA_DIR]` to save disk space.
+
+`install_genome_data.sh` can take longer than an hour for downloading data and building index.
+
+```
+$ ./install_genome_data.sh [GENOME] [DATA_DIR]
+```
+
+If you have super-user privileges on your system, it is recommended to install genome data on `/your/data/bds_pipeline_genome_data` and share them with others.
+
+```
+$ sudo su
+$ ./install_genome_data.sh [GENOME] /your/data/bds_pipeline_genome_data
+```
+
+You can find a species file `[SPECIES_FILE]` on `/your/data/bds_pipeline_genome_data` for each pipeline type. Then others can use the genome data by adding `-species_file [SPECIES_FILE_PATH]` to the pipeline command line. Or they need to add `species_file = [SPECIES_FILE_PATH]` to the section `[default]` in their `./default.env`.
 
 # Usage
 
@@ -25,7 +158,7 @@ For DNase-seq: (it's <b>NOT `-dnase`</b>!)
 -dnase_seq
 ```
 
-The pipeline can automatically detect adapters if you remove `-adapter` from your command line. (<b>You need to have an access to the git repo https://github.com/nboley/GGR_code</b>)
+The pipeline can automatically detect adapters if you remove `-adapter` from your command line.
 
 To use old adapter trimmers (`trim_galore` for SE and `trimAdapter.py` for PE):
 ```
@@ -43,6 +176,9 @@ If your fastqs are already trimmed, add the following to the command line to ski
 You can also individually specify endedness for each replicate.
 ```
 -se[REPLICATE_ID] 	# for exp. replicates, 
+```
+```
+-se1 -pe2 -se3 ...
 ```
 If you want to just align your data (no peak calling or further steps like IDR).
 ```
@@ -81,10 +217,6 @@ For tagaligns (non-tn5-shifted):
 You can also mix up any data types.
 ```
 -bam1 [RAW_BAM_REP1] -tag2 [TAGALIGN_REP2] ...
-```
-You can also define endedness (SE/PE) of each replicate. (example: SE for replicate 1, PE for replicate 2, SE for replicate 3):
-```
--se1 -pe2 -se3
 ```
 To subsample beds (tagaligns) add the following to the command line. This is different from subsampling for cross-corr. analysis. Peaks will be called with subsampled tagaligns.
 ```
