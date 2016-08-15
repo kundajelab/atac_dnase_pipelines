@@ -151,7 +151,7 @@ if [[ $(grep "\[$GENOME\]" ${SPECIES_FILE} | wc -l) < 1 ]]; then
   echo -e "seq\t= ${DATA_DIR}/$GENOME/seq" >> ${SPECIES_FILE}
   echo -e "gensz\t= $GENSZ" >> ${SPECIES_FILE}
   echo -e "bwt2_idx\t= ${DATA_DIR}/$GENOME/bowtie2_index/${REF_FA_PREFIX}" >> ${SPECIES_FILE}
-  echo -e "blacklist\t= ${DATA_DIR}/$GENOME/$(basename $BLACKLIST)" >> ${SPECIES_FILE}
+  echo -e "blacklist\t= ${BLACKLIST_PATH}" >> ${SPECIES_FILE}
   echo -e "tss_enrich\t= ${TSS_ENRICH_PATH}" >> ${SPECIES_FILE}
   echo -e "ref_fa\t= ${DATA_DIR}/$GENOME/${REF_FA_PREFIX}" >> ${SPECIES_FILE}
   echo -e "dnase\t= ${DNASE_PATH}" >> ${SPECIES_FILE}

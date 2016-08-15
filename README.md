@@ -22,14 +22,12 @@ ATAC-Seq / DNase-Seq Pipeline
   * [BigDataScript](#bigdatascript)
   * [Pipeline](#pipeline)
   * [Dependencies](#dependencies)
-  * [Genome data](#genome-data)
 
 * Stanford Sherlock cluster
   * [Conda](#conda)
   * [BigDataScript](#bigdatascript)
   * [Pipeline](#pipeline)
   * [Dependencies](#dependencies)
-  * [Genome data](#genome-data)
 
 ## Java
 
