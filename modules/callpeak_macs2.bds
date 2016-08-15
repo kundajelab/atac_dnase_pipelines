@@ -86,31 +86,33 @@ string[] _macs2( string tag, string smooth_window, string pval_thresh, bool make
 		sys rm -f "$prefix"_peaks.xls
 		sys rm -f "$prefix"_summits.bed
 
+		sys if [[ $make_sig == "false" ]]; then \
+			rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg; \
+			$shcmd_finalize; \
+			exit; \
+		fi
+
+		sys macs2 bdgcmp -t "$prefix"_treat_pileup.bdg -c "$prefix"_control_lambda.bdg \
+			--o-prefix "$prefix" -m FE
+		sys slopBed -i "$prefix"_FE.bdg -g "$chrsz" -b 0 | bedClip stdin "$chrsz" $fc_bedgraph
+		sys rm -f "$prefix"_FE.bdg
+		
+		sys sort -k1,1 -k2,2n $fc_bedgraph > $fc_bedgraph_srt
+		sys bedGraphToBigWig $fc_bedgraph_srt "$chrsz" "$fc_bigwig"
+		sys rm -f $fc_bedgraph $fc_bedgraph_srt
+		
 		//# sval counts the number of tags per million in the (compressed) BED file
-		sys if [[ $make_sig == "true" ]]; then \
-			\
-			macs2 bdgcmp -t "$prefix"_treat_pileup.bdg -c "$prefix"_control_lambda.bdg \
-				--o-prefix "$prefix" -m FE;\
-			slopBed -i "$prefix"_FE.bdg -g "$chrsz" -b 0 | bedClip stdin "$chrsz" $fc_bedgraph; \
-			rm -f "$prefix"_FE.bdg; \
-			\
-			sort -k1,1 -k2,2n $fc_bedgraph > $fc_bedgraph_srt; \
-			bedGraphToBigWig $fc_bedgraph_srt "$chrsz" "$fc_bigwig"; \
-			rm -f $fc_bedgraph $fc_bedgraph_srt; \
-			\
-			sval=$(wc -l <(zcat -f "$tag") | awk '{printf "%f", $1/1000000}'); \
-			\
-			macs2 bdgcmp \
-				-t "$prefix"_treat_pileup.bdg -c "$prefix"_control_lambda.bdg \
-				--o-prefix "$prefix" -m ppois -S "${sval}"; \
-			slopBed -i "$prefix"_ppois.bdg -g "$chrsz" -b 0 | bedClip stdin "$chrsz" $pval_bedgraph; \
-			rm -f "$prefix"_ppois.bdg; \
-			\
-			sort -k1,1 -k2,2n $pval_bedgraph > $pval_bedgraph_srt; \
-			bedGraphToBigWig $pval_bedgraph_srt "$chrsz" "$pval_bigwig"; \
-			rm -f $pval_bedgraph $pval_bedgraph_srt; \
-			\
-			fi
+		sys sval=$(wc -l <(zcat -f "$tag") | awk '{printf "%f", $1/1000000}')
+		
+		sys macs2 bdgcmp \
+			-t "$prefix"_treat_pileup.bdg -c "$prefix"_control_lambda.bdg \
+			--o-prefix "$prefix" -m ppois -S "${sval}"
+		sys slopBed -i "$prefix"_ppois.bdg -g "$chrsz" -b 0 | bedClip stdin "$chrsz" $pval_bedgraph
+		sys rm -f "$prefix"_ppois.bdg
+		
+		sys sort -k1,1 -k2,2n $pval_bedgraph > $pval_bedgraph_srt
+		sys bedGraphToBigWig $pval_bedgraph_srt "$chrsz" "$pval_bigwig"
+		sys rm -f $pval_bedgraph $pval_bedgraph_srt
 
 		sys rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg
 
