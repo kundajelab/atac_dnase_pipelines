@@ -204,17 +204,25 @@ void chk_adapters() {
 
 void chk_ataqc() {
 
-	print("\nChecking parameters and data files for ATAQC. If you don't want ATAQC then add '-no_ataqc'\n\n")
+	print("\nChecking parameters and data files for ATAQC. \n\n")
 
-	if ( species == "" ) 	error("Genome name is missing ( '-species [GENOME_NAME; hg19, mm9, ...]' )!\n" )
-	if ( ref_fa == "" ) 	error("Specify your reference genome .fa ('-ref_fa [FA]')!\n")
-	if ( tss_enrich == "" ) error("V plot index is missing ( '-tss_enrich' )!\n")
-	if ( dnase == "" ) 	error("DNase bed is missing ( '-dnase' )!\n")
-	if ( blacklist == "" ) 	error("Blacklist bed is missing ( '-blacklist' )!\n")
-	if ( prom == "" ) 	error("Promoter bed is missing ( '-prom' )!\n")
-	if ( enh == "" ) 	error("Enhancer bed is missing ( '-enh' )!\n")
-	if ( reg2map == "" ) 	error("reg2map is missing ( '-reg2map' )!\n")
-	if ( roadmap_meta == "" ) error("Roadmap metadata are missing ( '-roadmap_meta' )!\n")
+	need_to_disable_ataqc := false
+
+	if ( species == "" ) 	{ print("Warning: Genome name is missing ( '-species [GENOME_NAME; hg19, mm9, ...]' )!\n" ); need_to_disable_ataqc = true }
+	if ( ref_fa == "" ) 	{ print("Warning: Specify your reference genome .fa ('-ref_fa [FA]')!\n"); need_to_disable_ataqc = true }
+	if ( tss_enrich == "" ) { print("Warning: TSS enrichment bed is missing ( '-tss_enrich' )!\n"); need_to_disable_ataqc = true }
+	if ( dnase == "" ) 	{ print("Warning: DNase bed is missing ( '-dnase' )!\n"); need_to_disable_ataqc = true }
+	if ( blacklist == "" ) 	{ print("Warning: Blacklist bed is missing ( '-blacklist' )!\n"); need_to_disable_ataqc = true }
+	if ( prom == "" ) 	{ print("Warning: Promoter bed is missing ( '-prom' )!\n"); need_to_disable_ataqc = true }
+	if ( enh == "" ) 	{ print("Warning: Enhancer bed is missing ( '-enh' )!\n"); need_to_disable_ataqc = true }
+	if ( reg2map == "" ) 	{ print("Warning: reg2map is missing ( '-reg2map' )!\n"); need_to_disable_ataqc = true }
+	if ( roadmap_meta == "" ) { print("Warning: Roadmap metadata are missing ( '-roadmap_meta' )!\n"); need_to_disable_ataqc = true }
+
+	if ( need_to_disable_ataqc ) {
+
+		print("\nDisabling ATAQC...\n")
+		no_ataqc = true
+	}
 }
 
 void atac() {
