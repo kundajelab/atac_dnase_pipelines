@@ -24,7 +24,7 @@ libgfortran==3.0 # ataqc
 pandas ==0.18.0 #==0.16.1 # ataqc
 metaseq #==0.5.6 # ataqc
 jinja2 # ataqc
-graphviz=2.38.0=1
+graphviz==2.38.0
 libtool
 ghostscript # pdf2png
 gsl # for preseq
