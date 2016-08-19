@@ -1,1 +1,579 @@
-../chipseq/modules/postalign_bam.bds
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "species.bds"
+include "align_multimapping.bds"
+include "report.bds"
+
+// has functions related to bam, and helps getting bam from configruation file or command line argument
+
+help == postalign bam settings
+mapq_thresh	:= 30 		help Threshold for low MAPQ reads removal (default: 30).
+rm_chr_from_tag := "" 		help If specified, exclude lines with specified string from tagaligns. (example: 'other|ribo|mito|_', '_', default: blank)
+
+wt_dedup 	:= "23h" 	help Walltime for post-alignment filtering (default: 23h, 24:00:00).
+mem_dedup	:= "12G" 	help Max. memory for post-alignment filtering (default: 12G).
+
+use_sambamba_markdup	:= false	help Use sambamba markdup instead of Picard MarkDuplicates (default: false).
+
+
+grp_color_dedup_bam 	:= "lightcoral"
+grp_color_align 	:= "orange"
+
+
+/*
+IMPORTANT!: legacy softwares compatibility (make the code work with legacy samtools, picard-tools)
+
+	- samtools fixmate -O doesn't work in legacy samtools
+		specify output ext like [TARGET].bam (samtools fixmate -r [SRC] [TARGET].bam)
+
+	- samtools index [SRC] [TARGET] doesn't work in legacy samtools
+		you need to manually mv .bam.bai .bai
+
+	- samtools sort -O -T  doesn't work in legacy samtools (do not use them)
+
+	- java -Xmx4G -Xms256M -jar ${PICARDROOT}/picard.jar [METHOD]  for old picard
+	- java -Xmx4G -Xms256M -jar ${PICARDROOT}/[METHOD].jar  for new picard
+*/
+
+
+init_postalign_bam()
+
+
+void init_postalign_bam() {
+
+	mapq_thresh 		= get_conf_val_int( mapq_thresh,	["mapq_thresh"] )
+	rm_chr_from_tag 	= get_conf_val( rm_chr_from_tag, 	["rm_chr_from_tag"] )
+
+	wt_dedup 		= get_conf_val( wt_dedup, 		["wt_dedup"] )
+	mem_dedup 		= get_conf_val( mem_dedup, 		["mem_dedup"] )
+	use_sambamba_markdup	= get_conf_val_bool( use_sambamba_markdup, ["use_sambamba_markdup"] )
+
+	print("\n\n== postalign bam settings\n")
+	print( "MAPQ reads rm thresh.\t\t: $mapq_thresh\n")
+	print( "Rm. tag reads with str.\t\t: $rm_chr_from_tag\n")
+	print( "Walltime (bam filter)\t\t: $wt_dedup\n")
+	print( "Max. memory (bam filter)\t: $mem_dedup\n")
+	print( "Use sambamba markdup (instead of picard)\t: $use_sambamba_markdup\n")
+}
+
+string[] dedup_bam( string bam, string o_dir, string log_o_dir, string group, int nth_dedup ) {
+
+	prefix 		:= replace_dir( rm_ext( bam, "bam" ), o_dir )
+	prefix2 	:= replace_dir( prefix, log_o_dir )
+
+	nodup_bam 	:= "$prefix.nodup.bam"
+	dup_qc 		:= "$prefix2.dup.qc"
+	map_qc 		:= "$prefix2.nodup.flagstat.qc"
+	pbc_qc 		:= "$prefix2.nodup.pbc.qc"
+
+	in	:= [ bam ]
+	out	:= [ nodup_bam, dup_qc, map_qc, pbc_qc ]
+
+	cpus 	:= nth_dedup; 	mem := get_res_mem(mem_dedup,nth_dedup);	timeout := get_res_wt(wt_dedup)
+
+	if ( out<-in ) {
+
+		//////////// step 1
+
+		filt_bam 	:= "$prefix.filt.bam"
+		tmp_filt_bam 	:= "$prefix.dupmark.bam"
+		qname_sort_bam 	:= "$prefix.qnmsrt.bam" // multimapping
+
+		taskName:= "dedup_bam_1 " + group
+		in1 	:= in
+		out1 	:= [ filt_bam ]
+
+		wait_par( cpus )
+
+		tid := task( out1<-in1 ) {
+
+			sys $shcmd_init
+
+			//# =============================
+			//# Remove  unmapped, mate unmapped
+			//# not primary alignment, reads failing platform
+			//# Remove low MAPQ reads
+			//# ==================
+
+			sys if [[ $multimapping > 0 ]]; then \
+				sambamba sort -t $nth_dedup $bam -n -o $qname_sort_bam; \
+				samtools view -h $qname_sort_bam | $(which assign_multimappers.py) -k $multimapping | \
+				samtools view -F 1804 -Su /dev/stdin | \
+				sambamba sort -t $nth_dedup /dev/stdin -o $filt_bam; \
+				rm -f $qname_sort_bam; \
+			    else \
+			    	samtools view -F 1804 -q $mapq_thresh -u $bam | \
+			    	sambamba sort -t $nth_dedup /dev/stdin -o $filt_bam; \
+			    fi
+
+			sys $shcmd_finalize
+		}
+
+		register_par( tid, cpus )
+
+		wait // wait for filt_bam
+
+		//////////// step 2
+
+		string dupmark_bam, dup_qc
+
+		if ( use_sambamba_markdup ) {
+			(dupmark_bam, dup_qc) = markdup_bam_sambamba( filt_bam, o_dir, log_o_dir, group, nth_dedup )
+		} 
+		else {
+			(dupmark_bam, dup_qc) = markdup_bam_picard( filt_bam, o_dir, log_o_dir, group )
+		}
+
+		wait // wait for dupmark_bam and dup_qc
+
+		//////////// step 3
+
+		taskName= "dedup_bam_2 " + group
+		in2  := [ dupmark_bam ]
+		out2 := [ nodup_bam, map_qc, pbc_qc ]
+
+		wait_par( cpus )
+
+		tid2 := task( out2<-in2 ) {
+
+			sys $shcmd_init
+
+			//# Remove duplicates
+			//# Index final position sorted BAM
+			sys samtools view -F 1804 -b $dupmark_bam > $nodup_bam
+
+			//# Index Final BAM file
+			sys sambamba index -t $nth_dedup $nodup_bam
+
+			sys sambamba flagstat -t $nth_dedup $nodup_bam > $map_qc
+
+			//# =============================
+			//# Compute library complexity
+			//# =============================
+			//# sort by position and strand
+			//# Obtain unique count statistics
+
+			//# PBC File output
+			//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
+			sys bedtools bamtobed -i $dupmark_bam | \
+				awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$6}' | \
+				grep -v 'chrM' | sort | uniq -c | \
+				awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{m1_m2=-1.0; if(m2>0) m1_m2=m1/m2; printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1_m2}' > $pbc_qc
+			sys $shcmd_finalize
+		}
+
+		register_par( tid2, cpus )
+
+		wait // wait for final bam
+
+		/////// remove all intermediate files
+
+		dupmark_bam.rm()
+		"$dupmark_bam.bai".rm()
+		filt_bam.rm()
+		"$filt_bam.bai".rm()
+	}
+
+	add_task_to_graph( in, out, group, "FILTER", grp_color_dedup_bam )
+
+	return out
+}
+
+string[] dedup_bam_PE( string bam, string o_dir, string log_o_dir, string group, int nth_dedup ) {
+
+	prefix 		:= replace_dir( rm_ext( bam, "bam" ), o_dir )
+	prefix2 	:= replace_dir( prefix, log_o_dir )
+
+	nodup_bam 	:= "$prefix.nodup.bam"
+	dup_qc 		:= "$prefix2.dup.qc"
+	map_qc 		:= "$prefix2.nodup.flagstat.qc"
+	pbc_qc 		:= "$prefix2.nodup.pbc.qc"
+
+	in 	:= [ bam ]
+	out 	:= [ nodup_bam, dup_qc, map_qc, pbc_qc ]
+
+	cpus 	:= nth_dedup;	mem := get_res_mem(mem_dedup,nth_dedup);	timeout := get_res_wt(wt_dedup)
+
+	if ( out<-in ) {
+
+		/////// step 1
+
+		filt_bam 	:= "$prefix.filt.bam"
+		tmp_filt_bam 	:= "$prefix.dupmark.bam"
+
+		taskName:= "dedup_bam_PE_1 " + group
+		in1 	:= in
+		out1 	:= [ filt_bam ]
+
+		wait_par( cpus )
+
+		tid := task( out1<-in1 ) {
+
+			sys $shcmd_init
+
+			//# =============================
+			//# Remove  unmapped, mate unmapped
+			//# not primary alignment, reads failing platform
+			//# Remove low MAPQ reads
+			//# Only keep properly paired reads
+			//# Obtain name sorted BAM file
+			//# ==================
+
+			//# Will produce name sorted BAM
+			//# Remove orphan reads (pair was removed)
+			//# and read pairs mapping to different chromosomes
+			//# Obtain position sorted BAM
+			//# Will produce coordinate sorted BAM
+
+			sys if [[ $multimapping > 0 ]]; then \
+				samtools view -F 524 -f 2 -u $bam | \
+				sambamba sort -t $nth_dedup -n /dev/stdin -o $tmp_filt_bam; \
+				samtools view -h $tmp_filt_bam | \
+				$(which assign_multimappers.py) -k $multimapping --paired-end | \
+				samtools fixmate -r /dev/stdin $tmp_filt_bam.fixmate.bam; \
+			    else \
+			    	samtools view -F 1804 -f 2 -q $mapq_thresh -u $bam | \
+			    	sambamba sort -t $nth_dedup -n /dev/stdin -o $tmp_filt_bam; \
+			        samtools fixmate -r $tmp_filt_bam $tmp_filt_bam.fixmate.bam; \
+			    fi
+
+			sys samtools view -F 1804 -f 2 -u $tmp_filt_bam.fixmate.bam | sambamba sort -t $nth_dedup /dev/stdin -o $filt_bam
+
+			sys rm -f $tmp_filt_bam.fixmate.bam
+			sys rm -f $tmp_filt_bam
+
+			sys $shcmd_finalize
+		}
+
+		register_par( tid, cpus )
+
+		wait
+
+		/////// step 2
+
+		string dupmark_bam, dup_qc
+
+		if ( use_sambamba_markdup ) {
+			(dupmark_bam, dup_qc) = markdup_bam_sambamba( filt_bam, o_dir, log_o_dir, group, nth_dedup )
+		}
+		else {
+			(dupmark_bam, dup_qc) = markdup_bam_picard( filt_bam, o_dir, log_o_dir, group )
+		}
+
+		wait
+
+		/////// step 3
+
+		taskName= "dedup_bam_PE_2 " + group
+		in2  := [ dupmark_bam ]
+		out2 := [ nodup_bam, map_qc, pbc_qc ]
+
+		wait_par( cpus )
+
+		tid2 := task( out2<-in2 ) {
+
+			sys $shcmd_init
+
+			//# ============================
+			//# Remove duplicates
+			//# Index final position sorted BAM
+			//# Create final name sorted BAM
+			//# ============================
+			sys samtools view -F 1804 -f 2 -b $dupmark_bam > $nodup_bam
+
+			sys sambamba index -t $nth_dedup $nodup_bam
+
+			sys sambamba flagstat -t $nth_dedup $nodup_bam > $map_qc
+
+			//# =============================
+			//# Compute library complexity
+			//# =============================
+			//# Sort by name
+			//# convert to bedPE and obtain fragment coordinates
+			//# sort by position and strand
+			//# Obtain unique count statistics
+
+			//# TotalReadPairs [tab] DistinctReadPairs [tab] OneReadPair [tab] TwoReadPairs [tab] NRF=Distinct/Total [tab] PBC1=OnePair/Distinct [tab] PBC2=OnePair/TwoPair
+			sys sambamba sort -t $nth_dedup -n $dupmark_bam -o $dupmark_bam.tmp.bam
+
+			sys bedtools bamtobed -bedpe -i $dupmark_bam.tmp.bam | \
+				awk 'BEGIN{OFS="\t"}{print $1,$2,$4,$6,$9,$10}' | \
+				grep -v 'chrM' | sort | uniq -c | \
+				awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1} {m0=m0+1} {mt=mt+$1} END{m1_m2=-1.0; if(m2>0) m1_m2=m1/m2; printf "%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1_m2}' > $pbc_qc
+			sys rm -f $dupmark_bam.tmp.bam
+
+			sys $shcmd_finalize
+		}
+
+		register_par( tid2, cpus )
+
+		wait
+
+		/////// remove all intermediate files
+
+		dupmark_bam.rm()
+		"$dupmark_bam.bai".rm()
+		filt_bam.rm()
+		"$filt_bam.bai".rm()
+	}
+
+	add_task_to_graph( in, out, group, "filter", grp_color_dedup_bam )
+
+	return out
+}
+
+string[] markdup_bam_picard( string bam, string o_dir, string log_o_dir, string group ) {
+
+	prefix 		:= replace_dir( rm_str_at_end( rm_ext( bam, "bam" ), ".filt"), o_dir )
+	prefix2 	:= replace_dir( prefix, log_o_dir )
+	dup_qc 		:= "$prefix2.dup.qc"
+	dupmark_bam 	:= "$prefix.dupmark.bam"
+
+	in 		:= [ bam ]
+	out 		:= [ dupmark_bam, dup_qc ]
+
+	taskName:= "markdup_bam_picard " + group
+	cpus := 1; 	mem := get_res_mem(mem_dedup,1);	timeout := get_res_wt(wt_dedup)
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		//# Set Java environment variable with Xmx, because JVM will ignore our
+		//# runtime flag and use this if it has been set.
+		sys export _JAVA_OPTIONS="-Xms256M -Xmx4G -XX:ParallelGCThreads=1"
+		sys export MAX_JAVA_MEM="12G"
+
+		//# Mark duplicates
+		sys if [ -f ${PICARDROOT}/MarkDuplicates.jar ]; then \
+			java -Xmx4G -jar ${PICARDROOT}/MarkDuplicates.jar \
+				INPUT="$bam" OUTPUT="$dupmark_bam" \
+				METRICS_FILE="$dup_qc" VALIDATION_STRINGENCY=LENIENT \
+				ASSUME_SORTED=true REMOVE_DUPLICATES=false; \
+			else \
+			java -Xmx4G -jar ${PICARDROOT}/picard.jar MarkDuplicates \
+				INPUT="$bam" OUTPUT="$dupmark_bam" \
+				METRICS_FILE="$dup_qc" VALIDATION_STRINGENCY=LENIENT \
+				ASSUME_SORTED=true REMOVE_DUPLICATES=false; \
+			fi
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	return out
+}
+
+string[] markdup_bam_sambamba( string bam, string o_dir, string log_o_dir, string group, int nth_markdup ) {
+
+	prefix 		:= replace_dir( rm_str_at_end( rm_ext( bam, "bam" ), ".filt"), o_dir )
+	prefix2 	:= replace_dir( prefix, log_o_dir )
+	dup_qc 		:= "$prefix2.dup.qc"
+	dupmark_bam 	:= "$prefix.dupmark.bam"
+
+	in 		:= [ bam ]
+	out 		:= [ dupmark_bam, dup_qc ]
+
+	taskName:= "markdup_bam_sambamba " + group
+	cpus 	:= nth_markdup; 	mem := get_res_mem(mem_dedup,nth_markdup);	timeout := get_res_wt(wt_dedup)
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys sambamba markdup -t $nth_markdup --hash-table-size=17592186044416 \
+			--overflow-list-size=20000000 --io-buffer-size=256 $bam $dupmark_bam \
+			2> $dup_qc
+
+		sys rm -f $dupmark_bam.bai
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	return out
+}
+
+string nmsrt_bam( string bam, string o_dir, string group ) {
+
+	prefix 		:= replace_dir( rm_ext( bam, "bam" ), o_dir )
+	nmsrt_bam 	:= "$prefix.nmsrt.bam"
+	//nmsrt_bam_prefix:= "$prefix.nmsrt"
+
+	in 	:= [ bam ]
+	out 	:= nmsrt_bam
+
+	taskName:= "nmsrt_bam " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		//sys samtools sort -n $bam $nmsrt_bam_prefix
+		sys sambamba sort -t 1 -n $bam -o $nmsrt_bam
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	return out
+}
+
+string srt_bam( string bam, string o_dir, string group ) {
+
+	prefix 		:= replace_dir( rm_ext( bam, "bam" ), o_dir )
+	srt_bam 	:= "$prefix.srt.bam"
+	//srt_bam_prefix 	:= "$prefix.srt"
+	//srt_bam_idx 	:= "$prefix.srt.bai"
+
+	in 	:= [ bam ]
+	out 	:= srt_bam
+
+	taskName:= "srt_bam " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		//sys samtools sort -Ttmp -l0 -Obam $bam -o $srt_bam
+		//sys samtools index $srt_bam $srt_bam.bai
+		//sys mv $srt_bam.bai $srt_bam_idx
+
+		//sys samtools sort $bam $srt_bam_prefix
+		//sys samtools index $srt_bam
+
+		//sys if [ "$srt_bam.bai" != "$srt_bam_idx" ]; then \
+		//	cp $srt_bam.bai $srt_bam_idx; \
+		//	fi
+
+		sys sambamba sort -t 1 $bam -o $srt_bam
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
+string bam_to_tag( string bam, string o_dir, string group ) {
+
+	prefix 	:= replace_dir( rm_ext( bam, "bam" ), o_dir )
+	tag 	:= "$prefix.tagAlign.gz"
+	RM_CHR_ := "echo"
+	if ( rm_chr_from_tag != "" ) RM_CHR_ = "zcat $tag | grep -P -v '$rm_chr_from_tag' | gzip -c > $prefix.rm_chr.tmp.gz; mv $prefix.rm_chr.tmp.gz $tag"
+
+	in 	:= [ bam ]
+	out 	:= tag
+
+	taskName:= "bam_to_tag " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		//# Create SE tagAlign file
+		sys bedtools bamtobed -i $bam | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | gzip -c > $tag
+
+		sys $RM_CHR_
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group, "ALIGN", grp_color_align )
+
+	return out
+}
+
+string bam_to_bedpe( string bam, string o_dir, string group ) {
+
+	prefix 		:= replace_dir( rm_ext( bam, "bam" ), o_dir )
+	nmsrt_bam 	:= "$prefix.nmsrt.bam"
+	bedpe 		:= "$prefix.bedpe.gz"
+
+	in 	:= [ bam ]
+	out 	:= bedpe
+
+	if ( out <- in ) {
+
+		nmsrt_bam = nmsrt_bam( bam, o_dir, group )
+		wait
+
+		taskName:= "bam_to_bedpe " + group
+
+		wait_par( cpus )
+
+		tid := task( out <- nmsrt_bam ) {
+
+			sys $shcmd_init
+
+			//# Create BEDPE file
+			sys bedtools bamtobed -bedpe -mate1 -i $nmsrt_bam | gzip -c > $bedpe
+
+			sys $shcmd_finalize
+		}
+
+		register_par( tid, cpus )
+
+		wait
+
+		nmsrt_bam.rm()
+	}
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
+string bedpe_to_tag( string bedpe, string o_dir, string group ) {
+
+	prefix 	:= replace_dir( rm_ext( bedpe, ["bedpe","bed"] ), o_dir )
+	tag 	:= "$prefix.tagAlign.gz"
+	RM_CHR_ := "echo"
+	if ( rm_chr_from_tag != "" ) {
+		RM_CHR_ = "zcat $tag | grep -P -v '$rm_chr_from_tag' | gzip -c > $prefix.rm_chr.tmp.gz; mv $prefix.rm_chr.tmp.gz $tag"
+	}
+
+	in 	:= [ bedpe ]
+	out 	:= tag
+
+	taskName:= "bedpe_to_tag " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys zcat $bedpe | awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' | \
+			gzip -c > $tag
+
+		sys $RM_CHR_
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group, "align", "orange" )
+
+	return out
+}

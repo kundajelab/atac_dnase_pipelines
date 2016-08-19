@@ -1,1 +1,57 @@
-../chipseq/modules/callpeak_etc.bds
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "species.bds"
+include "report.bds"
+
+
+help == callpeak etc settings
+npeak_filt	 	:= 500000 	help # top peaks filtered from a narrow peak files (default: 500000).
+
+
+init_callpeak_etc()
+
+
+void init_callpeak_etc() {
+
+	npeak_filt 	= get_conf_val_int( npeak_filt,		["npeak_filt"] )
+
+	print("\n\n== callpeak etc settings\n")
+	print( "# of top peaks to pick up in peak files\t: $npeak_filt\n")
+}
+
+string filt_top_peaks( string peakfile, string o_dir, string group ) {
+
+	prefix 		:= replace_dir( rm_ext( peakfile, \
+						["narrowPeak","gappedPeak","broadPeak","regionPeak"] ), o_dir )
+	ext 		:= get_actual_ext( peakfile )
+	peakfile_filt 	:= "$prefix.$npeak_filt.$ext"
+
+	in 	:= [ peakfile ]
+	out 	:= peakfile_filt
+
+	taskName:= "filt_top_peaks " + group
+	timeout := 3600 // to get queued fast
+	system  := "local"
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		// sort -grk8 returns non-zero exit code when 8th columns of any line pair are equal
+		sys set +o pipefail
+
+		// sort by 8th (-log10(pval) ) column and take top $npeak_filt lines
+		sys zcat $peakfile | sort -grk8 | head -n $npeak_filt | gzip -c > $peakfile_filt
+
+		sys $shcmd_finalize
+	}
+	
+	register_par( tid, cpus )
+		
+	add_task_to_graph( in, out, group )
+	
+	return out	
+}

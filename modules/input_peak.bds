@@ -1,1 +1,78 @@
-../chipseq/modules/input_peak.bds
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "conf.bds"
+
+
+help == narrow peak input definition : 
+help         For true replicates, use '-peak1' and '-peak2',
+help         For pooled replicates, use '-peak_pooled',
+help         For two PR (self-pseudo-replicates), use '-peak[REP_ID]_pr1' and '-peak[REP_ID]_pr2'
+help         For two PPR (pooled pseudo-replicates), use '-peak_ppr1' and '-peak_ppr2'
+
+
+void chk_input_peak( bool true_rep, bool no_pseudo_rep ) {
+
+	if ( !is_input_peak() ) return // read peaks here
+
+	for ( int rep=0; rep<=get_num_rep_peak(); rep++) { // rep==0 : pooled
+		if ( get_num_rep_peak() == 1 && rep==0 ) continue // if only one replicate, skip reading pooled rep
+
+		for (int pse=0; pse<=2; pse++) { // pse(pseudo)==0 : true rep, pse==1,2 : self-pseudo rep 1,2
+			if ( true_rep && pse > 0 ) continue
+			if ( no_pseudo_rep && rep != 0 && pse > 0 ) continue
+
+			peak_ := get_peak(rep,pse)
+			suffix1 := rep==0 ? "replicate" : "replicate $rep"
+			suffix2 := rep==0 ? "pseudo-replicate $pse" : "pseudo-replicate $pse for replicate $rep"
+			prefix := (rep==0 ? "pooled " : "") + (pse==0 ? suffix1 : suffix2)
+			
+			print( "$prefix: \n\t$peak_"+"\n")
+			if ( !path_exists( peak_ ) ) error("\t\tFile not found!\n")
+		}
+	}
+}
+
+string get_peak( int rep, int pse ) { // rep==0 : pooled peak, pse==0 : true replicate
+
+	if ( pse > 2 ) error ("\nget_peak() : pse should not be larger than 2!")
+
+	string key, key2
+	if ( rep == 0 ) {
+		key 	= ( pse == 0 ? "peak_pooled" : ("peak_ppr" + pse) )
+		key2 	= key
+	}
+	else {
+		key 	= "peak"     + rep + ( pse == 0 ? "" : ("_pr" + pse) )
+		key2 	= "peak_rep" + rep + ( pse == 0 ? "" : ("_pr" + pse) )
+	}
+
+	if ( cmd_line_arg_has_key( key ) ) {
+		return get_path( get_cmd_line_arg_val( key ) )
+	}
+	else if ( cmd_line_arg_has_key( key2 ) ) {
+		return get_path( get_cmd_line_arg_val( key2 ) )
+	}
+	else if ( conf.hasKey( key ) ) {
+		return get_path( conf{ key } )
+	}
+	else if ( conf.hasKey( key2 ) ) {
+		return get_path( conf{ key2 } )
+	}
+
+	return ""
+}
+
+bool is_input_peak() {
+
+	return get_peak( 1, 0 ) != ""
+}
+
+int get_num_rep_peak() {
+
+	rep := 1
+
+	while( get_peak( rep, 0 ) != "" ) rep++
+
+	return rep-1
+}

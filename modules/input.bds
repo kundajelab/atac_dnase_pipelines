@@ -1,1 +1,315 @@
-../chipseq/modules/input.bds
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "input_fastq.bds"
+include "input_bam.bds"
+include "input_tagalign.bds"
+include "input_peak.bds"
+
+
+help == input endedness settings (SE or PE) :
+se 	:= false	help Singled-ended data set. To specify it for each replicate, '-se[REP_ID]' for exp. reps, '-ctl_se[CTL_ID]' for control.
+pe 	:= false  	help Paired end data set. To specify it for each replicate, '-pe[REP_ID]' for exp. reps, '-ctl_pe[CTL_ID]' for controls.
+
+
+// system var.
+default_is_pe := false 		// default is se
+
+
+init_input()
+
+void init_input() {
+
+	se	= get_conf_val_bool( se, 	["se"] )
+	pe	= get_conf_val_bool( pe, 	["pe"] )
+}
+
+/////////////////// ctl==0: non-control, ctl==1: control
+
+void chk_input( bool true_rep, bool no_pseudo_rep ) {
+
+	if ( is_input_peak() ) {
+
+		chk_input_peak( true_rep, no_pseudo_rep )
+		return
+	}	
+
+	print( "\n\n== checking input files ...\n\n" );
+
+	string[] data_all
+
+	for ( int ctl=0; ctl <= 1; ctl++) { // iterate through replicates (0: not control, 1: control)
+		
+		if ( ctl==1 && !ctl_exists() ) continue
+
+		for ( int rep=1; rep <= get_num_rep( ctl ); rep++) {
+
+			string[] data
+
+			prefix := (ctl==1) ? "Control " : ""
+			suffix := is_pe( ctl, rep ) ? " (PE)" : " (SE)"
+
+			if ( is_input_fastq( ctl, rep ) ) {
+				prefix = prefix + "Rep$rep fastq" + suffix
+				fastqs := get_fastqs( ctl, rep )
+				if ( fastqs.size()==0 ) {
+					data.push( "" )
+				}
+				else {
+					for ( string fastq : fastqs ) data.push( fastq )
+				}
+			}
+			else if ( is_input_bam( ctl, rep ) ) {
+				prefix = prefix +"Rep$rep bam" + suffix
+				data.push( get_bam( ctl, rep ) )
+			}
+			else if ( is_input_filt_bam( ctl, rep ) ) {
+				prefix = prefix +"Rep$rep filt_bam" + suffix
+				data.push( get_filt_bam( ctl, rep ) )
+			}
+			else if ( is_input_tag( ctl, rep ) ) {
+				prefix = prefix + "Rep$rep tagalign" + suffix
+				data.push( get_tag( ctl, rep ) )
+			}
+
+			print("$prefix :\n")
+
+			for ( string s : data ) {
+				print("\t$s\n")
+				if ( (s != "") && !path_exists(s) ) error("\t\tFile not found!\n")
+			}
+
+			// if data is missing
+			if ( data[0] == "" ) {
+				if ( (rep>=2) && (ctl==1) ) \
+					print( "\tWarning: $prefix missing! using control 1 for calling peaks on replicate $rep\n")
+				else if ( (rep==2) && (ctl==0) ) \
+					print( "\tWarning: $prefix missing! peak will be called for replicate 1 only\n")
+				else \
+					error( "\t$prefix missing!\n")
+				continue
+			}
+
+			// check any duplicate input filename
+			for ( string s : data ) {
+				if ( is_in_array( get_basename( s ), get_basename( data_all ) ) ) \
+					error( "\t$prefix has duplicate filename!\n")
+			}
+
+			data_all = concat( data_all, data )
+		}
+	}
+}
+
+string[] get_input_files( int ctl, int rep ) {
+
+	string[] empty
+
+	if ( (ctl==1) && (rep>2) ) {
+		return empty
+	}
+	if ( is_input_fastq( ctl, rep ) ) {
+		return get_fastqs( ctl, rep )
+	}
+	else if ( is_input_bam( ctl, rep ) ) {
+		bam := get_bam( ctl, rep )
+		return bam=="" ? empty : [bam]
+	}
+	else if ( is_input_filt_bam( ctl, rep ) ) {
+		filt_bam := get_filt_bam( ctl, rep )
+		return filt_bam=="" ? empty : [filt_bam]
+	}
+	else if ( is_input_tag( ctl, rep ) ) {
+		tag := get_tag( ctl, rep )
+		return tag=="" ? empty : [tag]
+	}
+	else {
+		return empty
+	}
+}
+
+string[] get_input_files( int rep ) {
+
+	return get_input_files( 0, rep )
+}
+
+bool input_file_exists( int ctl, int rep ) {
+
+	string[] input_files = get_input_files( ctl, rep )
+	return input_files.size() > 0
+}
+
+bool input_file_exists( int rep ) {
+
+	return input_file_exists( 0, rep )
+}
+
+int get_num_rep( int ctl ) {
+
+	rep := 1
+	while( get_input_files( ctl, rep ).size() > 0 ) rep++
+
+	num_rep := rep-1
+	
+	/*
+	// correct if user skipped replicate id like (-fastq[PAIR]) instead of (-fastq[REP]_[PAIR])
+	if ( default_is_pe && num_rep == 2 && is_input_fastq( ctl, 1 ) && is_input_fastq( ctl, 2 ) ) {
+
+		fastqs := get_fastqs( ctl, 1 )
+
+		if ( !se && fastqs.size()<2 ) return 1
+	}
+	*/	
+
+	return num_rep
+}
+
+int get_num_rep() {
+
+	return is_input_peak() ?  get_num_rep_peak() : get_num_rep( 0 )
+}
+
+bool is_pe( int ctl, int rep ) {
+
+	if ( pe ) 	return true
+	if ( se ) 	return false
+
+	key_pe  := ( ctl > 0 ? "ctl_pe" : "pe" ) + rep 
+	key_pe_ctl := "ctl_pe"
+	key_se  := ( ctl > 0 ? "ctl_se" : "se" ) + rep 
+
+	if ( cmd_line_arg_has_key( key_pe ) ) {
+		return true
+	}
+	else if ( cmd_line_arg_has_key( key_se ) ) {
+		return false
+	}
+	else if ( ctl==1 && cmd_line_arg_has_key( key_pe_ctl ) ) {
+		return true		
+	}
+	else {
+		if ( conf.hasKey( key_pe ) && parse_bool( conf{ key_pe } ) ) return true
+		if ( conf.hasKey( key_se ) && parse_bool( conf{ key_se } ) ) return false
+		if ( ctl==1 && conf.hasKey( key_pe_ctl ) && parse_bool( conf{ key_pe_ctl } ) ) return true
+	}
+
+	if ( is_input_fastq( ctl, rep ) ) {
+
+		fastqs := get_fastqs( ctl, rep )
+		return fastqs.size()==2
+	}
+
+	if ( default_is_pe ) return true
+	else return false
+}
+
+bool is_se( int ctl, int rep ) {
+
+	return !is_pe( ctl, rep )
+}
+
+bool is_pe( int rep ) {
+
+	return is_pe( 0, rep )
+}
+
+bool is_se( int rep ) {
+
+	return !is_pe( 0, rep )
+}
+
+bool has_input_fastq() {
+
+	for ( int ctl=0; ctl <= 1; ctl++) { // iterate through replicates (0: not control, 1: control)		
+		if ( ctl==1 && !ctl_exists() ) continue
+
+		for ( int rep=1; rep <= get_num_rep( ctl ); rep++) {
+
+			if ( is_input_fastq( ctl, rep ) ) return true
+		}
+	}
+
+	return false
+}
+
+bool has_pe_input_fastq() {
+
+	for ( int ctl=0; ctl <= 1; ctl++) { // iterate through replicates (0: not control, 1: control)		
+		if ( ctl==1 && !ctl_exists() ) continue
+
+		for ( int rep=1; rep <= get_num_rep( ctl ); rep++) {
+
+			if ( is_input_fastq( ctl, rep ) && is_pe( ctl, rep ) ) return true
+		}
+	}
+
+	return false	
+}
+
+bool has_pe_input_tag( int ctl ) {
+
+	for ( int rep=1; rep <= get_num_rep( ctl ); rep++) {
+
+		if ( is_input_tag( ctl, rep ) && is_pe( ctl, rep ) ) return true
+	}
+
+	return false	
+}
+
+bool has_pe_input_tag() {
+
+	return has_pe_input_tag( 0 )
+}
+
+bool has_pe() {
+
+	for ( int ctl=0; ctl <= 1; ctl++) { // iterate through replicates (0: not control, 1: control)		
+		if ( ctl==1 && !ctl_exists() ) continue
+
+		for ( int rep=1; rep <= get_num_rep( ctl ); rep++) {
+
+			if ( is_pe( ctl, rep ) ) return true
+		}
+	}
+
+	return false	
+}
+
+bool has_se() {
+
+	for ( int ctl=0; ctl <= 1; ctl++) { // iterate through replicates (0: not control, 1: control)		
+		if ( ctl==1 && !ctl_exists() ) continue
+
+		for ( int rep=1; rep <= get_num_rep( ctl ); rep++) {
+
+			if ( !is_pe( ctl, rep ) ) return true
+		}
+	}
+
+	return false	
+}
+
+bool ctl_exists() {
+
+	return input_file_exists( 1, 1 )
+}
+
+/*
+// correct if user skipped replicate id like (-fastq[PAIR]) instead of (-fastq[REP]_[PAIR])
+// this is only for 1 PE replicate
+// example: -pe -fastq1 ... -fastq2 ... -> -pe -fastq1_1 ... -fastq1_2 ...
+string[] get_fastqs_c( int ctl, int rep ) {
+
+	fastqs := get_fastqs( ctl, rep )
+	
+	if ( default_is_pe && is_pe( ctl, rep ) && (get_num_rep( ctl )==1) && (fastqs.size()<2) && (get_fastq( ctl, 2, 1 )!="") ) \
+		fastqs.add( get_fastq( ctl, 2, 1 ) )
+
+	return fastqs
+}
+
+string[] get_fastqs_c( int rep ) {
+
+	return get_fastqs_c( 0, rep )
+}
+*/

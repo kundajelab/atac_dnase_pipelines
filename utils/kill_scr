@@ -1,1 +1,12 @@
-../chipseq/utils/kill_scr
+#!/bin/bash
+
+if [ "$#" -lt 1 ]; then
+  echo
+  echo "Kill a screen with name [SCR_NAME]"
+  echo "Usage : kill_scr [SCR_NAME]"
+  echo
+  screen -ls
+  exit 1
+fi
+
+screen -X -R $1 quit

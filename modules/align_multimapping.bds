@@ -1,1 +1,21 @@
-../chipseq/modules/align_multimapping.bds
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "conf.bds"
+
+
+help == align multimapping settings
+multimapping 	:= 0 		help # alignments reported for multimapping (default: 0).
+
+
+
+init_align_multimapping()
+
+
+void init_align_multimapping() {
+
+	multimapping 	= get_conf_val_int( multimapping,		["multimapping"] )
+
+	print("\n\n== align multimapping settings\n")
+	print( "# alignments reported for multimapping\t: $multimapping\n")
+}

@@ -1,6 +1,3 @@
-[submodule "chipseq"]
-	path = chipseq
-	url = https://github.com/kundajelab/TF_chipseq_pipeline
 [submodule "ataqc"]
 	path = ataqc
 	url = https://bitbucket.org/csfoo/ataqc

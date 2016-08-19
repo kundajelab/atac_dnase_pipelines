@@ -12,6 +12,10 @@ min_trim_len		:= 5 		help Minimum trim length for cutadapt -m, throwing away pro
 wt_trim			:= "23h"	help Walltime for adapter trimming (default: 23h, 23:00:00).
 mem_trim		:= "12G"	help Max. memory for adapter trimming (default: 12G).
 
+
+grp_color_trim_adapter 	:= "darkorange"
+
+
 init_align_trim_adapter()
 
 
@@ -28,7 +32,7 @@ void init_align_trim_adapter() {
 	print( "Max. memory (adapter trimming)\t\t: $mem_trim\n")
 }
 
-string _detect_adapter( string fastq, string o_dir, string label ) {
+string detect_adapter( string fastq, string o_dir, string group ) {
 
 	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	log	:= "$prefix.adapter.txt"
@@ -36,7 +40,7 @@ string _detect_adapter( string fastq, string o_dir, string label ) {
 	in 	:= [ fastq ]
 	out 	:= log
 
-	taskName:= "detect_adapter $label"
+	taskName:= "detect_adapter $group"
 
 	system 	:= "local"
 
@@ -52,7 +56,7 @@ string _detect_adapter( string fastq, string o_dir, string label ) {
 	return out
 }
 
-string _parse_adapter_log( string log ) {
+string parse_adapter_log( string log ) {
 
 	string adapter
 
@@ -72,7 +76,7 @@ string _parse_adapter_log( string log ) {
 	return adapter
 }
 
-string _trim_adapters( string fastq, string adapter, string o_dir, string label, int nth_trim, string graph_id ) {
+string trim_adapters( string fastq, string adapter, string o_dir, string group, int nth_trim, string graph_id ) {
 
 	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	p_gz	:= "$prefix"+".trim.fastq.gz"
@@ -82,7 +86,7 @@ string _trim_adapters( string fastq, string adapter, string o_dir, string label,
 
 	param_min_trim_len := min_trim_len==0 ? "" : "-m $min_trim_len"
 
-	taskName:= "trim_adapters $label $graph_id"
+	taskName:= "trim_adapters $group $graph_id"
 	cpus 	:= nth_trim; 	mem := get_res_mem(mem_trim,nth_trim); 	timeout := get_res_wt(wt_trim)
 
 	wait_par( cpus )
@@ -98,15 +102,12 @@ string _trim_adapters( string fastq, string adapter, string o_dir, string label,
 
 	register_par( tid, cpus )
 
-	_add_to_graphviz( ["fastq$graph_id"+"_($label)"], in, \
-			["trimmed_fastq$graph_id"+"_($label)"] , [out], \
-			"cutadapt\\n($label)", grp_color_trim_adapter )
-	_add_to_filetable( ["L1_align/$label/trimmed_fastq$graph_id"], [out] )
+	add_task_to_graph( in, out, group, "CUTADAPT", grp_color_trim_adapter )
 
 	return out
 }
 
-string[] _trim_adapters_PE( string fastq1, string fastq2, string adapter1, string adapter2, string o_dir, string label, int nth_trim ) {
+string[] trim_adapters_PE( string fastq1, string fastq2, string adapter1, string adapter2, string o_dir, string group, int nth_trim ) {
 
 	prefix1	:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir )
 	prefix2	:= replace_dir( rm_ext( fastq2, ["fastq","fq"] ), o_dir )
@@ -120,7 +121,7 @@ string[] _trim_adapters_PE( string fastq1, string fastq2, string adapter1, strin
 
 	param_min_trim_len := min_trim_len==0 ? "" : "-m $min_trim_len"
 
-	taskName:= "trim_adapters_PE " + label
+	taskName:= "trim_adapters_PE " + group
 	cpus 	:= nth_trim; 	mem := get_res_mem(mem_trim,nth_trim); 	timeout := get_res_wt(wt_trim)
 
 	wait_par( cpus )
@@ -139,17 +140,12 @@ string[] _trim_adapters_PE( string fastq1, string fastq2, string adapter1, strin
 
 	register_par( tid, cpus )
 
-	graph_in  := ["fastq1_($label)","fastq2_($label)"]
-	graph_out := ["trimmed_fastq1_($label)","trimmed_fastq2_($label)"]
-	hrchy_out := ["L1_align/$label/trimmed_fastq1","L1_align/$label/trimmed_fastq2"]
-
-	_add_to_graphviz( graph_in, in, graph_out, out, "cutadapt\\n($label)", grp_color_trim_adapter )
-	_add_to_filetable( hrchy_out, out )
+	add_task_to_graph( in, out, group, "CUTADAPT", grp_color_trim_adapter )
 
 	return out
 }
 
-string _trim_adapters_old( string fastq, string o_dir, string label, int nth_trim ) {
+string trim_adapters_old( string fastq, string o_dir, string group, int nth_trim ) {
 
 	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	p 	:= "$prefix"+"_trimmed.fq"
@@ -159,7 +155,7 @@ string _trim_adapters_old( string fastq, string o_dir, string label, int nth_tri
 	in 	:= [ fastq ]
 	out 	:= p2_gz
 
-	taskName:= "trim_adapters " + label
+	taskName:= "trim_adapters " + group
 	cpus 	:= nth_trim; 	mem := get_res_mem(mem_trim,nth_trim); 	timeout := get_res_wt(wt_trim)
 
 	wait_par( cpus )
@@ -178,17 +174,12 @@ string _trim_adapters_old( string fastq, string o_dir, string label, int nth_tri
 
 	register_par( tid, cpus )
 
-	graph_in  := ["fastq_($label)"]
-	graph_out := ["trimmed_fastq_($label)"]
-	hrchy_out := ["L1_align/$label/trimmed_fastq"]
-
-	_add_to_graphviz( graph_in, in, graph_out, [out], "trim_galore\\n($label)", grp_color_trim_adapter )
-	_add_to_filetable( hrchy_out, [out] )
+	add_task_to_graph( in, out, group, "TRIM GALORE", grp_color_trim_adapter )
 
 	return out
 }
 
-string[] _trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, string label, int nth_trim ) {
+string[] trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, string group, int nth_trim ) {
 
 	prefix1	:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir )
 	prefix2	:= replace_dir( rm_ext( fastq2, ["fastq","fq"] ), o_dir )
@@ -200,7 +191,7 @@ string[] _trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, stri
 	in 	:= [ fastq1, fastq2 ]
 	out 	:= [ p1_gz, p2_gz ]
 
-	taskName:= "trim_adapters_PE " + label
+	taskName:= "trim_adapters_PE " + group
 	cpus 	:= nth_trim; 	mem := get_res_mem(mem_trim,nth_trim); 	timeout := get_res_wt(wt_trim)
 
 	wait_par( cpus )
@@ -219,12 +210,7 @@ string[] _trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, stri
 
 	register_par( tid, cpus )
 
-	graph_in  := ["fastq1_($label)","fastq2_($label)"]
-	graph_out := ["trimmed_fastq1_($label)","trimmed_fastq2_($label)"]
-	hrchy_out := ["L1_align/$label/trimmed_fastq1","L1_align/$label/trimmed_fastq2"]
-
-	_add_to_graphviz( graph_in, in, graph_out, out, "trimAdaptor.py\\n($label)", grp_color_trim_adapter )
-	_add_to_filetable( hrchy_out, out )
+	add_task_to_graph( in, out, group, "TRIMADAPTOR.PY", grp_color_trim_adapter )
 
 	return out
 }

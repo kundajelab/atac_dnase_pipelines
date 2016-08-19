@@ -11,6 +11,9 @@ wt_macs2		:= "23h"	help Walltime for MACS2 (default: 23h, 23:00:00).
 mem_macs2		:= "14G" 	help Max. memory for MACS2 (default: 14G).
 
 
+grp_color_macs2	:= "lightgreen"
+
+
 init_callpeak_macs2()
 
 
@@ -30,8 +33,8 @@ void chk_callpeak_macs2() {
 	if ( !path_exists( chrsz ) ) error("Chromosome size file (-chrsz) is missing! (file: $chrsz)")
 }
 
-string[] _macs2( string tag, string smooth_window, string pval_thresh, bool make_sig, \
-			string peak_o_dir, string sig_o_dir, string label, string hrchy ) {
+string[] macs2( string tag, string smooth_window, string pval_thresh, bool make_sig, \
+			string peak_o_dir, string sig_o_dir, string group ) {
 
 	pval_str 	:= (pval_thresh=="0.01") ? "" : ".pval$pval_thresh"	
 	prefix 		:= replace_dir( rm_ext( tag, ["bed","tagAlign"] ), peak_o_dir ) + ".pf$pval_str"
@@ -56,7 +59,7 @@ string[] _macs2( string tag, string smooth_window, string pval_thresh, bool make
 	in 	:= [ tag ]
 	out 	:= make_sig ? [ peakfile, gpeakfile, fc_bigwig, pval_bigwig ] : [ peakfile, gpeakfile ]
 
-	taskName:= "macs2_atac " + label + pval_str
+	taskName:= "macs2_atac " + group + pval_str
 	mem := get_res_mem(mem_macs2,1);	timeout := get_res_wt(wt_macs2)
 
 	wait_par( cpus )
@@ -121,23 +124,7 @@ string[] _macs2( string tag, string smooth_window, string pval_thresh, bool make
 
 	register_par( tid, cpus )
 
-	// graphviz diagram and filetable
-
-	suffix	:= (pval_thresh=="0.01") ? "0.01_" : ""
-	graph_in  := ["tagalign_($label)"]
-	graph_out := [	"peak_macs2_$suffix($label)",\
-			"gpeak_macs2_$suffix($label)",\
-		      	"p-val_sig._$suffix($label)",\
-		      	"fc_sig._$suffix($label)" ]
-	suffix2	:= (pval_thresh=="0.01") ? ",0.01" : ""
-	hrchy_out := [	"L1_peak/macs2/$hrchy/peak$suffix2",\
-			"L1_peak/macs2/$hrchy/gpeak$suffix2",\
-		   	"L1_signal/macs2/$hrchy/pval$suffix2", \
-		   	"L1_signal/macs2/$hrchy/fc$suffix2" ]
-	box 	:= "macs2_p-val-thld._$pval_thresh"+"_($label)"	
-
-	_add_to_graphviz( graph_in, in, graph_out, out, box, grp_color_macs2 )
-	_add_to_filetable( hrchy_out, out )
+	add_task_to_graph( in, out, group, "MACS2\\np-val<$pval_thresh", grp_color_macs2 )
 
 	return out
 }

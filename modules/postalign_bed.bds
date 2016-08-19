@@ -1,1 +1,433 @@
-../chipseq/modules/postalign_bed.bds
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "species.bds"
+include "report.bds"
+
+
+// has functions related to tagalign, and helps getting tagalign from configruation file or command line argument
+
+help == postalign bed/tagalign settings
+fraglen0        := false        help Set predefined fragment length as zero for cross corr. analysis (add -speak=0 to run_spp.R).
+
+grp_color_xcor 		:= "yellowgreen"
+
+
+init_postalign_bed()
+
+
+void init_postalign_bed() {
+
+	fraglen0 	= get_conf_val_bool( fraglen0,	["fraglen0"] )
+
+	print("\n\n== postalign bed/tagalign settings\n")
+	print( "Set initial fraglen. to 0 for cross-corr. (-speak=0)\t: $fraglen0\n")
+}
+
+string subsample_tag( string tag, int nlines, string o_dir, string group ) {
+
+	prefix 		:= replace_dir( rm_ext( tag, ["tagAlign","tag","bed"] ), o_dir )
+	nreads_per_mill := number_with_metric_prefix( nlines )
+
+	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
+
+	in 	:= [ tag ]
+	out 	:= subsampled_tag
+
+	taskName:= "_subsample_tag " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+	
+		//# Subsample tagAlign file
+		sys zcat $tag | \
+			grep -v "chrM" | shuf -n $nlines | gzip -c > $subsampled_tag
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
+// This function is for cross correlation analysis in chipseq pipeline only for paired end data set
+// Output (subsampled) tagalign will restricted to one read end per pair
+string subsample_tag_PE_xcor( string tag, int nlines, string o_dir, string group ) {
+
+	prefix 		:= replace_dir( rm_ext( tag, ["tagAlign","bed"] ), o_dir )
+	nreads_per_mill := number_with_metric_prefix( nlines )
+
+	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
+
+	in 	:= [ tag ]
+	out 	:= subsampled_tag
+
+	taskName:= "_subsample_tag_PE " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		// join two consecutive lines in tag, subsample it and then take one read per pair
+		sys zcat $tag | sed 'N;s/\n/\t/' | \
+			grep -v "chrM" | shuf -n $nlines | \
+			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' | gzip -c > $subsampled_tag
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
+// This function is for cross correlation analysis in chipseq pipeline only for paired end data set
+// Output (subsampled) tagalign will restricted to one read end per pair
+string subsample_bedpe_to_tag_xcor( string bedpe, int nlines, string o_dir, string group ) {
+	
+	prefix 		:= replace_dir( rm_ext( bedpe, ["bedpe","bed"] ), o_dir )
+	nreads_per_mill := number_with_metric_prefix( nlines )
+
+	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
+
+	in 	:= [ bedpe ]
+	out 	:= subsampled_tag
+	taskName:= "subsample_bedpe2tag" + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		//# Subsample tagAlign file
+		//# Restrict to one read end per pair for CC analysis
+		sys zcat $bedpe | \
+			grep -v "chrM" | shuf -n $nlines | \
+			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | gzip -c > $subsampled_tag
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
+string subsample_bedpe( string bedpe, int nlines, string o_dir, string group ) {
+	
+	prefix 		:= replace_dir( rm_ext( bedpe, ["bedpe","bed"] ), o_dir )
+	nreads_per_mill := number_with_metric_prefix( nlines )
+
+	subsampled_bedpe:= "$prefix.$nreads_per_mill.bedpe.gz"
+
+	in 	:= [ bedpe ]
+	out 	:= subsampled_bedpe
+
+	taskName:= "subsample_bedpe " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys zcat $bedpe | grep -v "chrM" | shuf -n $nlines | gzip -c > $subsampled_bedpe
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
+// Adjusts the read-ends in a read BED by Tn5 offsets
+string tn5_shift_tag( string tag, string o_dir, string group ) {
+	
+	prefix 		:= replace_dir( rm_ext( tag, ["tagAlign","tag","bed"] ), o_dir )
+	//shifted_tag 	:= "$prefix.shifted.tagAlign.gz"
+	shifted_tag 	:= "$prefix.tn5.tagAlign.gz"
+
+	in 	:= [ tag ]
+	out 	:= shifted_tag
+
+	taskName:= "shift_tag " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys zcat $tag | awk -F $'\t' 'BEGIN {OFS = FS}{ if ($6 == "+") {$2 = $2 + 4} else if ($6 == "-") {$3 = $3 - 5} print $0}' | gzip -c > $shifted_tag
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
+string[] xcor( string tag, string o_dir, string group, int nth_xcor ) {
+
+	// misc.
+	prefix 		:= replace_dir( rm_ext( tag, ["tagAlign","tag","bed"] ), o_dir )
+	xcor_score 	:= "$prefix.cc.qc"
+	xcor_plot 	:= "$prefix.cc.plot.pdf"
+        param_speak     := fraglen0 ? "-speak=0" : ""
+
+	in 	:= [ tag ]
+	out 	:= [ xcor_score, xcor_plot ]
+
+	taskName:= "xcor " + group
+	cpus 	:= nth_xcor; 	mem := get_res_mem(memory,nth_xcor);
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		//# CCSCORE FILE format
+		//# Filename <tab> numReads <tab> estFragLen <tab> correstFragLen <tab> PhantomPeak <tab> corrphantomPeak <tab> argmincorr <tab> mincorr <tab> phantomPeakCoef <tab> relPhantomPeakCoef <tab> QualityTag
+		sys Rscript $(which run_spp_nodups.R) -rf \
+			-c=$tag -p=$nth_xcor \
+			-filtchr=chrM -savp=$xcor_plot -out=$xcor_score $param_speak
+		sys sed -r 's/,[^\t]+//g' $xcor_score > $xcor_score.tmp
+		sys mv $xcor_score.tmp $xcor_score
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group, "XCOR", grp_color_xcor )
+
+	return out
+}
+
+// make spr(self_pseudo_replicate)
+string[] spr( string tag, string pr1_o_dir, string pr2_o_dir, string group ) {
+	
+	prefix_pr1 	:= replace_dir( rm_ext( tag, ["tagAlign","tag","bed"] ), pr1_o_dir )
+	prefix_pr2	:= replace_dir( rm_ext( tag, ["tagAlign","tag","bed"] ), pr2_o_dir )
+	tag_pr1		:= "$prefix_pr1.pr1.tagAlign.gz"
+	tag_pr2		:= "$prefix_pr2.pr2.tagAlign.gz"
+
+	in 	:= [ tag ]
+	out 	:= [ tag_pr1, tag_pr2 ]
+
+	taskName:= "spr " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		//# Get total number of read pairs
+		sys nlines=$( zcat $tag | wc -l )
+		sys nlines=$(( (nlines + 1) / 2 ))
+		
+		//# Shuffle and split BEDPE file into 2 equal parts
+		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
+		sys zcat $tag | shuf | split -d -l $((nlines)) - $prefix_pr1.
+
+		//# Convert read pairs to reads into standard tagAlign file
+		sys gzip -c $prefix_pr1.00 > $tag_pr1
+		sys rm -f $prefix_pr1.00
+		sys gzip -c $prefix_pr1.01 > $tag_pr2
+		sys rm -f $prefix_pr1.01
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, ["$group PR 1", "$group PR 2"] )
+
+	return out
+}
+
+string[] spr_PE( string bedpe, string pr1_o_dir, string pr2_o_dir, string group ) {
+	
+	prefix_pr1 	:= replace_dir( rm_ext( bedpe, ["bedpe","bed","tagAlign"] ), pr1_o_dir )
+	prefix_pr2 	:= replace_dir( rm_ext( bedpe, ["bedpe","bed","tagAlign"] ), pr2_o_dir )
+
+	tag_pr1	:= "$prefix_pr1.pr1.tagAlign.gz"
+	tag_pr2	:= "$prefix_pr2.pr2.tagAlign.gz"
+
+	in 	:= [ bedpe ]
+	out 	:= [ tag_pr1, tag_pr2 ]
+
+	taskName:= "spr_PE " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		//# Get total number of read pairs
+		sys nlines=$( zcat $bedpe | wc -l )
+		sys nlines=$(( (nlines + 1) / 2 ))
+
+		//# Shuffle and split BEDPE file into 2 equal parts
+		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
+		sys zcat $bedpe | shuf | split -d -l $((nlines)) - $prefix_pr1.  
+
+		//# Convert read pairs to reads into standard tagAlign file
+		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$prefix_pr1.00" | \
+			gzip -c > $tag_pr1
+		sys rm -f $prefix_pr1.00
+		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$prefix_pr1.01" | \
+			gzip -c > $tag_pr2
+		sys rm -f $prefix_pr1.01
+
+		sys $shcmd_finalize
+	}
+	
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, ["$group PR 1", "$group PR 2"] )
+
+	return out
+}
+
+string[] spr_tag_PE( string tag, string pr1_o_dir, string pr2_o_dir, string group ) {
+	
+	prefix_pr1 	:= replace_dir( rm_ext( tag, ["bed","tagAlign"] ), pr1_o_dir )
+	prefix_pr2 	:= replace_dir( rm_ext( tag, ["bed","tagAlign"] ), pr2_o_dir )
+
+	joined 	:= "$prefix_pr1.joined" // temporary file
+
+	tag_pr1	:= "$prefix_pr1.pr1.tagAlign.gz"
+	tag_pr2	:= "$prefix_pr2.pr2.tagAlign.gz"
+
+	in 	:= [ tag ]
+	out 	:= [ tag_pr1, tag_pr2 ]
+
+	taskName:= "spr_tag_PE " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		// join consecutive two lines into one
+		sys zcat $tag | sed 'N;s/\n/\t/' > $joined
+
+		//# Get total number of read pairs
+		sys nlines=$( cat $joined | wc -l )
+		sys nlines=$(( (nlines + 1) / 2 ))
+
+		//# Shuffle and split temporary combined file into 2 equal parts
+		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
+		sys cat $joined | shuf | split -d -l $((nlines)) - $prefix_pr1.  
+
+		//# Convert read pairs to reads into standard tagAlign file
+		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\t%s\t%s\t%s\n%s\t%s\t%s\t%s\t%s\t%s\n",$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' "$prefix_pr1.00" | \
+			gzip -c > $tag_pr1
+		sys rm -f $prefix_pr1.00
+		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\t%s\t%s\t%s\n%s\t%s\t%s\t%s\t%s\t%s\n",$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' "$prefix_pr1.01" | \
+			gzip -c > $tag_pr2
+		sys rm -f $prefix_pr1.01
+
+		sys rm -f $joined
+
+		sys $shcmd_finalize
+	}
+	
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, ["$group PR 1", "$group PR 2"] )
+
+	return out
+}
+
+string pool_tag( string tag1, string tag2, string o_dir, string group ) {
+
+// LINUX has limit on filename length (255), make it as shorter as possible
+//	prefix 		:= "$o_dir/" + concat_basename_wo_ext( tag1, tag2, ["tagAlign","tag","bed"] )	
+	prefix 		:= replace_dir( rm_ext( tag1, ["bed","tagAlign"] ), o_dir )	
+
+	tag_pooled 	:= "$prefix"+"_pooled.tagAlign.gz"
+
+	in 	:= [ tag1, tag2 ]
+	out 	:= tag_pooled
+
+	taskName:= "pool_tag " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+		sys zcat $tag1 $tag2 | gzip -c > $tag_pooled
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
+string pool_tag( string[] tags, string o_dir, string group ) {
+
+// LINUX has limit on filename length (255), make it as short as possible
+//	prefix 		:= "$o_dir/" + concat_basename_wo_ext( tag1, tag2, ["tagAlign","tag","bed"] )
+	prefix 		:= replace_dir( rm_ext( tags[0], ["bed","tagAlign"] ), o_dir )
+
+	tag_pooled 	:= "$prefix"+"_pooled.tagAlign.gz"
+	tags_str 	:= array_to_str( tags, " " ) // join
+
+	in 		:= tags
+	out 		:= tag_pooled
+
+	taskName:= "pool_tag " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys zcat $tags_str | gzip -c > $tag_pooled
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
+string get_fraglen( string xcor_score ) {   // get FRAGLEN (3rd column of cc score file) for spp(-speak=$FRAGLEN)	
+
+	cols := xcor_score.read().split("\t")
+	return cols[2]
+}

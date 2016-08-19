@@ -1,1 +1,82 @@
-../chipseq/modules/species.bds
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "general.bds"
+
+
+help == species settings
+
+species		:= "" 		help Species. If not on kundaje lab servers, specify '-species_file' too.
+species_file	:= ""		help Species file path.
+
+chrsz 		:= "" 		help Chromosome sizes file path (use fetchChromSizes from UCSC tools).
+seq 		:= ""		help Reference genome sequence directory path (where chr*.fa exist).
+gensz 		:= ""		help Genome size; hs for human, mm for mouse.
+umap 		:= "" 		help Unique mappability tracks directory path (https://sites.google.com/site/anshulkundaje/projects/mappability).
+bwa_idx 	:= ""		help BWA index (full path prefix of *.bwt file) .
+blacklist 	:= "" 		help Blacklist bed.
+
+
+init_species()
+
+read_species() // read it if exists
+
+
+void init_species() {
+
+	species 	= get_conf_val( species, 	["species"] )
+	species_file 	= get_conf_val( species_file, 	["species_file"] )
+
+	print("\n\n== species and species file\n")
+	print( "Species\t\t\t\t: $species\n" )
+	print( "Species file\t\t\t: $species_file\n\n" )
+}
+
+void read_species() { // check for species configruation files
+
+	// value for key will be overriden as loop goes. so the last element in species_paths has the priority
+	string[] species_paths
+
+	if ( env != "" ) species_paths.add( env )
+	if ( c != "" ) species_paths.add( c )
+	species_paths.add( species_file )
+
+	for ( string path : species_paths ) {
+
+		if ( path.exists() ) {
+
+			loop := (path==c || path==env) ? 2 : 1 // look in configuration file two times
+
+			for (int i=1; i<=loop; i++) {
+
+				string{} _conf
+
+				if ( i==2 ) {
+					_conf = read_conf( path, "" ) // read configuration file
+				}
+				else {
+					_conf = read_conf( path, species ) // read species file
+				}
+
+				print("\tSpecies file (or conf./env. file) found ($path,loop:$i).\n")
+
+				if ( _conf.size() == 0 ) continue // no species section (like [hg19], [mm9], ...) found, keep going with next
+
+				gensz		= get_conf_val( gensz, 		["gensz"], _conf )
+				chrsz		= get_conf_val( chrsz, 		["chrsz"], _conf )
+				seq 		= get_conf_val( seq, 		["seq"], _conf )
+				umap		= get_conf_val( umap, 		["umap"], _conf )
+				bwa_idx 	= get_conf_val( bwa_idx, 	["bwa_idx"], _conf )
+				blacklist 	= get_conf_val( blacklist, 	["blacklist"], _conf )
+			}
+		}
+	}
+
+	print( "\n\n== species settings\n")
+	print( "Chr. sizes file\t\t\t: $chrsz\n" )
+	print( "Genome size (hs,mm)\t\t: $gensz\n" )
+	print( "Ref. genome seq. dir.\t\t: $seq\n" )
+	print( "Umap dir.\t\t\t: $umap\n" )
+	print( "BWA index\t\t\t: $bwa_idx\n" )
+	print( "Black list bed\t\t\t: $blacklist\n" )
+}

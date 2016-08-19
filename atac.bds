@@ -4,6 +4,8 @@
 
 help == atac pipeline settings
 
+type 		:= "atac-seq" 	help Type of the pipeline. atac-seq or dnase-seq (default: atac-seq).
+dnase_seq	:= false  	help DNase-Seq (no tn5 shifting).
 trimmed_fastq 	:= false	help Skip fastq-trimming stage.
 align	 	:= false	help Align only (no MACS2 peak calling or IDR or ataqc analysis).
 subsample_xcor	:= "25M"	help # reads to subsample for cross corr. analysis (default: 25M).
@@ -14,9 +16,12 @@ no_ataqc 	:= false 	help No ATAQC
 csem	 	:= false	help Use CSEM for alignment.
 mem_ataqc 	:= "10G"	help Max. memory for ATAQC (default: 10G).
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
-dnase_seq	:= false  	help DNase-Seq (no tn5 shifting).
 idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
 old_trimmer 	:= false 	help Use legacy trim adapters (trim_galore and trimAdapter.py).
+
+
+grp_color_ataqc := "pink"
+
 
 help() // show help contexts
 
@@ -31,7 +36,7 @@ include "modules/align_trim_adapter.bds"
 include "modules/postalign_bam.bds"
 include "modules/postalign_bed.bds"
 
-include "modules/callpeak_macs2.bds"
+include "modules/callpeak_macs2_atac.bds"
 include "modules/callpeak_naive_overlap.bds"
 include "modules/callpeak_etc.bds"
 include "modules/idr.bds"
@@ -39,7 +44,7 @@ include "modules/idr.bds"
 include "modules/report.bds"
 
 
-// Important output file names are stored in global variables (usually a string map string{} with a key with replicate id, pair id and peakcaller name)
+// Important output file names are stored in global variables (usually a string map string{} with a key with replicate id, pair id)
 // e.g. filt_bam{"1"} = filtered bam for replicate 1, peak_pr1{"2"} = peak file for pseudo replicate 1 of replicate 2
 
 string{} fastq, align_log, bam, filt_bam, dup_qc, flagstat_nodup_qc, pbc_qc, xcor_qc, xcor_plot
@@ -72,9 +77,9 @@ void main() { // atac pipeline starts here
 
 	chk_input( true_rep, false )
 
-	atac()
+	do_align()
 
-	post_atac()
+	call_peaks()
 
 	do_idr()
 
@@ -90,10 +95,13 @@ void init_atac() {
 	init_etc_atac()
 
 	print_atac()
+
+	init_filetable()
 }
 
 void read_conf_atac() {
 
+	type		= get_conf_val( type,			["type"] )
 	trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
 	align		= get_conf_val_bool( align,		["align"] )
 	true_rep	= get_conf_val_bool( true_rep, 		["true_rep"] )
@@ -119,6 +127,7 @@ void init_etc_atac() {
 void print_atac() {
 
 	print( "\n\n== atac pipeline settings\n")
+	print( "Type of pipeline\t\t\t: $type\n")
 	print( "Fastqs are trimmed?\t\t\t: $trimmed_fastq\n")
 	print( "Align only\t\t\t\t: " + align + "\n")
 	print( "# reads to subsample replicates (0 if no subsampling)\t: "+parse_number( subsample )+"\n")
@@ -132,6 +141,97 @@ void print_atac() {
 	print( "DNase Seq\t\t\t\t: $dnase_seq\n")
 	print( "IDR threshold\t\t\t\t: $idr_thresh\n" )
 	print( "Use old trim adapters\t\t\t: $old_trimmer\n" )
+
+	if ( dnase_seq ) type = "dnase-seq"	
+}
+
+
+void init_filetable() { // init file table labels in HTML report
+
+	// add label to graphviz
+	// : Items in filetable will be sorted in the ascending order of rank
+ 	// : Items added later will have higher rank
+
+	// Level 1
+	add_label_to_table("Alignment")
+	add_label_to_table("Signal tracks")
+	add_label_to_table("Peaks")
+	add_label_to_table("QC and logs")
+
+	// Level 2
+	for (int i=1; i<=100; i++) \
+		add_label_to_table("Replicate $i")
+	
+	add_label_to_table("True replicates")
+	add_label_to_table("Pooled replicate")
+	add_label_to_table("Pseudo-replicates")
+	add_label_to_table("Pooled pseudo-replicate")
+	add_label_to_table("Pooled pseudo-replicates")
+	add_label_to_table("Optimal set")
+	add_label_to_table("Conservative set")
+	add_label_to_table("Naive overlap")
+	add_label_to_table("MACS2")
+	add_label_to_table("IDR")
+
+	// Level 2 or 3
+	add_label_to_table("Pseudo-replicate 1")
+	add_label_to_table("Pseudo-replicate 2")
+	add_label_to_table("Pooled pseudo-replicate 1")
+	add_label_to_table("Pooled pseudo-replicate 2")
+	for (int i=1; i<=20; i++) \
+	    for (int j=i+1; j<=20; j++) \
+	        add_label_to_table("Rep. $i vs Rep. $j")
+
+	// Higher levels
+	add_label_to_table("IDR QC")
+	add_label_to_table("Fastq")
+	add_label_to_table("Fastq 1")
+	add_label_to_table("Fastq 2")
+	add_label_to_table("Trimmed fastq")
+	add_label_to_table("Trimmed fastq 1")
+	add_label_to_table("Trimmed fastq 2")
+	add_label_to_table("Bowtie2 map. log")
+	add_label_to_table("Bam")
+	add_label_to_table("Filtered bam")
+	add_label_to_table("Sorted bam")
+	add_label_to_table("Dedup. log")
+	add_label_to_table("Map. flagstat log")
+	add_label_to_table("PBC log")
+	add_label_to_table("Bedpe")
+	add_label_to_table("Subsampled bedpe")
+	add_label_to_table("Tag-align")
+	add_label_to_table("Subsampled tag-align")
+	add_label_to_table("Cross-corr. log")
+	add_label_to_table("Cross-corr. plot")
+	add_label_to_table("P-value")
+	add_label_to_table("Fold enrichment")
+	add_label_to_table("Narrow peak")
+	add_label_to_table("Gapped peak")
+	add_label_to_table("Filtered narrow peak")
+	add_label_to_table("Filtered gapped peak")
+	add_label_to_table("IDR peak")
+	add_label_to_table("Peak")
+	add_label_to_table("Filtered peak")
+	add_label_to_table("Filtered gapped peak")
+	add_label_to_table("ATAQC")
+	add_label_to_table("IDR plot")
+	add_label_to_table("Unthresholded IDR peak")
+
+	// add label to graphviz (short name, long name)
+
+	for (int i=1; i<=50; i++) {
+		add_label_to_graph("rep$i", "Replicate $i")
+		add_label_to_graph("rep$i-pr1", "Pseudo-replicate 1 for rep. $i")
+		add_label_to_graph("rep$i-pr2", "Pseudo-replicate 2 for rep. $i")
+		add_label_to_graph("rep$i-pr", "Pseudo replicates for rep. $i")
+		for (int j=1; j<=20; j++) {
+			add_label_to_graph("rep$i-rep$j", "Rep. $i vs. Rep. $j")
+		}
+	}
+	add_label_to_graph("pooled_rep", "Pooled replicate")
+	add_label_to_graph("ppr", "Pooled pseudo-replicates")
+	add_label_to_graph("ppr1", "Pooled pseudo-replicate 1")
+	add_label_to_graph("ppr2", "Pooled pseudo-replicate 2")
 }
 
 void chk_param() {
@@ -206,26 +306,25 @@ void chk_ataqc() {
 
 	print("\nChecking parameters and data files for ATAQC. \n\n")
 
-	need_to_disable_ataqc := false
+	disable_ataqc := false
 
-	if ( species == "" ) 	{ print("Warning: Genome name is missing ( '-species [GENOME_NAME; hg19, mm9, ...]' )!\n" ); need_to_disable_ataqc = true }
-	if ( ref_fa == "" ) 	{ print("Warning: Specify your reference genome .fa ('-ref_fa [FA]')!\n"); need_to_disable_ataqc = true }
-	if ( tss_enrich == "" ) { print("Warning: TSS enrichment bed is missing ( '-tss_enrich' )!\n"); need_to_disable_ataqc = true }
-	if ( dnase == "" ) 	{ print("Warning: DNase bed is missing ( '-dnase' )!\n"); need_to_disable_ataqc = true }
-	if ( blacklist == "" ) 	{ print("Warning: Blacklist bed is missing ( '-blacklist' )!\n"); need_to_disable_ataqc = true }
-	if ( prom == "" ) 	{ print("Warning: Promoter bed is missing ( '-prom' )!\n"); need_to_disable_ataqc = true }
-	if ( enh == "" ) 	{ print("Warning: Enhancer bed is missing ( '-enh' )!\n"); need_to_disable_ataqc = true }
-	if ( reg2map == "" ) 	{ print("Warning: reg2map is missing ( '-reg2map' )!\n"); need_to_disable_ataqc = true }
-	if ( roadmap_meta == "" ) { print("Warning: Roadmap metadata are missing ( '-roadmap_meta' )!\n"); need_to_disable_ataqc = true }
+	if ( species == "" ) 	{ print("Warning: Genome name is missing ( '-species [GENOME_NAME; hg19, mm9, ...]' )!\n" ); disable_ataqc  = true }
+	if ( ref_fa == "" ) 	{ print("Warning: Specify your reference genome .fa ('-ref_fa [FA]')!\n"); disable_ataqc  = true }
+	if ( tss_enrich == "" ) { print("Warning: TSS enrichment bed is missing ( '-tss_enrich' )!\n"); disable_ataqc  = true }
+	if ( dnase == "" ) 	{ print("Warning: DNase bed is missing ( '-dnase' )!\n"); disable_ataqc  = true }
+	if ( blacklist == "" ) 	{ print("Warning: Blacklist bed is missing ( '-blacklist' )!\n"); disable_ataqc  = true }
+	if ( prom == "" ) 	{ print("Warning: Promoter bed is missing ( '-prom' )!\n"); disable_ataqc  = true }
+	if ( enh == "" ) 	{ print("Warning: Enhancer bed is missing ( '-enh' )!\n"); disable_ataqc  = true }
+	if ( reg2map == "" ) 	{ print("Warning: reg2map is missing ( '-reg2map' )!\n"); disable_ataqc  = true }
+	if ( roadmap_meta == "" ) { print("Warning: Roadmap metadata are missing ( '-roadmap_meta' )!\n"); disable_ataqc  = true }
 
-	if ( need_to_disable_ataqc ) {
-
+	if ( disable_ataqc ) {
 		print("\nDisabling ATAQC...\n")
 		no_ataqc = true
 	}
 }
 
-void atac() {
+void do_align() {
 
 	// filesize of input ( map with key $rep )
 	int{} filesize
@@ -247,34 +346,35 @@ void atac() {
 		else if ( is_input_tag( rep ) ) 	filesize{rep} = (get_tag( 0, rep )).size()*10
 	}
 
-	//// distribute # threads for each replicate/control
+	//// distribute # threads for each replicate
 	nth_rep := distribute_nth( nth, filesize ) // distribute_nth # threads according to input filesize
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 
-		if ( no_par ) _atac( rep, nth_rep{rep} )
-		else 	  par _atac( rep, nth_rep{rep} )
+		if ( no_par ) do_align( rep, nth_rep{rep} )
+		else 	  par do_align( rep, nth_rep{rep} )
 	}
 
 	wait_clear_tids()
 
-	print( "\n== Done atac()\n" )
+	print( "\n== Done do_align()\n" )
 }
 
-void _atac( int rep, int nth_rep ) {
+void do_align( int rep, int nth_rep ) {
 
-	if ( is_se( rep ) ) 	_atac_SE( rep, nth_rep )
-	else 				_atac_PE( rep, nth_rep )
+	if ( is_se( rep ) ) 	align_SE( rep, nth_rep )
+	else 			align_PE( rep, nth_rep )
 
 	if ( !no_par ) monitor_par()
 }
 
-void _atac_SE( int rep, int nth_rep ) {
+void align_SE( int rep, int nth_rep ) {
 
-	info := "rep$rep"
+	group 	:= get_group_name( rep )
+	long 	:= get_long_group_name( rep )
 
-	aln_o_dir := mkdir( "$out_dir/align/$info" ) // create align output directory
-	qc_o_dir  := mkdir( "$out_dir/qc/$info" ) // create qc output dir.
+	aln_o_dir := mkdir( "$out_dir/align/$group" ) // create align output directory
+	qc_o_dir  := mkdir( "$out_dir/qc/$group" ) // create qc output dir.
 
 	string bam_
 
@@ -284,6 +384,8 @@ void _atac_SE( int rep, int nth_rep ) {
 
 		fastq{rep} = fastqs[0]
 
+		add_file_to_report( fastqs[0], "fastq", group, "Alignment/$long/Fastq" )
+
 		string p1
 
 		if ( trimmed_fastq ) {
@@ -291,38 +393,48 @@ void _atac_SE( int rep, int nth_rep ) {
 		}
 		else {
 			if ( old_trimmer ) {
-				p1 = _trim_adapters_old( fastqs[0], aln_o_dir, info, 1 )
+				p1 = trim_adapters_old( fastqs[0], aln_o_dir, group, 1 )
 			}
 			else {
 				adapters := get_adapters( rep )
 
 				if ( adapters.size()==0 ) {
-					adapter_log := _detect_adapter( fastqs[0], qc_o_dir, info )
+					adapter_log := detect_adapter( fastqs[0], qc_o_dir, group )
 					wait
 
-					adapter := _parse_adapter_log( adapter_log )
+					adapter := parse_adapter_log( adapter_log )
 
-					print("\nDetected adapter for $info (SE) : $adapter\n")
+					print("\nDetected adapter for $group (SE) : $adapter\n")
 					adapters.add( adapter )
 				}
 
-				p1 = _trim_adapters( fastqs[0], adapters[0], aln_o_dir, info, 1, "" )
+				p1 = trim_adapters( fastqs[0], adapters[0], aln_o_dir, group, 1, "" )
 			}
+
+			add_file_to_report( p1, "trimmed\\nfastq", group, "Alignment/$long/Trimmed fastq" )
+
 			wait
 		}
 
+		string align_log_ 
+
  		if ( csem ) {
-			( bam_, align_log{rep} ) = _bowtie2_csem( p1, aln_o_dir, qc_o_dir, info, nth_rep, !trimmed_fastq )
-			bam{rep} = bam_
+			( bam_, align_log_ ) = bowtie2_csem( p1, aln_o_dir, qc_o_dir, group, nth_rep, !trimmed_fastq )
 		}
 		else {
-			( bam_, align_log{rep} ) = _bowtie2( p1, aln_o_dir, qc_o_dir, info, nth_rep, !trimmed_fastq )
-			bam{rep} = bam_
+			( bam_, align_log_ ) = bowtie2( p1, aln_o_dir, qc_o_dir, group, nth_rep, !trimmed_fastq )
 		}
+
+		bam{rep} = bam_
+		align_log{rep} = align_log_
+
+		add_file_to_report( bam_, "bam", group, "Alignment/$long/Bam" )		
+		add_file_to_table( align_log_, "QC and logs/$long/Bowtie2 map. log")
+
 		wait
 	}
 
-	string filt_bam_
+	string filt_bam_, dup_qc_
 
 	if ( is_input_fastq( rep ) || is_input_bam( rep ) ) {
 
@@ -331,9 +443,14 @@ void _atac_SE( int rep, int nth_rep ) {
 			bam{rep} = bam_
 		}
 
-		( filt_bam_, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) \
-						= _dedup_bam( bam_, aln_o_dir, qc_o_dir, info, nth_rep )
+		( filt_bam_, dup_qc_, flagstat_nodup_qc{rep}, pbc_qc{rep} ) \
+						= dedup_bam( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
 		filt_bam{rep} = filt_bam_
+		dup_qc{rep} = dup_qc_
+
+		add_file_to_report( filt_bam_, "filt. bam", group, "Alignment/$long/Filtered & deduped bam" )
+		add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
+
 		wait
 	}
 
@@ -346,7 +463,8 @@ void _atac_SE( int rep, int nth_rep ) {
 			filt_bam{rep} = filt_bam_
 		}
 
-		tag = _bam_to_tag( filt_bam_, aln_o_dir, info )
+		tag = bam_to_tag( filt_bam_, aln_o_dir, group )
+
 		wait
 	}
 
@@ -359,90 +477,66 @@ void _atac_SE( int rep, int nth_rep ) {
 		string subsampled_tag
 
 		if ( parse_number( subsample ) != 0 ) {
-			subsampled_tag = _subsample_tag( tag, parse_number( subsample ), aln_o_dir, info )
+			subsampled_tag = subsample_tag( tag, parse_number( subsample ), aln_o_dir, group )
 			wait
 		}
 		else {
 			subsampled_tag = tag
 		}
 
-		if ( dnase_seq ) {
+		if ( is_dnase_seq() ) {
 			final_tag_ = subsampled_tag
 		}
 		else {
-			final_tag_ = _tn5_shift_tag( subsampled_tag, aln_o_dir, info )
+			final_tag_ = tn5_shift_tag( subsampled_tag, aln_o_dir, group )
 		}
+
 		final_tag{rep} = final_tag_
+
+		add_file_to_report( final_tag_, "tag-align", group, "Alignment/$long/Tag-align" )
+
 		wait
 
 		if ( !true_rep ) {
 
-			aln_pr1_o_dir := mkdir( "$out_dir/align/pseudo_reps/$info/pr1" )
-			aln_pr2_o_dir := mkdir( "$out_dir/align/pseudo_reps/$info/pr2" )
+			aln_pr1_o_dir := mkdir( "$out_dir/align/pseudo_reps/$group/pr1" )
+			aln_pr2_o_dir := mkdir( "$out_dir/align/pseudo_reps/$group/pr2" )
 
-			( final_tag_pr1_, final_tag_pr2_ ) = _spr( final_tag_, aln_pr1_o_dir, aln_pr2_o_dir, info )
+			( final_tag_pr1_, final_tag_pr2_ ) = spr( final_tag_, aln_pr1_o_dir, aln_pr2_o_dir, group )
 			final_tag_pr1{rep} = final_tag_pr1_
 			final_tag_pr2{rep} = final_tag_pr2_
+
+			add_file_to_report( final_tag_pr1_, "tag-align", "$group-pr1", "Alignment/Pseudo-replicates/$long/Pseudo-replicate 1/Tag-align" )
+			add_file_to_report( final_tag_pr2_, "tag-align", "$group-pr2", "Alignment/Pseudo-replicates/$long/Pseudo-replicate 2/Tag-align" )
+
 			wait
 		}
-	}
-
-	// call peaks
-	if ( !align ) {
 
 		// cross-corr. analysis
-		subsampled_tag_xcor := _subsample_tag( tag, parse_number( subsample_xcor ), aln_o_dir, info )
+		subsampled_tag_xcor := subsample_tag( tag, parse_number( subsample_xcor ), aln_o_dir, group )
 		wait
 
-		// distribute # threads (nth) to macs2 peak calling and xcor
-		int nth_xcor, nth_tmp // weight=2 for peak n sig, weight=1 for peak only and xcor
-		(nth_xcor, nth_tmp) = distribute_nth( nth_rep, true_rep ? [3,1] : [2,1] )
-
 		// xcor
-		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag_xcor, qc_o_dir, info, nth_xcor, info ) // 1 cpu
+		string xcor_qc_, xcor_plot_
+		( xcor_qc_, xcor_plot_ ) = xcor( subsampled_tag_xcor, qc_o_dir, group, nth_rep )
 
-		// call peaks
+		xcor_qc{rep} = xcor_qc_
+		xcor_plot{rep} = xcor_plot_
 
-		hrchy 		:= info
-		peak_o_dir 	:= mkdir( "$out_dir/peak/macs2/$info")
-		sig_o_dir 	:= mkdir( "$out_dir/signal/macs2/$info" )
-
-		// macs2 pval thresh = 0.01
-		( peak_001{rep}, gpeak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) \
-				= _macs2( final_tag_, "$smooth_win", 0.01, true, \
-						peak_o_dir, sig_o_dir, info, hrchy )
-		( peak{rep}, gpeak{rep} )  \
-				= _macs2( final_tag_, "$smooth_win", 0.1, false, \
-						peak_o_dir, sig_o_dir, info, hrchy )
-		if ( !true_rep ) {
-
-			pr1_hrchy 	:= "pseudo_reps/$info/pr1"
-			pr2_hrchy 	:= "pseudo_reps/$info/pr2"
-
-			peak_pr1_o_dir 	:= mkdir( "$out_dir/peak/macs2/$pr1_hrchy" )
-			peak_pr2_o_dir 	:= mkdir( "$out_dir/peak/macs2/$pr2_hrchy" )
-			sig_pr1_o_dir 	:= mkdir( "$out_dir/signal/macs2/$pr1_hrchy" )
-			sig_pr2_o_dir 	:= mkdir( "$out_dir/signal/macs2/$pr2_hrchy" )
-
-			( peak_pr1{rep}, gpeak_pr1{rep} ) \
-				= _macs2( final_tag_pr1_, "$smooth_win", 0.1, false, \
-						peak_pr1_o_dir, sig_pr1_o_dir, info+"-pr1", pr1_hrchy )
-
-			( peak_pr2{rep}, gpeak_pr2{rep} ) \
-				= _macs2( final_tag_pr2_, "$smooth_win", 0.1, false, \
-						peak_pr2_o_dir, sig_pr2_o_dir, info+"-pr2", pr2_hrchy )
-		}
+		add_file_to_report( final_tag_, "tag-align", group, "Alignment/$long/Tag-align" )
+		add_file_to_table( xcor_plot_, "QC and logs/$long/Cross-corr. plot" )
 	}
 }
 
-void _atac_PE( int rep, int nth_rep ) {
+void align_PE( int rep, int nth_rep ) {
 
-	info := "rep$rep"
+	group 	:= get_group_name( rep )
+	long 	:= get_long_group_name( rep )
 
-	aln_o_dir := mkdir( "$out_dir/align/$info" ) // create align output directory
-	qc_o_dir  := mkdir( "$out_dir/qc/$info" ) // create qc output dir.
+	aln_o_dir := mkdir( "$out_dir/align/$group" ) // create align output directory
+	qc_o_dir  := mkdir( "$out_dir/qc/$group" ) // create qc output dir.
 
-	string bam_
+	string bam_, align_log_
 
 	if ( is_input_fastq( rep ) ) {
 
@@ -453,41 +547,53 @@ void _atac_PE( int rep, int nth_rep ) {
 
 		string p1, p2
 
+		add_file_to_report( fastqs[0], "fastq 1", group, "Alignment/$long/Fastq 1" )
+		add_file_to_report( fastqs[1], "fastq 2", group, "Alignment/$long/Fastq 2" )
+
 		if ( trimmed_fastq ) {
 			p1 = fastqs[0]
 			p2 = fastqs[1]
 		}
 		else {
 			if ( old_trimmer ) {
-				( p1, p2 ) = _trim_adapters_PE_old( fastqs[0], fastqs[1], aln_o_dir, info, 1 )
+				( p1, p2 ) = trim_adapters_PE_old( fastqs[0], fastqs[1], aln_o_dir, group, 1 )
 			}
 			else {
 				adapters := get_adapters( rep )
 
 				if ( adapters.size()==0 ) {
-					adapter_log1 := _detect_adapter( fastqs[0], qc_o_dir, info )
-					adapter_log2 := _detect_adapter( fastqs[1], qc_o_dir, info )
+					adapter_log1 := detect_adapter( fastqs[0], qc_o_dir, group )
+					adapter_log2 := detect_adapter( fastqs[1], qc_o_dir, group )
 					wait
 
-					adapter1 := _parse_adapter_log( adapter_log1 )
-					adapter2 := _parse_adapter_log( adapter_log2 )
+					adapter1 := parse_adapter_log( adapter_log1 )
+					adapter2 := parse_adapter_log( adapter_log2 )
 
-					print("\nDetected adapter for $info (PE) : $adapter1, $adapter2\n")
+					print("\nDetected adapter for $group (PE) : $adapter1, $adapter2\n")
 					adapters.add( adapter1 )
 					adapters.add( adapter2 )
 				}
 
-				( p1, p2 ) = _trim_adapters_PE( fastqs[0], fastqs[1], adapters[0], adapters[1], aln_o_dir, info, 1 )
+				( p1, p2 ) = trim_adapters_PE( fastqs[0], fastqs[1], adapters[0], adapters[1], aln_o_dir, group, 1 )
 			}
+
+			add_file_to_report( p1, "trimmed\\nfastq 1", group, "Alignment/$long/Trimmed fastq 1" )
+			add_file_to_report( p2, "trimmed\\nfastq 2", group, "Alignment/$long/Trimmed fastq 2" )
+
 			wait
 		}
 
-		( bam_, align_log{rep} ) = _bowtie2_PE( p1, p2, aln_o_dir, qc_o_dir, info, nth_rep, !trimmed_fastq )
+		( bam_, align_log_ ) = bowtie2_PE( p1, p2, aln_o_dir, qc_o_dir, group, nth_rep, !trimmed_fastq )
 		bam{rep} = bam_
+		align_log{rep} = align_log_
+
+		add_file_to_report( bam_, "bam", group, "Alignment/$long/Bam" )		
+		add_file_to_table( align_log_, "QC and logs/$long/Bowtie2 map. log")
+
 		wait
 	}
 
-	string filt_bam_
+	string filt_bam_, dup_qc_
 
 	if ( is_input_fastq( rep ) || is_input_bam( rep ) ) {
 
@@ -496,9 +602,15 @@ void _atac_PE( int rep, int nth_rep ) {
 			bam{rep} = bam_
 		}
 
-		(filt_bam_, dup_qc{rep}, flagstat_nodup_qc{rep}, pbc_qc{rep} ) \
-			= _dedup_bam_PE( bam_, aln_o_dir, qc_o_dir, info, nth_rep )
+		(filt_bam_, dup_qc_, flagstat_nodup_qc{rep}, pbc_qc{rep} ) \
+			= dedup_bam_PE( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
+
 		filt_bam{rep} = filt_bam_
+		dup_qc{rep} = dup_qc_
+
+		add_file_to_report( filt_bam_, "filt. bam", group, "Alignment/$long/Filtered & deduped bam" )
+		add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
+
 		wait
 	}
 
@@ -511,19 +623,19 @@ void _atac_PE( int rep, int nth_rep ) {
 			filt_bam{rep} = filt_bam_
 		}
 
-		bedpe = _bam_to_bedpe( filt_bam_, aln_o_dir, info )
+		bedpe = bam_to_bedpe( filt_bam_, aln_o_dir, group )
 		wait
 
 		if ( parse_number( subsample )!=0 ) {
 
-			subsampled_bedpe = _subsample_bedpe( bedpe, parse_number( subsample ), aln_o_dir, info )
+			subsampled_bedpe = subsample_bedpe( bedpe, parse_number( subsample ), aln_o_dir, group )
 		}
 		else {
 			subsampled_bedpe = bedpe
 		}
 		wait
 
-		tag = _bedpe_to_tag( subsampled_bedpe, aln_o_dir, info )
+		tag = bedpe_to_tag( subsampled_bedpe, aln_o_dir, group )
 		wait
 	}
 
@@ -538,97 +650,73 @@ void _atac_PE( int rep, int nth_rep ) {
 
 		if ( !true_rep ) {
 
-			aln_pr1_o_dir = mkdir( "$out_dir/align/pseudo_reps/$info/pr1" )
-			aln_pr2_o_dir = mkdir( "$out_dir/align/pseudo_reps/$info/pr2" )
+			aln_pr1_o_dir = mkdir( "$out_dir/align/pseudo_reps/$group/pr1" )
+			aln_pr2_o_dir = mkdir( "$out_dir/align/pseudo_reps/$group/pr2" )
 
 			if ( is_input_tag( rep ) ) {
-				( tag_pr1, tag_pr2 ) = _spr_tag_PE( tag, aln_pr1_o_dir, aln_pr2_o_dir, info )
+				( tag_pr1, tag_pr2 ) = spr_tag_PE( tag, aln_pr1_o_dir, aln_pr2_o_dir, group )
 			}
 			else {
-				( tag_pr1, tag_pr2 ) = _spr_PE( subsampled_bedpe, aln_pr1_o_dir, aln_pr2_o_dir, info )
+				( tag_pr1, tag_pr2 ) = spr_PE( subsampled_bedpe, aln_pr1_o_dir, aln_pr2_o_dir, group )
 			}
 			wait
 		}
 
-		if ( dnase_seq ) {
+		if ( is_dnase_seq() ) {
 			final_tag_ = tag
 		}
 		else {
-			final_tag_ = _tn5_shift_tag( tag, aln_o_dir, info )
-		}
+			final_tag_ = tn5_shift_tag( tag, aln_o_dir, group )
+		}		
 		final_tag{rep} = final_tag_
+
+		add_file_to_report( final_tag_, "tag-align", group, "Alignment/$long/Tag-align" )
 
 		if ( !true_rep ) {
 
-			if ( dnase_seq ) {
+			if ( is_dnase_seq() ) {
 				final_tag_pr1_ = tag_pr1
 				final_tag_pr2_ = tag_pr2
 			}
 			else {
-				final_tag_pr1_ = _tn5_shift_tag( tag_pr1, aln_pr1_o_dir, info )
-				final_tag_pr2_ = _tn5_shift_tag( tag_pr2, aln_pr2_o_dir, info )
+				final_tag_pr1_ = tn5_shift_tag( tag_pr1, aln_pr1_o_dir, group )
+				final_tag_pr2_ = tn5_shift_tag( tag_pr2, aln_pr2_o_dir, group )
 			}
 			final_tag_pr1{rep} = final_tag_pr1_
 			final_tag_pr2{rep} = final_tag_pr2_
+
+			add_file_to_report( final_tag_pr1_, "tag-align", "$group-pr1", "Alignment/Pseudo-replicates/$long/Pseudo-replicate 1/Tag-align" )
+			add_file_to_report( final_tag_pr2_, "tag-align", "$group-pr2", "Alignment/Pseudo-replicates/$long/Pseudo-replicate 2/Tag-align" )			
 		}
 		wait
-	}
-
-	if ( !align ) {
 
 		string subsampled_tag_xcor
 
 		if ( bedpe == "" ) {
-			subsampled_tag_xcor = _subsample_tag_PE_xcor( tag, parse_number( subsample_xcor ), aln_o_dir, info )
+			subsampled_tag_xcor = subsample_tag_PE_xcor( tag, parse_number( subsample_xcor ), aln_o_dir, group )
 		}
 		else {
-			subsampled_tag_xcor = _subsample_bedpe_to_tag_xcor( bedpe, parse_number( subsample_xcor ), aln_o_dir, info )
+			subsampled_tag_xcor = subsample_bedpe_to_tag_xcor( bedpe, parse_number( subsample_xcor ), aln_o_dir, group )
 		}
 		wait
 
-		// distribute # threads (nth) to macs2 peak calling and xcor
-		int nth_xcor, nth_tmp // weight=2 for peak n sig, weight=1 for peak only and xcor
-		(nth_xcor, nth_tmp) = distribute_nth( nth_rep, true_rep ? [3,1] : [2,1] )
+		// cross-corr. analysis
+		string xcor_qc_, xcor_plot_
+		( xcor_qc_, xcor_plot_ ) = xcor( subsampled_tag_xcor, qc_o_dir, group, nth_rep ) 
 
-		( xcor_qc{rep}, xcor_plot{rep} ) = _xcor( subsampled_tag_xcor, qc_o_dir, info, nth_xcor, info ) // 1 cpu
+		xcor_qc{rep} = xcor_qc_
+		xcor_plot{rep} = xcor_plot_
 
-		// call peaks
-
-		hrchy 		:= info
-		peak_o_dir 	:= mkdir( "$out_dir/peak/macs2/$info")
-		sig_o_dir 	:= mkdir( "$out_dir/signal/macs2/$info" )
-
-		( peak_001{rep}, gpeak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) \
-				= _macs2( final_tag_, "$smooth_win", 0.01, true, \
-						peak_o_dir, sig_o_dir, info, hrchy )
-		( peak{rep}, gpeak{rep} ) = _macs2( final_tag_, "$smooth_win", 0.1, false, \
-						peak_o_dir, sig_o_dir, info, hrchy )
-
-		if ( !true_rep ) {
-
-			pr1_hrchy := "pseudo_reps/$info/pr1"
-			pr2_hrchy := "pseudo_reps/$info/pr2"
-
-			peak_pr1_o_dir 	:= mkdir( "$out_dir/peak/macs2/$pr1_hrchy" )
-			peak_pr2_o_dir 	:= mkdir( "$out_dir/peak/macs2/$pr2_hrchy" )
-			sig_pr1_o_dir 	:= mkdir( "$out_dir/signal/macs2/$pr1_hrchy" )
-			sig_pr2_o_dir 	:= mkdir( "$out_dir/signal/macs2/$pr2_hrchy" )
-
-			( peak_pr1{rep}, gpeak_pr1{rep} ) \
-				= _macs2( final_tag_pr1_, "$smooth_win", 0.1, false, \
-						peak_pr1_o_dir, sig_pr1_o_dir, info+"-pr1", pr1_hrchy )
-
-			( peak_pr2{rep}, gpeak_pr2{rep} ) \
-				= _macs2( final_tag_pr2_, "$smooth_win", 0.1, false, \
-						peak_pr2_o_dir, sig_pr2_o_dir, info+"-pr2", pr2_hrchy )
-		}
+		add_file_to_report( final_tag_, "tag-align", group, "Alignment/$long/Tag-align" )
+		add_file_to_table( xcor_plot_, "QC and logs/$long/Cross-corr. plot" )
 	}
 }
 
-void post_atac() { // for pooling two replicates and calling peaks on them
+void call_peaks() { // for pooling two replicates and calling peaks on them
 
 	if ( align ) return
 
+	// pool tag-aligns
 	string[] tags, tags_pr1, tags_pr2
 
 	for ( int rep=1; rep<=get_num_rep(); rep++ ) {
@@ -641,84 +729,127 @@ void post_atac() { // for pooling two replicates and calling peaks on them
 		}
 	}
 
+	string final_tag_pooled, final_tag_ppr1, final_tag_ppr2
+	
 	if ( get_num_rep() > 1 ) {
 
 	 	aln_pooled_o_dir := mkdir( "$out_dir/align/pooled_rep" )
 
-		final_tag_pooled := _pool_tag( tags, aln_pooled_o_dir, "reps" )
+		final_tag_pooled = pool_tag( tags, aln_pooled_o_dir, "reps" )
 
-			// graphviz, filetable for pooled tagalign
-			string[] graph_in
-			for ( int rep=1; rep<=get_num_rep(); rep++ ) graph_in.add("tagalign_(rep$rep)")
-
-			_add_to_graphviz( graph_in, tags, ["tagalign_(pooled)"], [final_tag_pooled] )
-			_add_to_filetable(["L1_align/pooled_rep/tagalign"], [final_tag_pooled] )
-			//
-
-		// Make shifted tags for pooled pseudo rep (ppr).
-		string final_tag_ppr1, final_tag_ppr2
+		add_file_to_report( final_tag_pooled, "tag-align", "pooled_rep", "Alignment/Pooled replicate/Tag-align" )
 
 		if ( !true_rep ) {
 
+			// Make shifted tags for pooled pseudo rep (ppr).
 		 	aln_ppr1_o_dir   := mkdir( "$out_dir/align/pooled_pseudo_reps/ppr1" )
 		 	aln_ppr2_o_dir   := mkdir( "$out_dir/align/pooled_pseudo_reps/ppr2" )
 
-			final_tag_ppr1_ := _pool_tag( tags_pr1, aln_ppr1_o_dir, "reps-pr1" )
-			final_tag_ppr2_ := _pool_tag( tags_pr2, aln_ppr2_o_dir, "reps-pr2" )
-			final_tag_ppr1 = final_tag_ppr1_ // thread safety
-			final_tag_ppr2 = final_tag_ppr2_
+			final_tag_ppr1 = pool_tag( tags_pr1, aln_ppr1_o_dir, "reps-pr1" )
+			final_tag_ppr2 = pool_tag( tags_pr2, aln_ppr2_o_dir, "reps-pr2" )
 
-				// graphviz, filetable for ppr
-				string[] graph_in_pr1, graph_in_pr2
-				for ( int rep=1; rep<=get_num_rep(); rep++ ) {
-					graph_in_pr1.add("tagalign_(rep$rep-pr1)")
-					graph_in_pr2.add("tagalign_(rep$rep-pr2)")
-				}
-
-				_add_to_graphviz( graph_in_pr1, tags_pr1, ["tagalign_(ppr1)"], [final_tag_ppr1_] )
-				_add_to_graphviz( graph_in_pr2, tags_pr2, ["tagalign_(ppr2)"], [final_tag_ppr2_] )
-				_add_to_filetable(["L1_align/pooled_pseudo_reps/ppr1/tagalign"], [final_tag_ppr1_] )
-				_add_to_filetable(["L1_align/pooled_pseudo_reps/ppr2/tagalign"], [final_tag_ppr2_] )
-				//
+			add_file_to_report( final_tag_ppr1, "tag-align", "ppr1", "Alignment/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Tag-align" )
+			add_file_to_report( final_tag_ppr2, "tag-align", "ppr2", "Alignment/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Tag-align" )			
 		}
+
 		wait_clear_tids()
+	}
+
+	// call peaks for each replicate
+	for ( int rep=1; rep<=get_num_rep(); rep++ ) {
+
+		group 	:= get_group_name( rep )
+		long 	:= get_long_group_name( rep )
+
+		// call peaks
+		peak_o_dir 	:= mkdir( "$out_dir/peak/macs2/$group")
+		sig_o_dir 	:= mkdir( "$out_dir/signal/macs2/$group" )
+
+		// macs2 pval thresh = 0.01, signal track generation = true
+		( peak_001{rep}, gpeak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) \
+				= macs2( final_tag{rep}, "$smooth_win", 0.01, true, peak_o_dir, sig_o_dir, group )
+
+		add_file_to_report( peak_001{rep}, "n. peak\\np-val<0.01", group, "Peaks/MACS2/$long/Narrow peak (p-val thresh=.01)" )
+		add_file_to_report( gpeak_001{rep}, "g. peak\\np-val<0.01", group, "Peaks/MACS2/$long/Gapped peak (p-val thresh=.01)" )
+		add_file_to_report( fc_bigwig_001{rep}, "signal fc", group, "Signal tracks/MACS2/$long/Fold enrichment" )
+		add_file_to_report( pval_bigwig_001{rep}, "signal p-val", group, "Signal tracks/MACS2/$long/P-value" )
+
+		// macs2 pval thresh = 0.1
+		( peak{rep}, gpeak{rep} )  \
+				= macs2( final_tag{rep}, "$smooth_win", 0.1, false, peak_o_dir, sig_o_dir, group )
+
+		add_file_to_report( peak{rep}, "n. peak", group, "Peaks/MACS2/$long/Narrow peak" )
+		add_file_to_report( gpeak{rep}, "g. peak", group, "Peaks/MACS2/$long/Gapped peak" )
+
+		if ( !true_rep ) {
+
+			peak_pr1_o_dir 	:= mkdir( "$out_dir/peak/macs2/pseudo_reps/$group/pr1" )
+			peak_pr2_o_dir 	:= mkdir( "$out_dir/peak/macs2/pseudo_reps/$group/pr2" )
+			sig_pr1_o_dir 	:= mkdir( "$out_dir/signal/macs2/pseudo_reps/$group/pr1" )
+			sig_pr2_o_dir 	:= mkdir( "$out_dir/signal/macs2/pseudo_reps/$group/pr2" )
+
+			( peak_pr1{rep}, gpeak_pr1{rep} ) \
+				= macs2( final_tag_pr1{rep}, "$smooth_win", 0.1, false, peak_pr1_o_dir, sig_pr1_o_dir, "$group-pr1" )
+
+			add_file_to_report( peak_pr1{rep}, "n. peak", "$group-pr1", "Peaks/MACS2/Pseudo-replicates/$long/Pseudo-replicate 1/Narrow peak" )
+			add_file_to_report( gpeak_pr1{rep},"g. peak", "$group-pr1", "Peaks/MACS2/Pseudo-replicates/$long/Pseudo-replicate 1/Gapped peak" )
+
+			( peak_pr2{rep}, gpeak_pr2{rep} ) \
+				= macs2( final_tag_pr2{rep}, "$smooth_win", 0.1, false, peak_pr2_o_dir, sig_pr2_o_dir, "$group-pr2" )
+
+			add_file_to_report( peak_pr2{rep}, "n. peak", "$group-pr2", "Peaks/MACS2/Pseudo-replicates/$long/Pseudo-replicate 2/Narrow peak" )
+			add_file_to_report( gpeak_pr2{rep},"g. peak", "$group-pr2", "Peaks/MACS2/Pseudo-replicates/$long/Pseudo-replicate 2/Gapped peak" )			
+		}
+	}
+
+	// call peaks for pooled replicates
+	if ( get_num_rep() > 1 ) {
 
 		peak_o_dir 	:= mkdir( "$out_dir/peak/macs2")
 		sig_o_dir 	:= mkdir( "$out_dir/signal/macs2")
 
-		pooled_hrchy 	:= "pooled_rep"
-		pooled_o_dir	:= mkdir( "$peak_o_dir/$pooled_hrchy" )
-		pooled_sig_o_dir:= mkdir( "$sig_o_dir/$pooled_hrchy" )
+		pooled_o_dir	:= mkdir( "$peak_o_dir/pooled_rep" )
+		pooled_sig_o_dir:= mkdir( "$sig_o_dir/pooled_rep" )
 
-		( peak_pooled_001, gpeak_pooled_001, \
-			fc_bigwig_001{"pooled"}, \
-			pval_bigwig_001{"pooled"} ) \
-						= _macs2( final_tag_pooled, "$smooth_win", 0.01, true, \
-						pooled_o_dir, pooled_sig_o_dir, "pooled", pooled_hrchy )
+		// macs2 on pooled reps with p-val threshold 0.01, signal tracks are generated
+		( peak_pooled_001, gpeak_pooled_001, fc_bigwig_001{"pooled"}, pval_bigwig_001{"pooled"} ) \
+			= macs2( final_tag_pooled, "$smooth_win", 0.01, true, pooled_o_dir, pooled_sig_o_dir, "pooled_rep" )
 
-		( peak_pooled, gpeak_pooled ) = _macs2( final_tag_pooled, "$smooth_win", 0.1, false, \
-						pooled_o_dir, pooled_sig_o_dir, "pooled", pooled_hrchy )
+		add_file_to_report( peak_pooled_001, "n. peak\\np-val<0.01", "pooled_rep", "Peaks/MACS2/Pooled replicate/Narrow peak (p-val thresh=.01)" )
+		add_file_to_report( gpeak_pooled_001, "g. peak\\np-val<0.01", "pooled_rep", "Peaks/MACS2/Pooled replicate/Gapped peak (p-val thresh=.01)" )
+		add_file_to_report( fc_bigwig_001{"pooled"}, "signal fc", "pooled_rep", "Signal tracks/MACS2/Pooled replicate/Fold enrichment" )
+		add_file_to_report( pval_bigwig_001{"pooled"}, "signal p-val", "pooled_rep", "Signal tracks/MACS2/Pooled replicate/P-value" )
+
+		// macs2 on pooled reps with p-val threshold 0.1
+		( peak_pooled, gpeak_pooled ) \
+			= macs2( final_tag_pooled, "$smooth_win", 0.1, false, pooled_o_dir, pooled_sig_o_dir, "pooled_rep" )
+
+		add_file_to_report( peak_pooled, "n. peak", "pooled_rep", "Peaks/MACS2/Pooled replicate/Narrow peak" )
+		add_file_to_report( gpeak_pooled, "g. peak", "pooled_rep", "Peaks/MACS2/Pooled replicate/Gapped peak" )
 
 		if ( !true_rep ) {
 
-			ppr1_hrchy 	:= "pooled_pseudo_reps/ppr1"
-			ppr2_hrchy 	:= "pooled_pseudo_reps/ppr2"
-			ppr1_o_dir 	:= mkdir( "$peak_o_dir/$ppr1_hrchy" )
-			ppr2_o_dir 	:= mkdir( "$peak_o_dir/$ppr2_hrchy" )
-			ppr1_sig_o_dir 	:= mkdir( "$sig_o_dir/$ppr1_hrchy" )
-			ppr2_sig_o_dir 	:= mkdir( "$sig_o_dir/$ppr2_hrchy" )
+			ppr1_o_dir 	:= mkdir( "$peak_o_dir/pooled_pseudo_reps/ppr1" )
+			ppr2_o_dir 	:= mkdir( "$peak_o_dir/pooled_pseudo_reps/ppr2" )
+			ppr1_sig_o_dir 	:= mkdir( "$sig_o_dir/pooled_pseudo_reps/ppr1" )
+			ppr2_sig_o_dir 	:= mkdir( "$sig_o_dir/pooled_pseudo_reps/ppr2" )
 
 			// call peaks on ppr
-			( peak_ppr1, gpeak_ppr1 ) = _macs2( final_tag_ppr1, "$smooth_win", 0.1, false, \
-							ppr1_o_dir, ppr1_sig_o_dir, "ppr1", ppr1_hrchy )
+			( peak_ppr1, gpeak_ppr1 ) = macs2( final_tag_ppr1, "$smooth_win", 0.1, false, ppr1_o_dir, ppr1_sig_o_dir, "ppr1" )
 
-			( peak_ppr2, gpeak_ppr2 ) = _macs2( final_tag_ppr2, "$smooth_win", 0.1, false, \
-							ppr2_o_dir, ppr2_sig_o_dir, "ppr2", ppr2_hrchy )
+			add_file_to_report( peak_ppr1, "n. peak", "ppr1", "Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Narrow peak" )
+			add_file_to_report( gpeak_ppr1, "g. peak", "ppr1","Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Gapped peak" )
+
+			( peak_ppr2, gpeak_ppr2 ) = macs2( final_tag_ppr2, "$smooth_win", 0.1, false, ppr2_o_dir, ppr2_sig_o_dir, "ppr2" )
+
+			add_file_to_report( peak_ppr2, "n. peak", "ppr2", "Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Narrow peak" )
+			add_file_to_report( gpeak_ppr2, "g. peak", "ppr2","Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Gapped peak" )
 		}
 	}
+
 	wait_clear_tids()
 
-	print( "\n== Done post_atac()\n" )
+	print( "\n== Done call_peaks()\n" )
 }
 
 void do_idr() {
@@ -734,29 +865,53 @@ void do_idr() {
 	// take top $npeak_filt lines from narrowpeaks for idr
 	for ( int rep=1; rep<=get_num_rep(); rep++ ) {
 
-		filt_peak{rep} 	= _filt_top_peaks( peak{rep}, "", "rep$rep", "peak_macs2", "macs2/rep$rep" )
-		filt_gpeak{rep} = _filt_top_peaks( gpeak{rep}, "", "rep$rep", "gpeak_macs2", "macs2/rep$rep" )
+		filt_peak{rep} 	= filt_top_peaks( peak{rep}, "", "rep$rep" )
+		filt_gpeak{rep} = filt_top_peaks( gpeak{rep}, "", "rep$rep" )
+
+		add_file_to_table( filt_peak{rep}, "Peaks/MACS2/Replicate $rep/Filtered narrow peak" )
+		add_file_to_table( filt_gpeak{rep},"Peaks/MACS2/Replicate $rep/Filtered gapped peak" )
 
 		if ( !true_rep ) {
 
-			filt_peak_pr1{rep}  = _filt_top_peaks( peak_pr1{rep}, "", "rep$rep-pr1", "peak_macs2", "macs2/pseudo_reps/rep$rep/pr1" )
-			filt_peak_pr2{rep}  = _filt_top_peaks( peak_pr2{rep}, "", "rep$rep-pr2", "peak_macs2", "macs2/pseudo_reps/rep$rep/pr2" )
-			filt_gpeak_pr1{rep} = _filt_top_peaks( gpeak_pr1{rep}, "", "rep$rep-pr1", "gpeak_macs2", "macs2/pseudo_reps/rep$rep/pr1" )
-			filt_gpeak_pr2{rep} = _filt_top_peaks( gpeak_pr2{rep}, "", "rep$rep-pr2", "gpeak_macs2", "macs2/pseudo_reps/rep$rep/pr2" )
+			filt_peak_pr1{rep}  = filt_top_peaks( peak_pr1{rep}, "", "rep$rep-pr1" )
+			filt_peak_pr2{rep}  = filt_top_peaks( peak_pr2{rep}, "", "rep$rep-pr2" )
+			filt_gpeak_pr1{rep} = filt_top_peaks( gpeak_pr1{rep}, "", "rep$rep-pr1" )
+			filt_gpeak_pr2{rep} = filt_top_peaks( gpeak_pr2{rep}, "", "rep$rep-pr2" )
+
+			add_file_to_table( filt_peak_pr1{rep}, \
+				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 1/Filtered narrow peak" )
+			add_file_to_table( filt_peak_pr2{rep}, \
+				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 2/Filtered narrow peak" )
+			add_file_to_table( filt_gpeak_pr1{rep}, \
+				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 1/Filtered gapped peak" )
+			add_file_to_table( filt_gpeak_pr2{rep}, \
+				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 2/Filtered gapped peak" )
 		}
 	}
 
 	if ( get_num_rep() > 1 ) {
 
-		filt_peak_pooled = _filt_top_peaks( peak_pooled, "", "pooled", "peak_macs2", "macs2/pooled_rep" )
-		filt_gpeak_pooled= _filt_top_peaks( gpeak_pooled, "", "pooled", "gpeak_macs2", "macs2/pooled_rep" )
+		filt_peak_pooled = filt_top_peaks( peak_pooled, "", "pooled_rep" )
+		filt_gpeak_pooled= filt_top_peaks( gpeak_pooled, "", "pooled_rep" )
+
+		add_file_to_table( filt_peak_pooled, "Peaks/MACS2/Pooled replicate/Filtered narrow peak" )
+		add_file_to_table( filt_gpeak_pooled, "Peaks/MACS2/Pooled replicate/Filtered gapped peak" )
 
 		if ( !true_rep ) {
 
-			filt_peak_ppr1 	   = _filt_top_peaks( peak_ppr1, "", "ppr1", "peak_macs2", "macs2/pooled_pseudo_reps/ppr1" )
-			filt_peak_ppr2 	   = _filt_top_peaks( peak_ppr2, "", "ppr2", "peak_macs2", "macs2/pooled_pseudo_reps/ppr2" )
-			filt_gpeak_ppr1    = _filt_top_peaks( gpeak_ppr1, "", "ppr1", "gpeak_macs2", "macs2/pooled_pseudo_reps/ppr1" )
-			filt_gpeak_ppr2    = _filt_top_peaks( gpeak_ppr2, "", "ppr2", "gpeak_macs2", "macs2/pooled_pseudo_reps/ppr2" )
+			filt_peak_ppr1 	= filt_top_peaks( peak_ppr1, "", "ppr1" )
+			filt_peak_ppr2 	= filt_top_peaks( peak_ppr2, "", "ppr2" )
+			filt_gpeak_ppr1 = filt_top_peaks( gpeak_ppr1, "", "ppr1" )
+			filt_gpeak_ppr2 = filt_top_peaks( gpeak_ppr2, "", "ppr2" )
+
+			add_file_to_table( filt_peak_ppr1, \
+				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Filtered narrow peak" )
+			add_file_to_table( filt_peak_ppr2, \
+				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Filtered narrow peak" )
+			add_file_to_table( filt_gpeak_ppr1, \
+				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Filtered gapped peak" )
+			add_file_to_table( filt_gpeak_ppr2, \
+				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Filtered gapped peak" )
 		}
 	}
 
@@ -769,20 +924,21 @@ void do_idr() {
 	if ( get_num_rep() == 1 ) {
 
 		if ( !true_rep ) {
-			peak_overlap = _naive_overlap_peak( "narrowPeak", filt_peak{1}, filt_peak_pr1{1}, filt_peak_pr2{1}, overlap_o_dir, \
-									  "peak", "peak_macs2_filt", "macs2/overlap" )
-			gpeak_overlap = _naive_overlap_peak( "gappedPeak", filt_gpeak{1}, filt_gpeak_pr1{1}, filt_gpeak_pr2{1}, overlap_o_dir, \
-									  "gpeak", "gpeak_macs2_filt", "macs2/overlap" )
+			peak_overlap = naive_overlap_peak( "narrowPeak", \
+						filt_peak{1}, filt_peak_pr1{1}, filt_peak_pr2{1}, overlap_o_dir, "" )
+			gpeak_overlap = naive_overlap_peak( "gappedPeak", \
+						filt_gpeak{1}, filt_gpeak_pr1{1}, filt_gpeak_pr2{1}, overlap_o_dir, "" )
 		}
 	}
 	else {
-		peak_overlap = _naive_overlap_peak( "narrowPeak", filt_peak_pooled, map_to_array( filt_peak ), \
-								  filt_peak_ppr1, filt_peak_ppr2, overlap_o_dir, \
-								  "peak", "peak_macs2_filt", "macs2/overlap" )
-		gpeak_overlap = _naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, map_to_array( filt_gpeak ), \
-								  filt_gpeak_ppr1, filt_gpeak_ppr2, overlap_o_dir, \
-								  "gpeak", "gpeak_macs2_filt", "macs2/overlap" )
+		peak_overlap = naive_overlap_peak( "narrowPeak", filt_peak_pooled, map_to_array( filt_peak ), \
+								  filt_peak_ppr1, filt_peak_ppr2, overlap_o_dir, "" )
+		gpeak_overlap = naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, map_to_array( filt_gpeak ), \
+								  filt_gpeak_ppr1, filt_gpeak_ppr2, overlap_o_dir, "" )
 	}
+
+	add_file_to_report( peak_overlap, "n. peak\\noverlap", "", "Peaks/MACS2/Naive overlap/Narrow peak" )
+	add_file_to_report( gpeak_overlap, "g. peak\\noverlap", "", "Peaks/MACS2/Naive overlap/Gapped peak" )
 
 	// do IDR
 
@@ -794,16 +950,22 @@ void do_idr() {
 
 			idr_true_o_dir 	:= mkdir( "$idr_o_dir/true_reps/rep$i-rep$j" )
 
-			(idr_tr{"$i,$j"}, idr_tr_png{"$i,$j"} ) = _idr2( filt_peak{i}, filt_peak{j}, filt_peak_pooled, idr_thresh, "p.value", idr_true_o_dir, "rep$i-rep$j", \
-									"peak_macs2_filt", ["rep$i","rep$j","pooled"], "true_reps/rep$i-rep$j" )
+			(idr_tr{"$i,$j"}, idr_tr_png{"$i,$j"} ) \
+				= idr2( filt_peak{i}, filt_peak{j}, filt_peak_pooled, idr_thresh, "p.value", idr_true_o_dir, "rep$i-rep$j" )
+
+			add_file_to_report( idr_tr{"$i,$j"}, "IDR peak", "rep$i-rep$j", "Peaks/IDR/True replicates/Rep. $i vs. Rep. $j/IDR peak" )
+			add_file_to_table( idr_tr_png{"$i,$j"}, "QC and logs/IDR/True replicates/Rep. $i vs. Rep. $j/IDR plot" )
 		}
 
 		if ( !true_rep ) {
 
 			idr_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep$i" )
 
-			(idr_pr{i}, idr_pr_png{i}) = _idr2( filt_peak_pr1{i}, filt_peak_pr2{i}, filt_peak{i}, idr_thresh, "p.value", idr_pr_o_dir, "rep$i-pr", \
-							"peak_macs2_filt", ["rep$i-pr1","rep$i-pr2","rep$i"], "pseudo_reps/rep$i" )
+			(idr_pr{i}, idr_pr_png{i}) \
+				= idr2( filt_peak_pr1{i}, filt_peak_pr2{i}, filt_peak{i}, idr_thresh, "p.value", idr_pr_o_dir, "rep$i-pr" )
+
+			add_file_to_report( idr_pr{i}, "IDR peak", "rep$i-pr", "Peaks/IDR/Pseudo-replicates/Replicate $i/IDR peak" )
+			add_file_to_table( idr_pr_png{i}, "QC and logs/IDR/Pseudo-replicates/Replicate $i/IDR plot" )
 		}
 	}
 
@@ -811,16 +973,23 @@ void do_idr() {
 
 		idr_ppr_o_dir := mkdir( "$idr_o_dir/pooled_pseudo_reps" )
 
-		(idr_ppr, idr_ppr_png) = _idr2( filt_peak_ppr1, filt_peak_ppr2, filt_peak_pooled, idr_thresh, "p.value", idr_ppr_o_dir, "ppr", \
-						"peak_macs2_filt", ["ppr1","ppr2","pooled"], "pooled_pseudo_reps" )
+		(idr_ppr, idr_ppr_png) \
+			= idr2( filt_peak_ppr1, filt_peak_ppr2, filt_peak_pooled, idr_thresh, "p.value", idr_ppr_o_dir, "ppr" )
+
+		add_file_to_report( idr_ppr, "IDR peak", "ppr", "Peaks/IDR/Pooled pseudo-replicates/IDR peak" )
+		add_file_to_table( idr_ppr_png, "QC and logs/IDR/Pooled pseudo-replicates/IDR plot" )
 	}
 
 	wait_clear_tids()
 
-	qc_o_dir    := mkdir( "$out_dir/qc" ) // create qc output dir.
+	qc_o_dir := mkdir( "$out_dir/qc" ) // create qc output dir.
 
 	// get final idr qc score, use idr final idr narrow peak files from true, pseudo and pooled pseudo reps
-	(idr_qc, idr_opt, idr_consv) = _idr_final_qc( idr_tr, idr_pr, idr_ppr, idr_o_dir, qc_o_dir, "" )
+	(idr_qc, idr_opt, idr_consv) = idr_final_qc( idr_tr, idr_pr, idr_ppr, idr_o_dir, qc_o_dir, "" )
+
+	add_file_to_report( idr_qc, "IDR QC log", "", "QC and logs/IDR/IDR QC log" )
+	add_file_to_report( idr_opt, "opt. IDR peak", "", "Peaks/IDR/Optimal set/IDR peak" )
+	add_file_to_report( idr_consv, "consv. IDR peak", "", "Peaks/IDR/Conservative set/IDR peak" )
 
 	wait_clear_tids()
 
@@ -833,8 +1002,8 @@ void ataqc() {
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 
-		if ( no_par ) _ataqc( rep )
-		else 	  par _ataqc( rep )
+		if ( no_par ) ataqc( rep )
+		else 	  par ataqc( rep )
 	}
 
 	wait_clear_tids()
@@ -842,50 +1011,45 @@ void ataqc() {
 	print( "\n== Done ataqc()\n" )
 }
 
-void _ataqc( int rep ) {
+void ataqc( int rep ) {
 
-	info := "rep$rep"
+	group := get_group_name( rep )
+	long  := get_long_group_name( rep )
 
-	qc_o_dir 	:= mkdir( "$out_dir/qc/$info" )
-	aln_o_dir 	:= mkdir( "$out_dir/align/$info" ) // create align output directory
+	qc_o_dir 	:= mkdir( "$out_dir/qc/$group" )
+	aln_o_dir 	:= mkdir( "$out_dir/align/$group" ) // create align output directory
 
 	if ( bam.hasKey(rep) ) {
 
-		string idr_, graph_in_idr
+		string idr_ataqc
 
-		if ( no_idr ) {
-			idr_ = ""
-			graph_in_idr = ""
-		}
-		else if ( get_num_rep() == 1 ) {
-			idr_ = idr_pr{1}
-			graph_in_idr = "idr_peak_(rep1-pr)"
-		}
-		else {
-			idr_ = idr_opt
-			graph_in_idr = "idr_peak_(opt)"
-		}
+		if ( no_idr ) 			idr_ataqc = ""
+		else if ( get_num_rep() == 1 ) 	idr_ataqc = idr_pr{1}
+		else 				idr_ataqc = idr_opt
+
+		string ataqc_html, tmp
 
 		if ( is_se( rep ) ) {
 
-			_ataqc( fastq{rep}, "", bam{rep}, align_log{rep}, pbc_qc{rep}, \
+			( ataqc_html, tmp ) = ataqc( fastq{rep}, "", bam{rep}, align_log{rep}, pbc_qc{rep}, \
 				dup_qc{rep}, filt_bam{rep}, final_tag{rep}, pval_bigwig_001{rep}, peak_001{rep}, \
-				peak_overlap, idr_, qc_o_dir, info, graph_in_idr )
+				peak_overlap, idr_ataqc, qc_o_dir, group )
 		}
 		else {
-			_ataqc( fastq{rep+",1"}, fastq{rep+",2"}, bam{rep}, align_log{rep}, pbc_qc{rep}, \
+			( ataqc_html, tmp ) = ataqc( fastq{rep+",1"}, fastq{rep+",2"}, bam{rep}, align_log{rep}, pbc_qc{rep}, \
 				dup_qc{rep}, filt_bam{rep}, final_tag{rep}, pval_bigwig_001{rep}, peak_001{rep}, \
-				peak_overlap, idr_, qc_o_dir, info, graph_in_idr )
+				peak_overlap, idr_ataqc, qc_o_dir, group )
 		}
+
+		add_file_to_report( ataqc_html, "ATAQC\\nreport", group, "QC and logs/ATAQC/$long/ATAQC HTML report" )
 	}
 
 	if ( !no_par ) monitor_par()
 }
 
-string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, string pbc_log, \
+string[] ataqc( string fastq1, string fastq2, string bam, string align_log, string pbc_log, \
 		 string dup_log, string filt_bam, string bed, string bigwig, string peak, \
-		 string peak_naive_overlap, string idr_peak, \
-		 string o_dir, string info, string graph_in_idr ) {
+		 string peak_naive_overlap, string idr_peak, string o_dir, string group ) {
 
 	prefix 		:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir ) + ( (fastq2!="") ? ".PE2SE" : "" )
 
@@ -902,11 +1066,11 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 				: [ fastq1, bam, align_log, pbc_log, dup_log, filt_bam, bed, bigwig, peak ]
 	out 	:= [ html, txt ] //, gc_plot, hist_graph, lg_vplot, vplot, signal ]
 
-	wait_par( cpus )
-
-	taskName:= "ataqc "+info
+	taskName:= "ataqc "+group
 	mem := get_res_mem(mem_ataqc,1);
 	max_java_heap 	:= number_with_binary_prefix( (mem==-1) ? parse_mem( mem_ataqc ) : (mem*3)/4 )
+
+	wait_par( cpus )
 
 	tid := task( out<-in ) {
 
@@ -949,20 +1113,7 @@ string[] _ataqc( string fastq1, string fastq2, string bam, string align_log, str
 
 	register_par( tid, cpus )
 
-	path_in := ( fastq2!="" ) ? [fastq1, fastq2, bam, filt_bam, bed, bigwig, peak, peak_naive_overlap, idr_peak] \
-				  : [fastq1,         bam, filt_bam, bed, bigwig, peak, peak_naive_overlap, idr_peak]
-
-	graph_in := ( fastq2!="" ) ? ["fastq1_($info)","fastq2_($info)","bam_($info)","filt_bam_($info)",\
-					"tagalign_($info)","p-val_sig._0.01_($info)","peak_macs2_0.01_($info)",\
-					"peak_macs2_filt_(overlap)", graph_in_idr] : \
-				     ["fastq_($info)","bam_($info)","filt_bam_($info)",\
-					"tagalign_($info)","p-val_sig._0.01_($info)","peak_macs2_0.01_($info)", \
-					"peak_macs2_filt_(overlap)", graph_in_idr]
-
-	graph_out := ["ataqc rpt_($info)"]
-
-	_add_to_graphviz( graph_in, path_in, graph_out, out, "ataqc_($info)", grp_color_ataqc )
-	_add_to_filetable( ["L1_qc/$info/ataqc"], out )
+	add_task_to_graph( in, out, group, "ATAQC", grp_color_ataqc )
 
 	return out
 }
@@ -971,32 +1122,32 @@ void report() {
 
 	wait_clear_tids()
 
-	html := _html_filetable() 	// treeview for directory and file structure
-	html += _html_atac_tracks() 	// epigenome browser tracks
-	html += _html_graphviz()	// graphviz workflow diagram
-	html += _html_atac_QC()	// show QC tables and images
+	html := html_filetable() 	// treeview for directory and file structure
+	html += html_atac_tracks() 	// epigenome browser tracks
+	html += html_graph()	// graphviz workflow diagram
+	html += html_atac_QC()	// show QC tables and images
 
 	report( html )
 
 	print( "\n== Done report()\n" )
 }
 
-string _html_atac_QC() {
+string html_atac_QC() {
 
 	string[] align_qcs, dup_qcs, flagstat_nodup_qcs, pbc_qcs, xcor_qcs, xcor_plots
 	string[] align_headers, dup_headers, flagstat_nodup_headers, pbc_headers, xcor_headers
 
 	for ( int rep=1; rep <= get_num_rep(); rep++) {
 
-		info := "rep$rep"
+		group := "rep$rep"
 		key := "$rep"
 
-		//html_rep_by_id += _html_xcor( info, 	[ info ], [ xcor_qc{key} ], [ xcor_plot{key} ], [ info ] )
+		//html_rep_by_id += html_xcor( group, 	[ group ], [ xcor_qc{key} ], [ xcor_plot{key} ], [ group ] )
 
 		if ( xcor_qc.hasKey( key ) )	{
 			xcor_qcs 		+= xcor_qc{key}
 			xcor_plots 		+= xcor_plot{key}
-			xcor_headers 		+= info
+			xcor_headers 		+= group
 		}
 
 		if ( align_log.hasKey( key ) ) 		align_qcs 		+= align_log{key}
@@ -1004,60 +1155,60 @@ string _html_atac_QC() {
 		if ( flagstat_nodup_qc.hasKey( key ) )	flagstat_nodup_qcs 	+= flagstat_nodup_qc{key}
 		if ( pbc_qc.hasKey( key ) ) 		pbc_qcs			+= pbc_qc{key}
 
-		if ( align_log.hasKey( key ) ) 		align_headers 		+= info
-		if ( dup_qc.hasKey( key ) ) 		dup_headers 		+= info
-		if ( flagstat_nodup_qc.hasKey( key ) )	flagstat_nodup_headers 	+= info
-		if ( pbc_qc.hasKey( key ) ) 		pbc_headers		+= info
+		if ( align_log.hasKey( key ) ) 		align_headers 		+= group
+		if ( dup_qc.hasKey( key ) ) 		dup_headers 		+= group
+		if ( flagstat_nodup_qc.hasKey( key ) )	flagstat_nodup_headers 	+= group
+		if ( pbc_qc.hasKey( key ) ) 		pbc_headers		+= group
 
 	}
 
 	html := "<div id='atac_qc'>"
 
-	html += _parse_align_log_to_html( "all", 	align_headers, align_qcs, align_headers )
-	html += _parse_dup_to_html( "all", 		dup_headers, dup_qcs, dup_headers )
-	html += _parse_flagstat_to_html( "all, filtered",flagstat_nodup_headers, flagstat_nodup_qcs, flagstat_nodup_headers )
-	html += _parse_pbc_to_html( "all", 		pbc_headers, pbc_qcs, pbc_headers )
-	html += _parse_xcor_to_html( "all", 		xcor_headers, xcor_qcs, xcor_plots, xcor_headers )
+	html += parse_align_log_to_html( "all", 	align_headers, align_qcs, align_headers )
+	html += parse_dup_to_html( "all", 		dup_headers, dup_qcs, dup_headers )
+	html += parse_flagstat_to_html( "all, filtered",flagstat_nodup_headers, flagstat_nodup_qcs, flagstat_nodup_headers )
+	html += parse_pbc_to_html( "all", 		pbc_headers, pbc_qcs, pbc_headers )
+	html += parse_xcor_to_html( "all", 		xcor_headers, xcor_qcs, xcor_plots, xcor_headers )
 
 	// if idr qc's exists, add them to html
 
-	if ( idr_qc != "" ) html += _parse_idr_to_html( "idr", idr_qc )
+	if ( idr_qc != "" ) html += parse_idr_to_html( "idr", idr_qc )
 
 	for ( int i=1; i<=get_num_rep(); i++ ) {
 
 		for ( int j=i+1; j<=get_num_rep(); j++ ) {
-			if ( idr_tr_png.hasKey("$i,$j") ) html += _html_img( idr_tr_png{"$i,$j"}, 800, "true reps (rep$i-rep$j)" ) + "&nbsp"
+			if ( idr_tr_png.hasKey("$i,$j") ) html += html_img( idr_tr_png{"$i,$j"}, 800, "true reps (rep$i-rep$j)" ) + "&nbsp"
 		}
 
 		if ( !true_rep ) {
-			if ( idr_pr_png.hasKey(i) ) html += _html_img( idr_pr_png{i}, 800, "rep$i pseudo-reps" ) + "&nbsp"
+			if ( idr_pr_png.hasKey(i) ) html += html_img( idr_pr_png{i}, 800, "rep$i pseudo-reps" ) + "&nbsp"
 		}
 	}
 
-	if ( idr_ppr_png != "" ) html += _html_img( idr_ppr_png, 800, "pooled pseudo-reps" ) + "&nbsp"
+	if ( idr_ppr_png != "" ) html += html_img( idr_ppr_png, 800, "pooled pseudo-reps" ) + "&nbsp"
 
 	html += "</div><br>"
 	return html
 }
 
-string _html_atac_tracks() {
+string html_atac_tracks() {
 
 	string[] track_files, track_types, track_names
 
 	if ( pval_bigwig_001.hasKey( "pooled" ) ) { track_types += "bigwig"; track_names += "$title pval (pooled)"; track_files += pval_bigwig_001{"pooled"} }
 
-	if ( peak_overlap != "" ) { track_types += "hammock"; track_names += "$title peak overlap"; track_files += _peak_to_hammock( peak_overlap ) }
-	if ( gpeak_overlap != "" ) { track_types += "hammock"; track_names += "$title gpeak overlap"; track_files += _peak_to_hammock( gpeak_overlap ) }
-	if ( idr_opt != "" ) {	track_types += "hammock"; track_names += "$title peak idr (opt. set)"; track_files += _peak_to_hammock( _get_idr_peak_trk( idr_opt ) ) } // find IDR tracks
+	if ( peak_overlap != "" ) { track_types += "hammock"; track_names += "$title peak overlap"; track_files += peak_to_hammock( peak_overlap ) }
+	if ( gpeak_overlap != "" ) { track_types += "hammock"; track_names += "$title gpeak overlap"; track_files += peak_to_hammock( gpeak_overlap ) }
+	if ( idr_opt != "" ) {	track_types += "hammock"; track_names += "$title peak idr (opt. set)"; track_files += peak_to_hammock( _get_idr_peak_trk( idr_opt ) ) } // find IDR tracks
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 
 		if ( pval_bigwig_001.hasKey( "$rep" ) ) { track_types += "bigwig"; track_names += "$title pval (rep$rep)"; track_files += pval_bigwig_001{rep} }
-		if ( peak_001.hasKey( "$rep" ) ) { track_types += "hammock"; track_names += "$title peak (rep$rep)"; track_files += _peak_to_hammock( peak_001{rep} ) }
-		if ( idr_pr.hasKey(rep) ) {	track_types += "hammock"; track_names += "$title peak idr (rep$rep-pr)"; track_files += _peak_to_hammock( _get_idr_peak_trk( idr_pr{rep} ) ) }
+		if ( peak_001.hasKey( "$rep" ) ) { track_types += "hammock"; track_names += "$title peak (rep$rep)"; track_files += peak_to_hammock( peak_001{rep} ) }
+		if ( idr_pr.hasKey(rep) ) {	track_types += "hammock"; track_names += "$title peak idr (rep$rep-pr)"; track_files += peak_to_hammock( _get_idr_peak_trk( idr_pr{rep} ) ) }
 	}
 
-	html := _html_epg_browser_viz( track_files, track_types, track_names )
+	html := html_epg_browser_viz( track_files, track_types, track_names )
 
 	return html
 }
@@ -1071,21 +1222,13 @@ void help() {
 	}
 }
 
-/*
-// correct if user skipped replicate id like (-adapter[PAIR]) instead of (-adapter[REP]_[PAIR])
-string[] get_adapters_c( int rep ) {
+bool is_atac_seq() {
 
-	adapters := get_adapters( 0, rep )
-
-	if ( is_pe( rep ) && (get_num_rep()==1) && (adapters.size()<2) && (get_adapter( 0, 2, 1 )!="") ) \
-		adapters.add( get_adapter( 0, 2, 1 ) )
-
-	if ( adapters.size() == 0 ) adapters = get_adapters( 0, 1 )
-
-	fastqs := get_fastqs( 0, rep )
-
-	if ( fastqs.size() > 1 && adapters.size() == 1 ) adapters.add( adapters[0] )
-
-	return adapters
+	return type.toLower().startsWith( "atac" )
 }
-*/
+
+bool is_dnase_seq() {
+
+	return type.toLower().startsWith( "dnase" )
+}
+

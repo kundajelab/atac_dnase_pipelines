@@ -1,1 +1,74 @@
-../chipseq/modules/input_tagalign.bds
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "conf.bds"
+
+
+help == tagalign input definition :
+help         For replicate '-tag[REP_ID]', For control '-ctl_tag[REP_ID]'.
+
+
+string get_tag( int ctl, int rep ) {
+
+	key := ( ctl > 0 ? "ctl_tag" : "tag" ) + "_rep" + rep
+	key2 := ( ctl > 0 ? "ctl_tagalign" : "tagalign" ) + "_rep" + rep
+
+	key3 := ( ctl > 0 ? "ctl_tag" : "tag" ) + rep
+	key4 := ( ctl > 0 ? "ctl_tagalign" : "tagalign" ) + rep
+
+	key5 := ( ctl > 0 ? "ctl_tag" : "tag" )
+	key6 := ( ctl > 0 ? "ctl_tagalign" : "tagalign" )
+
+	if ( cmd_line_arg_has_key( key ) ) {
+		return get_path( get_cmd_line_arg_val( key ) )
+	}
+	else if ( cmd_line_arg_has_key( key2 ) ) {
+		return get_path( get_cmd_line_arg_val( key2 ) )
+	}
+	else if ( cmd_line_arg_has_key( key3 ) ) {
+		return get_path( get_cmd_line_arg_val( key3 ) )
+	}
+	else if ( cmd_line_arg_has_key( key4 ) ) {
+		return get_path( get_cmd_line_arg_val( key4 ) )
+	}
+	else if ( (rep==1) && cmd_line_arg_has_key( key5 ) ) {
+		return get_path( get_cmd_line_arg_val( key5 ) )
+	}
+	else if ( (rep==1) && cmd_line_arg_has_key( key6 ) ) {
+		return get_path( get_cmd_line_arg_val( key6 ) )
+	}
+	else if ( conf.hasKey( key ) ) {
+		return get_path( conf{ key } )
+	}
+	else if ( conf.hasKey( key2 ) ) {
+		return get_path( conf{ key2 } )
+	}
+	else if ( conf.hasKey( key3 ) ) {
+		return get_path( conf{ key3 } )
+	}
+	else if ( conf.hasKey( key4 ) ) {
+		return get_path( conf{ key4 } )
+	}
+	else if ( (rep==1) && conf.hasKey( key5 ) ) {
+		return get_path( conf{ key5 } )
+	}
+	else if ( (rep==1) && conf.hasKey( key6 ) ) {
+		return get_path( conf{ key6 } )
+	}
+	return ""
+}
+
+string get_tag( int rep ) {
+
+	return get_tag( 0, rep )
+}
+
+bool is_input_tag( int ctl, int rep ) {
+
+	return get_tag( ctl, rep ) != ""
+}
+
+bool is_input_tag( int rep ) {
+
+	return is_input_tag( 0, rep )
+}

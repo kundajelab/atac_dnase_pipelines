@@ -11,6 +11,10 @@ help == align bowtie2 settings (requirements: -bwt2_idx)
 wt_bwt2		:= "23h"		help Walltime for bowtie2 (default: 23h, 23:00:00).
 mem_bwt2	:= "12G"	 	help Max. memory for bowtie2 (default: 12G).
 
+
+grp_color_bwt2		:= "salmon"
+
+
 init_align_bwt2()
 
 
@@ -31,7 +35,7 @@ void chk_align_bwt2() {
 	}
 }
 
-string[] _bowtie2( string fastq, string o_dir, string log_o_dir, string label, int nth_bwt2, bool trimmed ) { 
+string[] bowtie2( string fastq, string o_dir, string log_o_dir, string group, int nth_bwt2, bool trimmed ) { 
 
 	prefix 	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	prefix2	:= replace_dir( prefix, log_o_dir )
@@ -42,7 +46,7 @@ string[] _bowtie2( string fastq, string o_dir, string log_o_dir, string label, i
 	in 	:= [ fastq ]
 	out 	:= [ bam, log ]
 
-	taskName:= "bowtie2 "+label
+	taskName:= "bowtie2 "+group
 	cpus 	:= nth_bwt2; 	mem := get_res_mem(mem_bwt2,nth_bwt2); 	timeout := get_res_wt(wt_bwt2)
 
 	wait_par( cpus )
@@ -59,18 +63,12 @@ string[] _bowtie2( string fastq, string o_dir, string log_o_dir, string label, i
 
 	register_par( tid, cpus )
 
-	graph_in := trimmed ? 	["trimmed_fastq_($label)"] : ["fastq_($label)"]
-	graph_out := ["bam_($label)"]//,"align_qc_($label)"]
-	hrchy_out := ["L1_align/$label/bam","L1_qc/$label/bwt2_qc"]
-
-	_add_to_graphviz( graph_in, in, graph_out, out, "bowtie2_($label)", grp_color_bwt2 )
-	_add_to_filetable( hrchy_out, out )	
-
+	add_task_to_graph( in, out, group, "BOWTIE2", grp_color_bwt2 )
 
 	return out
 }
 
-string[] _bowtie2_csem( string fastq, string o_dir, string log_o_dir, string label, int nth_bwt2, bool trimmed ) {
+string[] bowtie2_csem( string fastq, string o_dir, string log_o_dir, string group, int nth_bwt2, bool trimmed ) {
 
 	prefix 	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	prefix2 := replace_dir( prefix, log_o_dir )
@@ -84,7 +82,7 @@ string[] _bowtie2_csem( string fastq, string o_dir, string log_o_dir, string lab
 	in 	:= [ fastq ]
 	out 	:= [ bam, log ]
 
-	taskName:= "bowtie2_csem "+label
+	taskName:= "bowtie2_csem "+group
 	cpus 	:= nth_bwt2; 	mem := get_res_mem(mem_bwt2,nth_bwt2); 	timeout := get_res_wt(wt_bwt2)
 
 	wait_par( cpus )
@@ -107,18 +105,13 @@ string[] _bowtie2_csem( string fastq, string o_dir, string log_o_dir, string lab
 
 	register_par( tid, cpus )
 
-	graph_in  := trimmed ? 	["trimmed_fastq1_($label)"] : ["fastq_($label)"]
-	graph_out := ["bam_($label)"]//,"align_qc_($label)"]
-	hrchy_out := ["L1_align/$label/bam","L1_qc/$label/bwt2_qc"]
-
-	_add_to_graphviz( graph_in, in, graph_out, out, "bowtie2_csem_($label)", grp_color_bwt2 )
-	_add_to_filetable( hrchy_out, out )	
+	add_task_to_graph( in, out, group, "BOWTIE2\\nCSEM", grp_color_bwt2 )
 
 	return out
 }
 
 // trimmed_fastq : fastqs are trimmed or not
-string[] _bowtie2_PE( string fastq1, string fastq2, string o_dir, string log_o_dir, string label, int nth_bwt2, bool trimmed ) { 
+string[] bowtie2_PE( string fastq1, string fastq2, string o_dir, string log_o_dir, string group, int nth_bwt2, bool trimmed ) { 
 
 	prefix 	:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir ) + ".PE2SE"
 	prefix2 := replace_dir( prefix, log_o_dir )
@@ -129,7 +122,7 @@ string[] _bowtie2_PE( string fastq1, string fastq2, string o_dir, string log_o_d
 	in 	:= [ fastq1, fastq2 ]
 	out 	:= [ bam, log ]
 
-	taskName:= "bowtie2_PE "+label
+	taskName:= "bowtie2_PE "+group
 	cpus 	:= nth_bwt2; 	mem := get_res_mem(mem_bwt2,nth_bwt2); 	timeout := get_res_wt(wt_bwt2)
 
 	wait_par( cpus )
@@ -147,13 +140,7 @@ string[] _bowtie2_PE( string fastq1, string fastq2, string o_dir, string log_o_d
 
 	register_par( tid, cpus )
 
-	graph_in := trimmed ? 	["trimmed_fastq1_($label)","trimmed_fastq2_($label)"] : \
-				["fastq1_($label)","fastq2_($label)"]
-	graph_out := ["bam_($label)"]//,"align_qc_($label)"]
-	hrchy_out := ["L1_align/$label/bam","L1_qc/$label/bwt2_qc"]
-
-	_add_to_graphviz( graph_in, in, graph_out, out, "bowtie2_($label)", grp_color_bwt2 )
-	_add_to_filetable( hrchy_out, out )	
+	add_task_to_graph( in, out, group, "BOWTIE2", grp_color_bwt2 )
 
 	return out
 }

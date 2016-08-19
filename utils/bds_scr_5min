@@ -1,1 +1,61 @@
-../chipseq/utils/bds_scr_5min
+#!/bin/bash
+
+if [ "$#" -lt 2 ]; then
+  echo
+  echo "Create a detached screen for a BDS script and redirect stdout/stderr to a log file."
+  echo "If you skip [LOG_FILE_NAME], a log file [SCR_NAME].log will be generated on the working directory."
+  echo "If a log file already exists, stdout/stderr will be appended to it."
+  echo "Monitor a log file with 'tail -f [LOG_FILE_NAME]'"
+  echo
+  echo "Usage: bds_scr [SCR_NAME] [LOG_FILE_NAME] [BDS_PARAM]"
+  echo "  Example: bds_scr TEST ~/TEST.log -s sge chipseq.bds -fastq1 ..."
+  echo
+  exit 0
+fi
+
+SCR_NAME=$1.BDS
+
+if [ $(screen -ls $SCR_NAME | grep 'No Sockets' | wc -l) != "1" ]; then
+  echo "error: A screen named $SCR_NAME already exists."
+  exit 1
+else
+  echo "[SCR_NAME] : $SCR_NAME"
+fi
+
+if [[ $2 == -* || $2 == *.bds ]]; then # LOG_FILE_NAME skipped
+  LOG_FILE_NAME="$PWD/$SCR_NAME.log"
+  PARAM_START_IDX=2
+elif [[ $3 == -* || $3 == *.bds ]]; then
+  LOG_FILE_NAME=$2
+  PARAM_START_IDX=3
+else
+  echo "error: [BDS_PARAM] is wrong."
+  exit 2
+fi
+
+if [ $(find $LOG_FILE_NAME -mmin -5 | wc -l) == "1" ]; then
+  echo "error: log file handle is open or very fresh (modified in last 5 minutes)."
+  exit 3
+fi
+
+PARAM=
+
+for ((i=$PARAM_START_IDX;i<=$#;i++)); do
+  PARAM="$PARAM ${!i}"
+done
+
+echo "[LOG_FILE_NAME] : $LOG_FILE_NAME"
+echo "[BDS_PARAM] : $PARAM"
+
+mkdir -p $(dirname $LOG_FILE_NAME)
+
+echo ""
+echo "===== Created a new screen ====" >> $LOG_FILE_NAME
+echo "DATE : $(date)" >> $LOG_FILE_NAME
+echo "[HOST] : $(hostname -f)" >> $LOG_FILE_NAME
+echo "[SCR_NAME] : $SCR_NAME" >> $LOG_FILE_NAME
+echo "[BDS_PARAM] : $PARAM" >> $LOG_FILE_NAME
+echo "" >> $LOG_FILE_NAME
+
+screen -Sdm $SCR_NAME bash -c "bds &>>$LOG_FILE_NAME $PARAM $>>$LOG_FILE_NAME"
+

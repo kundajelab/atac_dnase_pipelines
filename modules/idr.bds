@@ -1,1 +1,240 @@
-../chipseq/modules/idr.bds
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "species.bds"
+include "report.bds"
+
+
+help == IDR settings
+idr_suffix 	:= false 	help Append IDR threshold to IDR output directory.
+
+
+grp_color_idr 		:= "limegreen" 
+grp_color_idr_final	:= "pink" 
+
+
+init_idr()
+
+void init_idr() {
+
+	idr_suffix 	= get_conf_val_bool( idr_suffix, 	["idr_suffix"] )
+
+	print_idr()
+}
+
+void print_idr() {
+
+	print( "\n\n== IDR settings\n")
+	print( "Append IDR threshold to IDR out_dir\t: $idr_suffix\n" )
+}
+
+void chk_idr() {
+	if ( !path_exists( blacklist ) ) print("\nWarning: Blacklist bed (-blacklist) for final IDR QC is missing! (file: $blacklist)\n\n")
+}
+
+
+// 12-col.bed.gz (10 col for narrowPeak + local IDR, global IDR) will be generated for browser tracks
+// A temporary 13th column bed should be generated due to bedtools intersect compatibility issue
+// use function _get_idr_peak_trk( idr_peak ) to find 12-col.bed.gz for browser tracks
+// rank: 'signal.value' for SPP peaks, 'p.value' for MACS2 peaks
+string[] idr2( string peak1, string peak2, string pooled, string idr_thresh, string rank, string o_dir, string group ) {
+
+	if ( idr_suffix ) o_dir = mkdir( o_dir + "_$idr_thresh" )
+
+	prefix 			:= "$o_dir/" + (title=="" ? "" : (title+"_") ) + group	
+	peak_idr		:= "$prefix.IDR"+"$idr_thresh.narrowPeak.gz"
+	peak_idr_trk		:= "$prefix.IDR"+"$idr_thresh.12-col.bed.gz"
+	peak_idr_trk_tmp	:= "$prefix.IDR"+"$idr_thresh.13-col.bed.gz"
+	filt_peak_idr		:= "$prefix.IDR"+"$idr_thresh.filt.narrowPeak.gz"
+	filt_peak_idr_trk	:= "$prefix.IDR"+"$idr_thresh.filt.12-col.bed.gz"
+	filt_peak_idr_trk_tmp	:= "$prefix.IDR"+"$idr_thresh.filt.13-col.bed.gz"
+
+	idr_out 	:= "$prefix.unthresholded-peaks.txt"
+	idr_out_gz	:= "$idr_out.gz"
+	png 		:= "$idr_out.png"
+
+	string cmd1, cmd2, cmd3
+
+	if ( path_exists( blacklist ) ) {
+		cmd1 = "bedtools intersect -v -a $peak_idr_trk_tmp -b $blacklist | gzip -c > $filt_peak_idr_trk_tmp"
+		cmd2 = "zcat $filt_peak_idr_trk_tmp | awk 'BEGIN{OFS=\"\t\"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' | gzip -c > $filt_peak_idr"
+		cmd3 = "zcat $filt_peak_idr_trk_tmp | awk 'BEGIN{OFS=\"\t\"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' | gzip -c > $filt_peak_idr_trk"
+	}
+	else {
+		cmd1 = "echo"
+		cmd2 = "echo"
+		cmd3 = "echo"
+	}
+
+	in 	:= [peak1, peak2, pooled]
+	out 	:= path_exists( blacklist ) ?  	[filt_peak_idr, png, idr_out_gz, filt_peak_idr_trk ] : \
+						[peak_idr, png, idr_out_gz, peak_idr_trk]
+	taskName:= "idr2 " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+		
+		sys $shcmd_init_py3
+
+		sys idr --samples $peak1 $peak2 --peak-list $pooled --input-file-type narrowPeak \
+			--output-file $idr_out --rank $rank --soft-idr-threshold $idr_thresh \
+			--plot --use-best-multisummit-IDR
+		
+		sys idr_thresh_transformed=$(awk -v p=$idr_thresh 'BEGIN{print -log(p)/log(10)}')
+
+		//# Get peaks passing global IDR threshold and convert file to narrowPeak format (Step 9)
+		sys awk 'BEGIN{OFS="\t"} $12>='"${idr_thresh_transformed}"' {if ($2<0) $2=0; print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,"0"}' $idr_out \
+			| sort | uniq | sort -k7n,7n | gzip -c > $peak_idr_trk_tmp
+
+		sys zcat $peak_idr_trk_tmp | awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' | gzip -c > $peak_idr
+		sys zcat $peak_idr_trk_tmp | awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' | gzip -c > $peak_idr_trk
+
+		sys $cmd1
+		sys $cmd2
+		sys $cmd3
+
+		sys gzip -f $idr_out
+		sys rm -f $peak_idr_trk_tmp $filt_peak_idr_trk_tmp
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group, "IDR", grp_color_idr )
+
+	return out
+}
+
+// idr_tr: IDR peaks for true replicate (key:"rep_id1,rep_id2") e.g. "1,2" for rep1 and rep2
+// idr_pr: IDR peaks for pseudo replicates (key:"rep") e.g. "1" for pseudo replicates of replicate 1
+string[] idr_final_qc( string{} idr_tr, string{} idr_pr, string idr_ppr, \
+			string idr_o_dir, string qc_o_dir, string group ) {
+
+	//// get # of lines in each IDR peak files
+
+	// pseudo replicates
+	int[] N
+	for ( string peak : idr_pr ) N.add( get_no_lines( peak ) )
+
+	// true replicates
+	Nt := 0
+	string idr_tr_best, key_tr_best
+
+	for ( string key : idr_tr.keys() ) { // key = rep id 1, rep id 2
+
+		peak := idr_tr{ key }
+		nlines := ( peak != "" ) ? get_no_lines( peak ) : 0
+
+		if ( nlines >= Nt ) {
+			Nt = nlines
+			idr_tr_best = peak
+			key_tr_best = key
+		}
+	}
+
+	// pooled pseudo replicates
+	Np := ( idr_ppr != "" ) ? get_no_lines( idr_ppr ) : 0
+
+	//// find optimal set and conservative set
+	string optimal_set, conservative_set
+	string idr_opt_set, idr_consv_set
+	string idr_opt_set_new, idr_consv_set_new // copy of above two
+
+	if ( Nt > 0 ) {
+
+		// optimal set
+		optimal_set 		= (Nt > Np) ? _get_group_from_key(key_tr_best) : "pooled_pseudo_rep"
+		idr_opt_set 		= (Nt > Np) ? idr_tr_best : idr_ppr
+
+		// conservative set
+		conservative_set 	= _get_group_from_key(key_tr_best)
+		idr_consv_set  	 	= idr_tr_best
+
+		// make copies of them
+		idr_opt_o_dir 		:= mkdir( "$idr_o_dir/optimal_set" )
+		idr_consv_o_dir 	:= mkdir( "$idr_o_dir/conservative_set" )
+
+		idr_opt_set_new		= copy( idr_opt_set, idr_opt_o_dir )	
+		idr_consv_set_new 	= copy( idr_consv_set, idr_consv_o_dir )
+		
+		// for browser tracks
+		idr_opt_set_trk 	:= _get_idr_peak_trk( idr_opt_set ) // for browser tracks
+		idr_consv_set_trk	:= _get_idr_peak_trk( idr_consv_set ) // for browser tracks
+
+		copy( idr_opt_set_trk, idr_opt_o_dir )
+		copy( idr_consv_set_trk, idr_consv_o_dir )
+
+		wait
+	}
+	else {
+		optimal_set 		= "N/A"
+		idr_opt_set 		= ""
+		idr_opt_set_new		= ""
+
+		conservative_set 	= "N/A"
+		idr_consv_set  	 	= ""
+		idr_consv_set_new 	= ""
+	}
+
+	//// compute IDR scores
+
+	real max_Np_Nt = max( Np, Nt )
+	real min_Np_Nt = min( Np, Nt )
+
+	real max_N = N.size() > 0 ? max( N ) : 0
+	real min_N = N.size() > 0 ? min( N ) : 0
+
+	rescue_ratio 		:= max_Np_Nt / min_Np_Nt
+	self_consistency_ratio 	:= max_N / min_N
+	reproducibility 	:= 1
+
+	if ( rescue_ratio > 2.0 || self_consistency_ratio > 2.0 ) reproducibility = 0 // BORDERLINE
+	if ( rescue_ratio > 2.0 && self_consistency_ratio > 2.0 ) reproducibility = -1 // FAIL
+	
+	// Fraction of Reads in Peaks (FRiP) will be added later
+
+	// write on IDR FINAL QC file
+	prefix 	:= "$qc_o_dir/" + (title=="" ? "" : (title+"_") ) + group
+	qc 	:= prefix+"IDR_final.qc"
+
+	in 	:= map_to_array( idr_tr ) + map_to_array( idr_pr ); if (idr_ppr!="") in += [idr_ppr]
+	out 	:= qc
+
+	col_lbl := ""; for ( int rep=1; rep<=N.size(); rep++) col_lbl += "N$rep\t"
+	col_val := N.size() == 0 ? "" : (N.join("\t") + "\t")
+
+	taskName:= "idr final qc" + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys echo -e "Nt\t$col_lbl""Np\tconservative_set\toptimal_set\trescue_ratio\tself_consistency_ratio\treproducibility" > $qc
+		sys echo -e "$Nt\t$col_val""$Np\t$conservative_set\t$optimal_set\t$rescue_ratio\t$self_consistency_ratio\t$reproducibility" >> $qc
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group, "IDR QC", grp_color_idr_final )
+
+	return [qc, idr_opt_set_new, idr_consv_set_new]
+}
+
+string _get_group_from_key( string key ) { //parse "i,j" to "repi-repj"
+
+	tmp := key.split(",")
+	i := tmp[0]
+	j := tmp[1]
+	return "rep$i-rep$j"
+}
+
+string _get_idr_peak_trk( string idr_peak ) {
+
+	return rm_ext( idr_peak, ["narrowPeak","regionPeak"] ) + ".12-col.bed.gz"	
+}
