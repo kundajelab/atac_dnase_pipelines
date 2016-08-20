@@ -538,7 +538,7 @@ string bam_to_bedpe( string bam, string o_dir, string group ) {
 		nmsrt_bam.rm()
 	}
 
-	add_task_to_graph( in, out, group )
+	add_task_to_graph( in, out, group, "ALIGN", grp_color_align )
 
 	return out
 }
@@ -573,7 +573,7 @@ string bedpe_to_tag( string bedpe, string o_dir, string group ) {
 
 	register_par( tid, cpus )
 
-	add_task_to_graph( in, out, group, "align", "orange" )
+	add_task_to_graph( in, out, group )
 
 	return out
 }
