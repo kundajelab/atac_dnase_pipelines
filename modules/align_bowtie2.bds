@@ -47,7 +47,7 @@ string[] bowtie2( string fastq, string o_dir, string log_o_dir, string group, in
 	out 	:= [ bam, log ]
 
 	taskName:= "bowtie2 "+group
-	cpus 	:= nth_bwt2; 	mem := get_res_mem(mem_bwt2,nth_bwt2); 	timeout := get_res_wt(wt_bwt2)
+	cpus 	:= (nth_bwt2==1) ? -1 : nth_bwt2; mem := get_res_mem(mem_bwt2,nth_bwt2); 	timeout := get_res_wt(wt_bwt2)
 
 	wait_par( cpus )
 
@@ -83,7 +83,7 @@ string[] bowtie2_csem( string fastq, string o_dir, string log_o_dir, string grou
 	out 	:= [ bam, log ]
 
 	taskName:= "bowtie2_csem "+group
-	cpus 	:= nth_bwt2; 	mem := get_res_mem(mem_bwt2,nth_bwt2); 	timeout := get_res_wt(wt_bwt2)
+	cpus 	:= (nth_bwt2==1) ? -1 : nth_bwt2; mem := get_res_mem(mem_bwt2,nth_bwt2); 	timeout := get_res_wt(wt_bwt2)
 
 	wait_par( cpus )
 
@@ -123,7 +123,7 @@ string[] bowtie2_PE( string fastq1, string fastq2, string o_dir, string log_o_di
 	out 	:= [ bam, log ]
 
 	taskName:= "bowtie2_PE "+group
-	cpus 	:= nth_bwt2; 	mem := get_res_mem(mem_bwt2,nth_bwt2); 	timeout := get_res_wt(wt_bwt2)
+	cpus 	:= (nth_bwt2==1) ? -1 : nth_bwt2; mem := get_res_mem(mem_bwt2,nth_bwt2); 	timeout := get_res_wt(wt_bwt2)
 
 	wait_par( cpus )
 

@@ -393,7 +393,7 @@ void align_SE( int rep, int nth_rep ) {
 		}
 		else {
 			if ( old_trimmer ) {
-				p1 = trim_adapters_old( fastqs[0], aln_o_dir, group, 1 )
+				p1 = trim_adapters_old( fastqs[0], aln_o_dir, group )
 			}
 			else {
 				adapters := get_adapters( rep )
@@ -408,7 +408,7 @@ void align_SE( int rep, int nth_rep ) {
 					adapters.add( adapter )
 				}
 
-				p1 = trim_adapters( fastqs[0], adapters[0], aln_o_dir, group, 1, "" )
+				p1 = trim_adapters( fastqs[0], adapters[0], aln_o_dir, group )
 			}
 
 			add_file_to_report( p1, "trimmed\\nfastq", group, "Alignment/$long/Trimmed fastq" )
@@ -556,7 +556,7 @@ void align_PE( int rep, int nth_rep ) {
 		}
 		else {
 			if ( old_trimmer ) {
-				( p1, p2 ) = trim_adapters_PE_old( fastqs[0], fastqs[1], aln_o_dir, group, 1 )
+				( p1, p2 ) = trim_adapters_PE_old( fastqs[0], fastqs[1], aln_o_dir, group )
 			}
 			else {
 				adapters := get_adapters( rep )
@@ -574,7 +574,7 @@ void align_PE( int rep, int nth_rep ) {
 					adapters.add( adapter2 )
 				}
 
-				( p1, p2 ) = trim_adapters_PE( fastqs[0], fastqs[1], adapters[0], adapters[1], aln_o_dir, group, 1 )
+				( p1, p2 ) = trim_adapters_PE( fastqs[0], fastqs[1], adapters[0], adapters[1], aln_o_dir, group )
 			}
 
 			add_file_to_report( p1, "trimmed\\nfastq 1", group, "Alignment/$long/Trimmed fastq 1" )

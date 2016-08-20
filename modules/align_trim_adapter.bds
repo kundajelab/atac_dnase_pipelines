@@ -20,8 +20,8 @@ init_align_trim_adapter()
 
 
 void init_align_trim_adapter() {
-	adapter_err_rate 	= get_conf_val( adapter_err_rate, 	["adapter_err_rate"] )
-	min_trim_len 	= get_conf_val_int( min_trim_len, 		["min_trim_len"] )
+	adapter_err_rate	= get_conf_val( adapter_err_rate, 	["adapter_err_rate"] )
+	min_trim_len 		= get_conf_val_int( min_trim_len, 	["min_trim_len"] )
 	wt_trim 		= get_conf_val( wt_trim, 		["wt_trim"] )
 	mem_trim 		= get_conf_val( mem_trim, 		["mem_trim"] )
 
@@ -76,7 +76,7 @@ string parse_adapter_log( string log ) {
 	return adapter
 }
 
-string trim_adapters( string fastq, string adapter, string o_dir, string group, int nth_trim, string graph_id ) {
+string trim_adapters( string fastq, string adapter, string o_dir, string group ) {
 
 	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	p_gz	:= "$prefix"+".trim.fastq.gz"
@@ -86,8 +86,8 @@ string trim_adapters( string fastq, string adapter, string o_dir, string group, 
 
 	param_min_trim_len := min_trim_len==0 ? "" : "-m $min_trim_len"
 
-	taskName:= "trim_adapters $group $graph_id"
-	cpus 	:= nth_trim; 	mem := get_res_mem(mem_trim,nth_trim); 	timeout := get_res_wt(wt_trim)
+	taskName:= "trim_adapters $group"
+	mem := get_res_mem(mem_trim,1); 	timeout := get_res_wt(wt_trim)
 
 	wait_par( cpus )
 
@@ -95,7 +95,7 @@ string trim_adapters( string fastq, string adapter, string o_dir, string group, 
 
 		sys $shcmd_init
 
-		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter $fastq | pigz -p $nth_trim > $p_gz
+		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter $fastq | gzip -c > $p_gz
 
 		sys $shcmd_finalize
 	}
@@ -107,7 +107,7 @@ string trim_adapters( string fastq, string adapter, string o_dir, string group, 
 	return out
 }
 
-string[] trim_adapters_PE( string fastq1, string fastq2, string adapter1, string adapter2, string o_dir, string group, int nth_trim ) {
+string[] trim_adapters_PE( string fastq1, string fastq2, string adapter1, string adapter2, string o_dir, string group ) {
 
 	prefix1	:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir )
 	prefix2	:= replace_dir( rm_ext( fastq2, ["fastq","fq"] ), o_dir )
@@ -122,7 +122,7 @@ string[] trim_adapters_PE( string fastq1, string fastq2, string adapter1, string
 	param_min_trim_len := min_trim_len==0 ? "" : "-m $min_trim_len"
 
 	taskName:= "trim_adapters_PE " + group
-	cpus 	:= nth_trim; 	mem := get_res_mem(mem_trim,nth_trim); 	timeout := get_res_wt(wt_trim)
+	mem := get_res_mem(mem_trim,1); 	timeout := get_res_wt(wt_trim)
 
 	wait_par( cpus )
 
@@ -132,8 +132,8 @@ string[] trim_adapters_PE( string fastq1, string fastq2, string adapter1, string
 
 		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter1 -A $adapter2 -o $p1 -p $p2 $fastq1 $fastq2
 
-		sys pigz -p $nth_trim -f $p1
-		sys pigz -p $nth_trim -f $p2
+		sys gzip -c -f $p1
+		sys gzip -c -f $p2
 
 		sys $shcmd_finalize
 	}
@@ -145,7 +145,7 @@ string[] trim_adapters_PE( string fastq1, string fastq2, string adapter1, string
 	return out
 }
 
-string trim_adapters_old( string fastq, string o_dir, string group, int nth_trim ) {
+string trim_adapters_old( string fastq, string o_dir, string group ) {
 
 	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	p 	:= "$prefix"+"_trimmed.fq"
@@ -156,7 +156,7 @@ string trim_adapters_old( string fastq, string o_dir, string group, int nth_trim
 	out 	:= p2_gz
 
 	taskName:= "trim_adapters " + group
-	cpus 	:= nth_trim; 	mem := get_res_mem(mem_trim,nth_trim); 	timeout := get_res_wt(wt_trim)
+	mem := get_res_mem(mem_trim,1); 	timeout := get_res_wt(wt_trim)
 
 	wait_par( cpus )
 
@@ -165,7 +165,7 @@ string trim_adapters_old( string fastq, string o_dir, string group, int nth_trim
 		sys $shcmd_init
 
 		sys trim_galore $fastq -o $o_dir --dont_gzip
-		sys pigz -p $nth_trim -f $p
+		sys gzip -c -f $p
 		sys mv $p_gz $p2_gz
 		sys rm -f $p_gz $p
 
@@ -179,7 +179,7 @@ string trim_adapters_old( string fastq, string o_dir, string group, int nth_trim
 	return out
 }
 
-string[] trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, string group, int nth_trim ) {
+string[] trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, string group  ) {
 
 	prefix1	:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir )
 	prefix2	:= replace_dir( rm_ext( fastq2, ["fastq","fq"] ), o_dir )
@@ -192,7 +192,7 @@ string[] trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, strin
 	out 	:= [ p1_gz, p2_gz ]
 
 	taskName:= "trim_adapters_PE " + group
-	cpus 	:= nth_trim; 	mem := get_res_mem(mem_trim,nth_trim); 	timeout := get_res_wt(wt_trim)
+	mem := get_res_mem(mem_trim,1); 	timeout := get_res_wt(wt_trim)
 
 	wait_par( cpus )
 
@@ -202,8 +202,8 @@ string[] trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, strin
 
 		sys cd $o_dir
 		sys $(which trimAdapters.py) -a $fastq1 -b $fastq2
-		sys pigz -p $nth_trim -f $p1
-		sys pigz -p $nth_trim -f $p2
+		sys gzip -c -f $p1
+		sys gzip -c -f $p2
 
 		sys $shcmd_finalize
 	}

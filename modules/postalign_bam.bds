@@ -70,7 +70,7 @@ string[] dedup_bam( string bam, string o_dir, string log_o_dir, string group, in
 	in	:= [ bam ]
 	out	:= [ nodup_bam, dup_qc, map_qc, pbc_qc ]
 
-	cpus 	:= nth_dedup; 	mem := get_res_mem(mem_dedup,nth_dedup);	timeout := get_res_wt(wt_dedup)
+	cpus 	:= (nth_dedup==1) ? -1 : nth_dedup; mem := get_res_mem(mem_dedup,nth_dedup);	timeout := get_res_wt(wt_dedup)
 
 	if ( out<-in ) {
 
@@ -193,7 +193,7 @@ string[] dedup_bam_PE( string bam, string o_dir, string log_o_dir, string group,
 	in 	:= [ bam ]
 	out 	:= [ nodup_bam, dup_qc, map_qc, pbc_qc ]
 
-	cpus 	:= nth_dedup;	mem := get_res_mem(mem_dedup,nth_dedup);	timeout := get_res_wt(wt_dedup)
+	cpus 	:= (nth_dedup==1) ? -1 : nth_dedup; mem := get_res_mem(mem_dedup,nth_dedup);	timeout := get_res_wt(wt_dedup)
 
 	if ( out<-in ) {
 
@@ -379,7 +379,7 @@ string[] markdup_bam_sambamba( string bam, string o_dir, string log_o_dir, strin
 	out 		:= [ dupmark_bam, dup_qc ]
 
 	taskName:= "markdup_bam_sambamba " + group
-	cpus 	:= nth_markdup; 	mem := get_res_mem(mem_dedup,nth_markdup);	timeout := get_res_wt(wt_dedup)
+	cpus 	:= (nth_markdup==1) ? -1 : nth_markdup; mem := get_res_mem(mem_dedup,nth_markdup);	timeout := get_res_wt(wt_dedup)
 
 	wait_par( cpus )
 
