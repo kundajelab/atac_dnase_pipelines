@@ -74,7 +74,7 @@ void init_general() {
 	if ( use_system != "" ) system 	= use_system
 	if ( system.toLower() == "slurm" ) system = "generic"
 
-	cpus 		= 1
+	cpus 		= -1 		// With cpus==-1, BDS does not pass number of threads to cluster engine (SGE, SLURM, ...), which means single-threaded
 	mem 		= get_res_mem(memory,1)
 	timeout 	= get_res_wt(wt)
 	walltimeout 	= 3600*24*100 	// timeout var. in BigDataScript (100 days, jobs will never be stopped by BDS due to BDS timeout)
