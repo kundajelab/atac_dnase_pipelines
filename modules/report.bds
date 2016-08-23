@@ -358,6 +358,17 @@ string html_epg_browser_viz( string[] files, string[] types, string[] names ) {
 	return html
 }
 
+string html_pipeline_version() {
+
+	string html
+	
+	if ( latest_git_commit_sha1 != "" ) {
+		html = "<div id='latest_git_commit'><b>Pipeline version</b> (latest git commit SHA1): $latest_git_commit_sha1 ($latest_git_commit_date)</div><br>\n"
+	}
+
+	return html
+}
+
 string html_table_header( string[] head ) {
 
 	html := "<table border='1'><tr>"

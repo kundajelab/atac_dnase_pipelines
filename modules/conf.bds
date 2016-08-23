@@ -63,12 +63,12 @@ string{} read_conf( string file, string section ) {
 			line2 := line.substr(1,line.length()-1)
 
 			string[] hostnames
-			string alias
+			string group
 
-			// find alias if exists
+			// find group if exists
 			arr := line2.split(":")
 
-			if ( arr.size() > 1 ) 	alias = arr[1].trim()
+			if ( arr.size() > 1 ) 	group = arr[1].trim()
 
 			hostnames = arr[0].split(",")
 
@@ -84,13 +84,13 @@ string{} read_conf( string file, string section ) {
 
 					if ( match_str_one_asterisk( section, host ) ) { // one asterisk (wildcard chr: *) is allowed in hostname string
 
-						if ( section == alias ) {
-							error("Recursion (section name == alias) found in a conf. or an env. file! (file: $file, section: $section, alias: $alias)\n")
+						if ( section == group ) {
+							error("Recursion (section name == group) found in a conf. or an env. file! (file: $file, section: $section, group: $group)\n")
 						}
-						else if ( alias != "" ) {
-							print("\tReading parameters from section alias($alias) in file($file)...\n")
+						else if ( group != "" ) {
+							print("\tReading parameters from section group($group) in file($file)...\n")
 
-							return read_conf( file, alias )
+							return read_conf( file, group )
 						}
 						else {
 							print("\tReading parameters from section ($host) in file($file)...\n")
