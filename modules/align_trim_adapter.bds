@@ -132,8 +132,8 @@ string[] trim_adapters_PE( string fastq1, string fastq2, string adapter1, string
 
 		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter1 -A $adapter2 -o $p1 -p $p2 $fastq1 $fastq2
 
-		sys gzip -c -f $p1
-		sys gzip -c -f $p2
+		sys gzip -f $p1
+		sys gzip -f $p2
 
 		sys $shcmd_finalize
 	}
@@ -165,7 +165,7 @@ string trim_adapters_old( string fastq, string o_dir, string group ) {
 		sys $shcmd_init
 
 		sys trim_galore $fastq -o $o_dir --dont_gzip
-		sys gzip -c -f $p
+		sys gzip -f $p
 		sys mv $p_gz $p2_gz
 		sys rm -f $p_gz $p
 
@@ -202,8 +202,8 @@ string[] trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, strin
 
 		sys cd $o_dir
 		sys $(which trimAdapters.py) -a $fastq1 -b $fastq2
-		sys gzip -c -f $p1
-		sys gzip -c -f $p2
+		sys gzip -f $p1
+		sys gzip -f $p2
 
 		sys $shcmd_finalize
 	}
