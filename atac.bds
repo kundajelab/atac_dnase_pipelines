@@ -355,7 +355,7 @@ void do_align() {
 		else 	  par do_align( rep, nth_rep{rep} )
 	}
 
-	wait_clear_tids()
+	wait
 
 	print( "\n== Done do_align()\n" )
 }
@@ -364,8 +364,6 @@ void do_align( int rep, int nth_rep ) {
 
 	if ( is_se( rep ) ) 	align_SE( rep, nth_rep )
 	else 			align_PE( rep, nth_rep )
-
-	if ( !no_par ) monitor_par()
 }
 
 void align_SE( int rep, int nth_rep ) {
@@ -752,7 +750,7 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 			add_file_to_report( final_tag_ppr2, "tag-align", "ppr2", "Alignment/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Tag-align" )			
 		}
 
-		wait_clear_tids()
+		wait
 	}
 
 	// call peaks for each replicate
@@ -847,7 +845,7 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 		}
 	}
 
-	wait_clear_tids()
+	wait
 
 	print( "\n== Done call_peaks()\n" )
 }
@@ -915,7 +913,7 @@ void do_idr() {
 		}
 	}
 
-	wait_clear_tids()
+	wait
 
 	// naive overlap peak
 
@@ -980,7 +978,7 @@ void do_idr() {
 		add_file_to_table( idr_ppr_png, "QC and logs/IDR/Pooled pseudo-replicates/IDR plot" )
 	}
 
-	wait_clear_tids()
+	wait
 
 	qc_o_dir := mkdir( "$out_dir/qc" ) // create qc output dir.
 
@@ -991,7 +989,7 @@ void do_idr() {
 	add_file_to_report( idr_opt, "opt. IDR peak", "", "Peaks/IDR/Optimal set/IDR peak" )
 	add_file_to_report( idr_consv, "consv. IDR peak", "", "Peaks/IDR/Conservative set/IDR peak" )
 
-	wait_clear_tids()
+	wait
 
 	print( "\n== Done do_idr()\n" )
 }
@@ -1006,7 +1004,7 @@ void ataqc() {
 		else 	  par ataqc( rep )
 	}
 
-	wait_clear_tids()
+	wait
 
 	print( "\n== Done ataqc()\n" )
 }
@@ -1043,8 +1041,6 @@ void ataqc( int rep ) {
 
 		add_file_to_report( ataqc_html, "ATAQC\\nreport", group, "QC and logs/ATAQC/$long/ATAQC HTML report" )
 	}
-
-	if ( !no_par ) monitor_par()
 }
 
 string[] ataqc( string fastq1, string fastq2, string bam, string align_log, string pbc_log, \
@@ -1120,7 +1116,7 @@ string[] ataqc( string fastq1, string fastq2, string bam, string align_log, stri
 
 void report() {
 
-	wait_clear_tids()
+	wait
 
 	html := html_pipeline_version( "https://github.com/kundajelab/bds_atac/commit" ) // pipeline version info
 	html += html_filetable() 	// treeview for directory and file structure
