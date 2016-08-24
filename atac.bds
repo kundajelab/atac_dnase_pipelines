@@ -863,18 +863,18 @@ void do_idr() {
 	// take top $npeak_filt lines from narrowpeaks for idr
 	for ( int rep=1; rep<=get_num_rep(); rep++ ) {
 
-		filt_peak{rep} 	= filt_top_peaks( peak{rep}, "", "rep$rep" )
-		filt_gpeak{rep} = filt_top_peaks( gpeak{rep}, "", "rep$rep" )
+		filt_peak{rep} 	= filt_top_peaks( "narrowPeak", peak{rep}, "", "rep$rep" )
+		filt_gpeak{rep} = filt_top_peaks( "gappedPeak", gpeak{rep}, "", "rep$rep" )
 
 		add_file_to_table( filt_peak{rep}, "Peaks/MACS2/Replicate $rep/Filtered narrow peak" )
 		add_file_to_table( filt_gpeak{rep},"Peaks/MACS2/Replicate $rep/Filtered gapped peak" )
 
 		if ( !true_rep ) {
 
-			filt_peak_pr1{rep}  = filt_top_peaks( peak_pr1{rep}, "", "rep$rep-pr1" )
-			filt_peak_pr2{rep}  = filt_top_peaks( peak_pr2{rep}, "", "rep$rep-pr2" )
-			filt_gpeak_pr1{rep} = filt_top_peaks( gpeak_pr1{rep}, "", "rep$rep-pr1" )
-			filt_gpeak_pr2{rep} = filt_top_peaks( gpeak_pr2{rep}, "", "rep$rep-pr2" )
+			filt_peak_pr1{rep}  = filt_top_peaks( "narrowPeak", peak_pr1{rep}, "", "rep$rep-pr1" )
+			filt_peak_pr2{rep}  = filt_top_peaks( "narrowPeak", peak_pr2{rep}, "", "rep$rep-pr2" )
+			filt_gpeak_pr1{rep} = filt_top_peaks( "gappedPeak", gpeak_pr1{rep}, "", "rep$rep-pr1" )
+			filt_gpeak_pr2{rep} = filt_top_peaks( "gappedPeak", gpeak_pr2{rep}, "", "rep$rep-pr2" )
 
 			add_file_to_table( filt_peak_pr1{rep}, \
 				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 1/Filtered narrow peak" )
@@ -889,18 +889,18 @@ void do_idr() {
 
 	if ( get_num_rep() > 1 ) {
 
-		filt_peak_pooled = filt_top_peaks( peak_pooled, "", "pooled_rep" )
-		filt_gpeak_pooled= filt_top_peaks( gpeak_pooled, "", "pooled_rep" )
+		filt_peak_pooled = filt_top_peaks( "narrowPeak", peak_pooled, "", "pooled_rep" )
+		filt_gpeak_pooled= filt_top_peaks( "gappedPeak", gpeak_pooled, "", "pooled_rep" )
 
 		add_file_to_table( filt_peak_pooled, "Peaks/MACS2/Pooled replicate/Filtered narrow peak" )
 		add_file_to_table( filt_gpeak_pooled, "Peaks/MACS2/Pooled replicate/Filtered gapped peak" )
 
 		if ( !true_rep ) {
 
-			filt_peak_ppr1 	= filt_top_peaks( peak_ppr1, "", "ppr1" )
-			filt_peak_ppr2 	= filt_top_peaks( peak_ppr2, "", "ppr2" )
-			filt_gpeak_ppr1 = filt_top_peaks( gpeak_ppr1, "", "ppr1" )
-			filt_gpeak_ppr2 = filt_top_peaks( gpeak_ppr2, "", "ppr2" )
+			filt_peak_ppr1 	= filt_top_peaks( "narrowPeak", peak_ppr1, "", "ppr1" )
+			filt_peak_ppr2 	= filt_top_peaks( "narrowPeak", peak_ppr2, "", "ppr2" )
+			filt_gpeak_ppr1 = filt_top_peaks( "gappedPeak", gpeak_ppr1, "", "ppr1" )
+			filt_gpeak_ppr2 = filt_top_peaks( "gappedPeak", gpeak_ppr2, "", "ppr2" )
 
 			add_file_to_table( filt_peak_ppr1, \
 				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Filtered narrow peak" )

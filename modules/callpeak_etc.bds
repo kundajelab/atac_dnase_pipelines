@@ -20,12 +20,14 @@ void init_callpeak_etc() {
 	print( "# of top peaks to pick up in peak files\t: $npeak_filt\n")
 }
 
-string filt_top_peaks( string peakfile, string o_dir, string group ) {
+// sort in a descending order of p-value and take top $npeak_filt peaks
+string filt_top_peaks( string filetype, string peakfile, string o_dir, string group ) {
 
 	prefix 		:= replace_dir( rm_ext( peakfile, \
 						["narrowPeak","gappedPeak","broadPeak","regionPeak"] ), o_dir )
 	ext 		:= get_actual_ext( peakfile )
 	peakfile_filt 	:= "$prefix."+number_with_metric_prefix( npeak_filt )+".$ext"
+	sort_param 	:= _get_sort_param( filetype )
 
 	in 	:= [ peakfile ]
 	out 	:= peakfile_filt
@@ -44,7 +46,7 @@ string filt_top_peaks( string peakfile, string o_dir, string group ) {
 		sys set +o pipefail
 
 		// sort by 8th (-log10(pval) ) column and take top $npeak_filt lines
-		sys zcat $peakfile | sort -grk8 | head -n $npeak_filt | gzip -c > $peakfile_filt
+		sys zcat $peakfile | sort $sort_param | head -n $npeak_filt | gzip -c > $peakfile_filt
 
 		sys $shcmd_finalize
 	}
@@ -54,4 +56,19 @@ string filt_top_peaks( string peakfile, string o_dir, string group ) {
 	add_task_to_graph( in, out, group )
 	
 	return out	
+}
+
+string _get_sort_param( string filetype ) {
+	
+	if ( filetype.toLower() == "narrowpeak" || filetype.toLower() == "regionpeak" || filetype.toLower() == "broadpeak" ) {
+		// p-value is at 8th column
+		return "-grk8"
+	}
+	else if ( filetype.toLower() == "gappedpeak") { 
+		// p-value is at 14th column
+		return "-grk14"
+	}
+	else {
+		error("Unsupport peak file type! ($filetype)\n")
+	}
 }
