@@ -319,7 +319,7 @@ There are two kinds of HTML reports provided by the pipeline.
 
 ## Coding with BDS
 
-* [Using modules in AQUAS pipeline](https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_CODE.md)
+* [Using genomic pipeline modules in Kundaje lab](https://github.com/kundajelab/bds_pipeline_modules/blob/master/README_CODE.md)
 
 * [BigDataScript github repo](https://github.com/pcingola/BigDataScript)
 
@@ -333,7 +333,7 @@ There are two kinds of HTML reports provided by the pipeline.
 
 # Troubleshooting
 
-See [more troubleshootings](https://github.com/kundajelab/TF_chipseq_pipeline/blob/master/README_PIPELINE.md/#troubleshooting).
+See more [troubleshootings](https://github.com/kundajelab/bds_pipeline_modules/blob/master/README_PIPELINE.md/#troubleshooting).
 
 ### samtools ncurses bug
 
