@@ -19,6 +19,7 @@ unlimited_mem_wt:= false 	help Use unlimited max. memory and walltime.
 use_system 	:= "" 		help Force to use a system (equivalent to 'bds -s [SYSTEM_NAME] ...', any system defined in bds.config can be used).
 nice 		:= 0 		help Set process priority for all tasks (default: 0; -20 (highest) ~ 19 (lowest) ).
 retrial		:= 0 		help # of Retrial for failed tasks (default: 0).
+q 		:= ""		help Submit tasks to a specified cluster queue.
 
 help == shell environment settings
 mod 		:= ""		help Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
@@ -53,6 +54,7 @@ void init_general() {
 	use_system 	= get_conf_val( use_system, 		["use_system","system"] )
 	nice 		= get_conf_val_int( nice, 		["nice"] )
 	retrial 	= get_conf_val_int( retrial, 		["retrial","retry"] )
+	q 		= get_conf_val( q, 			["q"] )
 
 	if ( cmd_line_arg_has_key("mem") ) memory = get_cmd_line_arg_val( "mem" )
 	if ( cmd_line_arg_has_key("system") ) use_system = get_cmd_line_arg_val( "system" )
@@ -66,12 +68,14 @@ void init_general() {
 	}
 	if ( nice <= -20 ) nice = -20
 	if ( nice > 19 ) nice = 19
+	if ( q == "" ) q = queue
 
 	print_general()
 
 	// cpus, mem and timeout are BDS variables for default resource settings
 	if ( use_system != "" ) system 	= use_system
 	if ( system.toLower() == "slurm" ) system = "generic"
+	if ( q != "" ) queue = q
 
 	cpus 		= -1 		// With cpus==-1, BDS does not pass number of threads to cluster engine (SGE, SLURM, ...), which means single-threaded
 	mem 		= get_res_mem(memory,1)
@@ -94,6 +98,7 @@ void print_general() {
 	print( "Env. for Anaconda python3\t: $conda_env_py3\n" )
 	print( "Force to use a system\t\t: $use_system\n" )
 	print( "Process priority (niceness)\t: $nice\n" )
+	print( "Submit tasks to a cluster queue\t: $q\n" )
 
 	if ( unlimited_mem_wt ) {
 		print( "Use limited max. memory and walltime (jobs will be submitted to a cluster engine without memory and walltime settings)\n")

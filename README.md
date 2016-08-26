@@ -276,6 +276,14 @@ qsub -V -pe shm [NTH_ALLOCATED_FOR_APP] -h_vmem=[MEM_APP]/[NTH_ALLOCATED_FOR_APP
 
 This ensures that total memory reserved for a cluster job equals to `[MEM_APP]`. The same policy applies to SLURM.
 
+## Specifying cluster queue
+
+You can let BDS submit its subtasks to a specific queue `[QUEUE_NAME]` on Sun Grid Engine.
+```
+bds -q [QUEUE_NAME] -s sge atac.bds ...
+bds -s sge atac.bds -q [QUEUE_NAME] ...
+```
+
 ## Managing multiple pipelines
 
 `./utils/bds_scr` is a BASH script to create a detached screen for a BDS script and redirect stdout/stderr to a log file `[LOG_FILE_NAME]`. If a log file already exists, stdout/stderr will be appended to it.
