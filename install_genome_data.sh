@@ -45,9 +45,9 @@ if [ $GENOME == "hg19" ]; then
   CHRSZ="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/encodeDCC/referenceSequences/male.hg19.chrom.sizes"
   REF_FA="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/encodeDCC/referenceSequences/male.hg19.fa.gz"
   SEQ="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/chromosomes"
+  SEQ_CHR_ARR=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 M X Y) #chr$i.fa.gz
   GENSZ="hs"
   BLACKLIST="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz"
-  CHR_END_ID=22; # 22 chromosomes + chrM, chrX, chrY
   TSS_ENRICH="http://mitra.stanford.edu/kundaje/genome_data/hg19/ataqc/hg19_RefSeq_stranded.bed.gz"
   DNASE="http://mitra.stanford.edu/kundaje/genome_data/hg19/ataqc/reg2map_honeybadger2_dnase_all_p10_ucsc.bed.gz"
   PROM="http://mitra.stanford.edu/kundaje/genome_data/hg19/ataqc/reg2map_honeybadger2_dnase_prom_p2.bed.gz"
@@ -60,9 +60,9 @@ elif [ $GENOME == "mm9" ]; then
   CHRSZ="http://hgdownload-test.cse.ucsc.edu/goldenPath/mm9/encodeDCC/referenceSequences/male.mm9.chrom.sizes"
   REF_FA="http://hgdownload-test.cse.ucsc.edu/goldenPath/mm9/encodeDCC/referenceSequences/male.mm9.fa.gz"
   SEQ="http://hgdownload.cse.ucsc.edu/goldenpath/mm9/chromosomes"
+  SEQ_CHR_ARR=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 M X Y)
   GENSZ="mm"
   BLACKLIST="https://personal.broadinstitute.org/anshul/projects/mouse/blacklist/mm9-blacklist.bed.gz"
-  CHR_END_ID=19; # 19 chromosomes + chrM, chrX, chrY
 
   TSS_ENRICH="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/mm9.gencode.vM1.transcript.TSS.bed"
   DNASE="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/mm9_dhs_universal_ucsc_v1.bed.gz"
@@ -76,15 +76,16 @@ elif [ $GENOME == "hg38" ]; then
   CHRSZ="http://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes"
   REF_FA="ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_human/release_23/GRCh38.p3.genome.fa.gz"
   SEQ="http://hgdownload.cse.ucsc.edu/goldenPath/hg38/chromosomes"
+  SEQ_CHR_ARR=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 M X Y)
   GENSZ="hs"
   BLACKLIST=""
-  CHR_END_ID=22; # 22 chromosomes + chrM, chrX, chrY
 
 elif [ $GENOME == "mm10" ]; then
 
   CHRSZ="http://hgdownload.cse.ucsc.edu/goldenPath/mm10/bigZips/mm10.chrom.sizes"
   REF_FA="ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_mouse/release_M10/GRCm38.p4.genome.fa.gz"
   SEQ="http://hgdownload.cse.ucsc.edu/goldenPath/mm10/chromosomes"
+  SEQ_CHR_ARR=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 M X Y)
   GENSZ="mm"
   BLACKLIST=""
   CHR_END_ID=19; # 19 chromosomes + chrM, chrX, chrY
@@ -112,14 +113,14 @@ if [[ $REG2MAP != "" ]]; then wget -N -c $REG2MAP; fi
 if [[ $ROADMAP_META != "" ]]; then wget -N -c $ROADMAP_META; fi
 cd ${DATA_DIR}/$GENOME
 mkdir -p seq && cd seq
-for i in `seq 1 ${CHR_END_ID}; echo -e "M\nX\nY"`; do wget -N -c $SEQ/chr$i.fa.gz; done
+for i in ${SEQ_CHR_ARR[@]}; do wget -N -c $SEQ/chr$i.fa.gz; done
 
 echo "Extracting/processing data files..."
 cd ${DATA_DIR}/$GENOME
 if [ ! -f ${REF_FA_PREFIX} ]; then
   gzip -d -f -c ${REF_FA_PREFIX}.gz > ${REF_FA_PREFIX}
 fi
-for i in `seq 1 ${CHR_END_ID}; echo -e "M\nX\nY"`; do
+for i in ${SEQ_CHR_ARR[@]}; do
   if [ ! -f seq/chr$i.fa ]; then
     gzip -f -d -c seq/chr$i.fa.gz > seq/chr$i.fa
   fi
