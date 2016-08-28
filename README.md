@@ -1,6 +1,7 @@
 ATAC-Seq / DNase-Seq Pipeline
 ===================================================
 
+* Go to [Discussion channel](https://groups.google.com/forum/#!forum/klab_genomic_pipelines_discuss)
 * Jump to [Usage](#usage)
 * Jump to [Troubleshooting](#troubleshooting)
 
