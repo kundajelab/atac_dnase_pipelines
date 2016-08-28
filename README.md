@@ -317,9 +317,9 @@ There are two kinds of HTML reports provided by the pipeline.
 
       -url_base http://your/url/to/output -title [PREFIX_FOR_YOUR_REPORT]
 
-## Coding with BDS
+## Programming with BDS
 
-* [Using genomic pipeline modules in Kundaje lab](https://github.com/kundajelab/bds_pipeline_modules/blob/master/README_CODE.md)
+* [Using genomic pipeline modules in Kundaje lab](https://kundajelab.github.io/bds_pipeline_modules/usage.html)
 
 * [BigDataScript github repo](https://github.com/pcingola/BigDataScript)
 
@@ -333,7 +333,7 @@ There are two kinds of HTML reports provided by the pipeline.
 
 # Troubleshooting
 
-See more [troubleshootings](https://github.com/kundajelab/bds_pipeline_modules/blob/master/README_PIPELINE.md/#troubleshooting).
+See more [troubleshootings](https://kundajelab.github.io/bds_pipeline_modules/troubleshooting.html)
 
 ### samtools ncurses bug
 
