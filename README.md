@@ -320,7 +320,7 @@ There are two kinds of HTML reports provided by the pipeline.
 
 ## Programming with BDS
 
-* [Using genomic pipeline modules in Kundaje lab](https://kundajelab.github.io/bds_pipeline_modules/usage.html)
+* [Using genomic pipeline modules in Kundaje lab](https://kundajelab.github.io/bds_pipeline_modules/programming.html)
 
 * [BigDataScript github repo](https://github.com/pcingola/BigDataScript)
 
