@@ -34,7 +34,7 @@ string subsample_tag( string tag, int nlines, string o_dir, string group ) {
 	in 	:= [ tag ]
 	out 	:= subsampled_tag
 
-	taskName:= "_subsample_tag " + group
+	taskName:= "subsample_tag " + group
 
 	wait_par( cpus )
 
@@ -68,7 +68,7 @@ string subsample_tag_PE_xcor( string tag, int nlines, string o_dir, string group
 	in 	:= [ tag ]
 	out 	:= subsampled_tag
 
-	taskName:= "_subsample_tag_PE " + group
+	taskName:= "subsample_tag_PE " + group
 
 	wait_par( cpus )
 
@@ -102,7 +102,7 @@ string subsample_bedpe_to_tag_xcor( string bedpe, int nlines, string o_dir, stri
 
 	in 	:= [ bedpe ]
 	out 	:= subsampled_tag
-	taskName:= "subsample_bedpe2tag" + group
+	taskName:= "subsample_bedpe2tag " + group
 
 	wait_par( cpus )
 
