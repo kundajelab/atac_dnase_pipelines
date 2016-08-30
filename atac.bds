@@ -27,8 +27,6 @@ grp_color_ataqc := "pink"
 
 help() // show help contexts
 
-include "modules/species_atac.bds"
-
 include "modules/input.bds"
 include "modules/input_adapter.bds"
 
@@ -38,10 +36,10 @@ include "modules/align_trim_adapter.bds"
 include "modules/postalign_bam.bds"
 include "modules/postalign_bed.bds"
 
-include "modules/callpeak_macs2_atac.bds"
+include "modules/callpeak_macs2.bds"
 include "modules/callpeak_naive_overlap.bds"
-include "modules/callpeak_etc.bds"
-include "modules/idr.bds"
+include "modules/callpeak_filter.bds"
+include "modules/callpeak_idr.bds"
 
 include "modules/report.bds"
 
@@ -769,7 +767,7 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 
 		// macs2 pval thresh = 0.01, signal track generation = true
 		( peak_001{rep}, gpeak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) \
-				= macs2( final_tag{rep}, "$smooth_win", 0.01, true, peak_o_dir, sig_o_dir, group )
+				= macs2_atac( final_tag{rep}, "$smooth_win", 0.01, true, peak_o_dir, sig_o_dir, group )
 
 		add_file_to_report( peak_001{rep}, "n. peak\\np-val<0.01", group, "Peaks/MACS2/$long/Narrow peak (p-val thresh=.01)" )
 		add_file_to_report( gpeak_001{rep}, "g. peak\\np-val<0.01", group, "Peaks/MACS2/$long/Gapped peak (p-val thresh=.01)" )
@@ -778,7 +776,7 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 
 		// macs2 pval thresh = 0.1
 		( peak{rep}, gpeak{rep} )  \
-				= macs2( final_tag{rep}, "$smooth_win", 0.1, false, peak_o_dir, sig_o_dir, group )
+				= macs2_atac( final_tag{rep}, "$smooth_win", 0.1, false, peak_o_dir, sig_o_dir, group )
 
 		add_file_to_report( peak{rep}, "n. peak", group, "Peaks/MACS2/$long/Narrow peak" )
 		add_file_to_report( gpeak{rep}, "g. peak", group, "Peaks/MACS2/$long/Gapped peak" )
@@ -791,13 +789,13 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 			sig_pr2_o_dir 	:= mkdir( "$out_dir/signal/macs2/pseudo_reps/$group/pr2" )
 
 			( peak_pr1{rep}, gpeak_pr1{rep} ) \
-				= macs2( final_tag_pr1{rep}, "$smooth_win", 0.1, false, peak_pr1_o_dir, sig_pr1_o_dir, "$group-pr1" )
+				= macs2_atac( final_tag_pr1{rep}, "$smooth_win", 0.1, false, peak_pr1_o_dir, sig_pr1_o_dir, "$group-pr1" )
 
 			add_file_to_report( peak_pr1{rep}, "n. peak", "$group-pr1", "Peaks/MACS2/Pseudo-replicates/$long/Pseudo-replicate 1/Narrow peak" )
 			add_file_to_report( gpeak_pr1{rep},"g. peak", "$group-pr1", "Peaks/MACS2/Pseudo-replicates/$long/Pseudo-replicate 1/Gapped peak" )
 
 			( peak_pr2{rep}, gpeak_pr2{rep} ) \
-				= macs2( final_tag_pr2{rep}, "$smooth_win", 0.1, false, peak_pr2_o_dir, sig_pr2_o_dir, "$group-pr2" )
+				= macs2_atac( final_tag_pr2{rep}, "$smooth_win", 0.1, false, peak_pr2_o_dir, sig_pr2_o_dir, "$group-pr2" )
 
 			add_file_to_report( peak_pr2{rep}, "n. peak", "$group-pr2", "Peaks/MACS2/Pseudo-replicates/$long/Pseudo-replicate 2/Narrow peak" )
 			add_file_to_report( gpeak_pr2{rep},"g. peak", "$group-pr2", "Peaks/MACS2/Pseudo-replicates/$long/Pseudo-replicate 2/Gapped peak" )			
@@ -815,7 +813,7 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 
 		// macs2 on pooled reps with p-val threshold 0.01, signal tracks are generated
 		( peak_pooled_001, gpeak_pooled_001, fc_bigwig_001{"pooled"}, pval_bigwig_001{"pooled"} ) \
-			= macs2( final_tag_pooled, "$smooth_win", 0.01, true, pooled_o_dir, pooled_sig_o_dir, "pooled_rep" )
+			= macs2_atac( final_tag_pooled, "$smooth_win", 0.01, true, pooled_o_dir, pooled_sig_o_dir, "pooled_rep" )
 
 		add_file_to_report( peak_pooled_001, "n. peak\\np-val<0.01", "pooled_rep", "Peaks/MACS2/Pooled replicate/Narrow peak (p-val thresh=.01)" )
 		add_file_to_report( gpeak_pooled_001, "g. peak\\np-val<0.01", "pooled_rep", "Peaks/MACS2/Pooled replicate/Gapped peak (p-val thresh=.01)" )
@@ -824,7 +822,7 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 
 		// macs2 on pooled reps with p-val threshold 0.1
 		( peak_pooled, gpeak_pooled ) \
-			= macs2( final_tag_pooled, "$smooth_win", 0.1, false, pooled_o_dir, pooled_sig_o_dir, "pooled_rep" )
+			= macs2_atac( final_tag_pooled, "$smooth_win", 0.1, false, pooled_o_dir, pooled_sig_o_dir, "pooled_rep" )
 
 		add_file_to_report( peak_pooled, "n. peak", "pooled_rep", "Peaks/MACS2/Pooled replicate/Narrow peak" )
 		add_file_to_report( gpeak_pooled, "g. peak", "pooled_rep", "Peaks/MACS2/Pooled replicate/Gapped peak" )
@@ -837,12 +835,12 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 			ppr2_sig_o_dir 	:= mkdir( "$sig_o_dir/pooled_pseudo_reps/ppr2" )
 
 			// call peaks on ppr
-			( peak_ppr1, gpeak_ppr1 ) = macs2( final_tag_ppr1, "$smooth_win", 0.1, false, ppr1_o_dir, ppr1_sig_o_dir, "ppr1" )
+			( peak_ppr1, gpeak_ppr1 ) = macs2_atac( final_tag_ppr1, "$smooth_win", 0.1, false, ppr1_o_dir, ppr1_sig_o_dir, "ppr1" )
 
 			add_file_to_report( peak_ppr1, "n. peak", "ppr1", "Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Narrow peak" )
 			add_file_to_report( gpeak_ppr1, "g. peak", "ppr1","Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Gapped peak" )
 
-			( peak_ppr2, gpeak_ppr2 ) = macs2( final_tag_ppr2, "$smooth_win", 0.1, false, ppr2_o_dir, ppr2_sig_o_dir, "ppr2" )
+			( peak_ppr2, gpeak_ppr2 ) = macs2_atac( final_tag_ppr2, "$smooth_win", 0.1, false, ppr2_o_dir, ppr2_sig_o_dir, "ppr2" )
 
 			add_file_to_report( peak_ppr2, "n. peak", "ppr2", "Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Narrow peak" )
 			add_file_to_report( gpeak_ppr2, "g. peak", "ppr2","Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Gapped peak" )
@@ -1081,6 +1079,9 @@ string[] ataqc( string fastq1, string fastq2, string bam, string align_log, stri
 		sys export _JAVA_OPTIONS="-Xms256M -Xmx$max_java_heap -XX:ParallelGCThreads=1"
 
 		sys cd $o_dir
+
+		// # if PICARDROOT is not defined, then look into ../shared/picard* (default picard dir. in bioconda)
+		sys if [ -f "$(which picard)" ]; then export PICARDROOT="$(dirname $(which picard))/../share/picard"*; fi
 
 		sys $script_dir/ataqc/run_ataqc.py \
 		    --workdir $o_dir \

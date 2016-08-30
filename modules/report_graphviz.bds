@@ -118,7 +118,7 @@ string html_graph() { // graph diagram
 	
 	task {
 		sys $shcmd_init
-		sys dot -Tsvg $dot > $svg
+		sys dot -Tsvg $dot > $svg 2> /dev/null || echo "svg: $svg" # to suppress dot font error (exit code=1)
 	}
 
 	html += "<object data='"+ get_rel_path( svg ) + "'></object></div><br>"

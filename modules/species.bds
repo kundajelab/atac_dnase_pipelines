@@ -14,7 +14,18 @@ seq 		:= ""		help Reference genome sequence directory path (where chr*.fa exist)
 gensz 		:= ""		help Genome size; hs for human, mm for mouse.
 umap 		:= "" 		help Unique mappability tracks directory path (https://sites.google.com/site/anshulkundaje/projects/mappability).
 bwa_idx 	:= ""		help BWA index (full path prefix of *.bwt file) .
+bwt_idx		:= ""		help Bowtie index (full path prefix of *.1.ebwt file).
+bwt2_idx	:= ""		help Bowtie2 index (full path prefix of *.1.bt2 file).
 blacklist 	:= "" 		help Blacklist bed.
+
+// for ataqc
+tss_enrich 	:= "" 		help TSS enrichment bed for ataqc.
+ref_fa 		:= ""		help Reference genome sequence fasta.
+dnase 		:= ""		help DNase bed for ataqc.
+prom 		:= ""		help Promoter bed for ataqc.
+enh 		:= ""		help Enhancer bed for ataqc.
+reg2map 	:= ""		help Reg2map for ataqc.
+roadmap_meta 	:= ""		help Roadmap metadata for ataqc.
 
 
 init_species()
@@ -67,7 +78,18 @@ void read_species() { // check for species configruation files
 				seq 		= get_conf_val( seq, 		["seq"], _conf )
 				umap		= get_conf_val( umap, 		["umap"], _conf )
 				bwa_idx 	= get_conf_val( bwa_idx, 	["bwa_idx"], _conf )
+				bwt_idx 	= get_conf_val( bwt_idx, 	["bwt_idx"], _conf )
+				bwt2_idx 	= get_conf_val( bwt2_idx, 	["bwt2_idx"], _conf )
 				blacklist 	= get_conf_val( blacklist, 	["blacklist"], _conf )
+
+				// for ataqc
+				tss_enrich 	= get_conf_val( tss_enrich, 	["tss_enrich"], _conf )
+				ref_fa 		= get_conf_val( ref_fa, 	["ref_fa"], _conf )
+				dnase 		= get_conf_val( dnase, 		["dnase"], _conf )
+				prom 		= get_conf_val( prom, 		["prom"], _conf )
+				enh 		= get_conf_val( enh, 		["enh"], _conf )
+				reg2map 	= get_conf_val( reg2map, 	["reg2map"], _conf )
+				roadmap_meta 	= get_conf_val( roadmap_meta, 	["roadmap_meta"], _conf )
 			}
 		}
 	}
@@ -78,5 +100,15 @@ void read_species() { // check for species configruation files
 	print( "Ref. genome seq. dir.\t\t: $seq\n" )
 	print( "Umap dir.\t\t\t: $umap\n" )
 	print( "BWA index\t\t\t: $bwa_idx\n" )
+	print( "Bowtie index\t\t\t: $bwt_idx\n" )
+	print( "Bowtie2 index\t\t\t: $bwt2_idx\n" )
 	print( "Black list bed\t\t\t: $blacklist\n" )
+	print( "-- Data for ATAQC --\n")
+	print( "TSS enrichment bed\t\t: $tss_enrich\n" )
+	print( "Ref. genome seq. fasta\t\t: $ref_fa\n" )
+	print( "DNase bed for ataqc\t\t: $dnase\n" )
+	print( "Promoter bed for ataqc\t\t: $prom\n" )
+	print( "Enhancer bed for ataqc\t\t: $enh\n" )
+	print( "Reg2map bed for ataqc\t\t: $reg2map\n" )
+	print( "Roadmap metadata for ataqc\t: $roadmap_meta\n" )
 }

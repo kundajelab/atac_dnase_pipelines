@@ -318,7 +318,7 @@ string[] dedup_bam_PE( string bam, string o_dir, string log_o_dir, string group,
 		"$filt_bam.bai".rm()
 	}
 
-	add_task_to_graph( in, out, group, "filter", grp_color_dedup_bam )
+	add_task_to_graph( in, out, group, "FILTER", grp_color_dedup_bam )
 
 	return out
 }
@@ -347,14 +347,19 @@ string[] markdup_bam_picard( string bam, string o_dir, string log_o_dir, string 
 		sys export _JAVA_OPTIONS="-Xms256M -Xmx4G -XX:ParallelGCThreads=1"
 		sys export MAX_JAVA_MEM="12G"
 
-		//# Mark duplicates
-		sys if [ -f ${PICARDROOT}/MarkDuplicates.jar ]; then \
-			java -Xmx4G -jar ${PICARDROOT}/MarkDuplicates.jar \
+		// # if PICARDROOT is not defined, then look into ../shared/picard* (default picard dir. in bioconda)
+		sys if [ -d "${PICARDROOT}" ]; then MARKDUP="${PICARDROOT}/MarkDuplicates.jar"; \
+		    elif [ -f "$(which picard)" ]; then MARKDUP="$(dirname $(which picard))/../share/picard"*/MarkDuplicates.jar; \
+		    fi
+
+		// # if MardDuplicates.jar exists
+		sys if [ -f "${MARKDUP}" ]; then \
+			java -Xmx4G -jar ${MARKDUP} \
 				INPUT="$bam" OUTPUT="$dupmark_bam" \
 				METRICS_FILE="$dup_qc" VALIDATION_STRINGENCY=LENIENT \
 				ASSUME_SORTED=true REMOVE_DUPLICATES=false; \
-			else \
-			java -Xmx4G -jar ${PICARDROOT}/picard.jar MarkDuplicates \
+		    else \
+			picard MarkDuplicates \
 				INPUT="$bam" OUTPUT="$dupmark_bam" \
 				METRICS_FILE="$dup_qc" VALIDATION_STRINGENCY=LENIENT \
 				ASSUME_SORTED=true REMOVE_DUPLICATES=false; \

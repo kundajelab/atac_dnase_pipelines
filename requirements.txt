@@ -6,7 +6,7 @@ ncurses
 samtools ==1.2
 htslib # bgzip and tabix not included in new samtools
 bedtools ==2.22 # 2.21.0
-picard ==1.126 #wanted 1.129 here but doesn't exist. instead 1.139 has backward compatibility issue, so take 1.126
+picard ==1.126 # wanted 1.129 here but doesn't exist. instead 1.139 has backward compatibility issue, so take 1.126
 ucsc-fetchchromsizes
 ucsc-wigtobigwig
 ucsc-bedgraphtobigwig
@@ -41,14 +41,6 @@ bioconductor-rsamtools
 r-spp ==1.13
 cutadapt
 preseq ==2.0.2 
-
-trim-galore ==0.4.1 # old trimmer
-python-levenshtein # old trimmer (trimAdapter.py)
-
-## picard tool does not have a shell variable PICARDROOT
-## PICARDROOT will be defined in conda activate.
-## see install_dependencies.sh
-
-## there are packages that are not in official conda repos
-## run install_dependencies.sh to install these softwares
+trim-galore ==0.4.1 # for old trimmer
+python-levenshtein # for old trimmer (trimAdapter.py)
 
