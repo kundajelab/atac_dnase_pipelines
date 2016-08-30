@@ -138,6 +138,7 @@ string _make_dot( string file ) {
 
 	string[] groups 
 	string[] _tmp_links
+	int[] id_excluded
 
 	for ( int k=0; k<_tmp_in.size(); k++ ) {
 
@@ -200,6 +201,8 @@ string _make_dot( string file ) {
 
 				nodes{out_full} = "\t\"$out_full\" [label=\"$out_label\",id=\"$out_full\",style=\"$grp_style_node\",fillcolor=$grp_color_node,tooltip=\"$out_rel_path\",href=\"$out_rel_path\"];"
 
+				in_to_out := "\t\"$in_full\" -> \"$out_full\";\n"
+
 				if ( box_name != "" ) { // if box exists (a->box->b)
 
 					box_full := "$box_name-$box_group"
@@ -221,12 +224,15 @@ string _make_dot( string file ) {
 						_tmp_links.add(box_to_out)
 						added_box_to_out{box_to_out} = true
 					}
+
+					// exclude A -> B when A -> BOX -> B is present
+					if ( _tmp_links.has(in_to_out) ) id_excluded.add( _tmp_links.indexOf(in_to_out) )
 				}
 				else {
 					if ( in_group == out_group ) 	groups.add(in_group)
 					else 				groups.add("outside")
 					
-					_tmp_links.add("\t\"$in_full\" -> \"$out_full\";\n")					
+					_tmp_links.add(in_to_out)
 				}
 			}
 		}
@@ -236,6 +242,8 @@ string _make_dot( string file ) {
 	for ( string box : boxes ) dot_contents += (box + "\n")
 
 	for ( int i=0; i<groups.size(); i++) {
+		if ( id_excluded.has(i) ) continue
+
 		group := groups[i]
 		link := _tmp_links[i]
 
