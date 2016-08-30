@@ -47,9 +47,7 @@ mkdir -p $CONDA_EXTRA $CONDA_ACTIVATE_D
 
 ### install Anshul's phantompeakqualtool
 cd $CONDA_EXTRA
-wget https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/phantompeakqualtools/ccQualityControl.v.1.1.tar.gz -N
-tar zxvf ccQualityControl.v.1.1.tar.gz
-rm -f ccQualityControl.v.1.1.tar.gz
+git clone https://github.com/kundajelab/phantompeakqualtools
 chmod 755 -R phantompeakqualtools
 CONTENTS=("export PATH=\$PATH:$CONDA_EXTRA/phantompeakqualtools")
 add_to_activate

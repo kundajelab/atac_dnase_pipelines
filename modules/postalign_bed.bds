@@ -206,9 +206,14 @@ string[] xcor( string tag, string o_dir, string group, int nth_xcor ) {
 
 		sys $shcmd_init
 
+		// # if phantompeakqualtools is an old version, use run_spp_nodups.R. new version has run_spp.R only		
+		sys if [ $(which run_spp_nodups.R 2> /dev/null | wc -l || echo) == "1" ]; then RUN_SPP=$(which run_spp_nodups.R); \
+		    else RUN_SPP=$(which run_spp.R); \
+		    fi
+
 		//# CCSCORE FILE format
 		//# Filename <tab> numReads <tab> estFragLen <tab> correstFragLen <tab> PhantomPeak <tab> corrphantomPeak <tab> argmincorr <tab> mincorr <tab> phantomPeakCoef <tab> relPhantomPeakCoef <tab> QualityTag
-		sys Rscript $(which run_spp_nodups.R) -rf \
+		sys Rscript ${RUN_SPP} -rf \
 			-c=$tag -p=$nth_xcor \
 			-filtchr=chrM -savp=$xcor_plot -out=$xcor_score $param_speak
 		sys sed -r 's/,[^\t]+//g' $xcor_score > $xcor_score.tmp

@@ -24,16 +24,22 @@ grp_color_align 	:= "orange"
 /*
 IMPORTANT!: legacy softwares compatibility (make the code work with legacy samtools, picard-tools)
 
-	- samtools fixmate -O doesn't work in legacy samtools
+	$ samtools fixmate -O doesn't work in legacy samtools
 		specify output ext like [TARGET].bam (samtools fixmate -r [SRC] [TARGET].bam)
 
-	- samtools index [SRC] [TARGET] doesn't work in legacy samtools
+	$ samtools index [SRC] [TARGET] doesn't work in legacy samtools
 		you need to manually mv .bam.bai .bai
 
-	- samtools sort -O -T  doesn't work in legacy samtools (do not use them)
+	$ samtools sort -O -T  doesn't work in legacy samtools (do not use them)
 
-	- java -Xmx4G -Xms256M -jar ${PICARDROOT}/picard.jar [METHOD]  for old picard
-	- java -Xmx4G -Xms256M -jar ${PICARDROOT}/[METHOD].jar  for new picard
+	# for old picard (1.2x)
+	$ java -Xmx4G -Xms256M -jar ${PICARDROOT}/picard.jar [METHOD]
+	# for new picard
+	$ java -Xmx4G -Xms256M -jar ${PICARDROOT}/[METHOD].jar
+	# if PICARDROOT is not defined, look into ../shared/picard* (default directory for picard in bioconda) to find picard.jar or [METHOD].jar
+	$ java -Xmx4G -Xms256M -jar $(dirname $(which picard))/../shared/picard* /[METHOD].jar
+	# else
+	$ picard [METHOD]
 */
 
 
@@ -347,9 +353,15 @@ string[] markdup_bam_picard( string bam, string o_dir, string log_o_dir, string 
 		sys export _JAVA_OPTIONS="-Xms256M -Xmx4G -XX:ParallelGCThreads=1"
 		sys export MAX_JAVA_MEM="12G"
 
+		// to deal with horrible compatility issue for various versions of picard tools
 		// # if PICARDROOT is not defined, then look into ../shared/picard* (default picard dir. in bioconda)
-		sys if [ -d "${PICARDROOT}" ]; then MARKDUP="${PICARDROOT}/MarkDuplicates.jar"; \
-		    elif [ -f "$(which picard)" ]; then MARKDUP="$(dirname $(which picard))/../share/picard"*/MarkDuplicates.jar; \
+		// # elseif ../shared/picard*/MarkDuplicates.jar exist, use it
+		sys if [ -f "${PICARDROOT}/picard.jar" ]; then \
+		      MARKDUP="${PICARDROOT}/picard.jar MarkDuplicates"; \
+		    elif [ -f "${PICARDROOT}/MarkDuplicates.jar" ]; then \
+		      MARKDUP="${PICARDROOT}/MarkDuplicates.jar"; \
+		    elif [ $(which picard 2> /dev/null | wc -l || echo) == "1" ]; then \
+		      MARKDUP="$(ls $(dirname $(which picard))/../share/picard*/MarkDuplicates.jar 2> /dev/null || echo)"; \
 		    fi
 
 		// # if MardDuplicates.jar exists
