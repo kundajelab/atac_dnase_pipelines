@@ -735,7 +735,7 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 
 	 	aln_pooled_o_dir := mkdir( "$out_dir/align/pooled_rep" )
 
-		final_tag_pooled = pool_tag( tags, aln_pooled_o_dir, "reps" )
+		final_tag_pooled = pool_tag( tags, aln_pooled_o_dir, "pooled_rep" )
 
 		add_file_to_report( final_tag_pooled, "tag-align", "pooled_rep", "Alignment/Pooled replicate/Tag-align" )
 
@@ -745,8 +745,8 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 		 	aln_ppr1_o_dir   := mkdir( "$out_dir/align/pooled_pseudo_reps/ppr1" )
 		 	aln_ppr2_o_dir   := mkdir( "$out_dir/align/pooled_pseudo_reps/ppr2" )
 
-			final_tag_ppr1 = pool_tag( tags_pr1, aln_ppr1_o_dir, "reps-pr1" )
-			final_tag_ppr2 = pool_tag( tags_pr2, aln_ppr2_o_dir, "reps-pr2" )
+			final_tag_ppr1 = pool_tag( tags_pr1, aln_ppr1_o_dir, "ppr1" )
+			final_tag_ppr2 = pool_tag( tags_pr2, aln_ppr2_o_dir, "ppr2" )
 
 			add_file_to_report( final_tag_ppr1, "tag-align", "ppr1", "Alignment/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Tag-align" )
 			add_file_to_report( final_tag_ppr2, "tag-align", "ppr2", "Alignment/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Tag-align" )			
