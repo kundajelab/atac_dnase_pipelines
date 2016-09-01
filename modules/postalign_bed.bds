@@ -198,7 +198,7 @@ string[] xcor( string tag, string o_dir, string group, int nth_xcor ) {
 	out 	:= [ xcor_score, xcor_plot ]
 
 	taskName:= "xcor " + group
-	cpus 	:= (nth_xcor) ? -1 : nth_xcor; 	mem := get_res_mem(memory,nth_xcor);
+	cpus 	:= (nth_xcor==1) ? -1 : nth_xcor;	mem := get_res_mem(memory,nth_xcor);
 
 	wait_par( cpus )
 
