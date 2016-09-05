@@ -3,7 +3,7 @@
 
 include "species.bds"
 include "align_multimapping.bds"
-include "report.bds"
+include "module_template.bds"
 
 // has functions related to bam, and helps getting bam from configruation file or command line argument
 

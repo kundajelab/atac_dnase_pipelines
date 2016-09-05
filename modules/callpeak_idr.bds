@@ -2,7 +2,7 @@
 #vim: syntax=java
 
 include "species.bds"
-include "report.bds"
+include "module_template.bds"
 
 
 help == IDR settings
@@ -19,26 +19,20 @@ void init_idr() {
 
 	idr_suffix 	= get_conf_val_bool( idr_suffix, 	["idr_suffix"] )
 
-	print_idr()
-}
-
-void print_idr() {
-
 	print( "\n\n== IDR settings\n")
 	print( "Append IDR threshold to IDR out_dir\t: $idr_suffix\n" )
 }
 
 void chk_idr() {
-	if ( !path_exists( blacklist ) ) print("\nWarning: Blacklist bed (-blacklist) for final IDR QC is missing! (file: $blacklist)\n\n")
+	if ( !path_exists( blacklist ) ) print("\nWarning: Blacklist bed (-blacklist) for final IDR QC"+\
+						" is missing! (file: $blacklist)\n\n")
 }
-
 
 // 12-col.bed.gz (10 col for narrowPeak + local IDR, global IDR) will be generated for browser tracks
 // A temporary 13th column bed should be generated due to bedtools intersect compatibility issue
 // use function _get_idr_peak_trk( idr_peak ) to find 12-col.bed.gz for browser tracks
 // rank: 'signal.value' for SPP peaks, 'p.value' for MACS2 peaks
 string[] idr2( string peak1, string peak2, string pooled, string idr_thresh, string rank, string o_dir, string group ) {
-
 	if ( idr_suffix ) o_dir = mkdir( o_dir + "_$idr_thresh" )
 
 	prefix 			:= "$o_dir/" + (title=="" ? "" : (title+"_") ) + group	
@@ -111,12 +105,11 @@ string[] idr2( string peak1, string peak2, string pooled, string idr_thresh, str
 // idr_pr: IDR peaks for pseudo replicates (key:"rep") e.g. "1" for pseudo replicates of replicate 1
 string[] idr_final_qc( string{} idr_tr, string{} idr_pr, string idr_ppr, \
 			string idr_o_dir, string qc_o_dir, string group ) {
-
 	//// get # of lines in each IDR peak files
 
 	// pseudo replicates
 	int[] N
-	for ( string peak : idr_pr ) N.add( get_no_lines( peak ) )
+	for ( string peak : idr_pr ) N.add( get_num_lines( peak ) )
 
 	// true replicates
 	Nt := 0
@@ -125,7 +118,7 @@ string[] idr_final_qc( string{} idr_tr, string{} idr_pr, string idr_ppr, \
 	for ( string key : idr_tr.keys() ) { // key = rep id 1, rep id 2
 
 		peak := idr_tr{ key }
-		nlines := ( peak != "" ) ? get_no_lines( peak ) : 0
+		nlines := ( peak != "" ) ? get_num_lines( peak ) : 0
 
 		if ( nlines >= Nt ) {
 			Nt = nlines
@@ -135,7 +128,7 @@ string[] idr_final_qc( string{} idr_tr, string{} idr_pr, string idr_ppr, \
 	}
 
 	// pooled pseudo replicates
-	Np := ( idr_ppr != "" ) ? get_no_lines( idr_ppr ) : 0
+	Np := ( idr_ppr != "" ) ? get_num_lines( idr_ppr ) : 0
 
 	//// find optimal set and conservative set
 	string optimal_set, conservative_set
@@ -180,11 +173,11 @@ string[] idr_final_qc( string{} idr_tr, string{} idr_pr, string idr_ppr, \
 
 	//// compute IDR scores
 
-	real max_Np_Nt = max( Np, Nt )
-	real min_Np_Nt = min( Np, Nt )
+	real max_Np_Nt = _max( Np, Nt )
+	real min_Np_Nt = _min( Np, Nt )
 
-	real max_N = N.size() > 0 ? max( N ) : 0
-	real min_N = N.size() > 0 ? min( N ) : 0
+	real max_N = N.size() > 0 ? _max( N ) : 0
+	real min_N = N.size() > 0 ? _min( N ) : 0
 
 	rescue_ratio 		:= max_Np_Nt / min_Np_Nt
 	self_consistency_ratio 	:= max_N / min_N
@@ -227,7 +220,6 @@ string[] idr_final_qc( string{} idr_tr, string{} idr_pr, string idr_ppr, \
 }
 
 string _get_group_from_key( string key ) { //parse "i,j" to "repi-repj"
-
 	tmp := key.split(",")
 	i := tmp[0]
 	j := tmp[1]
@@ -235,6 +227,25 @@ string _get_group_from_key( string key ) { //parse "i,j" to "repi-repj"
 }
 
 string _get_idr_peak_trk( string idr_peak ) {
-
 	return rm_ext( idr_peak, ["narrowPeak","regionPeak"] ) + ".12-col.bed.gz"	
+}
+
+int _max( int a, int b ) {
+	return max( a, b )
+}
+
+int _min( int a, int b ) {
+	return min( a, b )
+}
+
+int _max( int[] arr ) {
+	tmp := arr[0]
+	for( int i=1; i<arr.size();i++ ) tmp = _max( tmp, arr[i] )
+	return tmp
+}
+
+int _min( int[] arr ) {
+	tmp := arr[0]
+	for( int i=1; i<arr.size();i++ ) tmp = _min( tmp, arr[i] )
+	return tmp
 }

@@ -1,0 +1,160 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "conf.bds"
+
+
+help == parallelization settings
+no_par		:= false	help Serialize all tasks (individual tasks can still use multiple threads up to '-nth').
+nth 		:= 8 		help Maximum # threads for a pipeline. (default: 8).
+
+string[] _tids_all 	// array of task ids currently running
+int{} _nth_tasks 	// key: task id, value: # of threads for the task
+
+
+init_parallel()
+
+
+void init_parallel() {
+	no_par 	= get_conf_val_bool( no_par, 	["no_par"] )
+	nth 	= get_conf_val_int( nth, 	["nth"] )
+
+	if ( nth > 32 ) error("Maximum # threads (-nth) for a pipeline should not exceed 32!")
+	if ( nth <= 1 ) {
+		print("\nWarning: Maximum # threads (-nth) for a pipeline is <= 1. Turning off parallelization... (-no_par)")
+		nth = 1
+		no_par = true
+	}
+
+	// pre-declared BDS variable
+	cpus 		= -1 		// With cpus==-1, BDS does not pass number of threads to cluster engine (SGE, SLURM, ...), which means single-threaded
+
+	print("\n\n== parallelization info\n")
+	print( "No parallel jobs\t\t: $no_par\n" )
+	print( "Maximum # threads \t\t: $nth\n" )
+}
+
+void wait_par( int nth_task ) {
+	if ( nth_task < 1 ) nth_task = 1
+
+	while ( true ) {
+		sleep( rand()*1.0 + 0.5 )
+		_tids_all_  := _tids_all // make dummy array for thread safety
+
+		string[] tids_running
+		int nth_running		
+		for ( string tid : _tids_all_ ) { // get total # threads for currently running tasks, and find the oldest task
+			if ( !tid.isDone() ) {
+				tids_running.add( tid )
+				nth_running = nth_running + _nth_tasks{tid}
+			}
+		}
+
+		if ( tids_running.size() == 0 ) {
+			break
+		}
+		else if ( no_par || (nth_running+nth_task) > nth ) {
+			loop_cnt := 0
+			while( true ) { // wait until one of running tasks finishes
+				break_loop := false
+				for ( string tid : tids_running ) {
+					if ( tid.isDone() ) {
+						break_loop = true
+						break
+					}
+				}
+				if ( break_loop ) break
+				sleep( rand() + 0.5 )
+			}
+			sleep( rand()*1.0 + 0.5 )
+		}
+		else {
+			break
+		}
+	}
+}
+
+void register_par( string tid, int nth_task ) {
+	if ( nth_task < 1 ) nth_task = 1
+	if ( tid == "" ) return
+
+	_tids_all.add(tid)
+	_nth_tasks{tid} = nth_task
+}
+
+int{} distribute_nonzero( int n, int{} weight ) { // distribute integer n according to weight
+	int{} ret
+
+	int sum 
+	for ( int w : weight ) sum += w
+	if ( sum == 0 ) error("distribute_nth: sum is zero. check if input file size is 0?\n")
+	for ( string key : weight.keys() ) {
+		w := weight{key}
+		ret{key} = (n*w)/sum
+
+		if ( ret{key} == 0 ) ret{key} = 1
+	}
+
+	while( true ) {
+		int sum2
+		for ( string key : weight.keys() ) sum2 += ret{key}
+		if ( n > sum2 ) {
+			string key_to_plus
+			int max_diff = 0
+			for ( string key : weight.keys() ) {
+				diff := n*weight{key}-ret{key}*sum
+				if ( diff > max_diff ) {
+					key_to_plus = key
+					max_diff = diff
+				}
+			}
+			ret{key_to_plus}++
+		}
+		else {
+			break
+		}
+	}
+
+	print("Distributing $n to ... \n")
+	print(ret)
+	print("\n")
+	return ret
+}
+
+int[] distribute_nonzero( int n, int[] weight ) { // distribute integer n according to weight
+	int[] ret
+
+	int sum 
+	for ( int w : weight ) sum += w
+	if ( sum == 0 ) error("distribute_nth: sum is zero. check if input file size is 0?\n")
+	for ( int i=0; i<weight.size(); i++) {
+		w := weight[i]
+		to_add := (n*w)/sum
+		if ( to_add == 0 ) to_add = 1
+		ret.add( to_add )
+	}
+	while( true ) {
+		int sum2
+		for ( int i=0; i<weight.size(); i++) sum2 += ret[i]
+		if ( n > sum2 ) {
+			int id_to_plus
+			int max_diff = 0
+			for ( int i=0; i<weight.size(); i++) {
+				diff := n*weight[i]-ret[i]*sum
+				if ( diff > max_diff ) {
+					id_to_plus = i
+					max_diff = diff
+				}
+			}
+			ret[id_to_plus]++
+		}
+		else {
+			break
+		}
+	}
+
+	print("Distributing $n to ... \n")
+	print(ret)
+	print("\n")
+	return ret
+}

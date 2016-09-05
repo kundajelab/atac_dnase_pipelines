@@ -1,0 +1,173 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "string.bds"
+
+helpUnsorted := true // do not sort help
+
+
+script_path 	:= ""
+script_dir 	:= ""
+
+hostname 	:= ""
+
+// pipeline seeks for executables in the BDS script directory (local git repo) and $PATH
+// Add more relative path here if you want to keep your .py .sh .R visible to UNIX `which` as executables.
+// Relative paths defined here are according to your script path (not your working directory but where .bds exists)
+// Make sure that you chmod 755 your .py .R .sh
+_rel_script_file_paths 	:= [".","modules","utils"]
+
+
+init_base()
+
+
+void init_base() {
+	script_path 	= "$ppwd/$programPath"
+	if (!script_path.exists()) script_path = "$programPath"
+
+	script_dir 	= script_path.dirName()
+	hostname 	= get_hostname()
+}
+
+//// script file path
+
+string[] get_script_file_paths( string suffix ) {
+	string[] ret
+	for ( string path : _rel_script_file_paths ) {
+		path = "$script_dir/$path"
+		if ( path.exists() ) {
+			ret.add( path + suffix )
+			if ( path.dirName().endsWith( "modules" ) ) ret.add( "$path/../$suffix" )
+		}
+	}
+	return ret
+}
+
+string[] get_script_file_paths() {
+	return get_script_file_paths( "" )
+}
+
+//// command line argument functions
+
+bool cmd_line_arg_has_key( string key ) {
+	key = key.toLower()
+	for ( string arg : args ) {
+		if ( ("-"+key) == arg.toLower().trim() ) return true
+	}
+	return false
+}
+
+bool is_cmd_line_arg_empty() {
+	return args.size()==0
+}
+
+bool is_first_arg_conf() {
+	if ( (args.size()>0) && (!args[0].startsWith("-")) )  {
+		if ( args.size()==1 ) {
+			return true
+		}
+		else {
+			return args[1].startsWith("-")
+		}
+	}
+	return false
+}
+
+string get_cmd_line_arg_val( string key ) {
+	key = key.toLower()
+	for (int i=0; i< args.size(); i++) {
+		arg := args[i]		
+		if ( ("-"+key) == arg.toLower().trim() ) {
+			if ( i==(args.size()-1) ) break
+			next_arg := args[i+1]
+
+			if ( next_arg.startsWith("-") ) break
+			return next_arg
+		}
+	}
+	return ""
+}
+
+//// functions for file I/O
+
+string get_path( string str ) { // get absolute path (remove / if exists at end)
+	if (str.trim() == "") return ""
+	base := rm_str_at_end( str, "/" ).path()
+	return base
+}
+
+string mkdir( string str ) {
+	if (str.trim() == "") return ""
+	// make filename full path and mkdir -p
+	path := get_path( str )
+	if ( path.exists() ) {		
+		return path
+	}
+	else {
+		path.mkdir()
+		return path
+	}
+}
+
+bool path_exists( string path ) {
+	if ( path!="" ) {
+		if ( path.exists() ) {
+			if ( path.isFile() ) {
+				if ( path.size() > 0 ) return true
+			}
+			else {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+string copy( string file, string o_dir ) {
+	file_new := replace_dir( file, o_dir )
+	system := "local" // do not use cluster engine for this task
+	taskName:= "copy file"
+
+	task ( file_new <- file ) {
+
+		sys cp --remove-destination $file $file_new
+		sys while [ ! -f $file_new ]; do echo FOUND DELAYED WRITE, WAITING...; sleep 0.1; done
+	}
+
+	return file_new
+}
+
+string get_stdout( string cmd ) {
+	rnd  := randInt()
+	cmd_ := "cmd_$rnd".path()
+	sys $cmd 1> $cmd_
+	ret := cmd_.read()
+	sys rm -f $cmd_
+	return rm_str_at_end(ret,"\n")
+}
+
+string get_shell_var( string var ) {
+	var_ := "var_$var".path()
+	sys echo "${$var}" > $var_
+	ret := var_.read()
+	sys rm -f $var_
+	return ret
+}
+
+int get_num_lines( string file ) {	
+	if ( !path_exists( file ) ) {
+		error("get_no_lines(): File doesn't exist! ($file)")
+	}
+	else {		
+		if ( file.toLower().endsWith(".gz") ) { // check if compressed or not
+			return get_stdout( "zcat $file | wc -l" ).parseInt()
+		}
+		else {
+			return get_stdout( "cat $file | wc -l" ).parseInt()
+		}
+	}
+}
+
+string get_hostname() { 
+	return get_stdout("hostname -f").replace("\n","")
+}

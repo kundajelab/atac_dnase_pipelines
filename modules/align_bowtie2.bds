@@ -3,7 +3,7 @@
 
 include "species.bds"
 include "align_multimapping.bds"
-include "report.bds"
+include "module_template.bds"
 
 
 help == align bowtie2 settings (requirements: -bwt2_idx)

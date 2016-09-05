@@ -1,7 +1,8 @@
 #!/usr/bin/env bds
 #vim: syntax=java
 
-include "general.bds"
+include "env.bds"
+include "output.bds"
 
 
 grp_shape_box 		:= "box"
@@ -14,9 +15,7 @@ grp_color_edge		:= "gray"
 grp_style_subgraph 	:= "filled,rounded"
 grp_style_node 		:= "filled,rounded"
 
-
-
-rpt_aux_dir 	:= ""
+rpt_aux_dir 	:= "$out_dir/report"
 
 
 string{} _group_name // key: group, val: long group name
@@ -31,21 +30,11 @@ _tmp_delim 	:= ";;"
 
 
 
-init_report_graph()
-
-
-void init_report_graph() {
-
-	rpt_aux_dir 	= mkdir_path( "$out_dir/report" )
-}
-
 void add_label_to_graph( string short_label, string long_label ) {
-
 	_group_name{short_label} = long_label
 }
 
 void add_file_to_graph( string file, string label, string group ) {
-
 	path := file.path()
 	_file_label{ path } = label
 	_file_group{ path } = group
@@ -53,9 +42,7 @@ void add_file_to_graph( string file, string label, string group ) {
 
 // add graph element (in -> box -> out)
 void add_task_to_graph( string[] in, string[] out, string box_group, string box_name, string box_color ) {
-
 	// save [in,out,etc(box_group,box_name,box_color)] info to temporary arrays and process them later at the end of the pipeline (in _make_dot() ).
-
 	in_str := array_to_str( in, _tmp_delim )
 	out_str := array_to_str( out, _tmp_delim )
 	etc_str := "$box_group$_tmp_delim$box_name$_tmp_delim$box_color"
@@ -66,49 +53,40 @@ void add_task_to_graph( string[] in, string[] out, string box_group, string box_
 }
 
 void add_task_to_graph( string in, string out, string box_group ) {
-
 	add_task_to_graph( [in], [out], box_group )
 }
 
 void add_task_to_graph( string[] in, string out, string box_group ) {
-
 	add_task_to_graph( in, [out], box_group )
 }
 
 void add_task_to_graph( string in, string[] out, string box_group ) {
-
 	add_task_to_graph( [in], out, box_group )
 }
 
 void add_task_to_graph( string[] in, string[] out, string box_group ) {
-
 	add_task_to_graph( in, out, box_group, "", "" )
 }
 
 void add_task_to_graph( string in, string out, string box_group, string box_name, string box_color ) {
-
 	add_task_to_graph( [in], [out], box_group, box_name, box_color )
 }
 
 void add_task_to_graph( string[] in, string out, string box_group, string box_name, string box_color ) {
-
 	add_task_to_graph( in, [out], box_group, box_name, box_color )
 }
 
 void add_task_to_graph( string in, string[] out, string box_group, string box_name, string box_color ) {
-
 	add_task_to_graph( [in], out, box_group, box_name, box_color )	
 }
 
 string html_graph() { // graph diagram
-
 	wait // for thread safety
 
-	//html := "<div id='graph'><b>Workflow diagram</b>&nbsp<small>(rep : Replicate, ctl : Control, pr : Pseudo-replicate, ppr : Pooled pseudo-replicate)</small><br>"
-	html := "<div id='graph'><b>Workflow diagram</b>&nbsp<small>(g. peak : gapped peak (MACS2), n. peak : narrow peak (MACS2), r. peak : region peak (SPP) )</small><br>"
-
+	html := "<div id='graph'><b>Workflow diagram</b>&nbsp<small>(g. peak : gapped peak from MACS2, "+\
+		"n. peak : narrow peak from MACS2, r. peak : region peak from SPP)</small><br>"
 	prefix := title=="" ? "" : (title+"_")
-
+	mkdir(rpt_aux_dir)
 	dot := _make_dot("$rpt_aux_dir/$prefix"+"workflow.dot")
 	svg := "$rpt_aux_dir/$prefix"+"workflow.svg"
 
@@ -128,7 +106,6 @@ string html_graph() { // graph diagram
 }
 
 string _make_dot( string file ) {
-
 	dot_contents := "digraph {\n\nrankdir=LR\n\nnode [shape=$grp_shape_node,style=\"$grp_style_node\",margin=0,fontsize=$grp_fontsize_node];" + \
 			"\nedge [color=$grp_color_edge,fontsize=$grp_fontsize_node,arrowsize=0.5];\n\n";
 
@@ -141,7 +118,6 @@ string _make_dot( string file ) {
 	int[] id_excluded
 
 	for ( int k=0; k<_tmp_in.size(); k++ ) {
-
 		string[] in = _tmp_in[k].split(_tmp_delim)
 		string[] out = _tmp_out[k].split(_tmp_delim)
 		string[] etc = _tmp_etc[k].split(_tmp_delim)
@@ -149,7 +125,6 @@ string _make_dot( string file ) {
 		box_group := etc[0]
 		box_name := etc[1]
 		box_color := etc[2]
-
 		// {in1, in2, ...} -> box -> {out1, out2, ...} : with a box
 		// {in1, in2, ...} -> {out1, out2, ...} : without a box
 
@@ -175,13 +150,9 @@ string _make_dot( string file ) {
 				}
 
 				string new_in_path, new_box_name
-
-				if ( in_label == "" && out_label != "" ) { // node w/o label -> node w. label
-					
+				if ( in_label == "" && out_label != "" ) { // node w/o label -> node w. label					
 					in_parent := _find_parent_path_with_label( in[i] )
-
 					if ( in_parent == "" ) continue
-
 					new_in_path = in_parent
 				}
 				else {
@@ -193,20 +164,22 @@ string _make_dot( string file ) {
 				in_full := "$new_in_label-$in_group"
 				in_rel_path:= "../" + get_rel_path( new_in_path )
 
-				nodes{in_full} = "\t\"$in_full\" [label=\"$new_in_label\",id=\"$in_full\"style=\"$grp_style_node\",fillcolor=$grp_color_node,tooltip=\"$in_rel_path\",href=\"$in_rel_path\"];"
+				nodes{in_full} = "\t\"$in_full\" [label=\"$new_in_label\",id=\"$in_full\"style=\"$grp_style_node\","+\
+						"fillcolor=$grp_color_node,tooltip=\"$in_rel_path\",href=\"$in_rel_path\",target=\"_blank\"];"
 
 				out_group := _find_group( out[j] )
 				out_full  := "$out_label-$out_group"
 				out_rel_path := "../" + get_rel_path( out[j] )
 
-				nodes{out_full} = "\t\"$out_full\" [label=\"$out_label\",id=\"$out_full\",style=\"$grp_style_node\",fillcolor=$grp_color_node,tooltip=\"$out_rel_path\",href=\"$out_rel_path\"];"
+				nodes{out_full} = "\t\"$out_full\" [label=\"$out_label\",id=\"$out_full\",style=\"$grp_style_node\","+\
+						"fillcolor=$grp_color_node,tooltip=\"$out_rel_path\",href=\"$out_rel_path\",target=\"_blank\"];"
 
 				in_to_out := "\t\"$in_full\" -> \"$out_full\";\n"
 
 				if ( box_name != "" ) { // if box exists (a->box->b)
-
 					box_full := "$box_name-$box_group"
-					boxes{box_full} = "\t\"$box_full\" [label=\"$box_name\",id=\"$box_full\",fontsize=$grp_fontsize_box,shape=$grp_shape_box,style=\"$grp_style_node\",fillcolor=$box_color];"
+					boxes{box_full} = "\t\"$box_full\" [label=\"$box_name\",id=\"$box_full\",fontsize=$grp_fontsize_box,"+\
+							"shape=$grp_shape_box,style=\"$grp_style_node\",fillcolor=$box_color];"
 
 					in_to_box := "\t\"$in_full\" -> \"$box_full\";\n"
 					box_to_out := "\t\"$box_full\" -> \"$out_full\";\n"
@@ -217,14 +190,12 @@ string _make_dot( string file ) {
 						_tmp_links.add(in_to_box)
 						added_in_to_box{in_to_box} = true 
 					}
-
 					if ( !added_box_to_out.hasKey(box_to_out) ) {// to prevent duplicate arrows
 						if ( out_group == box_group && box_group != "" )	groups.add(out_group)
 						else 							groups.add("outside")
 						_tmp_links.add(box_to_out)
 						added_box_to_out{box_to_out} = true
 					}
-
 					// exclude A -> B when A -> BOX -> B is present
 					if ( _tmp_links.has(in_to_out) ) id_excluded.add( _tmp_links.indexOf(in_to_out) )
 				}
@@ -240,13 +211,11 @@ string _make_dot( string file ) {
 
 	for ( string node : nodes ) dot_contents += (node + "\n")
 	for ( string box : boxes ) dot_contents += (box + "\n")
-
 	for ( int i=0; i<groups.size(); i++) {
 		if ( id_excluded.has(i) ) continue
 
 		group := groups[i]
 		link := _tmp_links[i]
-
 		if ( links.hasKey(group) ) {
 			links{group} += link
 		}
@@ -256,13 +225,9 @@ string _make_dot( string file ) {
 	}
 
 	for ( string key : links.keys() ) {
-
-		if ( key == "" ) continue
-			
+		if ( key == "" ) continue			
 		link := links{key}
-
 		if ( key == "outside" ) {
-
 			dot_contents += link+"\n\n";
 		}
 		else {
@@ -280,28 +245,23 @@ string _make_dot( string file ) {
 	}
 
 	dot_contents += "\n\n}"
-
 	file.write( dot_contents )
 
 	return file.path()
 }
 
 string _find_label( string path ) {
-
 	return _file_label.hasKey( path.path() ) ? _file_label{ path.path() } : ""
 }
 
 string _find_group( string path ) {
-
 	return _file_group.hasKey( path.path() ) ? _file_group{ path.path() } : ""
 }
 
 string _find_parent_path_with_label( string path ) {
-
 	path = path.path() // get absolue path
 
 	for ( int k=0; k< _tmp_in.size(); k++) {
-
 		string[] in = _tmp_in[k].split(_tmp_delim)
 		string[] out = _tmp_out[k].split(_tmp_delim)
 		string[] etc = _tmp_etc[k].split(_tmp_delim)
@@ -312,13 +272,9 @@ string _find_parent_path_with_label( string path ) {
 
 			for ( int i=0; i< in.size(); i++ )  {
 				if ( in[i] == "" ) continue
-
 				in_label := _find_label( in[i] )
-
 				if ( in_label == "" ) {
-
 					in_parent := _find_parent_path_with_label( in[i] )
-
 					if ( in_parent == "" ) continue
 					else return in_parent
 				}
@@ -328,6 +284,5 @@ string _find_parent_path_with_label( string path ) {
 			}
 		}
 	}
-
 	return ""
 }

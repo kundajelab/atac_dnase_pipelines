@@ -1,8 +1,7 @@
 #!/usr/bin/env bds
 #vim: syntax=java
 
-include "general.bds"
-
+include "output.bds"
 
 
 int{} _label_rank
@@ -17,44 +16,35 @@ int _curr_rank = 0
 
 
 void add_label_to_table( string label ) {
-
 	_label_rank{ label } = _curr_rank++
 }
 
 void add_file_to_table( string[] paths, string[] hrchys ) {
-
 	for ( int i=0; i<min(hrchys.size(),paths.size()); i++ )  {
-
 		hrchy 	:= hrchys[i]
 		path 	:= paths[i]
 
 		if ( hrchy == "" || path == "" ) continue
-
 		_filetable_input{ hrchy } = path
 	}
 }
 
 void add_file_to_table( string[] paths, string hrchy ) {
-
 	add_file_to_table( paths, [hrchy] )
 }
 
 void add_file_to_table( string path, string[] hrchys ) {
-
 	add_file_to_table( [path], hrchys )
 }
 
 void add_file_to_table( string path, string hrchy ) {
-
 	add_file_to_table( [path], [hrchy] )
 }
 
 string html_filetable() { // graphviz diagram
-
 	wait // for thread safety
 
 	html := "<div id='dirs_and_files'><b>Directories and files</b>"
-
 	html += "<table id='filetable'> <caption>"+\
 		"<a href='#' onclick=\"jQuery('#filetable').treetable('expandAll'); return false;\">Expand all</a> &nbsp&nbsp" + \
 		"<a href='#' onclick=\"jQuery('#filetable').treetable('collapseAll'); return false;\">Collapse all</a>" + \
@@ -63,60 +53,46 @@ string html_filetable() { // graphviz diagram
 	_construct_filetable()
 
 	sorted_hrchy := _find_children_and_sort( "" )
-
 	for ( string hrchy : sorted_hrchy ) {
-
 		parent 	:= _get_parent( hrchy )
 		label 	:= _filetable_label{ hrchy }
 		path 	:= _filetable_path.hasKey( hrchy ) ? _filetable_path{ hrchy } : ""
-
 		if ( parent == "" ) \
 			html += "<tr data-tt-id='$hrchy'><td> $label </td><td>"+ html_link_url( path ) +"</td></tr>"
 		else \
 			html += "<tr data-tt-id='$hrchy' data-tt-parent-id='$parent'><td> $label </td><td>"+ html_link_url( path ) +"</td></tr>"
 	}
-
 	html += "</tbody></table>"
 	html += "</div><br>\n"
-
 	return html
 }
 
 string html_link_url( string path ) {
-
 	return "<a href='" + get_rel_path( path ) + "' target='_blank'>" + get_rel_path( path ) + "</a><br>"
 }
 
 void _construct_filetable() {
-
 	for( string hrchy : _filetable_input.keys() ) {
-
 		_construct_filetable( hrchy, _filetable_input{ hrchy } )
 	}
 }
 
 // returns rank of item
 void _construct_filetable( string hrchy, string path ) {
-
 	if ( hrchy == "" ) return
-
 	if ( _filetable_label.hasKey( hrchy ) ) return
 
 	curr 	:= _get_curr( hrchy )
 	parent 	:= _get_parent( hrchy )
-
 	_filetable_label{hrchy} 	= curr //map_label.hasKey(curr) ? map_label{curr} : curr
 	_filetable_path{hrchy} 	= path
-
 	if ( parent != "" ) _construct_filetable( parent, "" )
 }
 
 string[] _get_children( string hrchy ) { // not including grand ones
-
 	string[] children
 
 	for ( string hrchy_ : _filetable_label.keys() ) {
-
 		if ( hrchy == "" ) {
 			if ( hrchy_.indexOf("/") < 0 ) \
 				children.push( hrchy_ )
@@ -127,43 +103,55 @@ string[] _get_children( string hrchy ) { // not including grand ones
 				children.push( hrchy_ )
 		}			
 	}
-
 	return children
 }
 
 string[] _find_children_and_sort( string hrchy ) {
-
 	string[] ret
-
 	children := _get_children( hrchy )
-
 	if ( children.size() == 0 ) return ret
 
 	// for bubble sort
 	int[] ranks
-
 	for ( string child : children ) {
-
 		curr := _get_curr( child )
 		ranks.add( _label_rank.hasKey(curr) ? _label_rank{curr} : 0 )
 	}
-
 	sorted := _bubble_sort( ranks, children )
-
 	for ( string child : sorted ) {
-
 		ret = ret + [child] + _find_children_and_sort( child )
 	}
-
 	return ret
 }
 
 string _get_parent( string hrchy ) { // "a/b/c" return a/b
-
 	return hrchy.substr( 0, hrchy.lastIndexOf("/") )
 }
 
 string _get_curr( string hrchy ) { // "a/b/c" return c
-
 	return hrchy.substr( hrchy.lastIndexOf("/")+1 )
+}
+
+string[] _bubble_sort( int[] a, string[] s ) { // sorting algorithm
+	if ( a.size() != s.size() ) error("Array sizes do not match in _bubble_sort()!")
+
+	int temp; //for swapping
+	string temp2;
+	n := a.size()
+	for (int i = 0 ; i < n - 1 ; i++) {
+
+		for (int j = 0 ; j < n - 1 ; j++) {
+
+			if ( a[j] > a[j + 1] ) {
+				temp = a[j];
+				a[j]=a[j + 1];
+				a[j + 1] = temp;
+
+				temp2 = s[j];
+				s[j]=s[j + 1];
+				s[j + 1] = temp2;
+			}
+		}
+	}
+	return s
 }

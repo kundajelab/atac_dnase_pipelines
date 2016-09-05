@@ -1,0 +1,6 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "git.bds"
+include "parallel.bds"
+include "report.bds"

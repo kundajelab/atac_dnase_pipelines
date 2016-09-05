@@ -1,0 +1,30 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "conf.bds"
+
+
+help == output/title settings
+out_dir 	:= "out"	help Output directory (default: out).
+title		:= ""		help Prefix for HTML report and outputs without given prefix.
+
+
+init_output()
+
+
+void init_output() { 
+	out_dir = get_conf_val( out_dir, 	["out_dir"] )		
+	title 	= get_conf_val( title, 		["title"] )		
+
+	print("\n\n== output directory/title info\n")
+	print( "Output dir.\t\t\t: $out_dir\n" )
+	print( "Title (prefix)\t\t\t: $title\n" )
+
+	if ( !is_cmd_line_arg_empty() ) out_dir = mkdir( out_dir ) // create output directory and get absolute path for it	
+}
+
+string get_rel_path( string path ) { // get relative path according to $out_dir
+	rel_path := path.path().replace( out_dir.path(), "." )
+	if ( rel_path == path.path() ) 	return ""
+	else 				return rel_path
+}

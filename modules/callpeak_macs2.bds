@@ -2,7 +2,7 @@
 #vim: syntax=java
 
 include "species.bds"
-include "report.bds"
+include "module_template.bds"
 
 
 help == callpeak macs2 settings (requirements: -chrsz -gensz)

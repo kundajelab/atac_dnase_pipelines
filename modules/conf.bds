@@ -1,7 +1,7 @@
 #!/usr/bin/env bds
 #vim: syntax=java
 
-include "base.bds"
+include "sys.bds"
 
 
 help == configuration file settings
@@ -16,88 +16,61 @@ init_conf()
 
 
 void init_conf() {
-
-	if ( is_cmd_line_arg_empty() ) print( "\nWarning: No parameters are given (specify cmd. line arguments or configuration file)!\n\n")
-	
+	if ( is_cmd_line_arg_empty() ) \
+		print( "\nWarning: No parameters are given (specify cmd. line arguments or configuration file)!\n\n")	
 	if ( is_first_arg_conf() ) c = args[0]
 
 	add_to_conf( c, "" ) // then read conf. file
-	env		= get_conf_val( env, 		["env"] )
-
-	add_to_conf( env, hostname )
-
+	env = get_conf_val( env, ["env"] )
+	if ( path_exists( env ) ) add_to_conf( env, hostname )
 	add_to_conf( c, "" ) // read conf again to override
 
-	print_conf()
-}
-
-void print_conf() {
-
-	print( "\n\n== configuration file settings\n")
+	print( "\n\n== configuration file info\n")
 	print( "Hostname\t\t\t: $hostname\n")
 	print( "Configuration file\t\t: $c\n" )
 	print( "Environment file\t\t: $env\n" )
 }
 
 string{} read_conf( string file, string section ) {
-
 	section = section.trim()
-
 	string{} ret
 
 	if ( file == "" ) return ret
-
 	lines := file.read().split("\n")
 
 	can_read := (section=="") ? true : false
 	found_section := (section=="") ? true : false
-
 	for ( string line : lines ) {
-
 		line = rm_comment( line.trim() )
-
 		if ( line == "" ) continue
-		
+	
 		if ( line.startsWith( "[" ) && line.endsWith( "]" ) )  {
-
 			line2 := line.substr(1,line.length()-1)
-
 			string[] hostnames
 			string group
-
 			// find group if exists
 			arr := line2.split(":")
-
 			if ( arr.size() > 1 ) 	group = arr[1].trim()
-
 			hostnames = arr[0].split(",")
-
 			if ( section == "" ) {
-
 				can_read = false
 			}
 			else {
-
 				for ( string host : hostnames ) {
-
 					host = host.trim()
-
-					if ( match_str_one_asterisk( section, host ) ) { // one asterisk (wildcard chr: *) is allowed in hostname string
-
+					if ( match_str( section, host ) ) { // one asterisk (wildcard chr: *) is allowed in hostname string
 						if ( section == group ) {
-							error("Recursion (section name == group) found in a conf. or an env. file! (file: $file, section: $section, group: $group)\n")
+							error("Recursion (section name == group) found in a conf. or an env. file!"+\
+								" (file: $file, section: $section, group: $group)\n")
 						}
 						else if ( group != "" ) {
 							print("\tReading parameters from section group($group) in file($file)...\n")
-
 							return read_conf( file, group )
 						}
 						else {
 							print("\tReading parameters from section ($host) in file($file)...\n")
-
 							found_section = true
 							can_read = true
-
 							break;
 						}
 					}
@@ -106,27 +79,21 @@ string{} read_conf( string file, string section ) {
 					}
 				}
 			}
-
 			continue
 		}
 
 		if ( can_read ) {
 			string key, val
 			(key, val) = parse_conf_line( line )
-
 			ret{ key } = val
 		}
 	}
-
-	if ( !found_section && section != "default" ) {
-		return read_conf( file, "default" )
-	}
+	if ( !found_section && section != "default" ) return read_conf( file, "default" )
 
 	return ret
 }
 
 string{} read_conf( string file ) {
-
 	return read_conf( file, "" )
 }
 
@@ -138,22 +105,16 @@ void add_to_conf( string file, string section ) {
 }
 
 void add_to_conf( string file ) {
-
 	tmp := read_conf( file )
-
 	for( string k : tmp.keys() ) {
 		conf{k} = tmp{k}
 	}	
 }
 
 string[] parse_conf_line( string line ) {
-
 	delims := [ "=", "\t", ":" ]
-
 	delim_found := false
-
 	string key, val
-
 	for ( string delim : delims ) {
 		idx := line.indexOf( delim )
 		if ( idx > -1 ) {
@@ -163,93 +124,74 @@ string[] parse_conf_line( string line ) {
 			break
 		}
 	}
-
 	if ( !delim_found ) error("No delimiter (=,\\t,:) found in line ($line) in the configruation file.\n")
-
 	return [key, val]
 }
 
 int get_conf_val_int( int curr_val, string key ) {
-
 	string{} tmp
 	return parse_int( get_conf_val( curr_val, key, tmp ) )
 }
 
 int get_conf_val_int( int curr_val, string[] keys ) {
-
 	string{} tmp
 	return parse_int( get_conf_val( curr_val, keys, tmp ) )
 }
 
 bool get_conf_val_bool( bool curr_val, string key ) {
-
 	string{} tmp
 	return parse_bool( get_conf_val( curr_val, key, tmp ) )
 }
 
 bool get_conf_val_bool( bool curr_val, string[] keys ) {
-
 	string{} tmp
 	return parse_bool( get_conf_val( curr_val, keys, tmp ) )
 }
 
 real get_conf_val_real( real curr_val, string key ) {
-
 	string{} tmp
 	return parse_real( get_conf_val( curr_val, key, tmp ) )
 }
 
 real get_conf_val_real( real curr_val, string[] keys ) {
-
 	string{} tmp
 	return parse_real( get_conf_val( curr_val, keys, tmp ) )
 }
 
 int get_conf_val_int( int curr_val, string key, string{} _conf ) {
-
 	return parse_int( get_conf_val( curr_val, key, _conf ) )	
 }
 
 int get_conf_val_int( int curr_val, string[] keys, string{} _conf ) {
-
 	return parse_int( get_conf_val( curr_val, keys, _conf ) )	
 }
 
 bool get_conf_val_bool( bool curr_val, string key, string{} _conf ) {
-
 	return parse_bool( get_conf_val( curr_val, key, _conf ) )	
 }
 
 bool get_conf_val_bool( bool curr_val, string[] keys, string{} _conf ) {
-
 	return parse_bool( get_conf_val( curr_val, keys, _conf ) )	
 }
 
 real get_conf_val_real( real curr_val, string key, string{} _conf ) {
-
 	return parse_real( get_conf_val( curr_val, key, _conf ) )
 }
 
 real get_conf_val_real( real curr_val, string[] keys, string{} _conf ) {
-
 	return parse_real( get_conf_val( curr_val, keys, _conf ) )
 }
 
-string get_conf_val( string curr_val, string key, string{} _conf ) {	
-
+string get_conf_val( string curr_val, string key, string{} _conf ) {
 	key = key.toLower().trim()
-
 	if ( cmd_line_arg_has_key( key ) ) return curr_val
-
 	if ( _conf.size() == 0 ) {
-		if ( conf.hasKey( key ) ) {
-			
+		if ( conf.hasKey( key ) ) {			
 			return (conf{ key } != "") ? substitute_var( rm_comment( conf{ key } ) ) : curr_val
 		}
 	}
 	else {
-		if ( _conf.hasKey( key ) ) {
-			
+		if ( _conf.hasKey( key ) ) {			
 			return (_conf{ key } != "") ? substitute_var( rm_comment( _conf{ key } ) ) : curr_val
 		}
 	}
@@ -257,15 +199,12 @@ string get_conf_val( string curr_val, string key, string{} _conf ) {
 }
 
 string substitute_var( string var ) {
-
 	var = var.replace("\$script_dir","$script_dir").replace("\${script_dir}","$script_dir")
 	var = var.replace("~/","$HOME/").replace("\$HOME","$HOME").replace("\${HOME}","$HOME")
-
 	return var
 }
 
 string get_conf_val( string curr_val, string[] keys, string{} _conf ) {		
-
 	for ( string key : keys ) {
 		val := get_conf_val( curr_val, key, _conf )		
 		if ( val != curr_val ) return val
@@ -274,25 +213,21 @@ string get_conf_val( string curr_val, string[] keys, string{} _conf ) {
 }
 
 string get_conf_val( string curr_val, string key ) {
-
 	string{} tmp
 	return get_conf_val( curr_val, key, tmp )
 }
 
 string get_conf_val( string curr_val, string[] keys ) {	
-
 	string{} tmp
 	return get_conf_val( curr_val, keys, tmp )
 }
 
 bool has_conf_key( string key, string{} _conf ) {
-
 	key = key.toLower()
 	return (_conf.size()==0) ? conf.hasKey( key ) : _conf.hasKey( key )
 }
 
 bool has_conf_key( string key ) {
-
 	string{} tmp
 	return has_conf_key( key )
 }
@@ -303,7 +238,6 @@ bool conf_file_exists() {
 }
 
 bool has_key_in_conf_or_cmd_line( string key ) {
-
 	return cmd_line_arg_has_key( key )// || has_conf_key( key )
 }
 

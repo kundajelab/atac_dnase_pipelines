@@ -2,7 +2,7 @@
 #vim: syntax=java
 
 include "species.bds"
-include "report.bds"
+include "module_template.bds"
 
 
 // has functions related to tagalign, and helps getting tagalign from configruation file or command line argument
@@ -27,7 +27,7 @@ void init_postalign_bed() {
 string subsample_tag( string tag, int nlines, string o_dir, string group ) {
 
 	prefix 		:= replace_dir( rm_ext( tag, ["tagAlign","tag","bed"] ), o_dir )
-	nreads_per_mill := number_with_metric_prefix( nlines )
+	nreads_per_mill := metric_prefix( nlines )
 
 	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
 
@@ -61,7 +61,7 @@ string subsample_tag( string tag, int nlines, string o_dir, string group ) {
 string subsample_tag_PE_xcor( string tag, int nlines, string o_dir, string group ) {
 
 	prefix 		:= replace_dir( rm_ext( tag, ["tagAlign","bed"] ), o_dir )
-	nreads_per_mill := number_with_metric_prefix( nlines )
+	nreads_per_mill := metric_prefix( nlines )
 
 	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
 
@@ -96,7 +96,7 @@ string subsample_tag_PE_xcor( string tag, int nlines, string o_dir, string group
 string subsample_bedpe_to_tag_xcor( string bedpe, int nlines, string o_dir, string group ) {
 	
 	prefix 		:= replace_dir( rm_ext( bedpe, ["bedpe","bed"] ), o_dir )
-	nreads_per_mill := number_with_metric_prefix( nlines )
+	nreads_per_mill := metric_prefix( nlines )
 
 	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
 
@@ -129,7 +129,7 @@ string subsample_bedpe_to_tag_xcor( string bedpe, int nlines, string o_dir, stri
 string subsample_bedpe( string bedpe, int nlines, string o_dir, string group ) {
 	
 	prefix 		:= replace_dir( rm_ext( bedpe, ["bedpe","bed"] ), o_dir )
-	nreads_per_mill := number_with_metric_prefix( nlines )
+	nreads_per_mill := metric_prefix( nlines )
 
 	subsampled_bedpe:= "$prefix.$nreads_per_mill.bedpe.gz"
 
@@ -207,7 +207,7 @@ string[] xcor( string tag, string o_dir, string group, int nth_xcor ) {
 		sys $shcmd_init
 
 		// # if phantompeakqualtools is an old version, use run_spp_nodups.R. new version has run_spp.R only		
-		sys if [ $(which run_spp_nodups.R 2> /dev/null | wc -l || echo) == "1" ]; then RUN_SPP=$(which run_spp_nodups.R); \
+		sys if [[ $(which run_spp_nodups.R 2> /dev/null | wc -l || echo) == "1" ]]; then RUN_SPP=$(which run_spp_nodups.R); \
 		    else RUN_SPP=$(which run_spp.R); \
 		    fi
 

@@ -1,0 +1,41 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "sys.bds"
+
+
+latest_git_commit_sha1 	:= "" // to show latest git commit sha1/date
+latest_git_commit_date 	:= ""
+
+
+init_git()
+
+
+void init_git() { // print latest git commit info
+	script_file_paths := get_script_file_paths()
+	for ( string path : script_file_paths ) {
+		if ( path.exists() && "$path/.git".exists() ) {
+
+			latest_git_commit_sha1 = get_stdout("cd $path; git rev-parse HEAD")
+			latest_git_commit_date = get_stdout("cd $path; git show -s --format=%cd --date=local $latest_git_commit_sha1")
+			break;
+		}
+	}
+
+	print("\n\n== git info\n")
+	if ( latest_git_commit_sha1 == "" ) \
+		print( "Latest git commit\t\t: not under git control\n" )
+	else \
+		print( "Latest git commit\t\t: $latest_git_commit_sha1 ($latest_git_commit_date)\n" )	
+}
+
+string html_pipeline_version( string git_url_prefix ) {
+	string html	
+	if ( latest_git_commit_sha1 != "" ) {
+		html = "<div id='latest_git_commit'><b>Pipeline version</b> (latest git commit SHA1):"+\
+			"<a target=_blank, href=$git_url_prefix/$latest_git_commit_sha1>$latest_git_commit_sha1</a>"+\
+			" ($latest_git_commit_date)</div><br>\n"
+	}
+
+	return html
+}

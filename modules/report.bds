@@ -1,10 +1,8 @@
 #!/usr/bin/env bds
 #vim: syntax=java
 
-include "species.bds"
-include "report_graphviz.bds"
-include "report_filetable.bds"
-
+include "graphviz.bds"
+include "filetable.bds"
 
 
 help == report settings
@@ -21,20 +19,16 @@ init_report()
 
 
 void init_report() {
-
 	url_base = get_conf_val( url_base, 	["url_base"] )
 
-	sys cp --remove-destination $script_dir/html/jquery.treetable.* $rpt_aux_dir    # move report js/css files to out_dir
-
 	prefix := (title=="") ? "" : (title+"_")
-
 	_report_file = "$out_dir/$prefix"+"report.html"
 	_report_header = "$script_dir/html/rpt_header.html"
 
-	print_report()
-}
-
-void print_report() {
+	if ( !is_cmd_line_arg_empty() ) {
+		mkdir(rpt_aux_dir)
+		sys cp --remove-destination $script_dir/html/jquery.treetable.* $rpt_aux_dir    # move report js/css files to rpt_aux_dir
+	}
 
 	print("\n\n== report settings\n")
 	print( "URL root for output directory\t: $url_base\n" )
@@ -53,9 +47,7 @@ void report( string body ) { // HTML report
 
 // filepath, node label, group, filetable hierachy
 void add_file_to_report( string file, string label, string group, string hrchy ) {
-
 	add_file_to_graph( file, label, group )
-
 	add_file_to_table( [file], [hrchy] )
 }
 
@@ -63,14 +55,11 @@ void add_file_to_report( string file, string label, string group, string hrchy )
 string parse_flagstat_to_html( string id, string[] names, string[] logs, string[] header ) {
 
 	if ( logs.size() == 0 ) return ""
-
 	html := "<div id='flagstat_$id'><b>Flagstat QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-
 	html += html_table_header( ["&nbsp","Reads (QC-passed)","Reads (QC-failed)","Dupes (QC-passed)","Dupes (QC-failed)","Mapped Reads","% Mapped"] )
 
 	// parse dup.qc
 	for ( int i=0; i<logs.size(); i++ ) {
-
 		// quite ugly parsing.... sorry
 		log := logs[i]
 		name := names[i]
@@ -79,27 +68,21 @@ string parse_flagstat_to_html( string id, string[] names, string[] logs, string[
 		string read1, read2, dupe1, dupe2, mapped, percent
 
 		for ( string line : lines ) {
-
 			if ( line.indexOf(" in total ") > -1 ) {
-
 				tmp1 := line.split(" in total ")
 				line1 := tmp1[0]
 					tmp1 = line1.split( " \\+ " )
 					read1 = tmp1[0]
 					read2 = tmp1[1]
 			}
-
 			if ( line.indexOf(" duplicates") > -1 ) {
-
 				tmp2 := line.split(" duplicates")
 				line2 := tmp2[0]
 					tmp2 = line2.split( " \\+ " )
 					dupe1 = tmp2[0]
 					dupe2 = tmp2[1]
 			}
-
 			if ( line.indexOf(" mapped (") > -1 ) {
-
 				tmp3 := line.split(" mapped \\(")				
 				line3_1 := tmp3[0]
 					tmp3_1 := line3_1.split( " \\+ " )
@@ -109,7 +92,6 @@ string parse_flagstat_to_html( string id, string[] names, string[] logs, string[
 					percent = tmp3_2[0]
 			}
 		}
-
 		html += "<tr><td>"+html_link( log, name )+"</td><td>$read1</td><td>$read2</td><td>$dupe1</td><td>$dupe2</td><td>$mapped</td><td>$percent</td></tr>"
 	}
 
@@ -122,38 +104,30 @@ string parse_flagstat_to_html( string id, string[] names, string[] logs, string[
 
 // bowtie2 logs (*.align.log): 1 table
 string parse_align_log_to_html( string id, string[] names, string[] logs, string[] header ) {
-
 	if ( logs.size() == 0 ) return ""
 
 	html := "<div id='bwt2_log_$id'><b>Bowtie2 QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-
 	html += html_table_header( ["&nbsp","Total Reads","% Aligned"] )
 
 	// parse dup.qc
 	for ( int i=0; i<logs.size(); i++ ) {
-
 		// quite ugly parsing.... sorry
 		log := logs[i]
 		name := names[i]
 		lines := log.readLines()
 
 		string read1, percent
-
 		for ( string line : lines ) {
-
 			if ( line.indexOf(" reads; of these:") > -1 ) {
-
 				tmp1 := line.split(" reads")
 				read1 = tmp1[0]
 			}
-
 			if ( line.indexOf(" overall alignment rate") > -1 ) {
 
 				tmp2 := line.split("\\%")
 				percent = tmp2[0]
 			}
 		}
-
 		html += "<tr><td>"+html_link( log, name )+"</td><td>$read1</td><td>$percent</td></tr>"
 	}
 
@@ -165,20 +139,16 @@ string parse_align_log_to_html( string id, string[] names, string[] logs, string
 
 // MarkDuplicate (post-align) logs (*.dup.qc): 1 table
 string parse_dup_to_html( string id, string[] names, string[] logs, string[] headers ) {
-
 	if ( logs.size() == 0 ) return ""
 
 	html := "<div id='dup_$id'><b>Dup QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-
 	html += html_table_header( ["&nbsp","Unpaired Reads", "Paired Reads", "Unmapped Reads", "Unpaired Dupes", "Paired Dupes", "Paired Opt. Dupes", "% Dupes"] )
 
 	// parse dup.qc
 	for ( int i=0; i<logs.size(); i++ ) {
-
 		log := logs[i]
 		name := names[i]
 		line := get_stdout( "cat $log | grep 'Unknown Library' | awk '{ print $3,$4,$5,$6,$7,$8,$9; }'" )	
-
 		html += "<tr><td>"+html_link( log, name )+"</td><td>" + line.replace(" ","</td><td>") + "</td></tr>"
 	}
 
@@ -190,25 +160,20 @@ string parse_dup_to_html( string id, string[] names, string[] logs, string[] hea
 
 // Library complexcity (post-align) logs (*.pbc.qc) : 1 table
 string parse_pbc_to_html( string id, string[] names, string[] logs, string[] header ) {
-
 	if ( logs.size() == 0 ) return ""
 
 	html := "<div id='pbc_$id'><b>PBC QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-
 	html += html_table_header( ["&nbsp","Total Read Pairs","Distinct Read Pairs","One Read Pair","Two Read Pairs","NRF = Distinct/Total","PBC1 = OnePair/Distinct","PBC2 = OnePair/TwoPair"] )
 
 	// parse pbc.qc
 	for ( int i=0; i<logs.size(); i++ ) {
-
 		log := logs[i]
 		name := names[i]
 		line := log.read()
-
 		html += "<tr><td>"+html_link( log, name )+"</td><td>" + line.replace("\t","</td><td>") + "</td></tr>"
 	}
 
 	html += "</table>"
-
 	// help
 	html += "<p>" + "NRF (non redundant fraction) <br>" + \
 			"PBC1 (PCR Bottleneck coefficient 1) <br>" + \
@@ -221,7 +186,6 @@ string parse_pbc_to_html( string id, string[] names, string[] logs, string[] hea
 			"<li>0.9-1.0 is no bottlenecking </li>" + \
 			"</ul>" + \
 			"</p>"
-
 	html += "</div></div><br>"
 
 	return html
@@ -229,41 +193,32 @@ string parse_pbc_to_html( string id, string[] names, string[] logs, string[] hea
 
 // Cross correlation analysis log (*.cc.qc): 1 table + img (png converted from pdf)
 string parse_xcor_to_html( string id, string[] names, string[] logs, string[] pdfs, string[] header ) {
-
 	if ( logs.size() == 0 ) return ""
 
 	html := "<div id='xcor_$id'><b>Cross-correlation QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-
 	html += html_table_header( ["&nbsp","numReads","estFragLen","corr_estFragLen","PhantomPeak","corr_phantomPeak","argmin_corr","min_corr","NSC","RSC"] )
 
 	// parse cc.qc
 	for ( int i=0; i<logs.size(); i++ ) {
-
 		log := logs[i]
 		name := names[i]
-
 		lines := log.readLines();
 		items := lines[0].split("\t")
 		items.removeIdx(0) // remove file name
-		items.removeIdx(items.size()-1) // remove quality tag
-		
+		items.removeIdx(items.size()-1) // remove quality tag		
 		html += "<tr><td>"+html_link( log, name )+"</td><td>" + items.join("\t").replace("\t","</td><td>") + "</td></tr>"
 	}
 
 	html += "</table>"
-
 	// help
 	html += "<p>" + "Normalized strand cross-correlation coefficient (NSC) = col9 in outFile <br>" + \
 			"Relative strand cross-correlation coefficient (RSC) = col10 in outFile <br>" + \
 			"Estimated fragment length = col3 in outFile, take the top value <br>" + \
 			"Important columns highlighted, but all/whole file can be stored for display <br>" + \
 			 "</p><br>"
-
 	// images
 	for ( int i=0; i<pdfs.size(); i++ ) {
-
 		png := pdf_to_png( pdfs[i] )
-
 		html += html_img( png, 500, header[i] ) + "&nbsp"
 	}	
 
@@ -274,20 +229,14 @@ string parse_xcor_to_html( string id, string[] names, string[] logs, string[] pd
 
 // IDR logs : 1 table
 string parse_idr_to_html( string id, string log ) {
-
 	if ( log == "" ) return ""
 
 	html := "<div id='$id'><b>IDR QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-
 	html += html_link( log, get_basename( log ) )
-
 	html += "<table border='1'><tr>"
-
 	lines := log.readLines()
-
 	html += "<tr><th>" + lines[0].replace("\t","</th><th>") + "</th></tr>" // read 2nd line of idr qc file
 	html += "<tr><td>" + lines[1].replace("\t","</td><td>") + "</td></tr>" // read 2nd line of idr qc file
-
 	html += "</table>"
 	html += "</div></div><br>"
 
@@ -295,32 +244,26 @@ string parse_idr_to_html( string id, string log ) {
 }
 
 // WashU Epigenome browser datahub (json format)
-string html_epg_browser_viz( string[] files, string[] types, string[] names ) {
-
+string html_epg_browser_viz( string[] files, string[] types, string[] names, string species ) {
 	if ( files.size() == 0 ) return ""
 
 	warn := (url_base=="") ? "(add <i>-url_base [URL_ROOT_DIR_FOR_OUT_DIR]</i> to the command line.)" : ""
-
 	html := "<div id='viz'><b>Visualization $warn </b><div style='padding-left: "+_padding_left+"px'>"
-
 	json := "[ " // json array starts here
 
 	for ( int i=0; i<files.size(); i++ ) {
-
 		file := files[i]
 		type := types[i]
 		trackname := names[i].trim()
 
 		// add url_base
 		url 	:= _get_url( file )
-
 		if ( type == "bigwig") {
 			// deep pink
 			json 	+= 	'{ "type": "bigwig", "name": "'+trackname+'", "url": "'+url+'", "mode": 1,' + \
 					'  "qtc" : { "height": 30, "summeth":2, "smooth":3, "pr": 255, "pg": 20, "pb": 147,"thtype":1, "thmin":2, "thmax":40  } },'
 		}
 		else if ( type == "hammock") { // peak must be converted to hammock type (browser specific format)	
-
 			if ( file.indexOf(".IDR") > -1 ) { // IDR narrowpeak has 11th (local IDR) and 12th (global IDR) columns
 				json += ' { "type": "hammock", "name": "'+trackname+'", "url": "'+url+'", "mode": "barplot", "showscoreidx":4,' + \
 					'   strokecolor:"#ff6600", scorescalelst:[{"type":1,"min":0,"max":40},{"type":0},{"type":0},{"type":0},{"type":0}],' + \
@@ -338,17 +281,12 @@ string html_epg_browser_viz( string[] files, string[] types, string[] names ) {
 
 	// add ref genome track
 	json += '{ "type":"native_track", "list":[ { "name":"refGene", "mode":"full", } ] },'
-
 	json += " ]" // json array ends here
-
 	prefix := title=="" ? "" : (title+"_")
-
 	json_file := "$out_dir/$prefix"+"tracks.json"
 	json_file.write( json )
-
 	json_url := _get_url( json_file )
 	viz_url	 := "http://epigenomegateway.wustl.edu/browser/?genome=" + species + "&tknamewidth=275&datahub=" + json_url
-
 	json_rel_path := get_rel_path( json_file )
 
 	html += "<a href=$viz_url target='_blank'>Visualize</a>&nbsp&nbsp"
@@ -358,22 +296,8 @@ string html_epg_browser_viz( string[] files, string[] types, string[] names ) {
 	return html
 }
 
-string html_pipeline_version( string git_url_prefix ) {
-
-	string html
-	
-	if ( latest_git_commit_sha1 != "" ) {
-		html = "<div id='latest_git_commit'><b>Pipeline version</b> (latest git commit SHA1):"+\
-			"<a target=_blank, href=$git_url_prefix/$latest_git_commit_sha1>$latest_git_commit_sha1</a> ($latest_git_commit_date)</div><br>\n"
-	}
-
-	return html
-}
-
 string html_table_header( string[] head ) {
-
 	html := "<table border='1'><tr>"
-
 	for ( int i=0; i<head.size(); i++ ) {
 		html += "<th>"+head[i]+"</th>"
 	}
@@ -382,17 +306,15 @@ string html_table_header( string[] head ) {
 }
 
 string html_link( string path, string name ) {
-
 	return "<a href='" + get_rel_path( path ) + "' target='_blank'>$name</a><br>"
 }
 
 string html_img( string path, int width, string cap ) {
-
-	return "<figure style='display: inline-block;'><img src='" + get_rel_path( path ) + "' width='$width'><figcaption style='text-align: center;'><b>$cap</b></figcaption></figure>"
+	return "<figure style='display: inline-block;'><img src='" + get_rel_path( path ) + \
+		"' width='$width'><figcaption style='text-align: center;'><b>$cap</b></figcaption></figure>"
 }
 
 string pdf_to_png( string pdf ) { 
-
 	png 	:= rm_ext( pdf, "pdf" ) + ".png"
 
 	// needs ghostscript installed
@@ -412,17 +334,13 @@ string pdf_to_png( string pdf ) {
 }
 
 string peak_to_hammock( string peak ) {
-
 	prefix 	:= rm_ext( peak, ["gz"] )
 
 	hammock := "$prefix.hammock"
 	tmp 	:= "$prefix.tmp"
-
 	// choose correct converter .py : narrowpeak (regionpeak), broadpeak, gappedpeak to hammock
-	// they are under git_repo_root/utils/
-	
+	// they are under git_repo_root/utils/	
 	conv := "$script_dir/utils/"
-
 	if ( peak.toLower().indexOf( "regionpeak" ) > -1 || \
 	     peak.toLower().indexOf( "narrowpeak" ) > -1 ) 	conv += "narrowpeak.py"
 	else if ( peak.toLower().indexOf( "broadpeak" ) > -1 ) 	conv += "broadpeak.py"
@@ -451,9 +369,7 @@ string peak_to_hammock( string peak ) {
 }
 
 string _get_url( string path ) {
-
 	rel_path := get_rel_path( path )
-
 	if ( rel_path == "" ) 	return ""
 	else 			return url_base + "/" + get_rel_path( path )
 }

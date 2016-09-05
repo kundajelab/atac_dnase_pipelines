@@ -27,6 +27,7 @@ grp_color_ataqc := "pink"
 
 help() // show help contexts
 
+include "modules/pipeline_template.bds"
 include "modules/input.bds"
 include "modules/input_adapter.bds"
 
@@ -40,8 +41,6 @@ include "modules/callpeak_macs2.bds"
 include "modules/callpeak_naive_overlap.bds"
 include "modules/callpeak_filter.bds"
 include "modules/callpeak_idr.bds"
-
-include "modules/report.bds"
 
 
 // Important output file names are stored in global variables (usually a string map string{} with a key with replicate id, pair id)
@@ -333,7 +332,7 @@ void do_align() {
 
 	for ( int rep=1; rep <= get_num_rep(); rep++) {
 
-		// check file size to distribute_nth nth to each nth_app
+		// check file size to distribute nth to each nth_app
 		// determine # threads for each app related to alignment
 
 		// get file size in bytes
@@ -349,7 +348,7 @@ void do_align() {
 	}
 
 	//// distribute # threads for each replicate
-	nth_rep := distribute_nth( nth, filesize ) // distribute_nth # threads according to input filesize
+	nth_rep := distribute_nonzero( nth, filesize ) // distribute # threads according to input filesize
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 
@@ -1066,7 +1065,7 @@ string[] ataqc( string fastq1, string fastq2, string bam, string align_log, stri
 
 	taskName:= "ataqc "+group
 	mem := get_res_mem(mem_ataqc,1)
-	max_java_heap 	:= number_with_binary_prefix( (mem==-1) ? parse_mem( mem_ataqc ) : (mem*3)/4 )
+	max_java_heap 	:= binary_prefix( (mem==-1) ? parse_mem( mem_ataqc ) : (mem*3)/4 )
 	timeout := get_res_wt(wt_ataqc)
 
 	wait_par( cpus )
@@ -1211,7 +1210,7 @@ string html_atac_tracks() {
 		if ( idr_pr.hasKey(rep) ) {	track_types += "hammock"; track_names += "$title peak idr (rep$rep-pr)"; track_files += peak_to_hammock( _get_idr_peak_trk( idr_pr{rep} ) ) }
 	}
 
-	html := html_epg_browser_viz( track_files, track_types, track_names )
+	html := html_epg_browser_viz( track_files, track_types, track_names, species )
 
 	return html
 }

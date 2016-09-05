@@ -1,0 +1,83 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "conf.bds"
+
+
+help == cluster/system/resource settings
+wt 		:= "5h50m"	help Walltime for all single-threaded tasks (example: 8:10:00, 3h, 3600, default: 5h50m, 5:50:00).
+memory 		:= "7G"		help Maximum memory for all single-threaded tasks (equivalent to '-mem', example: 4.5G, 1024M, default: 7G).
+use_system 	:= "" 		help Force to use a system (equivalent to 'bds -s [SYSTEM_NAME] ...', any system defined in bds.config can be used).
+nice 		:= 0 		help Set process priority for all tasks (default: 0; -20 (highest) ~ 19 (lowest) ).
+retrial		:= 0 		help # of Retrial for failed tasks (default: 0).
+q 		:= ""		help Submit tasks to a specified cluster queue.
+unlimited_mem_wt:= false 	help Use unlimited max. memory and walltime.
+
+
+init_cluster()
+
+
+void init_cluster() { 
+	wt 		= get_conf_val( wt, 			["wt"] )
+	memory 		= get_conf_val( memory, 		["memory","mem"] )
+	use_system 	= get_conf_val( use_system, 		["use_system","system"] )
+	nice 		= get_conf_val_int( nice, 		["nice"] )
+	retrial 	= get_conf_val_int( retrial, 		["retrial","retry"] )
+	q 		= get_conf_val( q, 			["q"] )
+	unlimited_mem_wt= get_conf_val_bool( unlimited_mem_wt, 	["unlimited_mem_wt"] )
+
+	if ( cmd_line_arg_has_key("mem") ) memory = get_cmd_line_arg_val( "mem" )
+	if ( cmd_line_arg_has_key("system") ) use_system = get_cmd_line_arg_val( "system" )
+	if ( nice <= -20 ) nice = -20
+	if ( nice > 19 ) nice = 19	
+	if ( use_system != "" ) system = use_system.toLower()
+	if ( system == "slurm" ) system = "generic"
+	if ( q != "" ) queue = q
+
+	// cpus, mem and timeout are pre-declared BDS variables for default resource settings
+	mem 		= get_res_mem(memory,1)
+	timeout 	= get_res_wt(wt)
+	retry 		= retrial
+
+	// do not modify this (BDS timeout; how long BDS will wait for tasks to be queued on the cluster)
+	walltimeout 	= 3600*24*100 	// timeout var. in BigDataScript (100 days, jobs will never be stopped by BDS due to BDS timeout)
+
+	print("\n\n== cluster/system info\n")
+	print( "Walltime (general)\t\t: $wt\n" )
+	print( "Max. memory (general)\t\t: $memory\n" )
+	print( "Force to use a system\t\t: $use_system\n" )
+	print( "Process priority (niceness)\t: $nice\n" )
+	print( "Retiral for failed tasks\t: $retrial\n" )
+	print( "Submit tasks to a cluster queue\t: $q\n" )
+	print( "Unlimited cluster mem./walltime\t: $unlimited_mem_wt\n")	
+}
+
+int get_res_wt( string str ) {
+	return (unlimited_mem_wt || is_system_local() ) ? -1 : parse_time( str )
+}
+
+int get_res_mem( string str, int n ) {
+	if ( n < 1 ) n = 1
+	return (unlimited_mem_wt || is_system_local() ) ? -1 : parse_mem( str )/n
+}
+
+int get_res_mem( string str ) {
+	return get_res_mem( str , 1 )
+}
+
+bool is_system_sge() {
+	return system == "sge"
+}
+
+bool is_system_local() {
+	return system == "local"
+}
+
+bool is_system_generic() {
+	return system == "generic"
+}
+
+bool is_system_slurm() { 
+	// slurm uses generic cluster, it's configured in bds.config and ./utils/clusterGeneral
+	return system == "generic"
+}

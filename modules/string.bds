@@ -1,0 +1,395 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+//// basic string functions
+
+string rm_comment( string str ) { // remove substring after double slash "//"
+	trimmed := str.trim()
+	int pos = trimmed.indexOf("//")
+	if ( pos==0 ) {
+		trimmed = trimmed.substr(0,pos).trim()
+	}
+	int pos2 = trimmed.indexOf("#")
+	if ( pos2>=0 ) {
+		trimmed = trimmed.substr(0,pos2).trim()
+	}
+	int pos3 = trimmed.indexOf(" //")
+	if ( pos3>=0 ) {
+		trimmed = trimmed.substr(0,pos3).trim()
+	}
+	int pos4 = trimmed.indexOf("\t//")
+	if ( pos4>=0 ) {
+		trimmed = trimmed.substr(0,pos4).trim()
+	}
+	return trimmed
+}
+
+string rm_str_at_end( string str, string rm ) {
+	trimmed := str.trim()
+	if ( trimmed.substr( trimmed.length()-rm.length() ).toLower() == rm.toLower() ) {
+		return trimmed.substr( 0, trimmed.length()-rm.length() )
+	}
+	return trimmed
+}
+
+//// string functions for files and directories
+
+string replace_dir( string file, string o_dir ) {
+	return o_dir!="" ? ( o_dir + "/" + get_basename( file ) ) : file
+}
+
+string rm_ext( string file, string ext ) {
+	// remove .gz
+	if ( file.endsWith( ".gz" ) ) \
+		file = rm_str_at_end( file, ".gz" )
+	// remove dot from ext
+	ext = ext.replace( ".", "" );
+	file = rm_str_at_end( file, "."+ext )
+	return file
+}
+
+string rm_ext( string file, string[] exts ) {
+	// remove .gz
+	if ( file.endsWith( ".gz" ) ) \
+		file = rm_str_at_end( file, ".gz" )
+	for ( string ext : exts ) {
+		// remove dot from ext
+		ext = ext.replace( ".", "" );
+		file = file.rm_str_at_end( "."+ext )
+	}
+	return file
+}
+
+string get_actual_ext( string file ) { // remove .gz
+	if ( file.endsWith( ".gz" ) ) {
+		file = rm_str_at_end( file, ".gz" )
+		return file.extName() + ".gz"
+	}
+	else {
+		return file.extName()
+	}
+}
+
+string get_basename( string path ) { // BDS .baseName() returns wrong basename for softlinks
+	if (path=="") return ""
+	int loc_slash = path.lastIndexOf( "/" )
+	return path.substr( loc_slash+1 )
+}
+
+string[] get_basename( string[] paths ) { // BDS .baseName() returns wrong basename for softlinks
+	string[] ret
+	for ( string path : paths ) {
+		if (path=="") { 
+			ret.add("")
+			continue
+		}
+		int loc_slash = path.lastIndexOf( "/" )
+		ret.add( path.substr( loc_slash+1 ) )
+	}
+	return ret
+}
+
+string get_common_basename( string f1, string f2 ) {
+	base1 := get_basename( f1 )
+	base2 := get_basename( f2 )
+	string common
+
+	for (int i=0; i< min(base1.length(),base2.length());i++) {
+		c1 := base1.substr(i,i+1)
+		c2 := base2.substr(i,i+1)
+		if ( c1 == c2 ) common = common + c1
+		else break
+	}
+	common = rm_str_at_end( common, "_" )
+	common = rm_str_at_end( common, "." )
+	common = rm_str_at_end( common, "-" )
+	return common
+}
+
+string concat_basename_wo_ext( string file1, string file2, string[] exts1, string[] exts2 ) {
+	base1_wo_ext := rm_ext( get_basename( file1 ), exts1 )
+	base2_wo_ext := rm_ext( get_basename( file2 ), exts2 )	
+	return base1_wo_ext + "_" + base2_wo_ext
+}
+
+string concat_basename_wo_ext( string file1, string file2, string[] exts ) {
+	return concat_basename_wo_ext( file1, file2, exts, exts )
+}
+
+string concat_basename_wo_ext( string file1, string file2, string ext1, string ext2 ) {
+	return concat_basename_wo_ext( file1, file2, [ext1], [ext2] )
+}
+
+string concat_basename_wo_ext( string file1, string file2, string ext ) {
+	return concat_basename_wo_ext( file1, file2, [ext], [ext] )
+}
+
+string make_vs_basename_wo_gz( string file1, string file2, string suffix ) {
+	ret := rm_str_at_end( get_basename( file1 ),".gz" ) + \
+		"_VS_" + rm_str_at_end( get_basename( file2 ),".gz" )
+
+	// linux filename length limitation is 255
+	if ( ret.length() > 240 ) {
+		ret = ret.substr(0, 240)
+	}
+	ret = ret + suffix
+	return ret
+}
+
+string make_x_basename_wo_gz( string file1, string file2, string suffix ) {
+	ret := rm_str_at_end( get_basename( file1 ),".gz" ) + \
+		"_x_" + rm_str_at_end( get_basename( file2 ),".gz" )
+
+	// linux filename length limitation is 255
+	if ( ret.length() > 239 ) {
+		ret = ret.substr(0, 239)
+	}
+	ret = ret + suffix
+	return ret
+}
+
+//// string array function
+
+string array_to_str( string[] arr, string delim ) {
+	string ret
+	for ( string str : arr ) ret = ret + str + delim	
+	return ret
+}
+
+string array_to_str( string[] arr ) {
+	return array_to_str( arr, "\n")
+}
+
+bool is_in_array( string str, string[] arr ) { // case-insensitive
+	for( string val : arr ) \
+		if ( val.toLower() == str.toLower() ) \
+			return true
+	return false
+}
+
+string[] concat( string[] s1, string[] s2 ) {
+	string[] ret	
+	for ( string str : s1 ) ret.add(str)
+	for ( string str : s2 ) ret.add(str)
+	return ret
+}
+
+string[] concat( string[] s1, string[] s2, string[] s3 ) {
+	string[] ret	
+	for ( string str : s1 ) ret.add(str)
+	for ( string str : s2 ) ret.add(str)
+	for ( string str : s3 ) ret.add(str)
+	return ret
+}
+
+string[] concat( string[] s1, string[] s2, string[] s3, string[] s4 ) {
+	string[] ret	
+	for ( string str : s1 ) ret.add(str)
+	for ( string str : s2 ) ret.add(str)
+	for ( string str : s3 ) ret.add(str)
+	for ( string str : s4 ) ret.add(str)
+	return ret
+}
+
+string[] map_to_array( string{} map ) {
+	string[] array
+	for ( string str : map ) array.add( str )
+	return array
+}
+
+//// string parsing functions
+
+int parse_time( string str ) {
+	trimmed := str.trim().toLower()
+	idx_w := trimmed.indexOf("w")
+	idx_d := trimmed.indexOf("d")
+	idx_h := trimmed.indexOf("h")
+	idx_m := trimmed.indexOf("m")
+	idx_s := trimmed.indexOf("s")
+
+	if ( idx_w>=0 || idx_d>=0 || idx_h>=0 || idx_m>=0 || idx_s>=0 ) {
+		real multiplier
+		string delimiter
+		int idx
+		if ( idx_w>=0 ) {
+			delimiter = "w"; multiplier = 3600*24*7			
+		}
+		else if ( idx_d>=0 ) {
+			delimiter = "d"; multiplier = 3600*24
+		}
+		else if ( idx_h>=0 ) {
+			delimiter = "h"; multiplier = 3600
+		}
+		else if ( idx_m>=0 ) {
+			delimiter = "m"; multiplier = 60
+		}
+		else if ( idx_s>=0 ) {
+			delimiter = "s"; multiplier = 1
+		}
+
+		string[] arr = trimmed.split( delimiter )
+		if ( arr.size() == 0 ) {
+			error("parse_time: cannot parse time string! ($str)")
+		}
+		else if ( arr.size() >= 2 ) {
+			return round(arr[0].parseReal()*multiplier) + parse_time(arr[1])
+		}
+		else {
+			return round(arr[0].parseReal()*multiplier)
+		}		
+	}
+	else if ( trimmed.indexOf(":")>=0 ) {
+		string[] arr = trimmed.split( ":" )
+		int d, h, m, s
+		if ( arr.size() >= 4 ) {
+			d = arr[0].parseInt(); h = arr[1].parseInt(); m = arr[2].parseInt(); s = arr[3].parseInt()
+		}
+		else if ( arr.size() >= 3 ) {
+			h = arr[0].parseInt(); m = arr[1].parseInt(); s = arr[2].parseInt()
+		}
+		else if ( arr.size() >= 2 ) {
+			m = arr[0].parseInt(); s = arr[1].parseInt()
+		}
+		else if ( arr.size() >= 1 ) {
+			s = arr[0].parseInt()
+		}
+		return 3600*24*d + 3600*h + 60*m + s
+	}
+	else {
+		return trimmed.parseInt()
+	}
+}
+
+int parse_mem( string str ) {
+	trimmed := str.trim().toLower()
+	real multiplier
+	string delimiter
+	if ( trimmed.indexOf("gb")>=0 ) {
+		delimiter = "gb"
+		multiplier = 1024*1024*1024
+	}
+	else if ( trimmed.indexOf("g")>=0 ) {
+		delimiter = "g"
+		multiplier = 1024*1024*1024
+	}
+	else if ( trimmed.indexOf("mb")>=0 ) {
+		delimiter = "mb"
+		multiplier = 1024*1024
+	}
+	else if ( trimmed.indexOf("m")>=0 ) {
+		delimiter = "m"
+		multiplier = 1024*1024
+	}
+	else if ( trimmed.indexOf("kb")>=0 ) {
+		delimiter = "kb"
+		multiplier = 1024
+	}
+	else if ( trimmed.indexOf("k")>=0 ) {
+		delimiter = "k"
+		multiplier = 1024
+	}
+	else if ( trimmed.indexOf("b")>=0 ) {
+		delimiter = "b"
+		multiplier = 1
+	}
+	else {
+		return round( trimmed.parseReal() )
+	}
+
+	string[] arr = trimmed.split( delimiter )
+	if ( arr.size() == 0 ) {
+		error("parse_mem: cannot parse memory string! ($str)")
+	}
+	else if ( arr.size() >= 2 ) {
+		return round(arr[0].parseReal()*multiplier) + parse_mem(arr[1])
+	}
+	else {
+		return round(arr[0].parseReal()*multiplier)
+	}
+}
+
+int parse_number( string str ) {
+	trimmed := str.trim().toLower()
+
+	real multiplier
+	string delimiter
+	if ( trimmed.indexOf("g")>=0 ) {
+		delimiter = "g"
+		multiplier = 1000*1000*1000
+	}
+	else if ( trimmed.indexOf("m")>=0 ) {
+		delimiter = "m"
+		multiplier = 1000*1000
+	}
+	else if ( trimmed.indexOf("k")>=0 ) {
+		delimiter = "k"
+		multiplier = 1000
+	}
+	else {
+		return round( trimmed.parseReal() )
+	}
+
+	string[] arr = trimmed.split( delimiter )
+	if ( arr.size() == 0 ) {
+		error("parse_number: cannot parse number string! ($str)")
+	}
+	else if ( arr.size() >= 2 ) {
+		return round(arr[0].parseReal()*multiplier) + parse_number(arr[1])
+	}
+	else {
+		return round(arr[0].parseReal()*multiplier)
+	}
+}
+
+int parse_int( string str ) {
+	return str.trim().parseInt()
+}
+
+bool parse_bool( string str ) {
+	return str.trim().parseBool()
+}
+
+real parse_real( string str ) {
+	return str.trim().parseReal()
+}
+
+//// others
+
+string metric_prefix( int n ) {
+	if (      n > 1000000000000 ) 	return (n/1000000000000)+"T"
+	else if ( n > 1000000000 ) 	return (n/1000000000)+"G"
+	else if ( n > 1000000 )		return (n/1000000)+"M"
+	else if ( n > 1000 )		return (n/1000)+"K"
+	else				return n
+}
+
+string binary_prefix( int n ) {
+	if (      n > 1024*1024*1024*1024 ) 	return (n/(1024*1024*1024*1024))+"T"
+	else if ( n > 1024*1024*1024 ) 		return (n/(1024*1024*1024))+"G"
+	else if ( n > 1024*1024 )		return (n/(1024*1024))+"M"
+	else if ( n > 1024 )			return (n/1024)+"K"
+	else					return n
+}
+
+// only one asterisk (*) is allowed as a wildcard, ? or multiple * is now allowed.
+bool match_str( string str, string search ) {
+	idx_asterisk := search.indexOf("*")
+	if ( idx_asterisk > -1 ) { // if * found
+		if ( search.lastIndexOf("*") != idx_asterisk ) \
+			error("multiple asterisks (*) not allowed in a search string in match_str_one_asterisk($str,$search)!")
+
+		arr := search.split("\\*") // split takes RegEx
+		if ( idx_asterisk == 0 ) { // * at the beginning
+			return str.endsWith( arr[1] )
+		}
+		else if ( idx_asterisk == search.length()-1 ) { // * at the end
+			return str.startsWith( arr[0] )
+		}
+		else { // * in the middle
+			return str.startsWith( arr[0] ) && str.endsWith( arr[1] )
+		}
+	}
+	else { // if * not found
+		return str == search
+	}
+}

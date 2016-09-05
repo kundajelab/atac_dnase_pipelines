@@ -2,7 +2,7 @@
 #vim: syntax=java
 
 include "species.bds"
-include "report.bds"
+include "module_template.bds"
 
 
 help == callpeak etc settings
@@ -26,7 +26,7 @@ string filt_top_peaks( string filetype, string peakfile, string o_dir, string gr
 	prefix 		:= replace_dir( rm_ext( peakfile, \
 						["narrowPeak","gappedPeak","broadPeak","regionPeak"] ), o_dir )
 	ext 		:= get_actual_ext( peakfile )
-	peakfile_filt 	:= "$prefix."+number_with_metric_prefix( npeak_filt )+".$ext"
+	peakfile_filt 	:= "$prefix."+metric_prefix( npeak_filt )+".$ext"
 	sort_param 	:= _get_sort_param( filetype )
 
 	in 	:= [ peakfile ]
