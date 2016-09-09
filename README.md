@@ -262,7 +262,7 @@ fastq1_2= [READ2]
 
 ## Stopping / Resuming pipeline
 
-Press Ctrl + C on a terminal or send any kind of kill signals to it. Please note that this will delete all intermediate files and incomplete outputs for the running tasks. AQUAS pipeline automatically determines if each task has finished or not (by comparing timestamps of input/output files for each task). To run the pipeline from the point of failure, correct error first and then just run the pipeline with the same command that you started the pipeline with. There is no additional parameter for restarting the pipeline.
+Press Ctrl + C on a terminal or send any kind of kill signals to it. Please note that this will delete all intermediate files and incomplete outputs for the running tasks. The pipeline automatically determines if each task has finished or not (by comparing timestamps of input/output files for each task). To run the pipeline from the point of failure, correct error first and then just run the pipeline with the same command that you started the pipeline with. There is no additional parameter for restarting the pipeline.
 
 ## Running pipelines with a cluster engine
 
