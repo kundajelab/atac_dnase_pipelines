@@ -260,6 +260,14 @@ fastq1_2= [READ2]
 ...
 ```
 
+## Stopping / Resuming pipeline
+
+Press Ctrl + C on a terminal or send any kind of kill signals to it. Please note that this will delete all intermediate files and incomplete outputs for the running tasks. AQUAS pipeline automatically determines if each task has finished or not (by comparing timestamps of input/output files for each task). To run the pipeline from the point of failure, correct error first and then just run the pipeline with the same command that you started the pipeline with. There is no additional parameter for restarting the pipeline.
+
+## Running pipelines with a cluster engine
+
+**IMPORTANT!** On servers with a cluster engine (such as Sun Grid Engine and SLURM), **DO NOT QSUB/SBATCH BDS COMMAND LINE**. Run BDS command directly on login nodes. BDS is a task manager and it will automatically submit(qsub/sbatch) and manage its sub tasks.
+
 ## Parallelization
 
 For completely serialized jobs, add `-no_par` to the command line. Individual tasks can still go multi-threaded.
