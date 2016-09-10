@@ -1,6 +1,12 @@
 ATAC-Seq / DNase-Seq Pipeline
 ===================================================
 
+This genomics data processing pipeline is an automated pipeline for processing ATAC-seq or DNase-seq data. All dependences are installed in an automated manner freeing the user from complicated installation gymnastics. The pipeline can be run on compute clusters with job submission engines or stand alone machines and inherently makes uses of parallelized computing. The pipeline can be run end-to-end i.e. starting from raw FASTQ files all the way to peak calling and signal track generation; or can be started from intermediate stages as well (e.g. alignment files). The pipeline supports single-end or paired-end ATAC-seq or DNase-seq data (with or without replicates) and optimized adapter trimming. The pipeline produces pretty HTML reports that include quality control measures specifically designed for ATAC-seq and DNase-seq data, analysis of reproducibility, stringent and relaxed thresholding of peaks, fold-enrichment and pvalue signal tracks.  The pipeline also supports detailed error reporting and supports easy resuming of corrected runs. The pipeline has been tested and verified extensively on human, mouse and yeast ATAC-seq and DNase-seq data.
+
+The ATAC-seq pipeline specification is also the official pipeline specification of the Encyclopedia of DNA Elements (ENCODE) consortium. The ATAC-seq pipeline protocol definition is [here](https://docs.google.com/document/d/1f0Cm4vRyDQDu0bMehHD7P7KOMxTOP-HiNoIvL1VcBt8/edit?usp=sharing). 
+
+The DNase-seq pipeline specification is [here](https://docs.google.com/document/d/1e3cCormg0SnQW6zr7VYBWvXC1GiPc5GSy80qlKBPwlA/edit?usp=sharing). Note that this is NOT the same as the official ENCODE DNase-seq pipeline.
+
 * Go to [Genomic pipelines in Kundaje lab](https://kundajelab.github.io/bds_pipeline_modules)
 * Go to [Discussion channel](https://groups.google.com/forum/#!forum/klab_genomic_pipelines_discuss)
 * Jump to [Usage](#usage)
