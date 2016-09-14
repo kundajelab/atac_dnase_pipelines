@@ -1123,7 +1123,7 @@ void report() {
 
 	wait
 
-	html := html_pipeline_version( "https://github.com/kundajelab/bds_atac/commit" ) // pipeline version info
+	html := html_pipeline_version( "https://github.com/kundajelab/atac_dnase_pipelines/commit" ) // pipeline version info
 	html += html_filetable() 	// treeview for directory and file structure
 	html += html_atac_tracks() 	// epigenome browser tracks
 	html += html_graph()	// graphviz workflow diagram
