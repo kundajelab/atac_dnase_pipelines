@@ -373,4 +373,7 @@ Unload any Anaconda Python modules. Remove locally installed Anaconda Python fro
 * Jin wook Lee - PhD Student, Mechanical Engineering Dept., Stanford University
 * Chuan Sheng Foo - PhD Student, Computer Science Dept., Stanford University
 * Daniel Kim - MD/PhD Student, Biomedical Informatics Program, Stanford University
+* Nathan Boley - Postdoc, Dept. of Genetics, Stanford University
 * Anshul Kundaje - Assistant Professor, Dept. of Genetics, Stanford University
+
+We'd also like to acknowledge Jason Buenrostro, Alicia Schep and William Greenleaf who contributed prototype code for some parts of the ATAC-seq pipeline.
