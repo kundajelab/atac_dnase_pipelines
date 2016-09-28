@@ -1,0 +1,153 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+
+help == trimmer pipeline settings
+
+save_to_indv_dir:= false 	help Save trimmed fastqs to individual directory for each replicate.
+old_trimmer 	:= false 	help Use legacy trim adapters (trim_galore and trimAdapter.py).
+
+
+help() // show help contexts
+
+include "modules/pipeline_template.bds"
+include "modules/input.bds"
+include "modules/input_adapter.bds"
+
+include "modules/align_trim_adapter.bds"
+
+
+main()
+
+
+void main() { // trimmer pipeline starts here
+
+	init_trimmer()
+	chk_input( true, false )
+	chk_adapters()
+	trim_adapters()
+}
+
+void init_trimmer() {
+
+	save_to_indv_dir 	= get_conf_val_bool( save_to_indv_dir,	["save_to_indv_dir"] )
+	old_trimmer 		= get_conf_val_bool( old_trimmer,	["old_trimmer"] )
+
+	print( "\n\n== trimmer settings\n")
+	print( "Save trimmed fastqs to individual directory for each replicate\t: $save_to_indv_dir\n" )
+	print( "Use old trim adapters\t\t\t: $old_trimmer\n" )
+}
+
+void chk_adapters() {
+
+	print( "\n== checking adapters to be trimmed ...\n" );
+
+	// check adapters
+	for ( int rep=1; rep <= get_num_rep(); rep++) {
+
+		string prefix
+		if ( is_input_fastq( rep ) ) {
+
+			if ( !old_trimmer ) { // check adapters
+				adapters := get_adapters( rep )
+				
+				prefix += "Replicate $rep adapters : "
+
+				if ( adapters.size()==0 ) {
+					prefix += "automatically detected"
+				}
+				else {
+					for ( int i=0; i<adapters.size(); i++) {
+						prefix = prefix + adapters[i] + ", "
+						if ( adapters[i] == "" ) {
+							print("$prefix :\n")
+							error("Adapter sequence (-adapter, -adapter[REP_ID] for SE or "\
+								+"-adapter[REP_ID]_[PAIR_ID] for PE) must be defined for adapter trimmer!\n")
+						}						
+					}
+				}
+				
+			}
+		}
+		print("$prefix\n")
+	}
+}
+
+void trim_adapters() {
+
+	for ( int rep=1; rep <= get_num_rep(); rep++) par trim_adapters( rep )
+}
+
+void trim_adapters( int rep ) {
+
+	if ( !is_input_fastq( rep ) ) error("fastq only!\n")
+
+	group 	:= get_group_name( rep )
+	long 	:= get_long_group_name( rep )
+
+	trim_o_dir := mkdir( save_to_indv_dir ? "$out_dir/$group" : "$out_dir" )
+
+	if ( is_se( rep ) ) {
+
+		fastqs := get_fastqs( rep )
+
+		string p1
+
+		if ( old_trimmer ) {
+			p1 = trim_adapters_old( fastqs[0], trim_o_dir, group )
+		}
+		else {			
+			adapters := get_adapters( rep )
+
+			if ( adapters.size()==0 ) {
+
+				adapter_log := detect_adapter( fastqs[0], trim_o_dir, group )
+				wait
+
+				adapter := parse_adapter_log( adapter_log )
+
+				print("\nDetected adapter for $group (SE) : $adapter\n")
+				adapters.add( adapter )
+
+			}
+
+			p1 = trim_adapters( fastqs[0], adapters[0], trim_o_dir, group )
+		}
+	}
+	else {
+		fastqs := get_fastqs( rep )
+
+		string p1, p2
+
+		if ( old_trimmer ) {
+			( p1, p2 ) = trim_adapters_PE_old( fastqs[0], fastqs[1], trim_o_dir, group )
+		}
+		else {
+			adapters := get_adapters( rep )
+
+			if ( adapters.size()==0 ) {
+				adapter_log1 := detect_adapter( fastqs[0], trim_o_dir, group )
+				adapter_log2 := detect_adapter( fastqs[1], trim_o_dir, group )
+				wait
+
+				adapter1 := parse_adapter_log( adapter_log1 )
+				adapter2 := parse_adapter_log( adapter_log2 )
+
+				print("\nDetected adapter for $group (PE) : $adapter1, $adapter2\n")
+				adapters.add( adapter1 )
+				adapters.add( adapter2 )
+			}
+
+			( p1, p2 ) = trim_adapters_PE( fastqs[0], fastqs[1], adapters[0], adapters[1], trim_o_dir, group )
+		}
+	}
+}
+
+void help() {
+
+	if ( is_cmd_line_arg_empty() ) {
+
+		printHelp()
+		exit
+	}
+}
