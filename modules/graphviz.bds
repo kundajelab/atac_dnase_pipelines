@@ -26,7 +26,7 @@ string[] _tmp_in
 string[] _tmp_out
 string[] _tmp_etc
 
-_tmp_delim 	:= ";;"
+tmp_delim 	:= ";;"
 
 
 
@@ -43,9 +43,9 @@ void add_file_to_graph( string file, string label, string group ) {
 // add graph element (in -> box -> out)
 void add_task_to_graph( string[] in, string[] out, string box_group, string box_name, string box_color ) {
 	// save [in,out,etc(box_group,box_name,box_color)] info to temporary arrays and process them later at the end of the pipeline (in _make_dot() ).
-	in_str := array_to_str( in, _tmp_delim )
-	out_str := array_to_str( out, _tmp_delim )
-	etc_str := "$box_group$_tmp_delim$box_name$_tmp_delim$box_color"
+	in_str := array_to_str( in, tmp_delim )
+	out_str := array_to_str( out, tmp_delim )
+	etc_str := "$box_group$tmp_delim$box_name$tmp_delim$box_color"
 
 	_tmp_in.add( in_str )
 	_tmp_out.add( out_str )
@@ -118,9 +118,9 @@ string _make_dot( string file ) {
 	int[] id_excluded
 
 	for ( int k=0; k<_tmp_in.size(); k++ ) {
-		string[] in = _tmp_in[k].split(_tmp_delim)
-		string[] out = _tmp_out[k].split(_tmp_delim)
-		string[] etc = _tmp_etc[k].split(_tmp_delim)
+		string[] in = _tmp_in[k].split(tmp_delim)
+		string[] out = _tmp_out[k].split(tmp_delim)
+		string[] etc = _tmp_etc[k].split(tmp_delim)
 
 		box_group := etc[0]
 		box_name := etc[1]
@@ -262,9 +262,9 @@ string _find_parent_path_with_label( string path ) {
 	path = path.path() // get absolue path
 
 	for ( int k=0; k< _tmp_in.size(); k++) {
-		string[] in = _tmp_in[k].split(_tmp_delim)
-		string[] out = _tmp_out[k].split(_tmp_delim)
-		string[] etc = _tmp_etc[k].split(_tmp_delim)
+		string[] in = _tmp_in[k].split(tmp_delim)
+		string[] out = _tmp_out[k].split(tmp_delim)
+		string[] etc = _tmp_etc[k].split(tmp_delim)
 
 		for ( int j=0; j<out.size(); j++ ) {
 			if ( out[j] == "" ) continue
