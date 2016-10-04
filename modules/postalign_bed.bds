@@ -44,7 +44,7 @@ string subsample_tag( string tag, int nlines, string o_dir, string group ) {
 	
 		//# Subsample tagAlign file
 		sys zcat $tag | \
-			grep -v "chrM" | shuf -n $nlines | gzip -c > $subsampled_tag
+			grep -v "chrM" | shuf -n $nlines --random-source=$tag | gzip -c > $subsampled_tag
 
 		sys $shcmd_finalize
 	}
@@ -78,7 +78,7 @@ string subsample_tag_PE_xcor( string tag, int nlines, string o_dir, string group
 
 		// join two consecutive lines in tag, subsample it and then take one read per pair
 		sys zcat $tag | sed 'N;s/\n/\t/' | \
-			grep -v "chrM" | shuf -n $nlines | \
+			grep -v "chrM" | shuf -n $nlines --random-source=$tag | \
 			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' | gzip -c > $subsampled_tag
 
 		sys $shcmd_finalize
@@ -113,7 +113,7 @@ string subsample_bedpe_to_tag_xcor( string bedpe, int nlines, string o_dir, stri
 		//# Subsample tagAlign file
 		//# Restrict to one read end per pair for CC analysis
 		sys zcat $bedpe | \
-			grep -v "chrM" | shuf -n $nlines | \
+			grep -v "chrM" | shuf -n $nlines --random-source=$bedpe | \
 			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | gzip -c > $subsampled_tag
 
 		sys $shcmd_finalize
@@ -144,7 +144,7 @@ string subsample_bedpe( string bedpe, int nlines, string o_dir, string group ) {
 
 		sys $shcmd_init
 
-		sys zcat $bedpe | grep -v "chrM" | shuf -n $nlines | gzip -c > $subsampled_bedpe
+		sys zcat $bedpe | grep -v "chrM" | shuf -n $nlines --random-source=$bedpe | gzip -c > $subsampled_bedpe
 
 		sys $shcmd_finalize
 	}
@@ -254,7 +254,7 @@ string[] spr( string tag, string pr1_o_dir, string pr2_o_dir, string group ) {
 		
 		//# Shuffle and split BEDPE file into 2 equal parts
 		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
-		sys zcat $tag | shuf | split -d -l $((nlines)) - $prefix_pr1.
+		sys zcat $tag | shuf --random-source=$tag | split -d -l $((nlines)) - $prefix_pr1.
 
 		//# Convert read pairs to reads into standard tagAlign file
 		sys gzip -c $prefix_pr1.00 > $tag_pr1
@@ -297,7 +297,7 @@ string[] spr_PE( string bedpe, string pr1_o_dir, string pr2_o_dir, string group 
 
 		//# Shuffle and split BEDPE file into 2 equal parts
 		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
-		sys zcat $bedpe | shuf | split -d -l $((nlines)) - $prefix_pr1.  
+		sys zcat $bedpe | shuf --random-source=$bedpe | split -d -l $((nlines)) - $prefix_pr1.  
 
 		//# Convert read pairs to reads into standard tagAlign file
 		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$prefix_pr1.00" | \
@@ -347,7 +347,7 @@ string[] spr_tag_PE( string tag, string pr1_o_dir, string pr2_o_dir, string grou
 
 		//# Shuffle and split temporary combined file into 2 equal parts
 		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
-		sys cat $joined | shuf | split -d -l $((nlines)) - $prefix_pr1.  
+		sys cat $joined | shuf --random-source=$tag | split -d -l $((nlines)) - $prefix_pr1.  
 
 		//# Convert read pairs to reads into standard tagAlign file
 		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\t%s\t%s\t%s\n%s\t%s\t%s\t%s\t%s\t%s\n",$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' "$prefix_pr1.00" | \
