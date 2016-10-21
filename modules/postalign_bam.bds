@@ -337,9 +337,10 @@ string[] markdup_bam_picard( string bam, string o_dir, string log_o_dir, string 
 	dupmark_bam 	:= "$prefix.dupmark.bam"
 
 	in 		:= [ bam ]
-	out 		:= [ dupmark_bam, dup_qc ]
+	out 	:= [ dupmark_bam, dup_qc ]
 
 	taskName:= "markdup_bam_picard " + group
+	max_java_heap 	:= binary_prefix( (mem==-1) ? parse_mem( mem_ataqc ) : (mem*3)/4 )
 	cpus := 1; 	mem := get_res_mem(mem_dedup,1);	timeout := get_res_wt(wt_dedup)
 
 	wait_par( cpus )
@@ -350,8 +351,8 @@ string[] markdup_bam_picard( string bam, string o_dir, string log_o_dir, string 
 
 		//# Set Java environment variable with Xmx, because JVM will ignore our
 		//# runtime flag and use this if it has been set.
-		sys export _JAVA_OPTIONS="-Xms256M -Xmx4G -XX:ParallelGCThreads=1"
-		sys export MAX_JAVA_MEM="12G"
+		sys export _JAVA_OPTIONS="-Xms256M -Xmx$max_java_heap -XX:ParallelGCThreads=1"
+		//sys export MAX_JAVA_MEM="12G"
 
 		// to deal with horrible compatility issue for various versions of picard tools
 		// # if PICARDROOT is not defined, then look into ../shared/picard* (default picard dir. in bioconda)
