@@ -5,8 +5,22 @@ include "species.bds"
 include "module_template.bds"
 
 
+help == callpeak naive overlap settings
+nonamecheck	:= false        help bedtools intersect -nonamecheck (bedtools>=2.24.0, use this if you get bedtools intersect naming convenction warnings/errors).
+
 grp_color_naive_overlap := "skyblue"
 
+
+init_callpeak_naive_overlap()
+
+
+void init_callpeak_naive_overlap() {
+
+        nonamecheck	= get_conf_val_bool( nonamecheck, ["nonamecheck"] )
+
+        print("\n\n== callpeak naiver overlap settings\n")
+        print( "Bedtools intersect -nonamecheck\t: $nonamecheck\n")
+}
 
 string naive_overlap_peak( string filetype, string peak_pooled, string peak_rep1, string peak_rep2, \
 			    string o_dir, string group ) {
@@ -20,6 +34,7 @@ string naive_overlap_peak( string filetype, string peak_pooled, string peak_rep1
 
 	awk_param := _get_awk_param( filetype ) 
 	cut_param := _get_cut_param( filetype )
+	nonamecheck_param := nonamecheck ? "-nonamecheck" : ""
 
 	in 	:= [ peak_pooled, peak_rep1, peak_rep2 ]
 	out 	:= peak_final
@@ -34,9 +49,9 @@ string naive_overlap_peak( string filetype, string peak_pooled, string peak_rep1
 		sys $shcmd_init
 
 		//# Find pooled peaks that overlap Rep1 and Rep2 where overlap is defined as the fractional overlap wrt any one of the overlapping peak pairs  >= 0.5
-		sys intersectBed -wo -a <(zcat -f $peak_pooled) -b <(zcat -f $peak_rep1) | \
+		sys intersectBed $nonamecheck_param -wo -a <(zcat -f $peak_pooled) -b <(zcat -f $peak_rep1) | \
 			awk 'BEGIN{FS="\t";OFS="\t"} $awk_param' | cut -f $cut_param | sort | uniq | \
-			intersectBed -wo -a stdin -b <(zcat -f $peak_rep2) | \
+			intersectBed $nonamecheck_param -wo -a stdin -b <(zcat -f $peak_rep2) | \
 			awk 'BEGIN{FS="\t";OFS="\t"} $awk_param' | cut -f $cut_param | sort | uniq | gzip -c > $peak_PooledInRep1AndRep2
 
 		//# Combine peak lists
@@ -68,22 +83,23 @@ string naive_overlap_peak( string filetype, string peak_pooled, string[] peaks, 
 
 	awk_param := _get_awk_param( filetype ) 
 	cut_param := _get_cut_param( filetype )
+	nonamecheck_param := nonamecheck ? "-nonamecheck" : ""
 
 	string command
 	for (int i=0;i<peaks.size();i++) {
 		if ( i == 0 ) {
-			command += "intersectBed -wo -a <(zcat -f $peak_pooled) -b <(zcat -f " + peaks[i] + ") | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | "
+			command += "intersectBed $nonamecheck_param -wo -a <(zcat -f $peak_pooled) -b <(zcat -f " + peaks[i] + ") | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | "
 		}
 		else {
-			command += "intersectBed -wo -a stdin -b <(zcat -f " + peaks[i] + ") | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | "
+			command += "intersectBed $nonamecheck_param -wo -a stdin -b <(zcat -f " + peaks[i] + ") | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | "
 		}		
 	}
 	command += "gzip -c > $peak_PooledInReps"
 
 	string command2
 	if ( peak_ppr1 != "" )  {
-		command2 = "intersectBed -wo -a <(zcat -f $peak_pooled) -b <(zcat -f $peak_ppr1) | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | " + \
-		 	   "intersectBed -wo -a stdin -b <(zcat -f $peak_ppr2) |    awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | " + \
+		command2 = "intersectBed $nonamecheck_param -wo -a <(zcat -f $peak_pooled) -b <(zcat -f $peak_ppr1) | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | " + \
+		 	   "intersectBed $nonamecheck_param -wo -a stdin -b <(zcat -f $peak_ppr2) |    awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | " + \
 			   "gzip -c > $peak_PooledInPsRep1AndPsRep2"
 	}
 	else {
