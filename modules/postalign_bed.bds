@@ -8,7 +8,8 @@ include "module_template.bds"
 // has functions related to tagalign, and helps getting tagalign from configruation file or command line argument
 
 help == postalign bed/tagalign settings
-fraglen0        := false        help Set predefined fragment length as zero for cross corr. analysis (add -speak=0 to run_spp.R).
+fraglen0		:= false        help Set predefined fragment length as zero for cross corr. analysis (add -speak=0 to run_spp.R).
+mem_shuf 		:= "12G"	help Max. memory for UNIX shuf (default: 12G).
 
 grp_color_xcor 		:= "yellowgreen"
 
@@ -19,9 +20,11 @@ init_postalign_bed()
 void init_postalign_bed() {
 
 	fraglen0 	= get_conf_val_bool( fraglen0,	["fraglen0"] )
+	mem_shuf	= get_conf_val( mem_shuf,	["mem_shuf"] )
 
 	print("\n\n== postalign bed/tagalign settings\n")
 	print( "Set initial fraglen. to 0 for cross-corr. (-speak=0)\t: $fraglen0\n")
+	print( "Max. memory for UNIX shuf\t\t\t: $mem_shuf\n")
 }
 
 string subsample_tag( string tag, int nlines, string o_dir, string group ) {
@@ -35,6 +38,7 @@ string subsample_tag( string tag, int nlines, string o_dir, string group ) {
 	out 	:= subsampled_tag
 
 	taskName:= "subsample_tag " + group
+	mem := get_res_mem(mem_shuf,1)
 
 	wait_par( cpus )
 
@@ -69,6 +73,7 @@ string subsample_tag_PE_xcor( string tag, int nlines, string o_dir, string group
 	out 	:= subsampled_tag
 
 	taskName:= "subsample_tag_PE " + group
+	mem := get_res_mem(mem_shuf,1)
 
 	wait_par( cpus )
 
@@ -103,6 +108,7 @@ string subsample_bedpe_to_tag_xcor( string bedpe, int nlines, string o_dir, stri
 	in 	:= [ bedpe ]
 	out 	:= subsampled_tag
 	taskName:= "subsample_bedpe2tag " + group
+	mem := get_res_mem(mem_shuf,1)
 
 	wait_par( cpus )
 
@@ -137,6 +143,7 @@ string subsample_bedpe( string bedpe, int nlines, string o_dir, string group ) {
 	out 	:= subsampled_bedpe
 
 	taskName:= "subsample_bedpe " + group
+	mem := get_res_mem(mem_shuf,1)
 
 	wait_par( cpus )
 
@@ -241,6 +248,7 @@ string[] spr( string tag, string pr1_o_dir, string pr2_o_dir, string group ) {
 	out 	:= [ tag_pr1, tag_pr2 ]
 
 	taskName:= "spr " + group
+	mem := get_res_mem(mem_shuf,1)
 
 	wait_par( cpus )
 
@@ -284,6 +292,7 @@ string[] spr_PE( string bedpe, string pr1_o_dir, string pr2_o_dir, string group 
 	out 	:= [ tag_pr1, tag_pr2 ]
 
 	taskName:= "spr_PE " + group
+	mem := get_res_mem(mem_shuf,1)
 
 	wait_par( cpus )
 
@@ -331,6 +340,7 @@ string[] spr_tag_PE( string tag, string pr1_o_dir, string pr2_o_dir, string grou
 	out 	:= [ tag_pr1, tag_pr2 ]
 
 	taskName:= "spr_tag_PE " + group
+	mem := get_res_mem(mem_shuf,1)
 
 	wait_par( cpus )
 
