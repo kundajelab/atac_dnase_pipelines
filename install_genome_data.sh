@@ -20,7 +20,7 @@ if [ "$#" -lt 2 ]; then
   echo "Genome data files will be installed on [DATA_DIR]/[GENOME]."
   echo "A species file [DATA_DIR]/${SPECIES_FILE_BASENAME} will be generated and added to default.conf."
   echo
-  echo "Supported genomes: hg19, mm9, hg38 (BETA), mm10 (BETA)"
+  echo "Supported genomes: hg19, mm9, hg38 (BETA), mm10 (BETA) and macam7 (BETA)"
   echo
   echo "Usage: ./install_genome_data.sh [GENOME] [DATA_DIR]"
   echo "  Example: ./install_genome_data.sh hg19 $TMP/genome_data"
@@ -32,7 +32,6 @@ GENOME=$1
 DATA_DIR=$2
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 SPECIES_FILE=${DATA_DIR}/${SPECIES_FILE_BASENAME}
-
 echo 
 
 ## show warning
@@ -40,11 +39,15 @@ echo
 if [[ $GENOME == "hg19" || $GENOME == "mm9" ]]; then
   echo
 elif [[ $GENOME == "hg38" ]]; then
-  echo "Warning: hg38 is BETA (GRCh38.p3). There is no ATAQC data, uniq. map. tracks and blacklist (IDR peaks will not be filtered)."
+  echo "Warning: hg38 is BETA (GRCh38.p3). There is no ATAQC data and unique mappability tracks."
   echo "Press any key to continue..."
   read -n1
 elif [[ $GENOME == "mm10" ]]; then
-  echo "Warning: mm10 is BETA (GRCm38.p4). There is no ATAQC data, uniq. map. tracks and blacklist (IDR peaks will not be filtered)."
+  echo "Warning: mm10 is BETA (GRCm38.p4). There is no ATAQC data and unique mappability tracks."
+  echo "Press any key to continue..."
+  read -n1
+elif [[ $GENOME == "macam7" ]]; then
+  echo "Warning: macam7 is BETA (MacaM 7.8). There is no ATAQC data, unique mappability tracks and blacklist (IDR peaks will not be filtered)."
   echo "Press any key to continue..."
   read -n1
 else
@@ -58,11 +61,7 @@ echo
 
 if [ $GENOME == "hg19" ]; then
 
-  CHRSZ="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/encodeDCC/referenceSequences/male.hg19.chrom.sizes"
   REF_FA="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/encodeDCC/referenceSequences/male.hg19.fa.gz"
-  SEQ="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/chromosomes"
-  SEQ_CHR_ARR=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 M X Y) #chr$i.fa.gz
-  GENSZ="hs"
   UMAP="https://personal.broadinstitute.org/anshul/projects/umap/encodeHg19Male/globalmap_k20tok54.tgz"
   BLACKLIST="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz"
 
@@ -76,11 +75,8 @@ if [ $GENOME == "hg19" ]; then
 
 elif [ $GENOME == "mm9" ]; then
 
-  CHRSZ="http://hgdownload-test.cse.ucsc.edu/goldenPath/mm9/encodeDCC/referenceSequences/male.mm9.chrom.sizes"
   REF_FA="http://hgdownload-test.cse.ucsc.edu/goldenPath/mm9/encodeDCC/referenceSequences/male.mm9.fa.gz"
-  SEQ="http://hgdownload.cse.ucsc.edu/goldenpath/mm9/chromosomes"
-  SEQ_CHR_ARR=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 M X Y)
-  GENSZ="mm"
+  UMAP="https://personal.broadinstitute.org/anshul/projects/umap/mm9/globalmap_k20tok54.tgz"
   BLACKLIST="https://personal.broadinstitute.org/anshul/projects/mouse/blacklist/mm9-blacklist.bed.gz"
 
   # data for ATAQC
@@ -93,38 +89,20 @@ elif [ $GENOME == "mm9" ]; then
 
 elif [ $GENOME == "hg38" ]; then
 
-  CHRSZ="http://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes"
   REF_FA="ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_human/release_23/GRCh38.p3.genome.fa.gz"
-  SEQ="http://hgdownload.cse.ucsc.edu/goldenPath/hg38/chromosomes"
-  SEQ_CHR_ARR=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 M X Y)
-  GENSZ="hs"
-  UMAP=""
-  BLACKLIST=""
-
-elif [ $GENOME == "mm9" ]; then
-
-  CHRSZ="http://hgdownload-test.cse.ucsc.edu/goldenPath/mm9/encodeDCC/referenceSequences/male.mm9.chrom.sizes"
-  REF_FA="http://hgdownload-test.cse.ucsc.edu/goldenPath/mm9/encodeDCC/referenceSequences/male.mm9.fa.gz"
-  SEQ="http://hgdownload.cse.ucsc.edu/goldenpath/mm9/chromosomes"
-  SEQ_CHR_ARR=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 M X Y)
-  GENSZ="mm"
-  UMAP="https://personal.broadinstitute.org/anshul/projects/umap/mm9/globalmap_k20tok54.tgz"
-  BLACKLIST="https://personal.broadinstitute.org/anshul/projects/mouse/blacklist/mm9-blacklist.bed.gz"
+  BLACKLIST="http://mitra.stanford.edu/kundaje/genome_data/hg38/hg38.blacklist.bed.gz"
 
 elif [ $GENOME == "mm10" ]; then
 
-  CHRSZ="http://hgdownload.cse.ucsc.edu/goldenPath/mm10/bigZips/mm10.chrom.sizes"
   REF_FA="ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_mouse/release_M10/GRCm38.p4.genome.fa.gz"
-  SEQ="http://hgdownload.cse.ucsc.edu/goldenPath/mm10/chromosomes"
-  SEQ_CHR_ARR=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 M X Y)
-  GENSZ="mm"
-  UMAP=""
-  BLACKLIST=""
+  BLACKLIST="http://mitra.stanford.edu/kundaje/genome_data/mm10/mm10.blacklist.bed.gz"
+
+elif [ $GENOME == "macam7" ]; then
+
+  REF_FA="http://www.unmc.edu/rhesusgenechip/MacaM_Rhesus_Genome_v7.fasta.bz2"
+  EXTRA_LINE="nonamecheck = true # for bedtools >= 2.24. this prevents name convention error in bedtools intersect"
 
 fi
-
-## get prefix of reference genome
-REF_FA_PREFIX=$(basename ${REF_FA} .gz)
 
 ## create directories
 mkdir -p ${DATA_DIR}/$GENOME
@@ -134,7 +112,6 @@ mkdir -p ${DATA_DIR}/$GENOME/seq
 echo "Downloading files..."
 cd ${DATA_DIR}/$GENOME
 if [[ $UMAP != "" ]]; then wget -N -c $UMAP; fi
-wget -N -c $CHRSZ
 wget -N -c ${REF_FA}
 if [[ $BLACKLIST != "" ]]; then wget -N -c $BLACKLIST; fi
 mkdir -p ataqc && cd ataqc
@@ -144,25 +121,47 @@ if [[ $PROM != "" ]]; then wget -N -c $PROM; fi
 if [[ $ENH != "" ]]; then wget -N -c $ENH; fi
 if [[ $REG2MAP != "" ]]; then wget -N -c $REG2MAP; fi
 if [[ $ROADMAP_META != "" ]]; then wget -N -c $ROADMAP_META; fi
-cd ${DATA_DIR}/$GENOME
-mkdir -p seq && cd seq
-for i in ${SEQ_CHR_ARR[@]}; do wget -N -c $SEQ/chr$i.fa.gz; done
 
-## extract files
+## extract unique mappability tracks
+cd ${DATA_DIR}/$GENOME
+if [[ $UMAP != "" ]]; then tar zxvf $(basename $UMAP) --skip-old-files; fi
+
+## extract fasta and get prefix of reference genome
 echo "Extracting/processing data files..."
 cd ${DATA_DIR}/$GENOME
-if [ ! -f ${REF_FA_PREFIX} ]; then
+
+if [[ ${REF_FA} == *.gz ]]; then 
+  REF_FA_PREFIX=$(basename ${REF_FA} .gz)
   gzip -d -f -c ${REF_FA_PREFIX}.gz > ${REF_FA_PREFIX}
+elif [[ ${REF_FA} == *.bz2 ]]; then
+  REF_FA_PREFIX=$(basename ${REF_FA} .bz2)
+  bzip2 -d -f -c ${REF_FA_PREFIX}.bz2 > ${REF_FA_PREFIX}
+else
+  REF_FA_PREFIX=$(basename ${REF_FA})  
 fi
-if [[ $UMAP != "" ]]; then tar zxvf $(basename $UMAP) --skip-old-files; fi
-for i in ${SEQ_CHR_ARR[@]}; do
-  if [ ! -f seq/chr$i.fa ]; then
-    gzip -f -d -c seq/chr$i.fa.gz > seq/chr$i.fa
-  fi
-done
+
+source activate ${CONDA_ENV}
+
+## extract fasta per chromosome
+cd ${DATA_DIR}/$GENOME
+mkdir -p seq
+cd seq
+rm -f ${REF_FA_PREFIX}
+ln -s ../${REF_FA_PREFIX} ${REF_FA_PREFIX}
+faidx -x ${REF_FA_PREFIX}
+cp --remove-destination *.fai ../
+
+## create chrom sizes file
+CHRSZ=$GENOME.chrom.sizes
+cut -f1,2 ${REF_FA_PREFIX}.fai | grep chr > ../$CHRSZ
+
+## determine gensz
+cd ${DATA_DIR}/$GENOME
+GENSZ=$(cat $CHRSZ | awk '{sum+=$2} END{print sum}')
+if [[ $GENOME == hg* ]]; then GENSZ=hs; fi
+if [[ $GENOME == mm* ]]; then GENSZ=mm; fi
 
 ## build index
-
 if [ ${BUILD_BWT2_IDX} == 1 ]; then
   echo "Building bowtie2 index..."
   mkdir -p ${DATA_DIR}/$GENOME/bowtie2_index
@@ -170,7 +169,6 @@ if [ ${BUILD_BWT2_IDX} == 1 ]; then
   rm -f ${REF_FA_PREFIX}
   ln -s ../${REF_FA_PREFIX} ${REF_FA_PREFIX}
   if [ ! -f ${REF_FA_PREFIX}.rev.1.bt2 ]; then
-    source activate ${CONDA_ENV}
     bowtie2-build ${REF_FA_PREFIX} ${REF_FA_PREFIX}
   fi
 fi
@@ -182,7 +180,6 @@ if [ ${BUILD_BWA_IDX} == 1 ]; then
   rm -f ${REF_FA_PREFIX}
   ln -s ../${REF_FA_PREFIX} ${REF_FA_PREFIX}
   if [ ! -f ${REF_FA_PREFIX}.sa ]; then
-    source activate ${CONDA_ENV}
     bwa index ${REF_FA_PREFIX}
   fi
 fi
@@ -223,6 +220,7 @@ if [[ $(grep "\[$GENOME\]" ${SPECIES_FILE} | wc -l) < 1 ]]; then
   if [[ ${ENH_PATH} != "" ]]; then echo -e "enh\t= ${ENH_PATH}" >> ${SPECIES_FILE}; fi
   if [[ ${REG2MAP_PATH} != "" ]]; then echo -e "reg2map\t= ${REG2MAP_PATH}" >> ${SPECIES_FILE}; fi
   if [[ ${ROADMAP_META_PATH} != "" ]]; then echo -e "roadmap_meta\t= ${ROADMAP_META_PATH}" >> ${SPECIES_FILE}; fi
+  if [[ ${EXTRA_LINE} != "" ]]; then echo -e "${EXTRA_LINE}" >> ${SPECIES_FILE}; fi
   echo "" >> ${SPECIES_FILE}
 fi
 
