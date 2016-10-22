@@ -251,9 +251,9 @@ IDR analysis is included in the pipeline by default. If there are more than two 
 ```
 -no_idr
 ```
-To list all parameters and default values for them,
+For multimapping, 
 ```
-$ bds atac.bds
+-multimapping [NO_MULTIMAPPING]
 ```
 
 You can also define parameters in a configuration file. Key names in a configruation file are identical to parameter names on command line. 
@@ -262,10 +262,124 @@ $ bds atac.bds [CONF_FILE]
 
 $ cat [CONF_FILE]
 species = [SPECIES; hg19, mm9, ...]
-nth 	= [NUM_THREADS]
+nth   = [NUM_THREADS]
 fastq1_1= [READ1]
 fastq1_2= [READ2]
 ...
+```
+
+## List of all parameters
+
+To list all parameters and default values for them,
+```
+$ bds atac.bds
+
+== atac pipeline settings
+        -type <string>                : Type of the pipeline. atac-seq or dnase-seq (default: atac-seq).
+        -dnase_seq <bool>             : DNase-Seq (no tn5 shifting).
+        -trimmed_fastq <bool>         : Skip fastq-trimming stage.
+        -align <bool>                 : Align only (no MACS2 peak calling or IDR or ataqc analysis).
+        -subsample_xcor <string>      : # reads to subsample for cross corr. analysis (default: 25M).
+        -subsample <string>           : # reads to subsample exp. replicates. Subsampled tagalign will be used for steps downstream (default: 0; no subsampling).
+        -true_rep <bool>              : No pseudo-replicates.
+        -no_idr <bool>                : No IDR analysis on called peaks. This will change p-value threshold (0.1->0.01) in MACS2 peak calling.
+        -no_ataqc <bool>              : No ATAQC
+        -csem <bool>                  : Use CSEM for alignment.
+        -mem_ataqc <string>           : Max. memory for ATAQC (default: 15G).
+        -wt_ataqc <string>            : Walltime for ATAQC (default: 23h, 23:00:00).
+        -smooth_win <string>          : Smoothing window size for MACS2 peak calling (default: 150).
+        -idr_thresh <string>          : IDR threshold : -log_10(score) (default: 0.1).
+        -old_trimmer <bool>           : Use legacy trim adapters (trim_galore and trimAdapter.py).
+== configuration file settings
+        -c <string>                   : Configuration file path.
+        -env <string>                 : Environment file path.
+== parallelization settings
+        -no_par <bool>                : Serialize all tasks (individual tasks can still use multiple threads up to '-nth').
+        -nth <int>                    : Maximum # threads for a pipeline. (default: 8).
+== cluster/system/resource settings
+        -wt <string>                  : Walltime for all single-threaded tasks (example: 8:10:00, 3h, 3600, default: 5h50m, 5:50:00).
+        -memory <string>              : Maximum memory for all single-threaded tasks (equivalent to '-mem', example: 4.5G, 1024M, default: 7G).
+        -use_system <string>          : Force to use a system (equivalent to 'bds -s [SYSTEM_NAME] ...', any system defined in bds.config can be used).
+        -nice <int>                   : Set process priority for all tasks (default: 0; -20 (highest) ~ 19 (lowest) ).
+        -retrial <int>                : # of Retrial for failed tasks (default: 0).
+        -q <string>                   : Submit tasks to a specified cluster queue.
+        -unlimited_mem_wt <bool>      : Use unlimited max. memory and walltime.
+== shell environment settings
+        -mod <string>                 : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+        -shcmd <string>               : Shell commands separated by ;. Shell var. must be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test").
+        -addpath <string>             : Path separated by ; or : to be PREPENDED to \$PATH (example: "/bin/test:${HOME}/utils").
+        -conda_env <string>           : Anaconda Python environment name for all softwares including Python2.
+        -conda_env_py3 <string>       : Anaconda Python environment name for Python3.
+== output/title settings
+        -out_dir <string>             : Output directory (default: out).
+        -title <string>               : Prefix for HTML report and outputs without given prefix.
+== report settings
+        -url_base <string>            : URL base for output directory.
+== fastq input definition :
+        Single-ended : For replicate '-fastq[REP_ID]', For control '-ctl_fastq[REP_ID]'
+        Paired end : For replicate '-fastq[REP_ID]_[PAIR_ID]', For control '-ctl_fastq[REP_ID]_[PAIR_ID]'
+== bam input (raw or filtered) definition :
+        Raw bam : For replicate '-bam[REP_ID]', For control '-ctl_bam[REP_ID]'.
+        Filtered bam : For replicate '-filt_bam[REP_ID]', For control '-ctl_filt_bam[REP_ID]'.
+== tagalign input definition :
+        For replicate '-tag[REP_ID]', For control '-ctl_tag[REP_ID]'.
+== narrow peak input definition :
+        For true replicates, use '-peak1' and '-peak2',
+        For pooled replicates, use '-peak_pooled',
+        For two PR (self-pseudo-replicates), use '-peak[REP_ID]_pr1' and '-peak[REP_ID]_pr2'
+        For two PPR (pooled pseudo-replicates), use '-peak_ppr1' and '-peak_ppr2'
+== input endedness settings (SE or PE) :
+        -se <bool>                    : Singled-ended data set. To specify it for each replicate, '-se[REP_ID]' for exp. reps, '-ctl_se[CTL_ID]' for control.
+        -pe <bool>                    : Paired end data set. To specify it for each replicate, '-pe[REP_ID]' for exp. reps, '-ctl_pe[CTL_ID]' for controls.
+== adapter sequence definition :
+        Single-ended : For replicate '-adapter[REP_ID]'
+        Paired end : For replicate '-adapter[REP_ID]_[PAIR_ID]'
+== species settings
+        -species <string>             : Species. If not on kundaje lab servers, specify '-species_file' too.
+        -species_file <string>        : Species file path.
+        -chrsz <string>               : Chromosome sizes file path (use fetchChromSizes from UCSC tools).
+        -seq <string>                 : Reference genome sequence directory path (where chr*.fa exist).
+        -gensz <string>               : Genome size; hs for human, mm for mouse.
+        -umap <string>                : Unique mappability tracks directory path (https://sites.google.com/site/anshulkundaje/projects/mappability).
+        -bwa_idx <string>             : BWA index (full path prefix of *.bwt file) .
+        -bwt_idx <string>             : Bowtie index (full path prefix of *.1.ebwt file).
+        -bwt2_idx <string>            : Bowtie2 index (full path prefix of *.1.bt2 file).
+        -blacklist <string>           : Blacklist bed.
+        -tss_enrich <string>          : TSS enrichment bed for ataqc.
+        -ref_fa <string>              : Reference genome sequence fasta.
+        -dnase <string>               : DNase bed for ataqc.
+        -prom <string>                : Promoter bed for ataqc.
+        -enh <string>                 : Enhancer bed for ataqc.
+        -reg2map <string>             : Reg2map for ataqc.
+        -roadmap_meta <string>        : Roadmap metadata for ataqc.
+== align multimapping settings
+        -multimapping <int>           : # alignments reported for multimapping (default: 0).
+== align bowtie2 settings (requirements: -bwt2_idx)
+        -wt_bwt2 <string>             : Walltime for bowtie2 (default: 23h, 23:00:00).
+        -mem_bwt2 <string>            : Max. memory for bowtie2 (default: 12G).
+== adapter trimmer settings
+        -adapter_err_rate <string>    : Maximum allowed adapter error rate (# errors divided by the length of the matching adapter region, default: 0.20).
+        -min_trim_len <int>           : Minimum trim length for cutadapt -m, throwing away processed reads shorter than this (default: 5).
+        -wt_trim <string>             : Walltime for adapter trimming (default: 23h, 23:00:00).
+        -mem_trim <string>            : Max. memory for adapter trimming (default: 12G).
+== postalign bam settings
+        -mapq_thresh <int>            : Threshold for low MAPQ reads removal (default: 30).
+        -rm_chr_from_tag <string>     : If specified, exclude lines with specified string from tagaligns. (example: 'other|ribo|mito|_', '_', default: blank)
+        -wt_dedup <string>            : Walltime for post-alignment filtering (default: 23h, 24:00:00).
+        -mem_dedup <string>           : Max. memory for post-alignment filtering (default: 12G).
+        -use_sambamba_markdup <bool>  : Use sambamba markdup instead of Picard MarkDuplicates (default: false).
+== postalign bed/tagalign settings
+        -fraglen0 <bool>              : Set predefined fragment length as zero for cross corr. analysis (add -speak=0 to run_spp.R).
+        -mem_shuf <string>            : Max. memory for UNIX shuf (default: 12G).
+== callpeak macs2 settings (requirements: -chrsz -gensz)
+        -wt_macs2 <string>            : Walltime for MACS2 (default: 23h, 23:00:00).
+        -mem_macs2 <string>           : Max. memory for MACS2 (default: 15G).
+== callpeak naive overlap settings
+        -nonamecheck <bool>           : bedtools intersect -nonamecheck (bedtools>=2.24.0, use this if you get bedtools intersect naming convenction warnings/errors).
+== callpeak etc settings
+        -npeak_filt <int>             : # top peaks filtered from a narrow peak files (default: 500000).
+== IDR settings
+        -idr_suffix <bool>            : Append IDR threshold to IDR output directory.
 ```
 
 ## Stopping / Resuming pipeline
