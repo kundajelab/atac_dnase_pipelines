@@ -340,8 +340,8 @@ string[] markdup_bam_picard( string bam, string o_dir, string log_o_dir, string 
 	out 	:= [ dupmark_bam, dup_qc ]
 
 	taskName:= "markdup_bam_picard " + group
-	max_java_heap 	:= binary_prefix( (mem==-1) ? parse_mem( mem_ataqc ) : (mem*3)/4 )
 	cpus := 1; 	mem := get_res_mem(mem_dedup,1);	timeout := get_res_wt(wt_dedup)
+	max_java_heap 	:= binary_prefix( (mem==-1) ? parse_mem( mem_dedup ) : (mem*4)/5 )
 
 	wait_par( cpus )
 
