@@ -20,7 +20,8 @@ if [ "$#" -lt 2 ]; then
   echo "Genome data files will be installed on [DATA_DIR]/[GENOME]."
   echo "A species file [DATA_DIR]/${SPECIES_FILE_BASENAME} will be generated and added to default.conf."
   echo
-  echo "Supported genomes: hg19, mm9, hg38 (BETA), mm10 (BETA) and macam7 (BETA)"
+  #echo "Supported genomes: hg19, mm9, hg38 (BETA), mm10 (BETA) and macam7 (BETA)"
+  echo "Supported genomes: hg19, mm9, hg38 (BETA), mm10 (BETA)"
   echo
   echo "Usage: ./install_genome_data.sh [GENOME] [DATA_DIR]"
   echo "  Example: ./install_genome_data.sh hg19 $TMP/genome_data"
