@@ -31,7 +31,7 @@ gsl # for preseq
 pysam ==0.8.3 # 0.9 has an issue with ATAQC
 pigz
 zlib
-sambamba ==0.6.1
+sambamba ==0.6.5 # to fix seg fault error in 0.6.1
 r ==3.2.2
 r-snow
 r-snowfall
