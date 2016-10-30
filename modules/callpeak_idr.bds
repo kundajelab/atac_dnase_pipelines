@@ -50,9 +50,9 @@ string[] idr2( string peak1, string peak2, string pooled, string idr_thresh, str
 	string cmd1, cmd2, cmd3
 
 	if ( path_exists( blacklist ) ) {
-		cmd1 = "bedtools intersect -v -a $peak_idr_trk_tmp -b $blacklist | gzip -c > $filt_peak_idr_trk_tmp"
-		cmd2 = "zcat $filt_peak_idr_trk_tmp | awk 'BEGIN{OFS=\"\t\"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' | gzip -c > $filt_peak_idr"
-		cmd3 = "zcat $filt_peak_idr_trk_tmp | awk 'BEGIN{OFS=\"\t\"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' | gzip -c > $filt_peak_idr_trk"
+		cmd1 = "bedtools intersect -v -a $peak_idr_trk_tmp -b $blacklist | gzip -nc > $filt_peak_idr_trk_tmp"
+		cmd2 = "zcat $filt_peak_idr_trk_tmp | awk 'BEGIN{OFS=\"\t\"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' | gzip -nc > $filt_peak_idr"
+		cmd3 = "zcat $filt_peak_idr_trk_tmp | awk 'BEGIN{OFS=\"\t\"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' | gzip -nc > $filt_peak_idr_trk"
 	}
 	else {
 		cmd1 = "echo"
@@ -79,10 +79,10 @@ string[] idr2( string peak1, string peak2, string pooled, string idr_thresh, str
 
 		//# Get peaks passing global IDR threshold and convert file to narrowPeak format (Step 9)
 		sys awk 'BEGIN{OFS="\t"} $12>='"${idr_thresh_transformed}"' {if ($2<0) $2=0; print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,"0"}' $idr_out \
-			| sort | uniq | sort -k7n,7n | gzip -c > $peak_idr_trk_tmp
+			| sort | uniq | sort -k7n,7n | gzip -nc > $peak_idr_trk_tmp
 
-		sys zcat $peak_idr_trk_tmp | awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' | gzip -c > $peak_idr
-		sys zcat $peak_idr_trk_tmp | awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' | gzip -c > $peak_idr_trk
+		sys zcat $peak_idr_trk_tmp | awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' | gzip -nc > $peak_idr
+		sys zcat $peak_idr_trk_tmp | awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' | gzip -nc > $peak_idr_trk
 
 		sys $cmd1
 		sys $cmd2

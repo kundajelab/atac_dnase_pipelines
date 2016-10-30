@@ -48,7 +48,7 @@ string subsample_tag( string tag, int nlines, string o_dir, string group ) {
 	
 		//# Subsample tagAlign file
 		sys zcat $tag | \
-			grep -v "chrM" | shuf -n $nlines --random-source=$tag | gzip -c > $subsampled_tag
+			grep -v "chrM" | shuf -n $nlines --random-source=$tag | gzip -nc > $subsampled_tag
 
 		sys $shcmd_finalize
 	}
@@ -84,7 +84,7 @@ string subsample_tag_PE_xcor( string tag, int nlines, string o_dir, string group
 		// join two consecutive lines in tag, subsample it and then take one read per pair
 		sys zcat $tag | sed 'N;s/\n/\t/' | \
 			grep -v "chrM" | shuf -n $nlines --random-source=$tag | \
-			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' | gzip -c > $subsampled_tag
+			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' | gzip -nc > $subsampled_tag
 
 		sys $shcmd_finalize
 	}
@@ -120,7 +120,7 @@ string subsample_bedpe_to_tag_xcor( string bedpe, int nlines, string o_dir, stri
 		//# Restrict to one read end per pair for CC analysis
 		sys zcat $bedpe | \
 			grep -v "chrM" | shuf -n $nlines --random-source=$bedpe | \
-			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | gzip -c > $subsampled_tag
+			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | gzip -nc > $subsampled_tag
 
 		sys $shcmd_finalize
 	}
@@ -151,7 +151,7 @@ string subsample_bedpe( string bedpe, int nlines, string o_dir, string group ) {
 
 		sys $shcmd_init
 
-		sys zcat $bedpe | grep -v "chrM" | shuf -n $nlines --random-source=$bedpe | gzip -c > $subsampled_bedpe
+		sys zcat $bedpe | grep -v "chrM" | shuf -n $nlines --random-source=$bedpe | gzip -nc > $subsampled_bedpe
 
 		sys $shcmd_finalize
 	}
@@ -181,7 +181,7 @@ string tn5_shift_tag( string tag, string o_dir, string group ) {
 
 		sys $shcmd_init
 
-		sys zcat $tag | awk -F $'\t' 'BEGIN {OFS = FS}{ if ($6 == "+") {$2 = $2 + 4} else if ($6 == "-") {$3 = $3 - 5} print $0}' | gzip -c > $shifted_tag
+		sys zcat $tag | awk -F $'\t' 'BEGIN {OFS = FS}{ if ($6 == "+") {$2 = $2 + 4} else if ($6 == "-") {$3 = $3 - 5} print $0}' | gzip -nc > $shifted_tag
 
 		sys $shcmd_finalize
 	}
@@ -265,9 +265,9 @@ string[] spr( string tag, string pr1_o_dir, string pr2_o_dir, string group ) {
 		sys zcat $tag | shuf --random-source=$tag | split -d -l $((nlines)) - $prefix_pr1.
 
 		//# Convert read pairs to reads into standard tagAlign file
-		sys gzip -c $prefix_pr1.00 > $tag_pr1
+		sys gzip -nc $prefix_pr1.00 > $tag_pr1
 		sys rm -f $prefix_pr1.00
-		sys gzip -c $prefix_pr1.01 > $tag_pr2
+		sys gzip -nc $prefix_pr1.01 > $tag_pr2
 		sys rm -f $prefix_pr1.01
 
 		sys $shcmd_finalize
@@ -310,10 +310,10 @@ string[] spr_PE( string bedpe, string pr1_o_dir, string pr2_o_dir, string group 
 
 		//# Convert read pairs to reads into standard tagAlign file
 		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$prefix_pr1.00" | \
-			gzip -c > $tag_pr1
+			gzip -nc > $tag_pr1
 		sys rm -f $prefix_pr1.00
 		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$prefix_pr1.01" | \
-			gzip -c > $tag_pr2
+			gzip -nc > $tag_pr2
 		sys rm -f $prefix_pr1.01
 
 		sys $shcmd_finalize
@@ -361,10 +361,10 @@ string[] spr_tag_PE( string tag, string pr1_o_dir, string pr2_o_dir, string grou
 
 		//# Convert read pairs to reads into standard tagAlign file
 		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\t%s\t%s\t%s\n%s\t%s\t%s\t%s\t%s\t%s\n",$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' "$prefix_pr1.00" | \
-			gzip -c > $tag_pr1
+			gzip -nc > $tag_pr1
 		sys rm -f $prefix_pr1.00
 		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\t%s\t%s\t%s\n%s\t%s\t%s\t%s\t%s\t%s\n",$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' "$prefix_pr1.01" | \
-			gzip -c > $tag_pr2
+			gzip -nc > $tag_pr2
 		sys rm -f $prefix_pr1.01
 
 		sys rm -f $joined
@@ -397,7 +397,7 @@ string pool_tag( string tag1, string tag2, string o_dir, string group ) {
 	tid := task( out<-in ) {
 
 		sys $shcmd_init
-		sys zcat $tag1 $tag2 | gzip -c > $tag_pooled
+		sys zcat $tag1 $tag2 | gzip -nc > $tag_pooled
 
 		sys $shcmd_finalize
 	}
@@ -429,7 +429,7 @@ string pool_tag( string[] tags, string o_dir, string group ) {
 
 		sys $shcmd_init
 
-		sys zcat $tags_str | gzip -c > $tag_pooled
+		sys zcat $tags_str | gzip -nc > $tag_pooled
 
 		sys $shcmd_finalize
 	}

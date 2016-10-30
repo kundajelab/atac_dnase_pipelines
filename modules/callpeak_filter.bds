@@ -46,7 +46,7 @@ string filt_top_peaks( string filetype, string peakfile, string o_dir, string gr
 		sys set +o pipefail
 
 		// sort by 8th (-log10(pval) ) column and take top $npeak_filt lines
-		sys zcat $peakfile | sort $sort_param | head -n $npeak_filt | gzip -c > $peakfile_filt
+		sys zcat $peakfile | sort $sort_param | head -n $npeak_filt | gzip -nc > $peakfile_filt
 
 		sys $shcmd_finalize
 	}

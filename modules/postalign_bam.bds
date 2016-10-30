@@ -493,7 +493,7 @@ string bam_to_tag( string bam, string o_dir, string group ) {
 	prefix 	:= replace_dir( rm_ext( bam, "bam" ), o_dir )
 	tag 	:= "$prefix.tagAlign.gz"
 	RM_CHR_ := "echo"
-	if ( rm_chr_from_tag != "" ) RM_CHR_ = "zcat $tag | grep -P -v '$rm_chr_from_tag' | gzip -c > $prefix.rm_chr.tmp.gz; mv $prefix.rm_chr.tmp.gz $tag"
+	if ( rm_chr_from_tag != "" ) RM_CHR_ = "zcat $tag | grep -P -v '$rm_chr_from_tag' | gzip -nc > $prefix.rm_chr.tmp.gz; mv $prefix.rm_chr.tmp.gz $tag"
 
 	in 	:= [ bam ]
 	out 	:= tag
@@ -507,7 +507,7 @@ string bam_to_tag( string bam, string o_dir, string group ) {
 		sys $shcmd_init
 
 		//# Create SE tagAlign file
-		sys bedtools bamtobed -i $bam | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | gzip -c > $tag
+		sys bedtools bamtobed -i $bam | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | gzip -nc > $tag
 
 		sys $RM_CHR_
 
@@ -544,7 +544,7 @@ string bam_to_bedpe( string bam, string o_dir, string group ) {
 			sys $shcmd_init
 
 			//# Create BEDPE file
-			sys bedtools bamtobed -bedpe -mate1 -i $nmsrt_bam | gzip -c > $bedpe
+			sys bedtools bamtobed -bedpe -mate1 -i $nmsrt_bam | gzip -nc > $bedpe
 
 			sys $shcmd_finalize
 		}
@@ -567,7 +567,7 @@ string bedpe_to_tag( string bedpe, string o_dir, string group ) {
 	tag 	:= "$prefix.tagAlign.gz"
 	RM_CHR_ := "echo"
 	if ( rm_chr_from_tag != "" ) {
-		RM_CHR_ = "zcat $tag | grep -P -v '$rm_chr_from_tag' | gzip -c > $prefix.rm_chr.tmp.gz; mv $prefix.rm_chr.tmp.gz $tag"
+		RM_CHR_ = "zcat $tag | grep -P -v '$rm_chr_from_tag' | gzip -nc > $prefix.rm_chr.tmp.gz; mv $prefix.rm_chr.tmp.gz $tag"
 	}
 
 	in 	:= [ bedpe ]
@@ -582,7 +582,7 @@ string bedpe_to_tag( string bedpe, string o_dir, string group ) {
 		sys $shcmd_init
 
 		sys zcat $bedpe | awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' | \
-			gzip -c > $tag
+			gzip -nc > $tag
 
 		sys $RM_CHR_
 

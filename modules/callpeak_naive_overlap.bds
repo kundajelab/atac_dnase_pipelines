@@ -52,10 +52,10 @@ string naive_overlap_peak( string filetype, string peak_pooled, string peak_rep1
 		sys intersectBed $nonamecheck_param -wo -a <(zcat -f $peak_pooled) -b <(zcat -f $peak_rep1) | \
 			awk 'BEGIN{FS="\t";OFS="\t"} $awk_param' | cut -f $cut_param | sort | uniq | \
 			intersectBed $nonamecheck_param -wo -a stdin -b <(zcat -f $peak_rep2) | \
-			awk 'BEGIN{FS="\t";OFS="\t"} $awk_param' | cut -f $cut_param | sort | uniq | gzip -c > $peak_PooledInRep1AndRep2
+			awk 'BEGIN{FS="\t";OFS="\t"} $awk_param' | cut -f $cut_param | sort | uniq | gzip -nc > $peak_PooledInRep1AndRep2
 
 		//# Combine peak lists
-		sys zcat $peak_PooledInRep1AndRep2 | sort | uniq | gzip -c > $peak_final
+		sys zcat $peak_PooledInRep1AndRep2 | sort | uniq | gzip -nc > $peak_final
 
 		sys rm -f $peak_PooledInRep1AndRep2
 
@@ -94,13 +94,13 @@ string naive_overlap_peak( string filetype, string peak_pooled, string[] peaks, 
 			command += "intersectBed $nonamecheck_param -wo -a stdin -b <(zcat -f " + peaks[i] + ") | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | "
 		}		
 	}
-	command += "gzip -c > $peak_PooledInReps"
+	command += "gzip -nc > $peak_PooledInReps"
 
 	string command2
 	if ( peak_ppr1 != "" )  {
 		command2 = "intersectBed $nonamecheck_param -wo -a <(zcat -f $peak_pooled) -b <(zcat -f $peak_ppr1) | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | " + \
 		 	   "intersectBed $nonamecheck_param -wo -a stdin -b <(zcat -f $peak_ppr2) |    awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | " + \
-			   "gzip -c > $peak_PooledInPsRep1AndPsRep2"
+			   "gzip -nc > $peak_PooledInPsRep1AndPsRep2"
 	}
 	else {
 		command2 = "echo"
@@ -125,7 +125,7 @@ string naive_overlap_peak( string filetype, string peak_pooled, string[] peaks, 
 		sys $command2
 
 		//# Combine peak lists
-		sys zcat $peak_PooledInReps $peak_PooledInPsRep1AndPsRep2 | sort | uniq | gzip -c > $peak_final
+		sys zcat $peak_PooledInReps $peak_PooledInPsRep1AndPsRep2 | sort | uniq | gzip -nc > $peak_final
 
 		sys rm -f $peak_PooledInReps $peak_PooledInPsRep1AndPsRep2
 

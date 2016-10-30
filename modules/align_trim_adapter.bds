@@ -95,7 +95,7 @@ string trim_adapters( string fastq, string adapter, string o_dir, string group )
 
 		sys $shcmd_init
 
-		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter $fastq | gzip -c > $p_gz
+		sys cutadapt $param_min_trim_len -e $adapter_err_rate -a $adapter $fastq | gzip -nc > $p_gz
 
 		sys $shcmd_finalize
 	}
