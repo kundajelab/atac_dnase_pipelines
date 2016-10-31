@@ -65,11 +65,11 @@ Install Java 8 (jdk >= 1.8 or jre >= 1.8) on your system. If you don't have supe
 
 ## Conda
 
-Install Miniconda3 [4.0.5](https://repo.continuum.io/miniconda/Miniconda3-4.0.5-Linux-x86_64.sh) on your system. Recent versions of conda (>4.0.10) is buggy in parallel activation and do not work correctly with the pipeline. If you already have your own conda, downgrade it to 4.0.5 (`conda install conda==4.0.5`).
+Install Miniconda3 [latest](https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh) on your system.
 
 ```
-$ wget https://repo.continuum.io/miniconda/Miniconda3-4.0.5-Linux-x86_64.sh
-$ bash Miniconda3-4.0.5-Linux-x86_64.sh
+$ wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+$ bash Miniconda3-latest-Linux-x86_64.sh
 ```
 
 Answer `yes` for the final question. If you choose `no`, you need to manually add Miniconda3 to your `$HOME/.bashrc`.
