@@ -80,6 +80,8 @@ void main() { // atac pipeline starts here
 
 	call_peaks()
 
+	read_input_peak() // if inputs are peaks, read them
+
 	do_idr()
 
 	ataqc()
@@ -326,6 +328,8 @@ void chk_ataqc() {
 }
 
 void do_align() {
+
+	if ( is_input_peak() ) return
 
 	// filesize of input ( map with key $rep )
 	int{} filesize
@@ -711,9 +715,36 @@ void align_PE( int rep, int nth_rep ) {
 	}
 }
 
+void read_input_peak() {
+
+	if ( !is_input_peak() ) return // read peaks here
+
+	for ( int rep=0; rep<=get_num_rep_peak(); rep++) { // rep==0 : pooled
+		if ( get_num_rep_peak() == 1 && rep==0 ) continue // if only one replicate, skip reading pooled rep
+
+		for (int pse=0; pse<=2; pse++) { // pse==0 : true rep
+			if ( true_rep && pse > 0 ) continue			
+
+			peak_ := get_peak(rep,pse)
+
+			if ( rep == 0 ) {
+				if ( pse == 0 )		peak_pooled 	= peak_
+				else if ( pse == 1 )	peak_ppr1	= peak_
+				else if ( pse == 2 )	peak_ppr2 	= peak_
+			}
+			else {
+				if ( pse == 0 )		peak{rep} 	= peak_
+				else if ( pse == 1 )	peak_pr1{rep}	= peak_
+				else if ( pse == 2 )	peak_pr2{rep}	= peak_
+			}
+		}
+	}
+}
+
 void call_peaks() { // for pooling two replicates and calling peaks on them
 
 	if ( align ) return
+	if ( is_input_peak() ) return
 
 	// pool tag-aligns
 	string[] tags, tags_pr1, tags_pr2
@@ -865,52 +896,58 @@ void do_idr() {
 	for ( int rep=1; rep<=get_num_rep(); rep++ ) {
 
 		filt_peak{rep} 	= filt_top_peaks( "narrowPeak", peak{rep}, "", "rep$rep" )
-		filt_gpeak{rep} = filt_top_peaks( "gappedPeak", gpeak{rep}, "", "rep$rep" )
-
 		add_file_to_table( filt_peak{rep}, "Peaks/MACS2/Replicate $rep/Filtered narrow peak" )
-		add_file_to_table( filt_gpeak{rep},"Peaks/MACS2/Replicate $rep/Filtered gapped peak" )
+
+		if ( !is_input_peak() ) {
+			filt_gpeak{rep} = filt_top_peaks( "gappedPeak", gpeak{rep}, "", "rep$rep" )
+			add_file_to_table( filt_gpeak{rep},"Peaks/MACS2/Replicate $rep/Filtered gapped peak" )
+		}
 
 		if ( !true_rep ) {
-
 			filt_peak_pr1{rep}  = filt_top_peaks( "narrowPeak", peak_pr1{rep}, "", "rep$rep-pr1" )
 			filt_peak_pr2{rep}  = filt_top_peaks( "narrowPeak", peak_pr2{rep}, "", "rep$rep-pr2" )
-			filt_gpeak_pr1{rep} = filt_top_peaks( "gappedPeak", gpeak_pr1{rep}, "", "rep$rep-pr1" )
-			filt_gpeak_pr2{rep} = filt_top_peaks( "gappedPeak", gpeak_pr2{rep}, "", "rep$rep-pr2" )
-
 			add_file_to_table( filt_peak_pr1{rep}, \
 				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 1/Filtered narrow peak" )
 			add_file_to_table( filt_peak_pr2{rep}, \
 				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 2/Filtered narrow peak" )
-			add_file_to_table( filt_gpeak_pr1{rep}, \
+
+			if ( !is_input_peak() ) {
+				filt_gpeak_pr1{rep} = filt_top_peaks( "gappedPeak", gpeak_pr1{rep}, "", "rep$rep-pr1" )
+				filt_gpeak_pr2{rep} = filt_top_peaks( "gappedPeak", gpeak_pr2{rep}, "", "rep$rep-pr2" )
+				add_file_to_table( filt_gpeak_pr1{rep}, \
 				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 1/Filtered gapped peak" )
-			add_file_to_table( filt_gpeak_pr2{rep}, \
+				add_file_to_table( filt_gpeak_pr2{rep}, \
 				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 2/Filtered gapped peak" )
+			}
 		}
 	}
 
 	if ( get_num_rep() > 1 ) {
 
 		filt_peak_pooled = filt_top_peaks( "narrowPeak", peak_pooled, "", "pooled_rep" )
-		filt_gpeak_pooled= filt_top_peaks( "gappedPeak", gpeak_pooled, "", "pooled_rep" )
-
 		add_file_to_table( filt_peak_pooled, "Peaks/MACS2/Pooled replicate/Filtered narrow peak" )
-		add_file_to_table( filt_gpeak_pooled, "Peaks/MACS2/Pooled replicate/Filtered gapped peak" )
+
+		if ( !is_input_peak() ) {
+			filt_gpeak_pooled= filt_top_peaks( "gappedPeak", gpeak_pooled, "", "pooled_rep" )
+			add_file_to_table( filt_gpeak_pooled, "Peaks/MACS2/Pooled replicate/Filtered gapped peak" )
+		}
 
 		if ( !true_rep ) {
-
-			filt_peak_ppr1 	= filt_top_peaks( "narrowPeak", peak_ppr1, "", "ppr1" )
+			filt_peak_ppr1 	= filt_top_peaks( "narrowPeak", peak_ppr1, "", "ppr1" )			
 			filt_peak_ppr2 	= filt_top_peaks( "narrowPeak", peak_ppr2, "", "ppr2" )
-			filt_gpeak_ppr1 = filt_top_peaks( "gappedPeak", gpeak_ppr1, "", "ppr1" )
-			filt_gpeak_ppr2 = filt_top_peaks( "gappedPeak", gpeak_ppr2, "", "ppr2" )
-
 			add_file_to_table( filt_peak_ppr1, \
 				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Filtered narrow peak" )
 			add_file_to_table( filt_peak_ppr2, \
 				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Filtered narrow peak" )
-			add_file_to_table( filt_gpeak_ppr1, \
-				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Filtered gapped peak" )
-			add_file_to_table( filt_gpeak_ppr2, \
-				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Filtered gapped peak" )
+
+			if ( !is_input_peak() ) {
+				filt_gpeak_ppr1 = filt_top_peaks( "gappedPeak", gpeak_ppr1, "", "ppr1" )
+				filt_gpeak_ppr2 = filt_top_peaks( "gappedPeak", gpeak_ppr2, "", "ppr2" )
+				add_file_to_table( filt_gpeak_ppr1, \
+					"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Filtered gapped peak" )
+				add_file_to_table( filt_gpeak_ppr2, \
+					"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Filtered gapped peak" )
+			}
 		}
 	}
 
@@ -925,19 +962,23 @@ void do_idr() {
 		if ( !true_rep ) {
 			peak_overlap = naive_overlap_peak( "narrowPeak", \
 						filt_peak{1}, filt_peak_pr1{1}, filt_peak_pr2{1}, overlap_o_dir, "" )
-			gpeak_overlap = naive_overlap_peak( "gappedPeak", \
+			if ( !is_input_peak() ) \
+				gpeak_overlap = naive_overlap_peak( "gappedPeak", \
 						filt_gpeak{1}, filt_gpeak_pr1{1}, filt_gpeak_pr2{1}, overlap_o_dir, "" )
 		}
 	}
 	else {
 		peak_overlap = naive_overlap_peak( "narrowPeak", filt_peak_pooled, map_to_array( filt_peak ), \
 								  filt_peak_ppr1, filt_peak_ppr2, overlap_o_dir, "" )
-		gpeak_overlap = naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, map_to_array( filt_gpeak ), \
+
+		if ( !is_input_peak() ) \
+			gpeak_overlap = naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, map_to_array( filt_gpeak ), \
 								  filt_gpeak_ppr1, filt_gpeak_ppr2, overlap_o_dir, "" )
 	}
 
 	add_file_to_report( peak_overlap, "n. peak\\noverlap", "", "Peaks/MACS2/Naive overlap/Narrow peak" )
-	add_file_to_report( gpeak_overlap, "g. peak\\noverlap", "", "Peaks/MACS2/Naive overlap/Gapped peak" )
+	if ( !is_input_peak() ) \
+		add_file_to_report( gpeak_overlap, "g. peak\\noverlap", "", "Peaks/MACS2/Naive overlap/Gapped peak" )
 
 	// do IDR
 
@@ -998,6 +1039,7 @@ void do_idr() {
 void ataqc() {
 
 	if ( no_ataqc || align ) return
+	if ( is_input_peak() ) return
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 
