@@ -154,7 +154,8 @@ cp --remove-destination *.fai ../
 
 ## create chrom sizes file
 CHRSZ=$GENOME.chrom.sizes
-cut -f1,2 ${REF_FA_PREFIX}.fai | grep chr > ../$CHRSZ
+#cut -f1,2 ${REF_FA_PREFIX}.fai | grep chr > ../$CHRSZ
+cut -f1,2 ${REF_FA_PREFIX}.fai > ../$CHRSZ
 
 ## determine gensz
 cd ${DATA_DIR}/$GENOME
