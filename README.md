@@ -143,7 +143,7 @@ $ echo 'export PATH=$PATH:/opt/miniconda3/bin' >> /etc/profile.d/conda_init.sh
 
 ## Genome data
 
-Install genome data for a specific genome `[GENOME]`. Currently `hg19`, `mm9`, `hg38`(BETA) and `mm10`(BETA) are available. Specify a directory `[DATA_DIR]` to download genome data. A species file generated on `[DATA_DIR]` will be automatically added to your `./default.env` so that the pipeline knows that you have installed genome data using `install_genome_data.sh`. If you want to install multiple genomes make sure that you use the same directory `[DATA_DIR]` for them. Each genome data will be installed on `[DATA_DIR]/[GENOME]`. If you use other BDS pipelines, it is recommended to use the same directory `[DATA_DIR]` to save disk space.
+Install genome data for a specific genome `[GENOME]`. Currently `hg19`, `mm9`, `hg38`(BETA), `mm10`(BETA), `hg38_ENCODE`(BETA) and `mm10_ENCODE`(BETA) are available. Specify a directory `[DATA_DIR]` to download genome data. A species file generated on `[DATA_DIR]` will be automatically added to your `./default.env` so that the pipeline knows that you have installed genome data using `install_genome_data.sh`. If you want to install multiple genomes make sure that you use the same directory `[DATA_DIR]` for them. Each genome data will be installed on `[DATA_DIR]/[GENOME]`. If you use other BDS pipelines, it is recommended to use the same directory `[DATA_DIR]` to save disk space.
 
 **IMPORTANT**: `install_genome_data.sh` can take longer than an hour for downloading data and building index. **DO NOT** run the script on a login node, use `qlogin` for SGE and `sdev` for SLURM.
 
