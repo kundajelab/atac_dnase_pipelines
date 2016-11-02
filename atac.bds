@@ -19,7 +19,7 @@ wt_ataqc	:= "23h"	help Walltime for ATAQC (default: 23h, 23:00:00).
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
 idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
 old_trimmer 	:= false 	help Use legacy trim adapters (trim_galore and trimAdapter.py).
-
+ENCODE		:= false	help Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE.
 
 
 grp_color_ataqc := "pink"
@@ -117,6 +117,7 @@ void read_conf_atac() {
 	subsample_xcor 	= get_conf_val( subsample_xcor,		["subsample_xcor"] )
 	subsample	= get_conf_val( subsample, 		["subsample"] )
 	old_trimmer 	= get_conf_val_bool( old_trimmer,	["old_trimmer"] )
+	ENCODE	 	= get_conf_val_bool( ENCODE,		["ENCODE"] )
 }
 
 void init_etc_atac() {
@@ -144,6 +145,7 @@ void print_atac() {
 	print( "DNase Seq\t\t\t\t: $dnase_seq\n")
 	print( "IDR threshold\t\t\t\t: $idr_thresh\n" )
 	print( "Use old trim adapters\t\t\t: $old_trimmer\n" )
+	print( "Force to use ENCODE parameter set\t: $ENCODE\n" )
 
 	if ( dnase_seq ) type = "dnase-seq"	
 }
@@ -264,6 +266,13 @@ void chk_param() {
 	//	print("Warning: IDR is available for one replicate or two replicates only. Disabling IDR...\n")
 	//	no_idr 	= true
 	//}
+
+	if ( ENCODE ) {
+		print("Info: ENCODE flag is on (-smooth_win 73 -idr_thresh 0.05 -multimapping 4).\n")
+		smooth_win = 73
+		idr_thresh = 0.05
+		multimapping = 4
+	}
 }
 
 void chk_adapters() {
