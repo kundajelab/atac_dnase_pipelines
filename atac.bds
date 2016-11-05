@@ -19,7 +19,7 @@ wt_ataqc	:= "23h"	help Walltime for ATAQC (default: 23h, 23:00:00).
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
 idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
 old_trimmer 	:= false 	help Use legacy trim adapters (trim_galore and trimAdapter.py).
-ENCODE		:= false	help Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE.
+ENCODE3		:= false	help Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE3.
 
 
 grp_color_ataqc := "pink"
@@ -117,7 +117,7 @@ void read_conf_atac() {
 	subsample_xcor 	= get_conf_val( subsample_xcor,		["subsample_xcor"] )
 	subsample	= get_conf_val( subsample, 		["subsample"] )
 	old_trimmer 	= get_conf_val_bool( old_trimmer,	["old_trimmer"] )
-	ENCODE	 	= get_conf_val_bool( ENCODE,		["ENCODE"] )
+	ENCODE3	 	= get_conf_val_bool( ENCODE3,		["ENCODE3"] )
 }
 
 void init_etc_atac() {
@@ -145,7 +145,7 @@ void print_atac() {
 	print( "DNase Seq\t\t\t\t: $dnase_seq\n")
 	print( "IDR threshold\t\t\t\t: $idr_thresh\n" )
 	print( "Use old trim adapters\t\t\t: $old_trimmer\n" )
-	print( "Force to use ENCODE parameter set\t: $ENCODE\n" )
+	print( "Force to use ENCODE3 parameter set\t: $ENCODE3\n" )
 
 	if ( dnase_seq ) type = "dnase-seq"	
 }
@@ -267,8 +267,8 @@ void chk_param() {
 	//	no_idr 	= true
 	//}
 
-	if ( ENCODE ) {
-		print("Info: ENCODE flag is on (-smooth_win 73 -idr_thresh 0.05 -multimapping 4).\n")
+	if ( ENCODE3 ) {
+		print("Info: ENCODE3 flag is on (-smooth_win 73 -idr_thresh 0.05 -multimapping 4).\n")
 		smooth_win = 73
 		idr_thresh = 0.05
 		multimapping = 4
@@ -284,7 +284,6 @@ void chk_adapters() {
 
 		string prefix
 		if ( is_input_fastq( rep ) ) {
-			//fastqs := get_fastqs( rep )
 
 			if ( !trimmed_fastq && !old_trimmer ) { // check adapters
 				adapters := get_adapters( rep )
@@ -394,39 +393,53 @@ void align_SE( int rep, int nth_rep ) {
 
 		fastqs := get_fastqs( rep )
 
-		fastq{rep} = fastqs[0]
+		string[] trimmed_fastqs
+		for ( int i=0; i<fastqs.size(); i++) {
+			id := i+1
+			suffix := fastqs.size()==1 ? "" : ":$id"
 
-		add_file_to_report( fastqs[0], "fastq", group, "Alignment/$long/Fastq" )
+			add_file_to_report( fastqs[i], "fastq$suffix", group, "Alignment/$long/Fastq$suffix" )
 
-		string p1
-
-		if ( trimmed_fastq ) {
-			p1 = fastqs[0]
-		}
-		else {
-			if ( old_trimmer ) {
-				p1 = trim_adapters_old( fastqs[0], aln_o_dir, group )
+			if ( trimmed_fastq ) {
+				trimmed_fastqs.add( fastqs[i] )
 			}
 			else {
-				adapters := get_adapters( rep )
-
-				if ( adapters.size()==0 ) {
-					adapter_log := detect_adapter( fastqs[0], qc_o_dir, group )
-					wait
-
-					adapter := parse_adapter_log( adapter_log )
-
-					print("\nDetected adapter for $group (SE) : $adapter\n")
-					adapters.add( adapter )
+				string p1
+				if ( old_trimmer ) {
+					p1 = trim_adapters_old( fastqs[i], aln_o_dir, group )
 				}
+				else {
+					adapters := get_adapters( rep )
 
-				p1 = trim_adapters( fastqs[0], adapters[0], aln_o_dir, group )
+					if ( adapters.size()==0 ) {
+						string adapter_log, tid
+						(adapter_log, tid) = detect_adapter( fastqs[i], qc_o_dir, group )
+						wait tid
+
+						adapter := parse_adapter_log( adapter_log )
+
+						print("\nDetected adapter for $group (SE) : $adapter\n")
+						adapters.add( adapter )
+					}
+
+					p1 = trim_adapters( fastqs[i], adapters[0], aln_o_dir, group )
+				}
+				trimmed_fastqs.add( p1 )
+				add_file_to_report( p1, "trimmed\\nfastq$suffix" , group, "Alignment/$long/Trimmed fastq$suffix" )
 			}
+		}
+		wait
 
-			add_file_to_report( p1, "trimmed\\nfastq", group, "Alignment/$long/Trimmed fastq" )
-
+		string p1
+		if ( trimmed_fastqs.size() > 1 ) { // if multiple fastqs are given, pool trimmed fastqs
+			p1 = pool_fastq( trimmed_fastqs, aln_o_dir, group )
+			add_file_to_report( p1, "pooled\\nfastq" , group, "Alignment/$long/Pooled fastq" )
 			wait
 		}
+		else {
+			p1 = trimmed_fastqs[0]
+		}
+		fastq{rep} = p1
 
 		string align_log_ 
 
@@ -552,48 +565,74 @@ void align_PE( int rep, int nth_rep ) {
 
 	if ( is_input_fastq( rep ) ) {
 
-		fastqs := get_fastqs( rep )
+		fastqs_pair1 := get_fastq( 0, rep, 1 )
+		fastqs_pair2 := get_fastq( 0, rep, 2 )
 
-		fastq{rep+",1"} = fastqs[0]
-		fastq{rep+",2"} = fastqs[1]
+		string[] trimmed_fastqs_pair1, trimmed_fastqs_pair2
 
-		string p1, p2
-
-		add_file_to_report( fastqs[0], "fastq 1", group, "Alignment/$long/Fastq 1" )
-		add_file_to_report( fastqs[1], "fastq 2", group, "Alignment/$long/Fastq 2" )
-
-		if ( trimmed_fastq ) {
-			p1 = fastqs[0]
-			p2 = fastqs[1]
+		if ( fastqs_pair1.size() != fastqs_pair2.size() ) {
+			error("Number of fastqs to be pooled for pair 1 and pair 2 do not match!\n")
 		}
-		else {
-			if ( old_trimmer ) {
-				( p1, p2 ) = trim_adapters_PE_old( fastqs[0], fastqs[1], aln_o_dir, group )
+		for ( int i=0; i<fastqs_pair1.size(); i++) {
+			id := i+1
+			suffix := fastqs_pair1.size()==1 ? "" : ":$id"
+
+			add_file_to_report( fastqs_pair1[i], "fastq$suffix", group, "Alignment/$long/Fastq 1$suffix" )
+			add_file_to_report( fastqs_pair2[i], "fastq$suffix", group, "Alignment/$long/Fastq 2$suffix" )
+
+			if ( trimmed_fastq ) {
+				trimmed_fastqs_pair1.add( fastqs_pair1[i] )
+				trimmed_fastqs_pair2.add( fastqs_pair2[i] )
 			}
 			else {
-				adapters := get_adapters( rep )
+				string p1, p2
+				if ( old_trimmer ) {
+					( p1, p2 ) = trim_adapters_PE_old( fastqs_pair1[i], fastqs_pair2[i], aln_o_dir, group )
+				}
+				else {
+					adapters := get_adapters( rep )
 
-				if ( adapters.size()==0 ) {
-					adapter_log1 := detect_adapter( fastqs[0], qc_o_dir, group )
-					adapter_log2 := detect_adapter( fastqs[1], qc_o_dir, group )
-					wait
+					if ( adapters.size()==0 ) {
+						string adapter_log1, adapter_log2, tid1, tid2						
+						(adapter_log1, tid1) = detect_adapter( fastqs_pair1[i], qc_o_dir, group )
+						(adapter_log2, tid2) = detect_adapter( fastqs_pair2[i], qc_o_dir, group )
+						wait [tid1, tid2]
 
-					adapter1 := parse_adapter_log( adapter_log1 )
-					adapter2 := parse_adapter_log( adapter_log2 )
+						adapter1 := parse_adapter_log( adapter_log1 )
+						adapter2 := parse_adapter_log( adapter_log2 )
 
-					print("\nDetected adapter for $group (PE) : $adapter1, $adapter2\n")
-					adapters.add( adapter1 )
-					adapters.add( adapter2 )
+						print("\nDetected adapter for $group (PE) : $adapter1, $adapter2\n")
+						adapters.add( adapter1 )
+						adapters.add( adapter2 )
+					}
+
+					( p1, p2 ) = trim_adapters_PE( fastqs_pair1[i], fastqs_pair2[i], adapters[0], adapters[1], aln_o_dir, group )
 				}
 
-				( p1, p2 ) = trim_adapters_PE( fastqs[0], fastqs[1], adapters[0], adapters[1], aln_o_dir, group )
+				trimmed_fastqs_pair1.add( p1 )
+				trimmed_fastqs_pair2.add( p2 )
+
+				add_file_to_report( p1, "trimmed\\nfastq 1$suffix", group, "Alignment/$long/Trimmed fastq 1$suffix" )
+				add_file_to_report( p2, "trimmed\\nfastq 2$suffix", group, "Alignment/$long/Trimmed fastq 2$suffix" )
 			}
+		}
+		wait
 
-			add_file_to_report( p1, "trimmed\\nfastq 1", group, "Alignment/$long/Trimmed fastq 1" )
-			add_file_to_report( p2, "trimmed\\nfastq 2", group, "Alignment/$long/Trimmed fastq 2" )
-
+		string p1, p2
+		if ( trimmed_fastqs_pair1.size() > 1 ) { // if multiple fastqs are given, pool trimmed fastqs
+			p1 = pool_fastq( trimmed_fastqs_pair1, aln_o_dir, group )
+			p2 = pool_fastq( trimmed_fastqs_pair2, aln_o_dir, group )
+			add_file_to_report( p1, "pooled\\nfastq 1" , group, "Alignment/$long/Pooled fastq 1" )
+			add_file_to_report( p2, "pooled\\nfastq 2" , group, "Alignment/$long/Pooled fastq 2" )
 			wait
 		}
+		else {
+			p1 = trimmed_fastqs_pair1[0]
+			p2 = trimmed_fastqs_pair2[0]
+		}
+
+		fastq{rep+",1"} = p1
+		fastq{rep+",2"} = p2
 
 		( bam_, align_log_ ) = bowtie2_PE( p1, p2, aln_o_dir, qc_o_dir, group, nth_rep, !trimmed_fastq )
 		bam{rep} = bam_

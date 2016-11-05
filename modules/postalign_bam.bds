@@ -595,3 +595,75 @@ string bedpe_to_tag( string bedpe, string o_dir, string group ) {
 
 	return out
 }
+
+
+
+string pool_fastq( string fastq1, string fastq2, string o_dir, string group ) {
+	// LINUX has limit on filename length (255), make it as shorter as possible
+	string fastq_pooled
+	if ( get_basename(fastq1).length() < 50 && get_basename(fastq2).length() < 50 ) {
+		prefix 	:= "$o_dir/" + concat_basename_wo_ext( fastq1, fastq2, ["fq","fastq"] )	
+		fastq_pooled = "$prefix.fastq.gz"
+	}
+	else {
+		prefix 	:= replace_dir( rm_ext( fastq1, ["fq","fastq"] ), o_dir )
+		fastq_pooled = "$prefix"+"_pooled.fastq.gz"
+	}
+
+	in 	:= [ fastq1, fastq2 ]
+	out 	:= fastq_pooled
+
+	taskName:= "pool_fastq " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+		sys zcat $fastq1 $fastq2 | gzip -nc > $fastq_pooled
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
+string pool_fastq( string[] fastqs, string o_dir, string group ) {
+	// LINUX has limit on filename length (255), make it as short as possible
+	string fastq_pooled
+	if ( fastqs.size() <= 2 && get_basename(fastqs[0]).length() < 50 && get_basename(fastqs[1]).length() < 50 ) {
+		prefix 	:= "$o_dir/" + concat_basename_wo_ext( fastqs[0], fastqs[1], ["fq","fastq"] )
+		fastq_pooled = "$prefix.fastq.gz"
+	}
+	else {
+		prefix 	:= replace_dir( rm_ext( fastqs[0], ["fq","fastq"] ), o_dir )
+		fastq_pooled = "$prefix"+"_pooled.fastq.gz"
+	}
+	fastqs_str 	:= array_to_str( fastqs, " " ) // join
+
+	in 		:= fastqs
+	out 		:= fastq_pooled
+
+	taskName:= "pool_fastq " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys zcat $fastqs_str | gzip -nc > $fastq_pooled
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}

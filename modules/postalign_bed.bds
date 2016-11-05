@@ -380,12 +380,16 @@ string[] spr_tag_PE( string tag, string pr1_o_dir, string pr2_o_dir, string grou
 }
 
 string pool_tag( string tag1, string tag2, string o_dir, string group ) {
-
-// LINUX has limit on filename length (255), make it as shorter as possible
-//	prefix 		:= "$o_dir/" + concat_basename_wo_ext( tag1, tag2, ["tagAlign","tag","bed"] )	
-	prefix 		:= replace_dir( rm_ext( tag1, ["bed","tagAlign"] ), o_dir )	
-
-	tag_pooled 	:= "$prefix"+"_pooled.tagAlign.gz"
+	// LINUX has limit on filename length (255), make it as shorter as possible
+	string tag_pooled
+	if ( get_basename(tag1).length() < 50 && get_basename(tag2).length() < 50 ) {
+		prefix 	:= "$o_dir/" + concat_basename_wo_ext( tag1, tag2, ["tagAlign","tag","bed"] )	
+		tag_pooled = "$prefix.tagAlign.gz"
+	}
+	else {
+		prefix 	:= replace_dir( rm_ext( tag1, ["bed","tagAlign"] ), o_dir )	
+		tag_pooled = "$prefix"+"_pooled.tagAlign.gz"
+	}
 
 	in 	:= [ tag1, tag2 ]
 	out 	:= tag_pooled
@@ -410,12 +414,16 @@ string pool_tag( string tag1, string tag2, string o_dir, string group ) {
 }
 
 string pool_tag( string[] tags, string o_dir, string group ) {
-
-// LINUX has limit on filename length (255), make it as short as possible
-//	prefix 		:= "$o_dir/" + concat_basename_wo_ext( tag1, tag2, ["tagAlign","tag","bed"] )
-	prefix 		:= replace_dir( rm_ext( tags[0], ["bed","tagAlign"] ), o_dir )
-
-	tag_pooled 	:= "$prefix"+"_pooled.tagAlign.gz"
+	// LINUX has limit on filename length (255), make it as short as possible
+	string tag_pooled
+	if ( tags.size() <= 2 && get_basename(tags[0]).length() < 50 && get_basename(tags[1]).length() < 50 ) {
+		prefix 	:= "$o_dir/" + concat_basename_wo_ext( tags[0], tags[1], ["tagAlign","tag","bed"] )	
+		tag_pooled = "$prefix.tagAlign.gz"
+	}
+	else {
+		prefix 	:= replace_dir( rm_ext( tags[0], ["bed","tagAlign"] ), o_dir )	
+		tag_pooled = "$prefix"+"_pooled.tagAlign.gz"
+	}
 	tags_str 	:= array_to_str( tags, " " ) // join
 
 	in 		:= tags

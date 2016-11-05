@@ -164,9 +164,8 @@ bool is_pe( int ctl, int rep ) {
 	}
 
 	if ( is_input_fastq( ctl, rep ) ) {
-
-		fastqs := get_fastqs( ctl, rep )
-		return fastqs.size()==2
+		fastqs := get_fastq( ctl, rep, 2 )
+		return fastqs.size() > 0
 	}
 
 	if ( default_is_pe ) return true

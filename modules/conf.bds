@@ -112,7 +112,7 @@ void add_to_conf( string file ) {
 }
 
 string[] parse_conf_line( string line ) {
-	delims := [ "=", "\t", ":" ]
+	delims := [ "=", "\t" ]
 	delim_found := false
 	string key, val
 	for ( string delim : delims ) {
@@ -124,7 +124,7 @@ string[] parse_conf_line( string line ) {
 			break
 		}
 	}
-	if ( !delim_found ) error("No delimiter (=,\\t,:) found in line ($line) in the configruation file.\n")
+	if ( !delim_found ) error("No delimiter (=,\\t) found in line ($line) in the configruation file.\n")
 	return [key, val]
 }
 

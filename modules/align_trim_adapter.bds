@@ -32,7 +32,8 @@ void init_align_trim_adapter() {
 	print( "Max. memory (adapter trimming)\t\t: $mem_trim\n")
 }
 
-string detect_adapter( string fastq, string o_dir, string group ) {
+// also returns tid
+string[] detect_adapter( string fastq, string o_dir, string group ) {
 
 	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	log	:= "$prefix.adapter.txt"
@@ -44,7 +45,7 @@ string detect_adapter( string fastq, string o_dir, string group ) {
 
 	system 	:= "local"
 
-	task( out<-in ) {
+	tid := task( out<-in ) {
 
 		sys $shcmd_init_py3
 
@@ -53,7 +54,7 @@ string detect_adapter( string fastq, string o_dir, string group ) {
 		sys $shcmd_finalize
 	}
 
-	return out
+	return [out, tid]
 }
 
 string parse_adapter_log( string log ) {
