@@ -53,6 +53,7 @@ CONTENTS=("export PATH=\$PATH:$CONDA_EXTRA/phantompeakqualtools")
 add_to_activate
 
 if [ ${INSTALL_WIGGLER_AND_MCR} == 1 ]; then
+  conda install -y -c conda-forge bc
   ### install Wiggler (for generating signal tracks)
   cd $CONDA_EXTRA
   wget https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/align2rawsignal/align2rawsignal.2.0.tgz -N
