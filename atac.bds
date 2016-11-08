@@ -406,7 +406,7 @@ void align_SE( int rep, int nth_rep ) {
 			else {
 				string p1
 				if ( old_trimmer ) {
-					p1 = trim_adapters_old( fastqs[i], aln_o_dir, group )
+					p1 = trim_adapters_old( fastqs[i], aln_o_dir, group, suffix )
 				}
 				else {
 					adapters := get_adapters( rep )
@@ -422,7 +422,7 @@ void align_SE( int rep, int nth_rep ) {
 						adapters.add( adapter )
 					}
 
-					p1 = trim_adapters( fastqs[i], adapters[0], aln_o_dir, group )
+					p1 = trim_adapters( fastqs[i], adapters[0], aln_o_dir, group, suffix )
 				}
 				trimmed_fastqs.add( p1 )
 				add_file_to_report( p1, "trimmed\\nfastq$suffix" , group, "Alignment/$long/Trimmed fastq$suffix" )
@@ -577,8 +577,8 @@ void align_PE( int rep, int nth_rep ) {
 			id := i+1
 			suffix := fastqs_pair1.size()==1 ? "" : ":$id"
 
-			add_file_to_report( fastqs_pair1[i], "fastq$suffix", group, "Alignment/$long/Fastq 1$suffix" )
-			add_file_to_report( fastqs_pair2[i], "fastq$suffix", group, "Alignment/$long/Fastq 2$suffix" )
+			add_file_to_report( fastqs_pair1[i], "fastq 1$suffix", group, "Alignment/$long/Fastq 1$suffix" )
+			add_file_to_report( fastqs_pair2[i], "fastq 2$suffix", group, "Alignment/$long/Fastq 2$suffix" )
 
 			if ( trimmed_fastq ) {
 				trimmed_fastqs_pair1.add( fastqs_pair1[i] )
@@ -587,7 +587,8 @@ void align_PE( int rep, int nth_rep ) {
 			else {
 				string p1, p2
 				if ( old_trimmer ) {
-					( p1, p2 ) = trim_adapters_PE_old( fastqs_pair1[i], fastqs_pair2[i], aln_o_dir, group )
+					( p1, p2 ) = trim_adapters_PE_old( fastqs_pair1[i], fastqs_pair2[i], \
+									aln_o_dir, group, suffix )
 				}
 				else {
 					adapters := get_adapters( rep )
@@ -606,7 +607,8 @@ void align_PE( int rep, int nth_rep ) {
 						adapters.add( adapter2 )
 					}
 
-					( p1, p2 ) = trim_adapters_PE( fastqs_pair1[i], fastqs_pair2[i], adapters[0], adapters[1], aln_o_dir, group )
+					( p1, p2 ) = trim_adapters_PE( fastqs_pair1[i], fastqs_pair2[i], \
+									adapters[0], adapters[1], aln_o_dir, group, suffix )
 				}
 
 				trimmed_fastqs_pair1.add( p1 )

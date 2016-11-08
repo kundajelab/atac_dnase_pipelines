@@ -77,7 +77,7 @@ string parse_adapter_log( string log ) {
 	return adapter
 }
 
-string trim_adapters( string fastq, string adapter, string o_dir, string group ) {
+string trim_adapters( string fastq, string adapter, string o_dir, string group, string graph_suffix ) {
 
 	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	p_gz	:= "$prefix"+".trim.fastq.gz"
@@ -103,12 +103,13 @@ string trim_adapters( string fastq, string adapter, string o_dir, string group )
 
 	register_par( tid, cpus )
 
-	add_task_to_graph( in, out, group, "CUTADAPT", grp_color_trim_adapter )
+	add_task_to_graph( in, out, group, "CUTADAPT\\n$graph_suffix", grp_color_trim_adapter )
 
 	return out
 }
 
-string[] trim_adapters_PE( string fastq1, string fastq2, string adapter1, string adapter2, string o_dir, string group ) {
+string[] trim_adapters_PE( string fastq1, string fastq2, string adapter1, string adapter2, string o_dir, \
+				string group, string graph_suffix ) {
 
 	prefix1	:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir )
 	prefix2	:= replace_dir( rm_ext( fastq2, ["fastq","fq"] ), o_dir )
@@ -141,12 +142,12 @@ string[] trim_adapters_PE( string fastq1, string fastq2, string adapter1, string
 
 	register_par( tid, cpus )
 
-	add_task_to_graph( in, out, group, "CUTADAPT", grp_color_trim_adapter )
+	add_task_to_graph( in, out, group, "CUTADAPT\\n$graph_suffix", grp_color_trim_adapter )
 
 	return out
 }
 
-string trim_adapters_old( string fastq, string o_dir, string group ) {
+string trim_adapters_old( string fastq, string o_dir, string group, string graph_suffix ) {
 
 	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	p 	:= "$prefix"+"_trimmed.fq"
@@ -175,12 +176,12 @@ string trim_adapters_old( string fastq, string o_dir, string group ) {
 
 	register_par( tid, cpus )
 
-	add_task_to_graph( in, out, group, "TRIM GALORE", grp_color_trim_adapter )
+	add_task_to_graph( in, out, group, "TRIM GALORE\\n$graph_suffix", grp_color_trim_adapter )
 
 	return out
 }
 
-string[] trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, string group  ) {
+string[] trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, string group, string graph_suffix ) {
 
 	prefix1	:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir )
 	prefix2	:= replace_dir( rm_ext( fastq2, ["fastq","fq"] ), o_dir )
@@ -211,7 +212,7 @@ string[] trim_adapters_PE_old( string fastq1, string fastq2, string o_dir, strin
 
 	register_par( tid, cpus )
 
-	add_task_to_graph( in, out, group, "TRIMADAPTOR.PY", grp_color_trim_adapter )
+	add_task_to_graph( in, out, group, "TRIMADAPTOR.PY\\n$graph_suffix", grp_color_trim_adapter )
 
 	return out
 }
