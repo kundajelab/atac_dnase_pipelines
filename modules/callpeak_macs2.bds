@@ -57,7 +57,7 @@ string[] macs2_chipseq( string tag, string ctl_tag, string fraglen, bool make_si
 					"sval=$(echo \"${chipReads}\" | awk '{printf \"%f\",$1}')"
 
 	in 	:= (ctl_tag != "") ? [ tag, ctl_tag ] : [ tag ]
- 	out 	:= make_sig ? [ npeakfile, gpeakfile, fc_bigwig, pval_bigwig ] : [ npeakfile, gpeakfile ]
+ 	out 	:= make_sig ? [ npeakfile, gpeakfile, bpeakfile, fc_bigwig, pval_bigwig ] : [ npeakfile, gpeakfile, bpeakfile ]
 
  	taskName:= "macs2 " + group
 	mem := get_res_mem(mem_macs2,1);	timeout := get_res_wt(wt_macs2)
