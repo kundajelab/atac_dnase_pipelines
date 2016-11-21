@@ -1302,7 +1302,7 @@ string html_atac_tracks() {
 		if ( idr_pr.hasKey(rep) ) {	track_types += "hammock"; track_names += "$title peak idr (rep$rep-pr)"; track_files += peak_to_hammock( _get_idr_peak_trk( idr_pr{rep} ) ) }
 	}
 
-	html := html_epg_browser_viz( track_files, track_types, track_names, species )
+	html := html_epg_browser_viz( track_files, track_types, track_names, species_browser )
 
 	return html
 }

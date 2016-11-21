@@ -17,6 +17,7 @@ bwa_idx 	:= ""		help BWA index (full path prefix of *.bwt file) .
 bwt_idx		:= ""		help Bowtie index (full path prefix of *.1.ebwt file).
 bwt2_idx	:= ""		help Bowtie2 index (full path prefix of *.1.bt2 file).
 blacklist 	:= "" 		help Blacklist bed.
+species_browser := "" 		help Species name in WashU genome browser.
 
 // for ataqc
 tss_enrich 	:= "" 		help TSS enrichment bed for ataqc.
@@ -71,6 +72,8 @@ void read_species() { // check for species configruation files
 				bwt_idx 	= get_conf_val( bwt_idx, 	["bwt_idx"], _conf )
 				bwt2_idx 	= get_conf_val( bwt2_idx, 	["bwt2_idx"], _conf )
 				blacklist 	= get_conf_val( blacklist, 	["blacklist"], _conf )
+				species_browser = get_conf_val( species_browser,["species_browser"], _conf )
+				if ( species_browser == "" ) species_browser = species
 
 				// for ataqc
 				tss_enrich 	= get_conf_val( tss_enrich, 	["tss_enrich"], _conf )
@@ -93,6 +96,7 @@ void read_species() { // check for species configruation files
 	print( "Bowtie index\t\t\t: $bwt_idx\n" )
 	print( "Bowtie2 index\t\t\t: $bwt2_idx\n" )
 	print( "Black list bed\t\t\t: $blacklist\n" )
+	print( "Species name (WashU browser)\t: $species_browser\n" )
 	print( "-- Data for ATAQC --\n")
 	print( "TSS enrichment bed\t\t: $tss_enrich\n" )
 	print( "Ref. genome seq. fasta\t\t: $ref_fa\n" )

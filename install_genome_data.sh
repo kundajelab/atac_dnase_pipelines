@@ -101,11 +101,13 @@ elif [ $GENOME == "hg38_ENCODE" ]; then
 
   REF_FA="https://www.encodeproject.org/files/GRCh38_no_alt_analysis_set_GCA_000001405.15/@@download/GRCh38_no_alt_analysis_set_GCA_000001405.15.fasta.gz"
   BLACKLIST="http://mitra.stanford.edu/kundaje/genome_data/hg38/hg38.blacklist.bed.gz"
+  SPECIES_BROWSER="hg38" # species name in WashU browser track, if it's same as species name, skip it
 
 elif [ $GENOME == "mm10_ENCODE" ]; then
 
   REF_FA="https://www.encodeproject.org/files/mm10_no_alt_analysis_set_ENCODE/@@download/mm10_no_alt_analysis_set_ENCODE.fasta.gz"
   BLACKLIST="http://mitra.stanford.edu/kundaje/genome_data/mm10/mm10.blacklist.bed.gz"
+  SPECIES_BROWSER="mm10" # species name in WashU browser track, if it's same as species name, skip it
 
 elif [ $GENOME == "macam7" ]; then
 
@@ -223,6 +225,7 @@ if [[ $(grep "\[$GENOME\]" ${SPECIES_FILE} | wc -l) < 1 ]]; then
   fi
   echo -e "ref_fa\t= ${DATA_DIR}/$GENOME/${REF_FA_PREFIX}" >> ${SPECIES_FILE}
   if [[ ${BLACKLIST_PATH} != "" ]]; then echo -e "blacklist\t= ${BLACKLIST_PATH}" >> ${SPECIES_FILE}; fi
+  if [[ ${SPECIES_BROWSER} != "" ]]; then echo -e "species_browser\t= ${SPECIES_BROWSER}" >> ${SPECIES_FILE}; fi
 
   if [[ ${TSS_ENRICH_PATH} != "" ]]; then echo -e "# data for ATAQC" >> ${SPECIES_FILE}; fi
   if [[ ${TSS_ENRICH_PATH} != "" ]]; then echo -e "tss_enrich\t= ${TSS_ENRICH_PATH}" >> ${SPECIES_FILE}; fi
