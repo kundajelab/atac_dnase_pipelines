@@ -1,0 +1,145 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+// depends on external git repo: https://github.com/kundajelab/ataqc
+// needs to have $script_dir/ataqc/run_ataqc.py
+
+include "species.bds"
+
+
+help == ATAQC settings
+tss_enrich 	:= "" 		help TSS enrichment bed for ataqc.
+dnase 		:= ""		help DNase bed for ataqc.
+prom 		:= ""		help Promoter bed for ataqc.
+enh 		:= ""		help Enhancer bed for ataqc.
+reg2map 	:= ""		help Reg2map for ataqc.
+roadmap_meta 	:= ""		help Roadmap metadata for ataqc.
+
+mem_ataqc 	:= "15G"	help Max. memory for ATAQC (default: 15G).
+wt_ataqc	:= "23h"	help Walltime for ATAQC (default: 23h, 23:00:00).
+
+grp_color_ataqc := "pink"
+
+
+init_ataqc()
+
+void init_ataqc() {
+
+	tss_enrich 	= get_conf_val( tss_enrich,	["tss_enrich"] )
+	dnase 		= get_conf_val( dnase,		["dnase"] )
+	prom 		= get_conf_val( prom,		["prom"] )
+	enh 		= get_conf_val( enh,		["enh"] )
+	reg2map 	= get_conf_val( reg2map,	["reg2map"] )
+	roadmap_meta 	= get_conf_val( roadmap_meta,	["roadmap_meta"] )
+
+	mem_ataqc 	= get_conf_val( mem_ataqc,	["mem_ataqc"] )
+	wt_ataqc	= get_conf_val( wt_ataqc,	["wt_ataqc"] )
+
+	print("\n\n== ATAQC settings\n")
+	print( "TSS enrichment bed\t\t: $tss_enrich\n" )
+	print( "DNase bed for ataqc\t\t: $dnase\n" )
+	print( "Promoter bed for ataqc\t\t: $prom\n" )
+	print( "Enhancer bed for ataqc\t\t: $enh\n" )
+	print( "Reg2map bed for ataqc\t\t: $reg2map\n" )
+	print( "Roadmap metadata for ataqc\t: $roadmap_meta\n" )
+	print( "Max. memory for ATAQC\t\t\t: $mem_ataqc\n")
+	print( "Walltime for ATAQC\t\t\t: $wt_ataqc\n")
+}
+
+bool chk_ataqc() {
+
+	print("\nChecking parameters and data files for ATAQC. \n\n")
+	disable_ataqc := false
+
+	if ( species == "" ) 	{ print("Warning: Genome name is missing ( '-species [GENOME_NAME; hg19, mm9, ...]' )!\n" ); disable_ataqc  = true }
+	if ( ref_fa == "" ) 	{ print("Warning: Specify your reference genome .fa ('-ref_fa [FA]')!\n"); disable_ataqc  = true }
+	if ( tss_enrich == "" ) { print("Warning: TSS enrichment bed is missing ( '-tss_enrich' )!\n"); disable_ataqc  = true }
+	if ( dnase == "" ) 	{ print("Warning: DNase bed is missing ( '-dnase' )!\n"); disable_ataqc  = true }
+	if ( blacklist == "" ) 	{ print("Warning: Blacklist bed is missing ( '-blacklist' )!\n"); disable_ataqc  = true }
+	if ( prom == "" ) 	{ print("Warning: Promoter bed is missing ( '-prom' )!\n"); disable_ataqc  = true }
+	if ( enh == "" ) 	{ print("Warning: Enhancer bed is missing ( '-enh' )!\n"); disable_ataqc  = true }
+	if ( reg2map == "" ) 	{ print("Warning: reg2map is missing ( '-reg2map' )!\n"); disable_ataqc  = true }
+	if ( roadmap_meta == "" ) { print("Warning: Roadmap metadata are missing ( '-roadmap_meta' )!\n"); disable_ataqc  = true }
+
+	if ( disable_ataqc ) {
+		print("\nDisabling ATAQC...\n")
+		return false
+	}
+	return true
+}
+
+string[] ataqc( string fastq1, string fastq2, string bam, string align_log, string pbc_log, \
+		 string dup_log, string filt_bam, string bed, string bigwig, string peak, \
+		 string peak_naive_overlap, string idr_peak, string o_dir, string group ) {
+
+	prefix 		:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir ) + ( (fastq2!="") ? ".PE2SE" : "" )
+
+	html 		:= "$prefix"+"_qc.html"
+	txt 		:= "$prefix"+"_qc.txt"
+	prefix_basename := get_basename( prefix )
+
+	param_fastq 	:= (fastq2!="") ? "--fastq1 $fastq1 --fastq2 $fastq2" : "--fastq1 $fastq1"
+	param_overlap 	:= (peak_naive_overlap!="") ? "--naive_overlap_peaks $peak_naive_overlap" : ""
+	param_idr 	:= (idr_peak!="") ? "--idr_peaks $idr_peak" : ""
+	param_use_sambamba	:=	(use_sambamba_markdup) ? "--use_sambamba_markdup" : ""
+
+	in  	:= (fastq2!="") ? [ fastq1, fastq2, bam, align_log, pbc_log, dup_log, filt_bam, bed, bigwig, peak ] \
+				: [ fastq1, bam, align_log, pbc_log, dup_log, filt_bam, bed, bigwig, peak ]
+	out 	:= [ html, txt ] //, gc_plot, hist_graph, lg_vplot, vplot, signal ]
+
+	taskName:= "ataqc "+group
+	mem := get_res_mem(mem_ataqc,1)
+	max_java_heap 	:= binary_prefix( (mem==-1) ? parse_mem( mem_ataqc ) : (mem*3)/4 )
+	timeout := get_res_wt(wt_ataqc)
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		// To prevent java heap space error (Exception in thread "main" java.lang.OutOfMemoryError: Java heap space)
+		sys export _JAVA_OPTIONS="-Xms256M -Xmx$max_java_heap -XX:ParallelGCThreads=1"
+
+		sys cd $o_dir
+
+		// # if PICARDROOT is not defined, then look into ../shared/picard* (default picard dir. in bioconda)
+		sys if [ -f "$(which picard)" ]; then export PICARDROOT="$(dirname $(which picard))/../share/picard"*; fi
+
+		sys $script_dir/ataqc/run_ataqc.py \
+		    --workdir $o_dir \
+		    --outdir $o_dir \
+		    --outprefix $prefix_basename \
+		    --genome $species \
+		    --ref $ref_fa \
+		    --tss $tss_enrich \
+		    --dnase $dnase \
+		    --blacklist $blacklist \
+		    --prom $prom \
+		    --enh $enh \
+		    --reg2map $reg2map \
+		    --meta $roadmap_meta \
+		    --pbc $pbc_log\
+		    $param_fastq \
+		    --alignedbam $bam \
+		    --alignmentlog $align_log \
+		    --coordsortbam $bam \
+		    --duplog $dup_log \
+		    --finalbam $filt_bam \
+		    --finalbed $bed \
+		    --bigwig $bigwig \
+		    --peaks $peak \
+		    $param_overlap \
+		    $param_idr \
+		    $param_use_sambamba
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group, "ATAQC", grp_color_ataqc )
+
+	return out
+}
+

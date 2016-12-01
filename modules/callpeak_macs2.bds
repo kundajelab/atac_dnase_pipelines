@@ -6,9 +6,9 @@ include "module_template.bds"
 
 
 help == callpeak macs2 settings (requirements: -chrsz -gensz)
-
-wt_macs2		:= "23h"	help Walltime for MACS2 (default: 23h, 23:00:00).
-mem_macs2		:= "15G" 	help Max. memory for MACS2 (default: 15G).
+gensz 		:= ""		help Genome size; hs for human, mm for mouse.
+wt_macs2	:= "23h"	help Walltime for MACS2 (default: 23h, 23:00:00).
+mem_macs2	:= "15G" 	help Max. memory for MACS2 (default: 15G).
 
 
 grp_color_macs2	:= "lightgreen"
@@ -19,10 +19,12 @@ init_callpeak_macs2()
 
 void init_callpeak_macs2() {
 
-	wt_macs2 		= get_conf_val( wt_macs2, 		["wt_macs2"] )
-	mem_macs2 		= get_conf_val( mem_macs2, 		["mem_macs2"] )
+	gensz		= get_conf_val( gensz, 		["gensz"])
+	wt_macs2 	= get_conf_val( wt_macs2, 	["wt_macs2"] )
+	mem_macs2	= get_conf_val( mem_macs2, 	["mem_macs2"] )
 
 	print("\n\n== callpeak macs2 settings\n")
+	print( "Genome size (hs,mm)\t\t: $gensz\n" )
 	print( "Walltime (macs2)\t\t: $wt_macs2\n")
 	print( "Max. memory (macs2)\t\t: $mem_macs2\n")
 }

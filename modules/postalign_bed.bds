@@ -383,7 +383,7 @@ string pool_tag( string tag1, string tag2, string o_dir, string group ) {
 	// LINUX has limit on filename length (255), make it as shorter as possible
 	string tag_pooled
 	if ( get_basename(tag1).length() < 50 && get_basename(tag2).length() < 50 ) {
-		prefix 	:= "$o_dir/" + concat_basename_wo_ext( tag1, tag2, ["tagAlign","tag","bed"] )	
+		prefix 	:= "$o_dir/" + merge_basename_wo_ext( tag1, tag2, ["tagAlign","tag","bed"] )	
 		tag_pooled = "$prefix.tagAlign.gz"
 	}
 	else {
@@ -417,7 +417,7 @@ string pool_tag( string[] tags, string o_dir, string group ) {
 	// LINUX has limit on filename length (255), make it as short as possible
 	string tag_pooled
 	if ( tags.size() <= 2 && get_basename(tags[0]).length() < 50 && get_basename(tags[1]).length() < 50 ) {
-		prefix 	:= "$o_dir/" + concat_basename_wo_ext( tags[0], tags[1], ["tagAlign","tag","bed"] )	
+		prefix 	:= "$o_dir/" + merge_basename_wo_ext( tags[0], tags[1], ["tagAlign","tag","bed"] )	
 		tag_pooled = "$prefix.tagAlign.gz"
 	}
 	else {

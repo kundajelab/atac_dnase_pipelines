@@ -4,10 +4,11 @@
 include "species.bds"
 include "module_template.bds"
 
-
-help == signal track generation settings (requirements: -umap -chrsz -seq)
-param_bam_cvrg 	:= "--normalizeTo1x 2451960000 --centerReads -bs 10"	help Parameters for deepTools bigwig generation from filt_bam (default: "--normalizeTo1x 2451960000 --missingDataAsZero no --centerReads -f 150 -bs 10").
 // removed --missingDataAsZero false -f 150
+help == signal track generation settings (requirements: -umap -chrsz -seq)
+seq 		:= ""		help Reference genome sequence directory path (where chr*.fa exist).
+umap 		:= "" 		help Unique mappability tracks directory path (https://sites.google.com/site/anshulkundaje/projects/mappability).
+param_bam_cvrg 	:= "--normalizeTo1x 2451960000 --centerReads -bs 10"	help Parameters for deepTools bigwig generation from filt_bam (default: "--normalizeTo1x 2451960000 --missingDataAsZero no --centerReads -f 150 -bs 10").
 wt_bam_cvrg	:= "23h"	help Walltime for bamCoverage (deepTools) (default: 23h, 23:00:00).
 mem_bam_cvrg	:= "16G" 	help Max. memory for bamCoverage (deepTools) (default: 16G).
 
@@ -20,11 +21,15 @@ init_signal()
 
 void init_signal() {
 
-	param_bam_cvrg	= get_conf_val( param_bam_cvrg, 	["param_bam_cvrg"] )
-	wt_bam_cvrg 	= get_conf_val( wt_bam_cvrg, 		["wt_bam_cvrg"] )
-	mem_bam_cvrg 	= get_conf_val( mem_bam_cvrg, 		["mem_bam_cvrg"] )
+	seq 		= get_conf_val( seq, 		["seq"])
+	umap		= get_conf_val( umap, 		["umap"] )
+	param_bam_cvrg	= get_conf_val( param_bam_cvrg, ["param_bam_cvrg"] )
+	wt_bam_cvrg 	= get_conf_val( wt_bam_cvrg, 	["wt_bam_cvrg"] )
+	mem_bam_cvrg 	= get_conf_val( mem_bam_cvrg, 	["mem_bam_cvrg"] )
 
 	print("\n\n== signal track generation settings\n")
+	print( "Ref. genome seq. dir.\t\t: $seq\n" )
+	print( "Umap dir.\t\t\t: $umap\n" )
 	print( "Param. for bamCoverage (deeptools)\t: $param_bam_cvrg\n")
 	print( "Walltime (bam_cvrg)\t\t\t: $wt_bam_cvrg\n")
 	print( "Max. memory (bam_cvrg)\t\t\t: $mem_bam_cvrg\n")

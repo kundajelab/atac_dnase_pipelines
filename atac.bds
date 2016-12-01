@@ -14,15 +14,11 @@ true_rep 	:= false 	help No pseudo-replicates.
 no_idr 		:= false 	help No IDR analysis on called peaks. This will change p-value threshold (0.1->0.01) in MACS2 peak calling.
 no_ataqc 	:= false 	help No ATAQC
 csem	 	:= false	help Use CSEM for alignment.
-mem_ataqc 	:= "15G"	help Max. memory for ATAQC (default: 15G).
-wt_ataqc	:= "23h"	help Walltime for ATAQC (default: 23h, 23:00:00).
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
 idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
 old_trimmer 	:= false 	help Use legacy trim adapters (trim_galore and trimAdapter.py).
 ENCODE3		:= false	help Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE3.
 
-
-grp_color_ataqc := "pink"
 
 
 help() // show help contexts
@@ -42,6 +38,7 @@ include "modules/callpeak_naive_overlap.bds"
 include "modules/callpeak_filter.bds"
 include "modules/callpeak_idr.bds"
 
+include "modules/ataqc.bds"
 
 // Important output file names are stored in global variables (usually a string map string{} with a key with replicate id, pair id)
 // e.g. filt_bam{"1"} = filtered bam for replicate 1, peak_pr1{"2"} = peak file for pseudo replicate 1 of replicate 2
@@ -109,8 +106,6 @@ void read_conf_atac() {
 	no_idr 		= get_conf_val_bool( no_idr, 		["no_idr"] )
 	no_ataqc 	= get_conf_val_bool( no_ataqc, 		["no_ataqc"] )
 	csem 		= get_conf_val_bool( csem, 		["csem"] )
-	mem_ataqc	= get_conf_val( mem_ataqc,		["mem_ataqc"] )
-	wt_ataqc	= get_conf_val( wt_ataqc,		["wt_ataqc"] )
 	smooth_win	= get_conf_val( smooth_win,		["smooth_win"] )
 	dnase_seq 	= get_conf_val_bool( dnase_seq, 	["dnase_seq"] )
 	idr_thresh 	= get_conf_val( idr_thresh, 		["idr_thresh"] )
@@ -139,8 +134,6 @@ void print_atac() {
 	print( "No IDR analysis on peaks\t\t: $no_idr\n")
 	print( "No ATAQC (advanced QC report)\t\t: $no_ataqc\n")
 	print( "Use CSEM for alignment\t\t\t: $csem\n")
-	print( "Max. memory for ATAQC\t\t\t: $mem_ataqc\n")
-	print( "Walltime for ATAQC\t\t\t: $wt_ataqc\n")
 	print( "Smoothing window for MACS2\t\t: $smooth_win\n")
 	print( "DNase Seq\t\t\t\t: $dnase_seq\n")
 	print( "IDR threshold\t\t\t\t: $idr_thresh\n" )
@@ -246,7 +239,9 @@ void chk_param() {
 	if ( has_input_fastq() ) chk_align_bwt2()
 	if ( !align ) 		chk_callpeak_macs2()
 	if ( !no_idr ) 		chk_idr()
-	if ( !no_ataqc ) 	chk_ataqc()
+	if ( !no_ataqc ) {
+		no_ataqc = !chk_ataqc()
+	}
 
 	if ( has_pe_input_tag() && subsample > 0 ) {
 		print("Warning: Cannot subsample paired end tagaligns. Disabling subsampling...\n")
@@ -310,28 +305,6 @@ void chk_adapters() {
 			//	error("A pair of fastqs are needed for replicate $rep (if it's single-ended add '-se')\n")
 		}
 		print("$prefix\n")
-	}
-}
-
-void chk_ataqc() {
-
-	print("\nChecking parameters and data files for ATAQC. \n\n")
-
-	disable_ataqc := false
-
-	if ( species == "" ) 	{ print("Warning: Genome name is missing ( '-species [GENOME_NAME; hg19, mm9, ...]' )!\n" ); disable_ataqc  = true }
-	if ( ref_fa == "" ) 	{ print("Warning: Specify your reference genome .fa ('-ref_fa [FA]')!\n"); disable_ataqc  = true }
-	if ( tss_enrich == "" ) { print("Warning: TSS enrichment bed is missing ( '-tss_enrich' )!\n"); disable_ataqc  = true }
-	if ( dnase == "" ) 	{ print("Warning: DNase bed is missing ( '-dnase' )!\n"); disable_ataqc  = true }
-	if ( blacklist == "" ) 	{ print("Warning: Blacklist bed is missing ( '-blacklist' )!\n"); disable_ataqc  = true }
-	if ( prom == "" ) 	{ print("Warning: Promoter bed is missing ( '-prom' )!\n"); disable_ataqc  = true }
-	if ( enh == "" ) 	{ print("Warning: Enhancer bed is missing ( '-enh' )!\n"); disable_ataqc  = true }
-	if ( reg2map == "" ) 	{ print("Warning: reg2map is missing ( '-reg2map' )!\n"); disable_ataqc  = true }
-	if ( roadmap_meta == "" ) { print("Warning: Roadmap metadata are missing ( '-roadmap_meta' )!\n"); disable_ataqc  = true }
-
-	if ( disable_ataqc ) {
-		print("\nDisabling ATAQC...\n")
-		no_ataqc = true
 	}
 }
 
@@ -1134,81 +1107,6 @@ void ataqc( int rep ) {
 
 		add_file_to_report( ataqc_html, "ATAQC\\nreport", group, "QC and logs/ATAQC/$long/ATAQC HTML report" )
 	}
-}
-
-string[] ataqc( string fastq1, string fastq2, string bam, string align_log, string pbc_log, \
-		 string dup_log, string filt_bam, string bed, string bigwig, string peak, \
-		 string peak_naive_overlap, string idr_peak, string o_dir, string group ) {
-
-	prefix 		:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir ) + ( (fastq2!="") ? ".PE2SE" : "" )
-
-	html 		:= "$prefix"+"_qc.html"
-	txt 		:= "$prefix"+"_qc.txt"
-	prefix_basename := get_basename( prefix )
-
-	param_fastq 	:= (fastq2!="") ? "--fastq1 $fastq1 --fastq2 $fastq2" : "--fastq1 $fastq1"
-	param_overlap 	:= (peak_naive_overlap!="") ? "--naive_overlap_peaks $peak_naive_overlap" : ""
-	param_idr 	:= (idr_peak!="") ? "--idr_peaks $idr_peak" : ""
-	param_use_sambamba	:=	(use_sambamba_markdup) ? "--use_sambamba_markdup" : ""
-
-	in  	:= (fastq2!="") ? [ fastq1, fastq2, bam, align_log, pbc_log, dup_log, filt_bam, bed, bigwig, peak ] \
-				: [ fastq1, bam, align_log, pbc_log, dup_log, filt_bam, bed, bigwig, peak ]
-	out 	:= [ html, txt ] //, gc_plot, hist_graph, lg_vplot, vplot, signal ]
-
-	taskName:= "ataqc "+group
-	mem := get_res_mem(mem_ataqc,1)
-	max_java_heap 	:= binary_prefix( (mem==-1) ? parse_mem( mem_ataqc ) : (mem*3)/4 )
-	timeout := get_res_wt(wt_ataqc)
-
-	wait_par( cpus )
-
-	tid := task( out<-in ) {
-
-		sys $shcmd_init
-
-		// To prevent java heap space error (Exception in thread "main" java.lang.OutOfMemoryError: Java heap space)
-		sys export _JAVA_OPTIONS="-Xms256M -Xmx$max_java_heap -XX:ParallelGCThreads=1"
-
-		sys cd $o_dir
-
-		// # if PICARDROOT is not defined, then look into ../shared/picard* (default picard dir. in bioconda)
-		sys if [ -f "$(which picard)" ]; then export PICARDROOT="$(dirname $(which picard))/../share/picard"*; fi
-
-		sys $script_dir/ataqc/run_ataqc.py \
-		    --workdir $o_dir \
-		    --outdir $o_dir \
-		    --outprefix $prefix_basename \
-		    --genome $species \
-		    --ref $ref_fa \
-		    --tss $tss_enrich \
-		    --dnase $dnase \
-		    --blacklist $blacklist \
-		    --prom $prom \
-		    --enh $enh \
-		    --reg2map $reg2map \
-		    --meta $roadmap_meta \
-		    --pbc $pbc_log\
-		    $param_fastq \
-		    --alignedbam $bam \
-		    --alignmentlog $align_log \
-		    --coordsortbam $bam \
-		    --duplog $dup_log \
-		    --finalbam $filt_bam \
-		    --finalbed $bed \
-		    --bigwig $bigwig \
-		    --peaks $peak \
-		    $param_overlap \
-		    $param_idr \
-		    $param_use_sambamba
-
-		sys $shcmd_finalize
-	}
-
-	register_par( tid, cpus )
-
-	add_task_to_graph( in, out, group, "ATAQC", grp_color_ataqc )
-
-	return out
 }
 
 void report() {

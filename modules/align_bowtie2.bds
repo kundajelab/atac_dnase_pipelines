@@ -7,9 +7,9 @@ include "module_template.bds"
 
 
 help == align bowtie2 settings (requirements: -bwt2_idx)
-
-wt_bwt2		:= "23h"		help Walltime for bowtie2 (default: 23h, 23:00:00).
-mem_bwt2	:= "12G"	 	help Max. memory for bowtie2 (default: 12G).
+bwt2_idx	:= ""		help Bowtie2 index (full path prefix of *.1.bt2 file).
+wt_bwt2		:= "23h"	help Walltime for bowtie2 (default: 23h, 23:00:00).
+mem_bwt2	:= "12G"	help Max. memory for bowtie2 (default: 12G).
 
 
 grp_color_bwt2		:= "salmon"
@@ -20,10 +20,12 @@ init_align_bwt2()
 
 void init_align_bwt2() {
 
-	wt_bwt2 	= get_conf_val( wt_bwt2, 		["wt_bwt2"] )
-	mem_bwt2 	= get_conf_val( mem_bwt2, 		["mem_bwt2"] )
+	bwt2_idx 	= get_conf_val( bwt2_idx, 	["bwt2_idx"] )
+	wt_bwt2 	= get_conf_val( wt_bwt2, 	["wt_bwt2"] )
+	mem_bwt2 	= get_conf_val( mem_bwt2,	["mem_bwt2"] )
 
 	print("\n\n== align bowtie2 settings\n")
+	print( "Bowtie2 index\t\t\t: $bwt2_idx\n" )
 	print( "Walltime (bowtie2)\t\t: $wt_bwt2\n")
 	print( "Max. memory (bowtie2)\t\t: $mem_bwt2\n")
 }

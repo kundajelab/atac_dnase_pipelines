@@ -84,7 +84,7 @@ void chk_input( bool true_rep, bool no_pseudo_rep ) {
 				if ( is_in_array( get_basename( s ), get_basename( data_all ) ) ) \
 					error( "\t$prefix has duplicate filename!\n")
 			}
-			data_all = concat( data_all, data )
+			data_all = merge( data_all, data )
 		}
 	}
 }
