@@ -3,6 +3,7 @@
 
 include "graphviz.bds"
 include "filetable.bds"
+include "ENCODE_accession.bds"
 
 
 help == report settings
@@ -12,7 +13,7 @@ url_base 	:= "" 		help URL base for output directory.
 _padding_left	:= 20
 _report_file  	:= ""
 _report_header 	:= ""
-
+string[] _qc_summary
 
 
 init_report()
@@ -43,6 +44,27 @@ void report( string body ) { // HTML report
 	html += "<br></body></html>"
 
 	_report_file.write( html )
+}
+
+void write_qc_summary() {
+
+	ret := "{\n"
+	ret += "\t\"ENCODE_award_rfa\" : \"" + ENCODE_award_rfa + "\",\n"
+	ret += "\t\"ENCODE_assay_category\" : \"" + ENCODE_assay_category + "\",\n"
+	ret += "\t\"ENCODE_assay_title\" : \"" + ENCODE_assay_title + "\",\n"
+	ret += "\t\"species\" : \"" + species + "\",\n"
+	ret += "\t\"title\" : \"" + title + "\",\n"
+	ret += "\t\"qc_files\" : [\n"
+	for ( string json : _qc_summary ) {
+		for ( string val : json.split("\n") ) {
+			ret += ("\t\t"+val+"\n")
+		}
+	}
+	ret += "\t]\n"
+	ret += "}\n"
+	
+	qc_o_dir := mkdir( "$out_dir/qc" )
+	"$qc_o_dir/qc_summary.json".write( ret )
 }
 
 // filepath, node label, group, filetable hierachy
@@ -162,8 +184,9 @@ string parse_dup_to_html( string id, string[] names, string[] logs, string[] hea
 string parse_pbc_to_html( string id, string[] names, string[] logs, string[] header ) {
 	if ( logs.size() == 0 ) return ""
 
-	html := "<div id='pbc_$id'><b>PBC QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-	html += html_table_header( ["&nbsp","Total Read Pairs","Distinct Read Pairs","One Read Pair","Two Read Pairs","NRF = Distinct/Total","PBC1 = OnePair/Distinct","PBC2 = OnePair/TwoPair"] )
+	html := "<div id='pbc_$id'><b>PBC QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"	
+	table_header := ["Total Read Pairs","Distinct Read Pairs","One Read Pair","Two Read Pairs","NRF = Distinct/Total","PBC1 = OnePair/Distinct","PBC2 = OnePair/TwoPair"]
+	html += html_table_header( ["&nbsp"] + table_header  )
 
 	// parse pbc.qc
 	for ( int i=0; i<logs.size(); i++ ) {
@@ -171,6 +194,11 @@ string parse_pbc_to_html( string id, string[] names, string[] logs, string[] hea
 		name := names[i]
 		line := log.read()
 		html += "<tr><td>"+html_link( log, name )+"</td><td>" + line.replace("\t","</td><td>") + "</td></tr>"
+
+		// add to QC summary table
+		_qc_summary.add( map_to_json_str( { "info"=>name,"qc_type"=>"pbc_qc",\
+						"header"=>array_to_str(table_header,"\t"),\
+						"contents"=>line.trim() } ) )
 	}
 
 	html += "</table>"
@@ -226,7 +254,11 @@ string parse_xcor_to_html( string id, string[] names, string[] logs, string[] pd
 
 	return html
 }
+/*
+string parse_ataqc_txt( string ataqc_txt ) {
 
+}
+*/
 // IDR logs : 1 table
 string parse_idr_to_html( string id, string log ) {
 	if ( log == "" ) return ""

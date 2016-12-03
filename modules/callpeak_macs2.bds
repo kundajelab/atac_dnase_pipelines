@@ -46,6 +46,9 @@ string[] macs2_chipseq( string tag, string ctl_tag, string fraglen, bool make_si
 	npeakfile	:= "$prefix.narrowPeak.gz"
 	bpeakfile	:= "$prefix.broadPeak.gz"
 	gpeakfile	:= "$prefix.gappedPeak.gz"
+	filt_npeakfile	:= "$prefix.filt.narrowPeak.gz"
+	filt_bpeakfile	:= "$prefix.filt.broadPeak.gz"
+	filt_gpeakfile	:= "$prefix.filt.gappedPeak.gz"
 	fc_bedgraph 	:= "$prefix.fc.signal.bedgraph"
 	fc_bedgraph_srt	:= "$prefix.fc.signal.srt.bedgraph"
 	fc_bigwig 	:= "$prefix_sig.fc.signal.bw"
@@ -57,6 +60,8 @@ string[] macs2_chipseq( string tag, string ctl_tag, string fraglen, bool make_si
  	ctl 	:= (ctl_tag != "") ? "-c $ctl_tag" : ""
 	sval_line := (ctl_tag != "") ?	"controlReads=$(zcat $ctl_tag | wc -l | awk '{printf \"%f\", $1/1000000}'); sval=$(echo \"${chipReads} ${controlReads}\" | awk '$1>$2{printf \"%f\",$2} $1<=$2{printf \"%f\",$1}')" : \
 					"sval=$(echo \"${chipReads}\" | awk '{printf \"%f\",$1}')"
+
+	blacklist_exists := path_exists(blacklist)
 
 	in 	:= (ctl_tag != "") ? [ tag, ctl_tag ] : [ tag ]
  	out 	:= make_sig ? [ npeakfile, gpeakfile, bpeakfile, fc_bigwig, pval_bigwig ] : [ npeakfile, gpeakfile, bpeakfile ]
@@ -98,6 +103,12 @@ string[] macs2_chipseq( string tag, string ctl_tag, string fraglen, bool make_si
 		  "$prefix"_peaks.broadPeak \
 		  "$prefix"_peaks.gappedPeak \
 		  "$prefix"_summits.bed
+
+		sys if [[ $blacklist_exists == "true" ]]; then \
+			bedtools intersect -v -a $npeakfile -b $blacklist | gzip -nc > $filt_npeakfile; \
+			bedtools intersect -v -a $gpeakfile -b $blacklist | gzip -nc > $filt_gpeakfile; \
+			bedtools intersect -v -a $bpeakfile -b $blacklist | gzip -nc > $filt_bpeakfile; \
+		fi
 
 		sys if [[ $make_sig == "false" ]]; then \
 			rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg; \
@@ -165,6 +176,9 @@ string[] macs2_atac( string tag, string smooth_window, string pval_thresh, bool 
 	peakfile 	:= "$prefix.narrowPeak.gz"
 	bpeakfile	:= "$prefix.broadPeak.gz"
 	gpeakfile	:= "$prefix.gappedPeak.gz"
+	filt_peakfile	:= "$prefix.filt.narrowPeak.gz"
+	filt_bpeakfile	:= "$prefix.filt.broadPeak.gz"
+	filt_gpeakfile	:= "$prefix.filt.gappedPeak.gz"
 
 	fc_bedgraph 	:= "$prefix.fc.signal.bedgraph"
 	fc_bedgraph_srt	:= "$prefix.fc.signal.srt.bedgraph"	
@@ -175,6 +189,8 @@ string[] macs2_atac( string tag, string smooth_window, string pval_thresh, bool 
 	pval_bigwig 	:= "$prefix_sig.pval.signal.bigwig"
  
 	shiftsize := round( smooth_window.parseReal()/2.0 )
+
+	blacklist_exists := path_exists(blacklist)
 
 	in 	:= [ tag ]
 	out 	:= make_sig ? [ peakfile, gpeakfile, fc_bigwig, pval_bigwig ] : [ peakfile, gpeakfile ]
@@ -208,6 +224,12 @@ string[] macs2_atac( string tag, string smooth_window, string pval_thresh, bool 
 		sys rm -f "$prefix"_peaks.narrowPeak
 		sys rm -f "$prefix"_peaks.xls
 		sys rm -f "$prefix"_summits.bed
+
+		sys if [[ $blacklist_exists == "true" ]]; then \
+			bedtools intersect -v -a $peakfile -b $blacklist | gzip -nc > $filt_peakfile; \
+			bedtools intersect -v -a $gpeakfile -b $blacklist | gzip -nc > $filt_gpeakfile; \
+			bedtools intersect -v -a $bpeakfile -b $blacklist | gzip -nc > $filt_bpeakfile; \
+		fi
 
 		sys if [[ $make_sig == "false" ]]; then \
 			rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg; \

@@ -152,8 +152,10 @@ string make_x_basename_wo_gz( string file1, string file2, string suffix ) {
 
 string array_to_str( string[] arr, string delim ) {
 	string ret
+	cnt := 0
 	for ( string str : arr ) {
-		ret += (str + delim)
+		cnt += 1
+		ret += (str + (cnt == arr.size() ? "" : delim))
 	}
 	return ret
 }
@@ -162,17 +164,17 @@ string array_to_str( string[] arr ) {
 	return array_to_str( arr, "\n" )
 }
 
-string map_to_json_str( string{} map, string delim ) { // like JSON
-	string ret
-	for ( string key : map ) {
+string map_to_json_str( string{} map ) { // like JSON
+	ret := "{\n"
+	cnt := 0
+	for ( string key : map.keys() ) {
+		cnt += 1
 		val := map{key}
-		ret += (key + " : " + val + delim)
+		comma :=  cnt == map.size() ? "" : ","
+		ret += ("\t\"" + key + '" : "' + val + "\""+comma+"\n")
 	}
-	return ret	
-}
-
-string map_to_json_str( string{} map ) { // pretty json
-	return map_to_json_str( map, ",\n" )
+	ret += "}\n"
+	return ret
 }
 
 bool is_in_array( string str, string[] arr ) { // case-insensitive

@@ -9,17 +9,17 @@ include "species.bds"
 
 help == ATAQC settings
 tss_enrich 	:= "" 		help TSS enrichment bed for ataqc.
-dnase 		:= ""		help DNase bed for ataqc.
-prom 		:= ""		help Promoter bed for ataqc.
-enh 		:= ""		help Enhancer bed for ataqc.
-reg2map 	:= ""		help Reg2map for ataqc.
+dnase 		:= ""		help DNase bed (open chromatin region file) for ataqc.
+prom 		:= ""		help Promoter bed (promoter region file) for ataqc.
+enh 		:= ""		help Enhancer bed (enhancer region file) for ataqc.
+reg2map 	:= ""		help Reg2map (file with cell type signals) for ataqc.
+reg2map_bed 	:= ""		help Reg2map_bed (file of regions used to generate reg2map signals) for ataqc.
 roadmap_meta 	:= ""		help Roadmap metadata for ataqc.
 
 mem_ataqc 	:= "15G"	help Max. memory for ATAQC (default: 15G).
 wt_ataqc	:= "23h"	help Walltime for ATAQC (default: 23h, 23:00:00).
 
 grp_color_ataqc := "pink"
-
 
 init_ataqc()
 
@@ -30,17 +30,21 @@ void init_ataqc() {
 	prom 		= get_conf_val( prom,		["prom"] )
 	enh 		= get_conf_val( enh,		["enh"] )
 	reg2map 	= get_conf_val( reg2map,	["reg2map"] )
+	reg2map_bed 	= get_conf_val( reg2map_bed,	["reg2map_bed"] )
 	roadmap_meta 	= get_conf_val( roadmap_meta,	["roadmap_meta"] )
 
 	mem_ataqc 	= get_conf_val( mem_ataqc,	["mem_ataqc"] )
 	wt_ataqc	= get_conf_val( wt_ataqc,	["wt_ataqc"] )
+
+	if ( reg2map_bed == "" ) reg2map_bed = dnase
 
 	print("\n\n== ATAQC settings\n")
 	print( "TSS enrichment bed\t\t: $tss_enrich\n" )
 	print( "DNase bed for ataqc\t\t: $dnase\n" )
 	print( "Promoter bed for ataqc\t\t: $prom\n" )
 	print( "Enhancer bed for ataqc\t\t: $enh\n" )
-	print( "Reg2map bed for ataqc\t\t: $reg2map\n" )
+	print( "Reg2map for ataqc\t\t\t: $reg2map\n" )
+	print( "Reg2map_bed for ataqc\t\t: $reg2map\n" )
 	print( "Roadmap metadata for ataqc\t: $roadmap_meta\n" )
 	print( "Max. memory for ATAQC\t\t\t: $mem_ataqc\n")
 	print( "Walltime for ATAQC\t\t\t: $wt_ataqc\n")
@@ -59,6 +63,7 @@ bool chk_ataqc() {
 	if ( prom == "" ) 	{ print("Warning: Promoter bed is missing ( '-prom' )!\n"); disable_ataqc  = true }
 	if ( enh == "" ) 	{ print("Warning: Enhancer bed is missing ( '-enh' )!\n"); disable_ataqc  = true }
 	if ( reg2map == "" ) 	{ print("Warning: reg2map is missing ( '-reg2map' )!\n"); disable_ataqc  = true }
+	if ( reg2map_bed == "" ){ print("Warning: reg2map_bed is missing ( '-reg2map_bed' )!\n"); disable_ataqc  = true }
 	if ( roadmap_meta == "" ) { print("Warning: Roadmap metadata are missing ( '-roadmap_meta' )!\n"); disable_ataqc  = true }
 
 	if ( disable_ataqc ) {
@@ -82,6 +87,9 @@ string[] ataqc( string fastq1, string fastq2, string bam, string align_log, stri
 	param_overlap 	:= (peak_naive_overlap!="") ? "--naive_overlap_peaks $peak_naive_overlap" : ""
 	param_idr 	:= (idr_peak!="") ? "--idr_peaks $idr_peak" : ""
 	param_use_sambamba	:=	(use_sambamba_markdup) ? "--use_sambamba_markdup" : ""
+
+	species_ataqc 	:= species.indexOf("_")>=0 ? (species.split("_"))[0] : species
+	print("species_ataqc: $species_ataqc\n")
 
 	in  	:= (fastq2!="") ? [ fastq1, fastq2, bam, align_log, pbc_log, dup_log, filt_bam, bed, bigwig, peak ] \
 				: [ fastq1, bam, align_log, pbc_log, dup_log, filt_bam, bed, bigwig, peak ]
@@ -110,7 +118,7 @@ string[] ataqc( string fastq1, string fastq2, string bam, string align_log, stri
 		    --workdir $o_dir \
 		    --outdir $o_dir \
 		    --outprefix $prefix_basename \
-		    --genome $species \
+		    --genome $species_ataqc \
 		    --ref $ref_fa \
 		    --tss $tss_enrich \
 		    --dnase $dnase \
@@ -118,6 +126,7 @@ string[] ataqc( string fastq1, string fastq2, string bam, string align_log, stri
 		    --prom $prom \
 		    --enh $enh \
 		    --reg2map $reg2map \
+		    --reg2map_bed $reg2map_bed \
 		    --meta $roadmap_meta \
 		    --pbc $pbc_log\
 		    $param_fastq \

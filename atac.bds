@@ -39,6 +39,7 @@ include "modules/callpeak_filter.bds"
 include "modules/callpeak_idr.bds"
 
 include "modules/ataqc.bds"
+include "modules/ENCODE_accession.bds"
 
 // Important output file names are stored in global variables (usually a string map string{} with a key with replicate id, pair id)
 // e.g. filt_bam{"1"} = filtered bam for replicate 1, peak_pr1{"2"} = peak file for pseudo replicate 1 of replicate 2
@@ -267,6 +268,15 @@ void chk_param() {
 		smooth_win = 73
 		idr_thresh = 0.05
 		multimapping = 4
+		ENCODE_award_rfa = "ENCODE3"
+	}
+
+	//ENCODE_assay_category = "DNA accessibility"
+	if ( dnase_seq ) {
+		ENCODE_assay_title = "DNase-seq"
+	}
+	else {
+		ENCODE_assay_title = "ATAC-seq"
 	}
 }
 
@@ -1120,6 +1130,7 @@ void report() {
 	html += html_atac_QC()	// show QC tables and images
 
 	report( html )
+	write_qc_summary()
 
 	print( "\n== Done report()\n" )
 }
