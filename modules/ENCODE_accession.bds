@@ -1,0 +1,143 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+// supported file_format : [fastq,bam,tagAlign,bigWig,bedpe]
+
+include "species.bds"
+
+help == ENCODE accession settings
+string ENCODE_accession = "" 		help ENCODE experiment accession ID (dataset in dpdx).
+string ENCODE_assay_category = "" 	help ENCODE assay category.
+string ENCODE_assay_title = "" 		help ENCODE assay title.
+string ENCODE_award_rfa = "" 		help ENCODE award RFA (award in dpdx).
+string ENCODE_lab = "" 			help Lab
+string ENCODE_genome = "" 		help hg19, GRCh38, mm9, mm10 (assembly in dpdx).
+
+
+string{} ENCODE_jsons // key: output filename, val: corresponding json filename
+
+
+init_ENCODE_accession()
+
+
+void init_ENCODE_accession() { 
+	ENCODE_accession 	= get_conf_val( ENCODE_accession, 	["ENCODE_accession"] )
+	ENCODE_assay_category	= get_conf_val( ENCODE_assay_category, 	["ENCODE_assay_category"] )
+	ENCODE_assay_title	= get_conf_val( ENCODE_assay_title, 	["ENCODE_assay_title"] )
+	ENCODE_award_rfa 	= get_conf_val( ENCODE_award_rfa, 	["ENCODE_award_rfa"] )
+	ENCODE_lab 		= get_conf_val( ENCODE_lab, 		["ENCODE_lab"] )
+	ENCODE_genome		= get_conf_val( ENCODE_genome, 		["ENCODE_genome"] )
+
+	print("\n\n== ENCODE accession settings\n")
+	print( "ENCODE experiment accession\t: $ENCODE_accession\n" )
+	print( "ENCODE assay category\t\t: $ENCODE_assay_category\n" )
+	print( "ENCODE assay title\t\t: $ENCODE_assay_title\n" )
+	print( "ENCODE award RFA\t\t: $ENCODE_award_rfa\n" )
+	print( "ENCODE lab\t\t\t: $ENCODE_lab\n" )
+	print( "ENCODE Genome name\t\t: $ENCODE_genome\n" )
+}
+
+/*
+string{} _get_ENCODE_accession_template( string file, string derived_from ) {
+	string{} json
+	// ENCODE standard
+	json{"md5sum"} = get_md5sum( file )
+	json{"submitted_file_name"} = get_basename( file )
+	json{"dataset"} = ENCODE_dataset // ENCODE experiment accession ID
+	json{"award"} = ENCODE_award // ENCODE rfa
+	json{"lab"} = ENCODE_lab // lab
+	if ( derived_from != "" ) \
+		json{"derived_from"} = get_md5sum( derived_from )
+	//json{"controlled_by"} = // md5sum
+	// custom info for BDS pipeline
+	json{"rel_path"} = get_rel_path( file )
+
+	ENCODE_jsons{file} = json
+	return ENCODE_accession
+}
+
+// ENCODE file_format: https://www.encodeproject.org/profiles/file.json
+
+
+void write_ENCODE_accession_fastq_SE( string file ) {
+	json := _get_ENCODE_accession_template( file, "" )
+	json{"file_format"} = "fastq"
+	ENCODE_jsons{file} = json
+}
+
+void write_ENCODE_accession_fastq_PE( string file, string derived_from, int pair_id, string paired_with ) {
+	json := _get_ENCODE_accession_template( file, "" )
+	json{"file_format"} = "fastq"
+	json{"paired_end"} = pair_id
+	json{"paired_with"} = get_md5sum( paired_with )
+	ENCODE_jsons{file} = json
+}
+
+void write_ENCODE_accession_raw_bam( string file, string derived_from ) {
+	json := _get_ENCODE_accession_template( file, derived_from )
+	json{"file_format"} = "bam"
+	json{"output_type"} = "unfiltered alignments"
+	ENCODE_jsons{file} = json
+}
+
+void write_ENCODE_accession_final_bam( string file, string derived_from ) {
+	json := _get_ENCODE_accession_template( file, derived_from )
+	json{"file_format"} = "bam"
+	json{"output_type"} = "alignments"
+	ENCODE_jsons{file} = json
+
+}
+
+void write_ENCODE_accession_tagAlign( string file, string derived_from ) {
+	json := _get_ENCODE_accession_template( file, derived_from )
+	json{"file_format"} = "tagAlign"
+	ENCODE_jsons{file} = json
+}
+
+void write_ENCODE_accession_pval_bigwig( string file, string derived_from ) {
+	json := _get_ENCODE_accession_template( file, derived_from )
+	json{"file_format"} = "bigWig"
+        json{"output_type"} = "signal p-value"
+	ENCODE_jsons{file} = json
+}
+
+void write_ENCODE_accession_fc_bigwig( string file, string derived_from ) {
+	json := _get_ENCODE_accession_template( file, derived_from )
+	json{"file_format"} = "bigWig"
+        json{"output_type"} = "fold change over control"
+	ENCODE_jsons{file} = json
+}
+
+// peak_type: narrowPeak, broadPeak, gappedPeak, idr_peak
+void write_ENCODE_accession_peak( string file_format, string peak_type, string file, string derived_from ) {
+	json := _get_ENCODE_accession_template( file, derived_from )
+	json{"file_format"} = file_format // bed, bigBed
+        json{"file_format_type"} = peak_type // e.g. narrowPeak
+        json{"output_type"} = 'peaks'
+	ENCODE_jsons{file} = json
+}
+
+// qc type: flagstat_qc, dup_qc, pbc_qc, final_idr_qc, 
+void write_ENCODE_accession_qc( string qc_type, string file, string derived_from ) {
+	json := _get_ENCODE_accession_template( file, derived_from )
+	json{"file_format"} = 
+        json{"file_format_type"} = peak_type // e.g. narrowPeak
+        json{"output_type"} = 'peaks'
+	ENCODE_jsons{file} = json
+}
+
+void write_ENCODE_accession_summary( string summary_file ) {
+	summary := "{\n"
+	int indent_lvl 
+	for ( string output_file : ENCODE_jsons ) {
+		indent := ("\t"*indent_lvl)
+		json_str := ENCODE_jsons{output_file}
+		lines := json_str.split("\n")
+		for ( string line : lines ) {
+			summary += ("\t" + line + "\n")
+		}
+	}
+	summary += "}\n"
+	summary_file.write("summary.json")
+}
+*/
