@@ -60,6 +60,7 @@ string idr_ppr, idr_opt, idr_consv, idr_ppr_png
 
 string idr_qc
 
+string{} ataqc_qc
 
 main()
 
@@ -1101,16 +1102,16 @@ void ataqc( int rep ) {
 		else if ( get_num_rep() == 1 ) 	idr_ataqc = idr_pr{1}
 		else 				idr_ataqc = idr_opt
 
-		string ataqc_html, tmp
+		string ataqc_html
 
 		if ( is_se( rep ) ) {
 
-			( ataqc_html, tmp ) = ataqc( fastq{rep}, "", bam{rep}, align_log{rep}, pbc_qc{rep}, \
+			( ataqc_html, ataqc_qc{rep} ) = ataqc( fastq{rep}, "", bam{rep}, align_log{rep}, pbc_qc{rep}, \
 				dup_qc{rep}, filt_bam{rep}, final_tag{rep}, pval_bigwig_001{rep}, peak_001{rep}, \
 				peak_overlap, idr_ataqc, qc_o_dir, group )
 		}
 		else {
-			( ataqc_html, tmp ) = ataqc( fastq{rep+",1"}, fastq{rep+",2"}, bam{rep}, align_log{rep}, pbc_qc{rep}, \
+			( ataqc_html, ataqc_qc{rep} ) = ataqc( fastq{rep+",1"}, fastq{rep+",2"}, bam{rep}, align_log{rep}, pbc_qc{rep}, \
 				dup_qc{rep}, filt_bam{rep}, final_tag{rep}, pval_bigwig_001{rep}, peak_001{rep}, \
 				peak_overlap, idr_ataqc, qc_o_dir, group )
 		}
@@ -1137,8 +1138,8 @@ void report() {
 
 string html_atac_QC() {
 
-	string[] align_qcs, dup_qcs, flagstat_nodup_qcs, pbc_qcs, xcor_qcs, xcor_plots
-	string[] align_headers, dup_headers, flagstat_nodup_headers, pbc_headers, xcor_headers
+	string[] align_qcs, dup_qcs, flagstat_nodup_qcs, pbc_qcs, xcor_qcs, xcor_plots, ataqc_qcs
+	string[] align_headers, dup_headers, flagstat_nodup_headers, pbc_headers, xcor_headers, ataqc_headers
 
 	for ( int rep=1; rep <= get_num_rep(); rep++) {
 
@@ -1157,21 +1158,24 @@ string html_atac_QC() {
 		if ( dup_qc.hasKey( key ) ) 		dup_qcs 		+= dup_qc{key}
 		if ( flagstat_nodup_qc.hasKey( key ) )	flagstat_nodup_qcs 	+= flagstat_nodup_qc{key}
 		if ( pbc_qc.hasKey( key ) ) 		pbc_qcs			+= pbc_qc{key}
+		if ( ataqc_qc.hasKey( key ) )		ataqc_qcs		+= ataqc_qc{key}
 
 		if ( align_log.hasKey( key ) ) 		align_headers 		+= group
 		if ( dup_qc.hasKey( key ) ) 		dup_headers 		+= group
 		if ( flagstat_nodup_qc.hasKey( key ) )	flagstat_nodup_headers 	+= group
 		if ( pbc_qc.hasKey( key ) ) 		pbc_headers		+= group
-
+		if ( ataqc_qc.hasKey( key ) )		ataqc_headers		+= group
 	}
 
 	html := "<div id='atac_qc'>"
 
 	html += parse_align_log_to_html( "all", 	align_headers, align_qcs, align_headers )
 	html += parse_dup_to_html( "all", 		dup_headers, dup_qcs, dup_headers )
-	html += parse_flagstat_to_html( "all, filtered",flagstat_nodup_headers, flagstat_nodup_qcs, flagstat_nodup_headers )
+	html += parse_flagstat_to_html( "all, filtered",flagstat_nodup_headers, flagstat_nodup_qcs, flagstat_nodup_headers, true )
 	html += parse_pbc_to_html( "all", 		pbc_headers, pbc_qcs, pbc_headers )
 	html += parse_xcor_to_html( "all", 		xcor_headers, xcor_qcs, xcor_plots, xcor_headers )
+
+	parse_ataqc_txt( "all", ataqc_headers, ataqc_qcs )
 
 	// if idr qc's exists, add them to html
 

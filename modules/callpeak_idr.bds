@@ -195,8 +195,19 @@ string[] idr_final_qc( string{} idr_tr, string{} idr_pr, string idr_ppr, \
 	in 	:= map_to_array( idr_tr ) + map_to_array( idr_pr ); if (idr_ppr!="") in += [idr_ppr]
 	out 	:= qc
 
-	col_lbl := ""; for ( int rep=1; rep<=N.size(); rep++) col_lbl += "N$rep\t"
-	col_val := N.size() == 0 ? "" : (N.join("\t") + "\t")
+	string col_lbl, col_val
+	if ( N.size() == 0 ) {
+		col_lbl = ""
+		col_val = ""
+	}
+	else if ( N.size() == 1 ) {
+		col_lbl = "N1\tN2\t"
+		col_val = (N[0] + "\t0" + "\t")
+	}
+	else {
+		for ( int rep=1; rep<=N.size(); rep++) col_lbl += "N$rep\t"
+		col_val = (N.join("\t") + "\t")
+	}
 
 	taskName:= "idr final qc" + group
 

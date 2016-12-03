@@ -55,10 +55,16 @@ void write_qc_summary() {
 	ret += "\t\"species\" : \"" + species + "\",\n"
 	ret += "\t\"title\" : \"" + title + "\",\n"
 	ret += "\t\"qc_files\" : [\n"
+	cnt := 0
 	for ( string json : _qc_summary ) {
-		for ( string val : json.split("\n") ) {
+		cnt += 1
+		cnt2 := 0
+		lines := json.split("\n")
+		for ( string val : lines ) {
+			cnt2 += 1
 			ret += ("\t\t"+val+"\n")
-		}
+			if ( cnt != _qc_summary.size() && cnt2 == lines.size() ) ret += "\t\t,\n"
+ 		}
 	}
 	ret += "\t]\n"
 	ret += "}\n"
@@ -74,11 +80,12 @@ void add_file_to_report( string file, string label, string group, string hrchy )
 }
 
 // bwa logs (*.flagstat.qc): 1 table
-string parse_flagstat_to_html( string id, string[] names, string[] logs, string[] header ) {
+string parse_flagstat_to_html( string id, string[] names, string[] logs, string[] header, bool after_filt ) {
 
 	if ( logs.size() == 0 ) return ""
 	html := "<div id='flagstat_$id'><b>Flagstat QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-	html += html_table_header( ["&nbsp","Reads (QC-passed)","Reads (QC-failed)","Dupes (QC-passed)","Dupes (QC-failed)","Mapped Reads","% Mapped"] )
+	table_header := ["Reads (QC-passed)","Reads (QC-failed)","Dupes (QC-passed)","Dupes (QC-failed)","Mapped Reads","% Mapped"]
+	html += html_table_header( ["&nbsp"] + table_header )
 
 	// parse dup.qc
 	for ( int i=0; i<logs.size(); i++ ) {
@@ -115,7 +122,11 @@ string parse_flagstat_to_html( string id, string[] names, string[] logs, string[
 			}
 		}
 		html += "<tr><td>"+html_link( log, name )+"</td><td>$read1</td><td>$read2</td><td>$dupe1</td><td>$dupe2</td><td>$mapped</td><td>$percent</td></tr>"
-	}
+
+		// add to QC summary table
+		_qc_summary.add( map_to_json_str( { "info"=>name,"qc_type"=>after_filt? "filt_flagstat_qc":"flagstat_qc",\
+						"header"=>array_to_str(table_header,"\\t"),\
+						"contents"=>"$read1\\t$read2\\t$dupe1\\t$dupe2\\t$mapped\\t$percent" } ) ) }
 
 	html += "</table>"
 	html += "</div></div><br>"
@@ -129,7 +140,8 @@ string parse_align_log_to_html( string id, string[] names, string[] logs, string
 	if ( logs.size() == 0 ) return ""
 
 	html := "<div id='bwt2_log_$id'><b>Bowtie2 QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-	html += html_table_header( ["&nbsp","Total Reads","% Aligned"] )
+	table_header := ["Total Reads","% Aligned"]
+	html += html_table_header( ["&nbsp"] + table_header )
 
 	// parse dup.qc
 	for ( int i=0; i<logs.size(); i++ ) {
@@ -151,6 +163,11 @@ string parse_align_log_to_html( string id, string[] names, string[] logs, string
 			}
 		}
 		html += "<tr><td>"+html_link( log, name )+"</td><td>$read1</td><td>$percent</td></tr>"
+
+		// add to QC summary table
+		_qc_summary.add( map_to_json_str( { "info"=>name,"qc_type"=>"align_log",\
+						"header"=>array_to_str(table_header,"\\t"),\
+						"contents"=>"$read1\\t$percent" } ) )
 	}
 
 	html += "</table>"
@@ -164,7 +181,8 @@ string parse_dup_to_html( string id, string[] names, string[] logs, string[] hea
 	if ( logs.size() == 0 ) return ""
 
 	html := "<div id='dup_$id'><b>Dup QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-	html += html_table_header( ["&nbsp","Unpaired Reads", "Paired Reads", "Unmapped Reads", "Unpaired Dupes", "Paired Dupes", "Paired Opt. Dupes", "% Dupes"] )
+	table_header := ["Unpaired Reads", "Paired Reads", "Unmapped Reads", "Unpaired Dupes", "Paired Dupes", "Paired Opt. Dupes", "% Dupes"]
+	html += html_table_header( ["&nbsp"] + table_header )
 
 	// parse dup.qc
 	for ( int i=0; i<logs.size(); i++ ) {
@@ -172,6 +190,11 @@ string parse_dup_to_html( string id, string[] names, string[] logs, string[] hea
 		name := names[i]
 		line := get_stdout( "cat $log | grep 'Unknown Library' | awk '{ print $3,$4,$5,$6,$7,$8,$9; }'" )	
 		html += "<tr><td>"+html_link( log, name )+"</td><td>" + line.replace(" ","</td><td>") + "</td></tr>"
+
+		// add to QC summary table
+		_qc_summary.add( map_to_json_str( { "info"=>name,"qc_type"=>"dup_qc",\
+						"header"=>array_to_str(table_header,"\\t"),\
+						"contents"=>line.replace(" ","\\t") } ) )
 	}
 
 	html += "</table>"
@@ -197,8 +220,8 @@ string parse_pbc_to_html( string id, string[] names, string[] logs, string[] hea
 
 		// add to QC summary table
 		_qc_summary.add( map_to_json_str( { "info"=>name,"qc_type"=>"pbc_qc",\
-						"header"=>array_to_str(table_header,"\t"),\
-						"contents"=>line.trim() } ) )
+						"header"=>array_to_str(table_header,"\\t"),\
+						"contents"=>line.trim().replace("\t","\\t") } ) )
 	}
 
 	html += "</table>"
@@ -224,7 +247,8 @@ string parse_xcor_to_html( string id, string[] names, string[] logs, string[] pd
 	if ( logs.size() == 0 ) return ""
 
 	html := "<div id='xcor_$id'><b>Cross-correlation QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-	html += html_table_header( ["&nbsp","numReads","estFragLen","corr_estFragLen","PhantomPeak","corr_phantomPeak","argmin_corr","min_corr","NSC","RSC"] )
+	table_header := ["numReads","estFragLen","corr_estFragLen","PhantomPeak","corr_phantomPeak","argmin_corr","min_corr","NSC","RSC"]
+	html += html_table_header( ["&nbsp"] + table_header )
 
 	// parse cc.qc
 	for ( int i=0; i<logs.size(); i++ ) {
@@ -235,6 +259,11 @@ string parse_xcor_to_html( string id, string[] names, string[] logs, string[] pd
 		items.removeIdx(0) // remove file name
 		items.removeIdx(items.size()-1) // remove quality tag		
 		html += "<tr><td>"+html_link( log, name )+"</td><td>" + items.join("\t").replace("\t","</td><td>") + "</td></tr>"
+
+		// add to QC summary table
+		_qc_summary.add( map_to_json_str( { "info"=>name,"qc_type"=>"xcor_qc",\
+						"header"=>array_to_str(table_header,"\\t"),\
+						"contents"=>items.join("\\t") } ) )
 	}
 
 	html += "</table>"
@@ -254,11 +283,29 @@ string parse_xcor_to_html( string id, string[] names, string[] logs, string[] pd
 
 	return html
 }
-/*
-string parse_ataqc_txt( string ataqc_txt ) {
 
+void parse_ataqc_txt( string id, string[] names, string[] logs ) {
+	if ( logs.size() == 0 ) return
+
+	for ( int i=1; i<=logs.size(); i++ ) {
+		log := logs[i]
+		name := names[i]
+		lines := log.readLines();
+		string table_header, contents
+		for ( string line : lines ) {
+			arr := line.split("\t")
+			for ( int i=2;i<=arr.size();i++) {
+				table_header += (i==2 ? (arr[0] + "\t") : ("\t"))
+				contents += arr[i] + "\t"
+			}
+		}
+		// add to QC summary table
+		_qc_summary.add( map_to_json_str( { "info"=>name,"qc_type"=>"ataqc_qc",\
+						"header"=>table_header.trim().replace("\t","\\t"),\
+						"contents"=>contents.trim().replace("\t","\\t") } ) )
+	}	
 }
-*/
+
 // IDR logs : 1 table
 string parse_idr_to_html( string id, string log ) {
 	if ( log == "" ) return ""
@@ -272,6 +319,9 @@ string parse_idr_to_html( string id, string log ) {
 	html += "</table>"
 	html += "</div></div><br>"
 
+	_qc_summary.add( map_to_json_str( { "info"=>"rep1","qc_type"=>"final_idr_qc",\
+					"header"=>lines[0].replace("\t","\\t"),\
+					"contents"=>lines[1].replace("\t","\\t") } ) )
 	return html
 }
 
