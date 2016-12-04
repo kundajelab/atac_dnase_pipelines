@@ -1175,8 +1175,6 @@ string html_atac_QC() {
 	html += parse_pbc_to_html( "all", 		pbc_headers, pbc_qcs, pbc_headers )
 	html += parse_xcor_to_html( "all", 		xcor_headers, xcor_qcs, xcor_plots, xcor_headers )
 
-	parse_ataqc_txt( "all", ataqc_headers, ataqc_qcs )
-
 	// if idr qc's exists, add them to html
 
 	if ( idr_qc != "" ) html += parse_idr_to_html( "idr", idr_qc )
@@ -1193,6 +1191,8 @@ string html_atac_QC() {
 	}
 
 	if ( idr_ppr_png != "" ) html += html_img( idr_ppr_png, 800, "pooled pseudo-reps" ) + "&nbsp"
+
+	parse_ataqc_txt( "all", ataqc_headers, ataqc_qcs )
 
 	html += "</div><br>"
 	return html

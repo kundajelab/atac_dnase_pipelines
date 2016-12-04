@@ -17,7 +17,11 @@ void init_output() {
 	title 	= get_conf_val( title, 		["title"] )		
 
 	if ( title == "" ) { // if title is empty, use directory name as a title
-		title = get_basename( get_path(out_dir) )
+		dirname := get_basename( get_path(out_dir) )
+		if ( dirname == "out" ) { // if output folder is default one (out), then use parent dir. name
+			dirname = get_basename( rm_str_at_end( get_path(out_dir), "/out" ) )
+		}
+		title = dirname
 	}
 	if ( !is_cmd_line_arg_empty() ) out_dir = mkdir( out_dir ) // create output directory and get absolute path for it	
 

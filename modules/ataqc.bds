@@ -137,10 +137,7 @@ string[] ataqc( string fastq1, string fastq2, string bam, string align_log, stri
 		    --finalbam $filt_bam \
 		    --finalbed $bed \
 		    --bigwig $bigwig \
-		    --peaks $peak \
-		    $param_overlap \
-		    $param_idr \
-		    $param_use_sambamba
+		    --peaks $peak $param_overlap $param_idr $param_use_sambamba
 
 		sys $shcmd_finalize
 	}
