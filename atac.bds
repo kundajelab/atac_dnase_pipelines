@@ -13,6 +13,7 @@ subsample 	:= "0" 		help # reads to subsample exp. replicates. Subsampled tagali
 true_rep 	:= false 	help No pseudo-replicates.
 no_idr 		:= false 	help No IDR analysis on called peaks. This will change p-value threshold (0.1->0.01) in MACS2 peak calling.
 no_ataqc 	:= false 	help No ATAQC
+no_xcor 	:= false 	help No Cross-correlation analysis.
 csem	 	:= false	help Use CSEM for alignment.
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
 idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
@@ -107,6 +108,7 @@ void read_conf_atac() {
 	true_rep	= get_conf_val_bool( true_rep, 		["true_rep"] )
 	no_idr 		= get_conf_val_bool( no_idr, 		["no_idr"] )
 	no_ataqc 	= get_conf_val_bool( no_ataqc, 		["no_ataqc"] )
+	no_xcor 	= get_conf_val_bool( no_xcor, 		["no_xcor"] )
 	csem 		= get_conf_val_bool( csem, 		["csem"] )
 	smooth_win	= get_conf_val( smooth_win,		["smooth_win"] )
 	dnase_seq 	= get_conf_val_bool( dnase_seq, 	["dnase_seq"] )
@@ -135,6 +137,7 @@ void print_atac() {
 	print( "No pseudo replicates\t\t\t: $true_rep\n")
 	print( "No IDR analysis on peaks\t\t: $no_idr\n")
 	print( "No ATAQC (advanced QC report)\t\t: $no_ataqc\n")
+	print( "No Cross-corr. analysis\t\t\t: $no_xcor\n")
 	print( "Use CSEM for alignment\t\t\t: $csem\n")
 	print( "Smoothing window for MACS2\t\t: $smooth_win\n")
 	print( "DNase Seq\t\t\t\t: $dnase_seq\n")
@@ -521,19 +524,21 @@ void align_SE( int rep, int nth_rep ) {
 			wait
 		}
 
-		// cross-corr. analysis
-		subsampled_tag_xcor := subsample_tag( tag, parse_number( subsample_xcor ), aln_o_dir, group )
-		wait
+		if ( !no_xcor ) {
+			// cross-corr. analysis
+			subsampled_tag_xcor := subsample_tag( tag, parse_number( subsample_xcor ), aln_o_dir, group )
+			wait
 
-		// xcor
-		string xcor_qc_, xcor_plot_
-		( xcor_qc_, xcor_plot_ ) = xcor( subsampled_tag_xcor, qc_o_dir, group, nth_rep )
+			// xcor
+			string xcor_qc_, xcor_plot_
+			( xcor_qc_, xcor_plot_ ) = xcor( subsampled_tag_xcor, qc_o_dir, group, nth_rep )
 
-		xcor_qc{rep} = xcor_qc_
-		xcor_plot{rep} = xcor_plot_
+			xcor_qc{rep} = xcor_qc_
+			xcor_plot{rep} = xcor_plot_
 
-		add_file_to_report( final_tag_, "tag-align", group, "Alignment/$long/Tag-align" )
-		add_file_to_table( xcor_plot_, "QC and logs/$long/Cross-corr. plot" )
+			add_file_to_report( final_tag_, "tag-align", group, "Alignment/$long/Tag-align" )
+			add_file_to_table( xcor_plot_, "QC and logs/$long/Cross-corr. plot" )
+		}
 	}
 }
 
@@ -737,15 +742,17 @@ void align_PE( int rep, int nth_rep ) {
 		}
 		wait
 
-		// cross-corr. analysis
-		string xcor_qc_, xcor_plot_
-		( xcor_qc_, xcor_plot_ ) = xcor( subsampled_tag_xcor, qc_o_dir, group, nth_rep ) 
+		if ( !no_xcor ) {
+			// cross-corr. analysis
+			string xcor_qc_, xcor_plot_
+			( xcor_qc_, xcor_plot_ ) = xcor( subsampled_tag_xcor, qc_o_dir, group, nth_rep ) 
 
-		xcor_qc{rep} = xcor_qc_
-		xcor_plot{rep} = xcor_plot_
+			xcor_qc{rep} = xcor_qc_
+			xcor_plot{rep} = xcor_plot_
 
-		add_file_to_report( final_tag_, "tag-align", group, "Alignment/$long/Tag-align" )
-		add_file_to_table( xcor_plot_, "QC and logs/$long/Cross-corr. plot" )
+			add_file_to_report( final_tag_, "tag-align", group, "Alignment/$long/Tag-align" )
+			add_file_to_table( xcor_plot_, "QC and logs/$long/Cross-corr. plot" )
+		}
 	}
 }
 
