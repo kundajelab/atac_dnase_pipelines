@@ -29,9 +29,9 @@ string peak_to_bigbed( string filetype, string peak, string o_dir, string group 
 
 		sys $shcmd_init
 
-		sys zcat $peak | grep -P 'chr[\dMXY]+[\t ]' | sort -k1,1 -k2,2n \
+		sys zcat $peak | grep -P 'chr[\dXY]+[\t ]' | sort -k1,1 -k2,2n \
 			| awk 'BEGIN{OFS="\t"} {if ($5>1000) $5=1000; print $0}' > $bigbed.tmp
-		sys grep -P 'chr[\dMXY]+[\t ]' $chrsz > $bigbed.chrsz.tmp
+		sys grep -P 'chr[\dXY]+[\t ]' $chrsz > $bigbed.chrsz.tmp
 		sys bedToBigBed $bed_param $bigbed.tmp $bigbed.chrsz.tmp $bigbed
 
 		sys rm -f $bigbed.tmp $bigbed.chrsz.tmp
