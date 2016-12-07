@@ -38,6 +38,8 @@ include "modules/callpeak_macs2.bds"
 include "modules/callpeak_naive_overlap.bds"
 include "modules/callpeak_filter.bds"
 include "modules/callpeak_idr.bds"
+include "modules/callpeak_blacklist_filter.bds"
+include "modules/callpeak_bigbed.bds"
 
 include "modules/ataqc.bds"
 include "modules/ENCODE_accession.bds"
@@ -81,6 +83,8 @@ void main() { // atac pipeline starts here
 	call_peaks()
 
 	read_input_peak() // if inputs are peaks, read them
+
+	filter_peak_and_convert_to_bigbed()
 
 	do_idr()
 
@@ -927,8 +931,8 @@ void do_idr() {
 
 	if ( align || no_idr ) return
 
-	string{} filt_peak, filt_peak_pr1, filt_peak_pr2
-	string filt_peak_pooled, filt_peak_ppr1, filt_peak_ppr2
+	string{} top_peak, top_peak_pr1, top_peak_pr2
+	string top_peak_pooled, top_peak_ppr1, top_peak_ppr2
 
 	string{} filt_gpeak, filt_gpeak_pr1, filt_gpeak_pr2
 	string filt_gpeak_pooled, filt_gpeak_ppr1, filt_gpeak_ppr2
@@ -936,8 +940,8 @@ void do_idr() {
 	// take top $npeak_filt lines from narrowpeaks for idr
 	for ( int rep=1; rep<=get_num_rep(); rep++ ) {
 
-		filt_peak{rep} 	= filt_top_peaks( "narrowPeak", peak{rep}, "", "rep$rep" )
-		add_file_to_table( filt_peak{rep}, "Peaks/MACS2/Replicate $rep/Filtered narrow peak" )
+		top_peak{rep} 	= filt_top_peaks( "narrowPeak", peak{rep}, "", "rep$rep" )
+		add_file_to_table( top_peak{rep}, "Peaks/MACS2/Replicate $rep/Filtered narrow peak" )
 
 		if ( !is_input_peak() ) {
 			filt_gpeak{rep} = filt_top_peaks( "gappedPeak", gpeak{rep}, "", "rep$rep" )
@@ -945,11 +949,11 @@ void do_idr() {
 		}
 
 		if ( !true_rep ) {
-			filt_peak_pr1{rep}  = filt_top_peaks( "narrowPeak", peak_pr1{rep}, "", "rep$rep-pr1" )
-			filt_peak_pr2{rep}  = filt_top_peaks( "narrowPeak", peak_pr2{rep}, "", "rep$rep-pr2" )
-			add_file_to_table( filt_peak_pr1{rep}, \
+			top_peak_pr1{rep}  = filt_top_peaks( "narrowPeak", peak_pr1{rep}, "", "rep$rep-pr1" )
+			top_peak_pr2{rep}  = filt_top_peaks( "narrowPeak", peak_pr2{rep}, "", "rep$rep-pr2" )
+			add_file_to_table( top_peak_pr1{rep}, \
 				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 1/Filtered narrow peak" )
-			add_file_to_table( filt_peak_pr2{rep}, \
+			add_file_to_table( top_peak_pr2{rep}, \
 				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 2/Filtered narrow peak" )
 
 			if ( !is_input_peak() ) {
@@ -965,8 +969,8 @@ void do_idr() {
 
 	if ( get_num_rep() > 1 ) {
 
-		filt_peak_pooled = filt_top_peaks( "narrowPeak", peak_pooled, "", "pooled_rep" )
-		add_file_to_table( filt_peak_pooled, "Peaks/MACS2/Pooled replicate/Filtered narrow peak" )
+		top_peak_pooled = filt_top_peaks( "narrowPeak", peak_pooled, "", "pooled_rep" )
+		add_file_to_table( top_peak_pooled, "Peaks/MACS2/Pooled replicate/Filtered narrow peak" )
 
 		if ( !is_input_peak() ) {
 			filt_gpeak_pooled= filt_top_peaks( "gappedPeak", gpeak_pooled, "", "pooled_rep" )
@@ -974,11 +978,11 @@ void do_idr() {
 		}
 
 		if ( !true_rep ) {
-			filt_peak_ppr1 	= filt_top_peaks( "narrowPeak", peak_ppr1, "", "ppr1" )			
-			filt_peak_ppr2 	= filt_top_peaks( "narrowPeak", peak_ppr2, "", "ppr2" )
-			add_file_to_table( filt_peak_ppr1, \
+			top_peak_ppr1 	= filt_top_peaks( "narrowPeak", peak_ppr1, "", "ppr1" )			
+			top_peak_ppr2 	= filt_top_peaks( "narrowPeak", peak_ppr2, "", "ppr2" )
+			add_file_to_table( top_peak_ppr1, \
 				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Filtered narrow peak" )
-			add_file_to_table( filt_peak_ppr2, \
+			add_file_to_table( top_peak_ppr2, \
 				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Filtered narrow peak" )
 
 			if ( !is_input_peak() ) {
@@ -1002,15 +1006,15 @@ void do_idr() {
 
 		if ( !true_rep ) {
 			peak_overlap = naive_overlap_peak( "narrowPeak", \
-						filt_peak{1}, filt_peak_pr1{1}, filt_peak_pr2{1}, overlap_o_dir, "" )
+						top_peak{1}, top_peak_pr1{1}, top_peak_pr2{1}, overlap_o_dir, "" )
 			if ( !is_input_peak() ) \
 				gpeak_overlap = naive_overlap_peak( "gappedPeak", \
 						filt_gpeak{1}, filt_gpeak_pr1{1}, filt_gpeak_pr2{1}, overlap_o_dir, "" )
 		}
 	}
 	else {
-		peak_overlap = naive_overlap_peak( "narrowPeak", filt_peak_pooled, map_to_array( filt_peak ), \
-								  filt_peak_ppr1, filt_peak_ppr2, overlap_o_dir, "" )
+		peak_overlap = naive_overlap_peak( "narrowPeak", top_peak_pooled, map_to_array( top_peak ), \
+								  top_peak_ppr1, top_peak_ppr2, overlap_o_dir, "" )
 
 		if ( !is_input_peak() ) \
 			gpeak_overlap = naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, map_to_array( filt_gpeak ), \
@@ -1032,7 +1036,7 @@ void do_idr() {
 			idr_true_o_dir 	:= mkdir( "$idr_o_dir/true_reps/rep$i-rep$j" )
 
 			(idr_tr{"$i,$j"}, idr_tr_png{"$i,$j"} ) \
-				= idr2( filt_peak{i}, filt_peak{j}, filt_peak_pooled, idr_thresh, "p.value", idr_true_o_dir, "rep$i-rep$j" )
+				= idr2( top_peak{i}, top_peak{j}, top_peak_pooled, idr_thresh, "p.value", idr_true_o_dir, "rep$i-rep$j" )
 
 			add_file_to_report( idr_tr{"$i,$j"}, "IDR peak", "rep$i-rep$j", "Peaks/IDR/True replicates/Rep. $i vs. Rep. $j/IDR peak" )
 			add_file_to_table( idr_tr_png{"$i,$j"}, "QC and logs/IDR/True replicates/Rep. $i vs. Rep. $j/IDR plot" )
@@ -1043,7 +1047,7 @@ void do_idr() {
 			idr_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep$i" )
 
 			(idr_pr{i}, idr_pr_png{i}) \
-				= idr2( filt_peak_pr1{i}, filt_peak_pr2{i}, filt_peak{i}, idr_thresh, "p.value", idr_pr_o_dir, "rep$i-pr" )
+				= idr2( top_peak_pr1{i}, top_peak_pr2{i}, top_peak{i}, idr_thresh, "p.value", idr_pr_o_dir, "rep$i-pr" )
 
 			add_file_to_report( idr_pr{i}, "IDR peak", "rep$i-pr", "Peaks/IDR/Pseudo-replicates/Replicate $i/IDR peak" )
 			add_file_to_table( idr_pr_png{i}, "QC and logs/IDR/Pseudo-replicates/Replicate $i/IDR plot" )
@@ -1055,7 +1059,7 @@ void do_idr() {
 		idr_ppr_o_dir := mkdir( "$idr_o_dir/pooled_pseudo_reps" )
 
 		(idr_ppr, idr_ppr_png) \
-			= idr2( filt_peak_ppr1, filt_peak_ppr2, filt_peak_pooled, idr_thresh, "p.value", idr_ppr_o_dir, "ppr" )
+			= idr2( top_peak_ppr1, top_peak_ppr2, top_peak_pooled, idr_thresh, "p.value", idr_ppr_o_dir, "ppr" )
 
 		add_file_to_report( idr_ppr, "IDR peak", "ppr", "Peaks/IDR/Pooled pseudo-replicates/IDR peak" )
 		add_file_to_table( idr_ppr_png, "QC and logs/IDR/Pooled pseudo-replicates/IDR plot" )
@@ -1075,6 +1079,36 @@ void do_idr() {
 	wait
 
 	print( "\n== Done do_idr()\n" )
+}
+
+void filter_peak_and_convert_to_bigbed() { 
+	if ( align ) return
+
+	// black list filter and then convert to bigbed (for true replicates only)
+	if ( get_num_rep() > 1 ) {
+		filt_peak_pooled_001 := \
+			blacklist_filter_peak( "narrowPeak", peak_pooled_001, peak_pooled_001.dirName(), "peak_pooled" )
+		filt_gpeak_pooled_001 := \
+			blacklist_filter_peak( "gappedPeak", gpeak_pooled_001, gpeak_pooled_001.dirName(), "gpeak_pooled" )
+		wait
+
+		peak_to_bigbed( "narrowPeak", filt_peak_pooled_001, filt_peak_pooled_001.dirName(), "peak_pooled" )
+		peak_to_bigbed( "gappedPeak", filt_gpeak_pooled_001, filt_gpeak_pooled_001.dirName(), "gpeak_pooled" )
+	}
+	for (int rep=1; rep<=get_num_rep(); rep++) {
+		filt_peak_001 := \
+			blacklist_filter_peak( "narrowPeak", peak_001{rep}, peak_001{rep}.dirName(), "peak $rep" )
+		filt_gpeak_001 := \
+			blacklist_filter_peak( "gappedPeak", gpeak_001{rep}, gpeak_001{rep}.dirName(), "gpeak $rep" )
+		wait
+
+		peak_to_bigbed( "narrowPeak", filt_peak_001, filt_peak_001.dirName(), "peak $rep" )
+		peak_to_bigbed( "gappedPeak", filt_gpeak_001, filt_gpeak_001.dirName(), "gpeak $rep" )
+	}
+
+	wait
+
+	print( "\n== Done filter_peak_and_convert_to_bigbed()\n" )	
 }
 
 void ataqc() {

@@ -1,0 +1,61 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "species.bds"
+include "module_template.bds"
+
+
+string peak_to_bigbed( string filetype, string peak, string o_dir, string group ) {
+
+	prefix 	:= replace_dir( rm_ext( peak, \
+				["narrowPeak","narrowpeak",\
+				"broadPeak","broadpeak",\
+				"gappedPeak","gappedpeak",filetype] )\
+				, o_dir )
+	bigbed 	:= "$prefix.$filetype.bb"
+
+	bed_param := _get_bed_param( filetype )
+
+	in 	:= [ peak ]
+	out 	:= bigbed
+	
+	taskName:= "peak_to_bigbed" + group
+	//timeout := 3600 // to get queued fast
+	system := "local"
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys zcat $peak | grep -P 'chr[\dMXY]+[\t ]' | sort -k1,1 -k2,2n \
+			| awk 'BEGIN{OFS="\t"} {if ($5>1000) $5=1000; print $0}' > $bigbed.tmp
+		sys grep -P 'chr[\dMXY]+[\t ]' $chrsz > $bigbed.chrsz.tmp
+		sys bedToBigBed $bed_param $bigbed.tmp $bigbed.chrsz.tmp $bigbed
+
+		sys rm -f $bigbed.tmp $bigbed.chrsz.tmp
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+			   
+	return out
+}
+
+string _get_bed_param( string filetype ) {
+
+	if ( filetype.toLower() == "narrowpeak" ) {
+		return "-type=bed6+4 -as=$script_dir/etc/narrowPeak.as"
+	}
+	else if ( filetype.toLower() == "broadpeak") { 
+		return "-type=bed6+3 -as=$script_dir/etc/broadPeak.as"
+	}
+	else if ( filetype.toLower() == "gappedpeak") {
+		return "-type=bed12+3 -as=$script_dir/etc/gappedPeak.as"
+	}
+	else {
+		error("Unsupport peak file type! ($filetype)\n")
+	}
+}

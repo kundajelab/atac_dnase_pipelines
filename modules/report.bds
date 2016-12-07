@@ -296,7 +296,8 @@ void parse_ataqc_txt( string id, string[] names, string[] logs ) {
 			line = line.replace(" reads; of these:","")
 			arr := line.split("\t")
 			for ( int j=1;j<arr.size();j++) {
-				table_header += (j==1 ? (arr[0] + "\t") : ("\t"))
+				//table_header += (j==1 ? (arr[0] + "\t") : ("\t"))
+				table_header += (arr.size()==2 ? (arr[0] + "\t") : (arr[0]+"-$j\t"))
 				contents += arr[j] + "\t"
 			}
 		}

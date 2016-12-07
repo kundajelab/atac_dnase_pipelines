@@ -13,8 +13,8 @@ INSTALL_WIGGLER_AND_MCR=0
 
 ## install packages from official channels (bioconda and r)
 
-conda create -n ${ENV_NAME} --file requirements.txt -y -c asmeurer -c defaults -c bioconda -c r
-conda create -n ${ENV_NAME_PY3} --file requirements_py3.txt -y -c asmeurer -c defaults -c bioconda -c r 
+conda create -n ${ENV_NAME} --file requirements.txt -y -c daler -c asmeurer -c defaults -c bioconda -c r
+conda create -n ${ENV_NAME_PY3} --file requirements_py3.txt -y -c daler -c asmeurer -c defaults -c bioconda -c r 
 
 ### bash function definition
 

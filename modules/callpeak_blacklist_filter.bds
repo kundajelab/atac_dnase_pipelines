@@ -1,0 +1,39 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "species.bds"
+include "module_template.bds"
+
+
+string blacklist_filter_peak( string filetype, string peak, string o_dir, string group ) {
+
+	prefix 	:= replace_dir( rm_ext( peak, \
+				["narrowPeak","narrowpeak",\
+				"broadPeak","broadpeak",\
+				"regionPeak","regionpeak",\
+				"gappedPeak","gappedpeak",filetype] )\
+				, o_dir )
+	filtered:= "$prefix.filt.$filetype.gz"
+
+	in 	:= [ peak ]
+	out 	:= filtered
+	
+	taskName:= "blacklist_filter " + group
+	//timeout := 3600 // to get queued fast
+	system := "local"
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys bedtools intersect -v -a $peak -b $blacklist | gzip -nc > $filtered
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+			   
+	return out
+}
