@@ -1,3 +1,5 @@
+#!/usr/bin/env python2
+
 # written by Jin Lee, 2016
 
 import os
@@ -9,7 +11,7 @@ import collections
 # json_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(os.getcwd()) \
 #     for f in filenames if os.path.splitext(f)[1] == 'qc_summary.json']
 
-json_files = subprocess.check_output("find . -name 'qc_summary.json'", \
+json_files = subprocess.check_output("find . -name 'ENCODE_summary.json'", \
                                     shell=True ).strip().split('\n')
 # read json
 jsons = []

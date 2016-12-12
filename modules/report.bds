@@ -13,8 +13,6 @@ url_base 	:= "" 		help URL base for output directory.
 _padding_left	:= 20
 _report_file  	:= ""
 _report_header 	:= ""
-string[] _qc_summary
-
 
 init_report()
 
@@ -44,33 +42,6 @@ void report( string body ) { // HTML report
 	html += "<br></body></html>"
 
 	_report_file.write( html )
-}
-
-void write_qc_summary() {
-
-	ret := "{\n"
-	ret += "\t\"ENCODE_award_rfa\" : \"" + ENCODE_award_rfa + "\",\n"
-	ret += "\t\"ENCODE_assay_category\" : \"" + ENCODE_assay_category + "\",\n"
-	ret += "\t\"ENCODE_assay_title\" : \"" + ENCODE_assay_title + "\",\n"
-	ret += "\t\"species\" : \"" + species + "\",\n"
-	ret += "\t\"title\" : \"" + title + "\",\n"
-	ret += "\t\"qc_files\" : [\n"
-	cnt := 0
-	for ( string json : _qc_summary ) {
-		cnt += 1
-		cnt2 := 0
-		lines := json.split("\n")
-		for ( string val : lines ) {
-			cnt2 += 1
-			ret += ("\t\t"+val+"\n")
-			if ( cnt != _qc_summary.size() && cnt2 == lines.size() ) ret += "\t\t,\n"
- 		}
-	}
-	ret += "\t]\n"
-	ret += "}\n"
-	
-	qc_o_dir := mkdir( "$out_dir/qc" )
-	"$qc_o_dir/qc_summary.json".write( ret )
 }
 
 // filepath, node label, group, filetable hierachy
@@ -124,7 +95,7 @@ string parse_flagstat_to_html( string id, string[] names, string[] logs, string[
 		html += "<tr><td>"+html_link( log, name )+"</td><td>$read1</td><td>$read2</td><td>$dupe1</td><td>$dupe2</td><td>$mapped</td><td>$percent</td></tr>"
 
 		// add to QC summary table
-		_qc_summary.add( map_to_json_str( { "info"=>name,"qc_type"=>after_filt? "filt_flagstat_qc":"flagstat_qc",\
+		_summary_qc.add( map_to_json_str( { "info"=>name,"qc_type"=>after_filt? "filt_flagstat_qc":"flagstat_qc",\
 						"header"=>array_to_str(table_header,"\\t"),\
 						"contents"=>"$read1\\t$read2\\t$dupe1\\t$dupe2\\t$mapped\\t$percent" } ) ) }
 
@@ -165,7 +136,7 @@ string parse_align_log_to_html( string id, string[] names, string[] logs, string
 		html += "<tr><td>"+html_link( log, name )+"</td><td>$read1</td><td>$percent</td></tr>"
 
 		// add to QC summary table
-		_qc_summary.add( map_to_json_str( { "info"=>name,"qc_type"=>"align_log",\
+		_summary_qc.add( map_to_json_str( { "info"=>name,"qc_type"=>"align_log",\
 						"header"=>array_to_str(table_header,"\\t"),\
 						"contents"=>"$read1\\t$percent" } ) )
 	}
@@ -192,7 +163,7 @@ string parse_dup_to_html( string id, string[] names, string[] logs, string[] hea
 		html += "<tr><td>"+html_link( log, name )+"</td><td>" + line.replace(" ","</td><td>") + "</td></tr>"
 
 		// add to QC summary table
-		_qc_summary.add( map_to_json_str( { "info"=>name,"qc_type"=>"dup_qc",\
+		_summary_qc.add( map_to_json_str( { "info"=>name,"qc_type"=>"dup_qc",\
 						"header"=>array_to_str(table_header,"\\t"),\
 						"contents"=>line.replace(" ","\\t") } ) )
 	}
@@ -219,7 +190,7 @@ string parse_pbc_to_html( string id, string[] names, string[] logs, string[] hea
 		html += "<tr><td>"+html_link( log, name )+"</td><td>" + line.replace("\t","</td><td>") + "</td></tr>"
 
 		// add to QC summary table
-		_qc_summary.add( map_to_json_str( { "info"=>name,"qc_type"=>"pbc_qc",\
+		_summary_qc.add( map_to_json_str( { "info"=>name,"qc_type"=>"pbc_qc",\
 						"header"=>array_to_str(table_header,"\\t"),\
 						"contents"=>line.trim().replace("\t","\\t") } ) )
 	}
@@ -261,7 +232,7 @@ string parse_xcor_to_html( string id, string[] names, string[] logs, string[] pd
 		html += "<tr><td>"+html_link( log, name )+"</td><td>" + items.join("\t").replace("\t","</td><td>") + "</td></tr>"
 
 		// add to QC summary table
-		_qc_summary.add( map_to_json_str( { "info"=>name,"qc_type"=>"xcor_qc",\
+		_summary_qc.add( map_to_json_str( { "info"=>name,"qc_type"=>"xcor_qc",\
 						"header"=>array_to_str(table_header,"\\t"),\
 						"contents"=>items.join("\\t") } ) )
 	}
@@ -302,7 +273,7 @@ void parse_ataqc_txt( string id, string[] names, string[] logs ) {
 			}
 		}
 		// add to QC summary table
-		_qc_summary.add( map_to_json_str( { "info"=>name,"qc_type"=>"ataqc_qc",\
+		_summary_qc.add( map_to_json_str( { "info"=>name,"qc_type"=>"ataqc_qc",\
 						"header"=>table_header.trim().replace("\t","\\t"),\
 						"contents"=>contents.trim().replace("\t","\\t") } ) )
 	}	
@@ -321,7 +292,7 @@ string parse_idr_to_html( string id, string log ) {
 	html += "</table>"
 	html += "</div></div><br>"
 
-	_qc_summary.add( map_to_json_str( { "info"=>"rep1","qc_type"=>"final_idr_qc",\
+	_summary_qc.add( map_to_json_str( { "info"=>"rep1","qc_type"=>"final_idr_qc",\
 					"header"=>lines[0].replace("\t","\\t"),\
 					"contents"=>lines[1].replace("\t","\\t") } ) )
 	return html

@@ -154,6 +154,10 @@ string get_shell_var( string var ) {
 	return ret
 }
 
+string get_md5sum( string file ) {
+	return get_stdout( "md5sum $file | awk '{print $1}'" )
+}
+
 int get_num_lines( string file ) {	
 	if ( !path_exists( file ) ) {
 		error("get_no_lines(): File doesn't exist! ($file)")

@@ -46,9 +46,6 @@ string[] macs2_chipseq( string tag, string ctl_tag, string fraglen, bool make_si
 	npeakfile	:= "$prefix.narrowPeak.gz"
 	bpeakfile	:= "$prefix.broadPeak.gz"
 	gpeakfile	:= "$prefix.gappedPeak.gz"
-	filt_npeakfile	:= "$prefix.filt.narrowPeak.gz"
-	filt_bpeakfile	:= "$prefix.filt.broadPeak.gz"
-	filt_gpeakfile	:= "$prefix.filt.gappedPeak.gz"
 	fc_bedgraph 	:= "$prefix.fc.signal.bedgraph"
 	fc_bedgraph_srt	:= "$prefix.fc.signal.srt.bedgraph"
 	fc_bigwig 	:= "$prefix_sig.fc.signal.bw"
@@ -104,11 +101,11 @@ string[] macs2_chipseq( string tag, string ctl_tag, string fraglen, bool make_si
 		  "$prefix"_peaks.gappedPeak \
 		  "$prefix"_summits.bed
 
-		sys if [[ $blacklist_exists == "true" ]]; then \
-			bedtools intersect -v -a $npeakfile -b $blacklist | gzip -nc > $filt_npeakfile; \
-			bedtools intersect -v -a $gpeakfile -b $blacklist | gzip -nc > $filt_gpeakfile; \
-			bedtools intersect -v -a $bpeakfile -b $blacklist | gzip -nc > $filt_bpeakfile; \
-		fi
+		// sys if [[ $blacklist_exists == "true" ]]; then \
+		// 	bedtools intersect -v -a $npeakfile -b $blacklist | gzip -nc > $filt_npeakfile; \
+		// 	bedtools intersect -v -a $gpeakfile -b $blacklist | gzip -nc > $filt_gpeakfile; \
+		// 	bedtools intersect -v -a $bpeakfile -b $blacklist | gzip -nc > $filt_bpeakfile; \
+		// fi
 
 		sys if [[ $make_sig == "false" ]]; then \
 			rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg; \
@@ -176,9 +173,6 @@ string[] macs2_atac( string tag, string smooth_window, string pval_thresh, bool 
 	peakfile 	:= "$prefix.narrowPeak.gz"
 	bpeakfile	:= "$prefix.broadPeak.gz"
 	gpeakfile	:= "$prefix.gappedPeak.gz"
-	filt_peakfile	:= "$prefix.filt.narrowPeak.gz"
-	filt_bpeakfile	:= "$prefix.filt.broadPeak.gz"
-	filt_gpeakfile	:= "$prefix.filt.gappedPeak.gz"
 
 	fc_bedgraph 	:= "$prefix.fc.signal.bedgraph"
 	fc_bedgraph_srt	:= "$prefix.fc.signal.srt.bedgraph"	
@@ -225,11 +219,11 @@ string[] macs2_atac( string tag, string smooth_window, string pval_thresh, bool 
 		sys rm -f "$prefix"_peaks.xls
 		sys rm -f "$prefix"_summits.bed
 
-		sys if [[ $blacklist_exists == "true" ]]; then \
-			bedtools intersect -v -a $peakfile -b $blacklist | gzip -nc > $filt_peakfile; \
-			bedtools intersect -v -a $gpeakfile -b $blacklist | gzip -nc > $filt_gpeakfile; \
-			bedtools intersect -v -a $bpeakfile -b $blacklist | gzip -nc > $filt_bpeakfile; \
-		fi
+		// sys if [[ $blacklist_exists == "true" ]]; then \
+		// 	bedtools intersect -v -a $peakfile -b $blacklist | gzip -nc > $filt_peakfile; \
+		// 	bedtools intersect -v -a $gpeakfile -b $blacklist | gzip -nc > $filt_gpeakfile; \
+		// 	bedtools intersect -v -a $bpeakfile -b $blacklist | gzip -nc > $filt_bpeakfile; \
+		// fi
 
 		sys if [[ $make_sig == "false" ]]; then \
 			rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg; \

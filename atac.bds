@@ -19,6 +19,7 @@ smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default
 idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
 old_trimmer 	:= false 	help Use legacy trim adapters (trim_galore and trimAdapter.py).
 ENCODE3		:= false	help Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE3.
+ENCODE		:= false	help Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE.
 
 
 
@@ -84,11 +85,12 @@ void main() { // atac pipeline starts here
 
 	read_input_peak() // if inputs are peaks, read them
 
-	filter_peak_and_convert_to_bigbed()
-
 	do_idr()
 
 	ataqc()
+
+	// blacklist-filter peaks and also make ENCODE accession metadata for them
+	filter_peak_and_convert_to_bigbed() 
 
 	report()
 }
@@ -121,6 +123,7 @@ void read_conf_atac() {
 	subsample	= get_conf_val( subsample, 		["subsample"] )
 	old_trimmer 	= get_conf_val_bool( old_trimmer,	["old_trimmer"] )
 	ENCODE3	 	= get_conf_val_bool( ENCODE3,		["ENCODE3"] )
+	ENCODE	 	= get_conf_val_bool( ENCODE,		["ENCODE","ENCODE1"] )
 }
 
 void init_etc_atac() {
@@ -148,6 +151,7 @@ void print_atac() {
 	print( "IDR threshold\t\t\t\t: $idr_thresh\n" )
 	print( "Use old trim adapters\t\t\t: $old_trimmer\n" )
 	print( "Force to use ENCODE3 parameter set\t: $ENCODE3\n" )
+	print( "Force to use ENCODE parameter set\t: $ENCODE\n" )
 
 	if ( dnase_seq ) type = "dnase-seq"	
 }
@@ -271,12 +275,17 @@ void chk_param() {
 	//	no_idr 	= true
 	//}
 
+	if ( ENCODE ) {
+		print("Info: ENCODE flag is on (-smooth_win 73 -idr_thresh 0.05 -multimapping 4).\n")
+		smooth_win = 73
+		idr_thresh = 0.05
+		multimapping = 4
+	}
 	if ( ENCODE3 ) {
 		print("Info: ENCODE3 flag is on (-smooth_win 73 -idr_thresh 0.05 -multimapping 4).\n")
 		smooth_win = 73
 		idr_thresh = 0.05
 		multimapping = 4
-		ENCODE_award_rfa = "ENCODE3"
 	}
 
 	//ENCODE_assay_category = "DNA accessibility"
@@ -379,10 +388,11 @@ void align_SE( int rep, int nth_rep ) {
 	qc_o_dir  := mkdir( "$out_dir/qc/$group" ) // create qc output dir.
 
 	string bam_
+	string[] fastqs
 
 	if ( is_input_fastq( rep ) ) {
 
-		fastqs := get_fastqs( rep )
+		fastqs = get_fastqs( rep )
 
 		string[] trimmed_fastqs
 		for ( int i=0; i<fastqs.size(); i++) {
@@ -468,6 +478,9 @@ void align_SE( int rep, int nth_rep ) {
 		add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
 
 		wait
+
+		if ( fastqs.size() > 0 ) \
+			add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", filt_bam_, fastqs )
 	}
 
 	string tag
@@ -513,6 +526,9 @@ void align_SE( int rep, int nth_rep ) {
 
 		wait
 
+		// if ( filt_bam_ != "" ) \
+		// 	add_ENCODE_metadata_to_summary_json( "tagAlign", "bed6" , "" , final_tag_ , [filt_bam_] )
+
 		if ( !true_rep ) {
 
 			aln_pr1_o_dir := mkdir( "$out_dir/align/pseudo_reps/$group/pr1" )
@@ -555,11 +571,12 @@ void align_PE( int rep, int nth_rep ) {
 	qc_o_dir  := mkdir( "$out_dir/qc/$group" ) // create qc output dir.
 
 	string bam_, align_log_
+	string[] fastqs_pair1, fastqs_pair2
 
 	if ( is_input_fastq( rep ) ) {
 
-		fastqs_pair1 := get_fastq( 0, rep, 1 )
-		fastqs_pair2 := get_fastq( 0, rep, 2 )
+		fastqs_pair1 = get_fastq( 0, rep, 1 )
+		fastqs_pair2 = get_fastq( 0, rep, 2 )
 
 		string[] trimmed_fastqs_pair1, trimmed_fastqs_pair2
 
@@ -658,6 +675,9 @@ void align_PE( int rep, int nth_rep ) {
 		add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
 
 		wait
+
+		if ( fastqs_pair1.size() > 0 || fastqs_pair2.size() > 0 ) \
+			add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", filt_bam_, fastqs_pair1+fastqs_pair2 )
 	}
 
 	string bedpe, subsampled_bedpe, tag
@@ -731,10 +751,15 @@ void align_PE( int rep, int nth_rep ) {
 			final_tag_pr1{rep} = final_tag_pr1_
 			final_tag_pr2{rep} = final_tag_pr2_
 
-			add_file_to_report( final_tag_pr1_, "tag-align", "$group-pr1", "Alignment/Pseudo-replicates/$long/Pseudo-replicate 1/Tag-align" )
-			add_file_to_report( final_tag_pr2_, "tag-align", "$group-pr2", "Alignment/Pseudo-replicates/$long/Pseudo-replicate 2/Tag-align" )			
+			add_file_to_report( final_tag_pr1_, "tag-align", "$group-pr1", \
+				"Alignment/Pseudo-replicates/$long/Pseudo-replicate 1/Tag-align" )
+			add_file_to_report( final_tag_pr2_, "tag-align", "$group-pr2", \
+				"Alignment/Pseudo-replicates/$long/Pseudo-replicate 2/Tag-align" )			
 		}
 		wait
+
+		// if ( filt_bam_ != "" ) \
+		// 	add_ENCODE_metadata_to_summary_json( "tagAlign", "bed6", "", final_tag_, [filt_bam_] )
 
 		string subsampled_tag_xcor
 
@@ -1081,10 +1106,11 @@ void do_idr() {
 	print( "\n== Done do_idr()\n" )
 }
 
+// black list filter and then convert to bigbed (for true replicates only)
 void filter_peak_and_convert_to_bigbed() { 
 	if ( align ) return
 
-	// black list filter and then convert to bigbed (for true replicates only)
+	// peaks for true replicates
 	if ( get_num_rep() > 1 ) {
 		filt_peak_pooled_001 := \
 			blacklist_filter_peak( "narrowPeak", peak_pooled_001, peak_pooled_001.dirName(), "peak_pooled" )
@@ -1095,15 +1121,69 @@ void filter_peak_and_convert_to_bigbed() {
 		peak_to_bigbed( "narrowPeak", filt_peak_pooled_001, filt_peak_pooled_001.dirName(), "peak_pooled" )
 		peak_to_bigbed( "gappedPeak", filt_gpeak_pooled_001, filt_gpeak_pooled_001.dirName(), "gpeak_pooled" )
 	}
+
+	string[] filt_peaks, filt_gpeaks
 	for (int rep=1; rep<=get_num_rep(); rep++) {
 		filt_peak_001 := \
-			blacklist_filter_peak( "narrowPeak", peak_001{rep}, peak_001{rep}.dirName(), "peak $rep" )
+			blacklist_filter_peak( "narrowPeak", peak_001{rep}, (peak_001{rep}).dirName(), "peak $rep" )
 		filt_gpeak_001 := \
-			blacklist_filter_peak( "gappedPeak", gpeak_001{rep}, gpeak_001{rep}.dirName(), "gpeak $rep" )
+			blacklist_filter_peak( "gappedPeak", gpeak_001{rep}, (gpeak_001{rep}).dirName(), "gpeak $rep" )
+		wait
+		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "filtered peaks", filt_peak_001, [filt_bam{rep}])
+		add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "filtered peaks", filt_gpeak_001, [filt_bam{rep}])
+		add_ENCODE_metadata_to_summary_json( "bigWig", "", "signal p-value", pval_bigwig_001{rep}, [filt_bam{rep}])
+		add_ENCODE_metadata_to_summary_json( "bigWig", "", "fold change over control",  fc_bigwig_001{rep}, [filt_bam{rep}])
+
+		npeak_bb := peak_to_bigbed( "narrowPeak", filt_peak_001, filt_peak_001.dirName(), "peak $rep" )
+		gpeak_bb := peak_to_bigbed( "gappedPeak", filt_gpeak_001, filt_gpeak_001.dirName(), "gpeak $rep" )
+
+		wait
+		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "filtered peaks", npeak_bb, [filt_peak_001])
+		add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "filtered peaks", gpeak_bb, [filt_gpeak_001])
+
+		filt_peaks.add(filt_peak_001)
+		filt_gpeaks.add(filt_gpeak_001)
+	}
+
+	wait
+
+	// IDR peaks
+	if ( idr_opt && idr_consv ) {
+		// find idr_opt and idr_consv		
+		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", idr_opt, filt_peaks )
+		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "conservative idr thresholded peaks", idr_consv, filt_peaks )
+
+		idr_opt_bb := peak_to_bigbed( "narrowPeak", idr_opt, idr_opt.dirName(), "idr peak opt" )
+		idr_consv_bb := peak_to_bigbed( "narrowPeak", idr_consv, idr_consv.dirName(), "idr peak consv" )
+
 		wait
 
-		peak_to_bigbed( "narrowPeak", filt_peak_001, filt_peak_001.dirName(), "peak $rep" )
-		peak_to_bigbed( "gappedPeak", filt_gpeak_001, filt_gpeak_001.dirName(), "gpeak $rep" )
+		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", idr_opt_bb, [idr_opt])
+		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "conservative idr thresholded peaks", idr_consv_bb, [idr_consv] )
+	}
+	else if ( idr_pr.hasKey(1) ) {
+		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", idr_pr{1}, filt_peaks )
+
+		idr_bb := peak_to_bigbed( "narrowPeak", idr_pr{1}, idr_pr{1}.dirName(), "idr peak pr" )
+
+		wait
+
+		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", idr_bb, [idr_pr{1}] )
+	}
+
+	// naive overlap peaks
+	if ( peak_overlap ) {
+		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "replicated peaks", peak_overlap, filt_peaks )
+		npeak_bb := peak_to_bigbed( "narrowPeak", peak_overlap, peak_overlap.dirName(), "peak overlap" )
+		wait
+		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "replicated peaks", npeak_bb, [peak_overlap] )
+	}
+
+	if ( gpeak_overlap ) {
+		add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "replicated peaks", gpeak_overlap, filt_gpeaks )
+		gpeak_bb := peak_to_bigbed( "gappedPeak", gpeak_overlap, gpeak_overlap.dirName(), "gpeak overlap" )
+		wait
+		add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "replicated peaks", gpeak_bb, [gpeak_overlap] )
 	}
 
 	wait
@@ -1172,7 +1252,7 @@ void report() {
 	html += html_atac_QC()	// show QC tables and images
 
 	report( html )
-	write_qc_summary()
+	write_summary_json()
 
 	print( "\n== Done report()\n" )
 }

@@ -6,138 +6,173 @@
 include "species.bds"
 
 help == ENCODE accession settings
-string ENCODE_accession = "" 		help ENCODE experiment accession ID (dataset in dpdx).
-string ENCODE_assay_category = "" 	help ENCODE assay category.
-string ENCODE_assay_title = "" 		help ENCODE assay title.
-string ENCODE_award_rfa = "" 		help ENCODE award RFA (award in dpdx).
-string ENCODE_lab = "" 			help Lab
-string ENCODE_genome = "" 		help hg19, GRCh38, mm9, mm10 (assembly in dpdx).
+string ENCODE_accession = "" 			help ENCODE experiment accession ID (dataset in dpdx).
+string ENCODE_award_rfa = "" 			help ENCODE award RFA (e.g. ENCODE3).
+string ENCODE_assay_category = "" 		help ENCODE assay category.
+string ENCODE_assay_title = "" 			help ENCODE assay title.
+string ENCODE_award = "" 			help ENCODE award (e.g. /awards/U41HG007000/).
+string ENCODE_lab = "" 				help Lab (e.g. /labs/anshul-kundaje/)
+string ENCODE_assembly = "" 			help hg19, GRCh38, mm9, mm10.
+string ENCODE_alias_prefix = "KLAB_PIPELINE"	help Alias = Alias_prefix + filename
 
+string[] _summary_qc
+string[] _summary_ENCODE_accession
 
-string{} ENCODE_jsons // key: output filename, val: corresponding json filename
+/*
+description 	file_format 	file_format_type 	output_type
+raw bam 	bam 					unfiltered alignments
+dedup bam  	bam 					alignments
+tagAlign 	tagAlign 	bed6			
+sig. pval 	bigWig    				signal p-value
+sig. fc 	bigWig 	 				fold change over control
+n peak 		bed/bigBed	narrowPeak  		filtered peaks
+g peak 		bed/bigBed	gappedPeak 		filtered peaks
+overlap npeak 	bed/bigBed	narrowPeak		replicated peaks
+overlap gpeak 	bed/bigBed	gappedPeak		replicated peaks
+idr peak 	bed/bigBed	narrowPeak 		idr thresholded peaks
+							optimal idr thresholded peaks
+							conservative idr thresholded peaks
 
+*/							
 
 init_ENCODE_accession()
 
-
 void init_ENCODE_accession() { 
 	ENCODE_accession 	= get_conf_val( ENCODE_accession, 	["ENCODE_accession"] )
+	ENCODE_award_rfa 	= get_conf_val( ENCODE_award_rfa, 	["ENCODE_award_rfa"] )
 	ENCODE_assay_category	= get_conf_val( ENCODE_assay_category, 	["ENCODE_assay_category"] )
 	ENCODE_assay_title	= get_conf_val( ENCODE_assay_title, 	["ENCODE_assay_title"] )
-	ENCODE_award_rfa 	= get_conf_val( ENCODE_award_rfa, 	["ENCODE_award_rfa"] )
+	ENCODE_award 		= get_conf_val( ENCODE_award, 		["ENCODE_award"] )
 	ENCODE_lab 		= get_conf_val( ENCODE_lab, 		["ENCODE_lab"] )
-	ENCODE_genome		= get_conf_val( ENCODE_genome, 		["ENCODE_genome"] )
+	ENCODE_assembly		= get_conf_val( ENCODE_assembly, 	["ENCODE_assembly"] )
+	ENCODE_alias_prefix	= get_conf_val( ENCODE_alias_prefix, 	["ENCODE_alias_prefix"] )
 
 	print("\n\n== ENCODE accession settings\n")
 	print( "ENCODE experiment accession\t: $ENCODE_accession\n" )
+	print( "ENCODE award RFA\t\t\t: $ENCODE_award_rfa\n" )
 	print( "ENCODE assay category\t\t: $ENCODE_assay_category\n" )
 	print( "ENCODE assay title\t\t: $ENCODE_assay_title\n" )
-	print( "ENCODE award RFA\t\t: $ENCODE_award_rfa\n" )
-	print( "ENCODE lab\t\t\t: $ENCODE_lab\n" )
-	print( "ENCODE Genome name\t\t: $ENCODE_genome\n" )
+	print( "ENCODE award\t\t\t\t: $ENCODE_award\n" )
+	print( "ENCODE lab\t\t\t\t: $ENCODE_lab\n" )
+	print( "ENCODE assembly genome\t\t: $ENCODE_assembly\n" )
+	print( "ENCODE alias prefix\t\t: $ENCODE_alias_prefix\n" )
+}
+
+void write_summary_json() {
+
+	ret := "{\n"
+	ret += "\t\"ENCODE_award_rfa\" : \"" + ENCODE_award_rfa + "\",\n"
+	ret += "\t\"ENCODE_assay_category\" : \"" + ENCODE_assay_category + "\",\n"
+	ret += "\t\"ENCODE_assay_title\" : \"" + ENCODE_assay_title + "\",\n"
+	ret += "\t\"species\" : \"" + species + "\",\n"
+	ret += "\t\"title\" : \"" + title + "\",\n"
+	ret += "\t\"data_files\" : [\n"
+	cnt := 0
+	for ( string json : _summary_ENCODE_accession ) {
+		cnt += 1
+		cnt2 := 0
+		lines := json.split("\n")
+		for ( string val : lines ) {
+			cnt2 += 1
+			ret += ("\t\t"+val+"\n")
+			if ( cnt != _summary_ENCODE_accession.size() && cnt2 == lines.size() ) ret += "\t\t,\n"
+ 		}
+	}
+	ret += "\t],\n"
+
+	ret += "\t\"qc_files\" : [\n"
+	cnt = 0
+	for ( string json : _summary_qc ) {
+		cnt += 1
+		cnt2 := 0
+		lines := json.split("\n")
+		for ( string val : lines ) {
+			cnt2 += 1
+			ret += ("\t\t"+val+"\n")
+			if ( cnt != _summary_qc.size() && cnt2 == lines.size() ) ret += "\t\t,\n"
+ 		}
+	}
+	ret += "\t]\n"
+
+	ret += "}\n"	
+	"$out_dir/ENCODE_summary.json".write( ret )
 }
 
 /*
-string{} _get_ENCODE_accession_template( string file, string derived_from ) {
-	string{} json
-	// ENCODE standard
-	json{"md5sum"} = get_md5sum( file )
-	json{"submitted_file_name"} = get_basename( file )
-	json{"dataset"} = ENCODE_dataset // ENCODE experiment accession ID
-	json{"award"} = ENCODE_award // ENCODE rfa
-	json{"lab"} = ENCODE_lab // lab
-	if ( derived_from != "" ) \
-		json{"derived_from"} = get_md5sum( derived_from )
-	//json{"controlled_by"} = // md5sum
-	// custom info for BDS pipeline
-	json{"rel_path"} = get_rel_path( file )
+add_ENCODE_metadata_to_summary_json( "tagAlign", "bed6", "", final_tag_ , [filt_bam_] )
+add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "filtered peaks",  , )
+add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "filtered peaks",  , )
+add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "filtered peaks",  , )
+add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "filtered peaks",  , )
+add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "idr thresholded peaks",  , )
+add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", )
+add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "conservative idr thresholded peaks", )
+add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "idr thresholded peaks", )
+add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", )
+add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "conservative idr thresholded peaks", )
+add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "replicated peaks",  , )
+add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "replicated peaks",  , )
+add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "replicated peaks",  , )
+add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "replicated peaks",  , )
+add_ENCODE_metadata_to_summary_json( "bigWig", "" , "signal p-value" ,  , )
+add_ENCODE_metadata_to_summary_json( "bigWig", "" , "fold change over control" ,  , )
+*/
 
-	ENCODE_jsons{file} = json
-	return ENCODE_accession
-}
-
-// ENCODE file_format: https://www.encodeproject.org/profiles/file.json
-
-
-void write_ENCODE_accession_fastq_SE( string file ) {
-	json := _get_ENCODE_accession_template( file, "" )
-	json{"file_format"} = "fastq"
-	ENCODE_jsons{file} = json
-}
-
-void write_ENCODE_accession_fastq_PE( string file, string derived_from, int pair_id, string paired_with ) {
-	json := _get_ENCODE_accession_template( file, "" )
-	json{"file_format"} = "fastq"
-	json{"paired_end"} = pair_id
-	json{"paired_with"} = get_md5sum( paired_with )
-	ENCODE_jsons{file} = json
-}
-
-void write_ENCODE_accession_raw_bam( string file, string derived_from ) {
+void add_ENCODE_metadata_to_summary_json( string file_format, string file_format_type, string output_type, \
+	string file, string[] derived_from ) {
 	json := _get_ENCODE_accession_template( file, derived_from )
-	json{"file_format"} = "bam"
-	json{"output_type"} = "unfiltered alignments"
-	ENCODE_jsons{file} = json
+	json{"file_format"} = file_format
+	if ( file_format_type != "" ) \
+		json{"file_format_type"} = file_format_type
+	json{"output_type"} = output_type
+	_summary_ENCODE_accession.add( map_to_json_str(json) )
 }
 
-void write_ENCODE_accession_final_bam( string file, string derived_from ) {
-	json := _get_ENCODE_accession_template( file, derived_from )
-	json{"file_format"} = "bam"
-	json{"output_type"} = "alignments"
-	ENCODE_jsons{file} = json
+string{} _get_ENCODE_accession_template( string file, string[] derived_from ) {
+	map := _read_metadata( file )
 
-}
-
-void write_ENCODE_accession_tagAlign( string file, string derived_from ) {
-	json := _get_ENCODE_accession_template( file, derived_from )
-	json{"file_format"} = "tagAlign"
-	ENCODE_jsons{file} = json
-}
-
-void write_ENCODE_accession_pval_bigwig( string file, string derived_from ) {
-	json := _get_ENCODE_accession_template( file, derived_from )
-	json{"file_format"} = "bigWig"
-        json{"output_type"} = "signal p-value"
-	ENCODE_jsons{file} = json
-}
-
-void write_ENCODE_accession_fc_bigwig( string file, string derived_from ) {
-	json := _get_ENCODE_accession_template( file, derived_from )
-	json{"file_format"} = "bigWig"
-        json{"output_type"} = "fold change over control"
-	ENCODE_jsons{file} = json
-}
-
-// peak_type: narrowPeak, broadPeak, gappedPeak, idr_peak
-void write_ENCODE_accession_peak( string file_format, string peak_type, string file, string derived_from ) {
-	json := _get_ENCODE_accession_template( file, derived_from )
-	json{"file_format"} = file_format // bed, bigBed
-        json{"file_format_type"} = peak_type // e.g. narrowPeak
-        json{"output_type"} = 'peaks'
-	ENCODE_jsons{file} = json
-}
-
-// qc type: flagstat_qc, dup_qc, pbc_qc, final_idr_qc, 
-void write_ENCODE_accession_qc( string qc_type, string file, string derived_from ) {
-	json := _get_ENCODE_accession_template( file, derived_from )
-	json{"file_format"} = 
-        json{"file_format_type"} = peak_type // e.g. narrowPeak
-        json{"output_type"} = 'peaks'
-	ENCODE_jsons{file} = json
-}
-
-void write_ENCODE_accession_summary( string summary_file ) {
-	summary := "{\n"
-	int indent_lvl 
-	for ( string output_file : ENCODE_jsons ) {
-		indent := ("\t"*indent_lvl)
-		json_str := ENCODE_jsons{output_file}
-		lines := json_str.split("\n")
-		for ( string line : lines ) {
-			summary += ("\t" + line + "\n")
+	// derived_from	
+	string[] arr
+	for ( string file_derived : derived_from ) {
+		if ( get_basename(file_derived).startsWith("ENCF") && file_derived.indexOf(".fastq.gz") > -1 ) {
+			// for fastqs, their file name prefixes are accesion IDs
+			file2 := get_basename(file_derived).replace(".trim","").split(".fastq.gz")[0]
+			if ( file2.indexOf("_") > 0 ) {
+				arr.add( file2.split("_")[0] )
+				arr.add( file2.split("_")[1] )
+			}
+			else {
+				arr.add( file2 )
+			}
+		}
+		else {
+			map_derived_from := _read_metadata( file_derived ) 
+			arr.add( (map_derived_from{"aliases:array"}).replace("[","").replace("]","") )
 		}
 	}
-	summary += "}\n"
-	summary_file.write("summary.json")
+	map{"derived_from:array"} = arr.size() ? ("[" + array_to_str(arr,";") + "]") : ""
+	return map
 }
-*/
+
+// basic ENCODE data are stored in .meta file
+string{} _read_metadata( string file ) { // read from .meta and write to a map 
+	string{} map
+
+	// read .meta file if exists (format: conf in conf.bds, contents: md5sum, ...)
+	meta_file := "$file.meta"
+	if ( path_exists( meta_file ) && !(meta_file<-file) ) {
+		map = read_conf( meta_file, "" )
+	}
+	else {
+		map{"md5sum"} = get_md5sum( file )
+	}
+	map{"submitted_file_name"} = get_basename(file)
+	map{"dataset"} = ENCODE_accession // ENCODE experiment accession ID
+	map{"award"} = ENCODE_award // ENCODE rfa
+	map{"lab"} = ENCODE_lab // lab
+	map{"assembly"} = ENCODE_assembly
+	map{"aliases:array"} = "[$ENCODE_alias_prefix:" + get_basename(file) + "]"
+	meta_file.write( map_to_conf_str(map) )
+
+	return map
+}

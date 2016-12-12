@@ -177,6 +177,16 @@ string map_to_json_str( string{} map ) { // like JSON
 	return ret
 }
 
+string map_to_conf_str( string{} map ) { // like JSON
+	ret := ""
+	for ( string key : map.keys() ) {
+		val := map{key}
+		ret += "$key = $val\n"
+	}
+	return ret
+}
+
+
 bool is_in_array( string str, string[] arr ) { // case-insensitive
 	for( string val : arr ) \
 		if ( val.toLower() == str.toLower() ) \
