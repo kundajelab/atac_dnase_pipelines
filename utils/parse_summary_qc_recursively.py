@@ -2,23 +2,35 @@
 
 # written by Jin Lee, 2016
 
-import os
+import os, sys
+import argparse
 import json
 import subprocess
 import collections
+
+parser = argparse.ArgumentParser(prog='ENCODE_summary.json parser for QC', \
+                                    description='Recursively find ENCODE_summary.json, parse it and make a TSV spreadsheet of QC metrics.')
+parser.add_argument('--out-file', type=argparse.FileType('w'), default=sys.stdout, \
+                        help='Output TSV filename)')
+parser.add_argument('--search-dir', type=str, default='.', \
+                        help='Root directory to search for ENCODE_summary.json')
+parser.add_argument('--json-file', type=str, default='ENCODE_summary.json', \
+                        help='Specify json file name to be parsed')
+
+args = parser.parse_args()
 
 # find all qc_summary.json recursively
 # json_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(os.getcwd()) \
 #     for f in filenames if os.path.splitext(f)[1] == 'qc_summary.json']
 
-json_files = subprocess.check_output("find . -name 'ENCODE_summary.json'", \
+# find all ENCODE_summary.json recursively
+json_files = subprocess.check_output("find %s -name %s" % (args.search_dir,args.json_file), \
                                     shell=True ).strip().split('\n')
 # read json
 jsons = []
 for json_file in json_files:
-    f = open(json_file,'r')
-    jsons.append( json.load(f) )
-    f.close()
+    with open(json_file,'r') as f:
+        jsons.append( json.load(f) )
 
 # sort
 # sorted_jsons = sorted(jsons, key = lambda x: (\
@@ -28,8 +40,6 @@ for json_file in json_files:
 #     x['species'], \
 #     x['title']))
 
-f = open('qc_summary.tsv','w')
-    
 # look at headers first
 headers = collections.OrderedDict()
 headers['common'] = [\
@@ -58,11 +68,11 @@ for json in jsons:
                 headers[qc_type].append(header_item)
 
 # write header1
-f.write( '\t'.join( [ qc_type+'\t'*(len(headers[qc_type])-1) \
+args.out_file.write( '\t'.join( [ qc_type+'\t'*(len(headers[qc_type])-1) \
                         for qc_type in headers ] ) +'\n')
 
 # write header2
-f.write( '\t'.join( [ '\t'.join(headers[qc_type]) \
+args.out_file.write( '\t'.join( [ '\t'.join(headers[qc_type]) \
                         for qc_type in headers ] ) +'\n')
 
 # for each replicate, write contents
@@ -101,6 +111,4 @@ for json in jsons:
             if not found:
                 result += ('\t'*len(registered_header_list))
 
-        f.write( result + '\n' )
-
-f.close()
+        args.out_file.write( result + '\n' )

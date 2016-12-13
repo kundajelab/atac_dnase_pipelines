@@ -64,6 +64,7 @@ void write_summary_json() {
 	ret += "\t\"ENCODE_award_rfa\" : \"" + ENCODE_award_rfa + "\",\n"
 	ret += "\t\"ENCODE_assay_category\" : \"" + ENCODE_assay_category + "\",\n"
 	ret += "\t\"ENCODE_assay_title\" : \"" + ENCODE_assay_title + "\",\n"
+	ret += "\t\"ENCODE_accession\" : \"" + ENCODE_accession + "\",\n"
 	ret += "\t\"species\" : \"" + species + "\",\n"
 	ret += "\t\"title\" : \"" + title + "\",\n"
 	ret += "\t\"data_files\" : [\n"

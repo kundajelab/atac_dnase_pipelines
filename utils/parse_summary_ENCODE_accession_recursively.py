@@ -1,3 +1,5 @@
+#!/usr/bin/env python2
+
 # written by Jin Lee, 2016
 
 import os, sys
@@ -6,36 +8,39 @@ import subprocess
 import collections
 import argparse
 
-parser = argparse.ArgumentParser(prog='ENCODE_summary.json parser', \
-                                    description='Recursively find ENCODE_summary.json under a working directory, parse it and make a CSV for uploading to the ENCODE portal. Use https://github.com/ENCODE-DCC/pyencoded-tools/blob/master/ENCODE_submit_files.py for uploading.')
+parser = argparse.ArgumentParser(prog='ENCODE_summary.json parser for ENCODE accession', \
+                                    description='Recursively find ENCODE_summary.json, parse it and make a CSV for uploading to the ENCODE portal. Use https://github.com/ENCODE-DCC/pyencoded-tools/blob/master/ENCODE_submit_files.py for uploading.')
 parser.add_argument('--out-file', type=argparse.FileType('w'), default=sys.stdout, \
                         help='Output CSV filename)')
 parser.add_argument('--search-dir', type=str, default='.', \
                         help='Root directory to search for ENCODE_summary.json')
+parser.add_argument('--json-file', type=str, default='ENCODE_summary.json', \
+                        help='Specify json file name to be parsed')
 parser.add_argument('--sort-by-genome-and-exp', dest='sort_by_genome_and_exp', action='store_true', \
                         help='Sort rows by genomes and ENCODE experiment accession ID')
+parser.add_argument('--ignored-accession-ids-file', type=str, \
+                        help='Accession IDs in this text file will be ignored. (1 acc. ID per line)')
 parser.set_defaults(sort_by_genome_and_exp=False)
 
 args = parser.parse_args()
 
-# find all qc_summary.json recursively
-# json_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(os.getcwd()) \
-#     for f in filenames if os.path.splitext(f)[1] == 'qc_summary.json']
+# loaded ignored accession list
+ignored_accession_ids = []
+if args.ignored_accession_ids_file and os.path.isfile(args.ignored_accession_ids_file):
+    with open(args.ignored_accession_ids_file,'r') as f:
+        ignored_accession_ids = f.read().splitlines()
+    ignored_accession_ids = \
+        [accession_id for accession_id in ignored_accession_ids if accession_id and not accession_id.startswith("#") ]
 
-json_files = subprocess.check_output("find %s -name 'ENCODE_summary.json'" % (args.search_dir,), \
+# find all ENCODE_summary.json recursively
+json_files = subprocess.check_output("find %s -name %s" % (args.search_dir,args.json_file), \
                                     shell=True ).strip().split('\n')
 # read json
 jsons = []
 for json_file in json_files:
-    # if not ('ENCSR765MXG' in json_file or 'ENCSR280ZDP' in json_file) : continue
-    # if not 'ENCSR337UIU' in json_file : continue
-    # if not 'ENCSR428BSK' in json_file : continue
-    f = open(json_file,'r')
-    jsons.append( json.load(f) )
-    f.close()
-
-# with open('ENCODE_accession.csv','w') as f:
-  
+    with open(json_file,'r') as f:
+        jsons.append( json.load(f) )
+ 
 # look at headers first
 raw_headers = list()
 
@@ -80,6 +85,7 @@ def find_submitted_file_name( submitted_file_name ):
 for json in jsons:
     if not 'data_files' in json:
         continue
+    if json['ENCODE_accession'] in ignored_accession_ids: continue
     data_files = json['data_files']
     for data_file in data_files:
         line = collections.OrderedDict()
