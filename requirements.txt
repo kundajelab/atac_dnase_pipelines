@@ -40,7 +40,7 @@ r-bitops
 r-catools
 bioconductor-rsamtools
 r-spp ==1.13
-cutadapt
+cutadapt ==1.9.1
 preseq ==2.0.2 
 trim-galore ==0.4.1 # for old trimmer
 python-levenshtein # for old trimmer (trimAdapter.py)
