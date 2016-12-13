@@ -1148,26 +1148,24 @@ void filter_peak_and_convert_to_bigbed() {
 	wait
 
 	// IDR peaks
-	if ( idr_opt && idr_consv ) {
+	if ( idr_opt ) {
 		// find idr_opt and idr_consv		
 		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", idr_opt, filt_peaks )
-		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "conservative idr thresholded peaks", idr_consv, filt_peaks )
-
 		idr_opt_bb := peak_to_bigbed( "narrowPeak", idr_opt, idr_opt.dirName(), "idr peak opt" )
-		idr_consv_bb := peak_to_bigbed( "narrowPeak", idr_consv, idr_consv.dirName(), "idr peak consv" )
-
 		wait
-
 		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", idr_opt_bb, [idr_opt])
-		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "conservative idr thresholded peaks", idr_consv_bb, [idr_consv] )
+
+		if ( idr_consv && get_basename( idr_opt )!=get_basename( idr_consv ) ) {
+			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "conservative idr thresholded peaks", idr_consv, filt_peaks )
+			idr_consv_bb := peak_to_bigbed( "narrowPeak", idr_consv, idr_consv.dirName(), "idr peak consv" )
+			wait
+			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "conservative idr thresholded peaks", idr_consv_bb, [idr_consv] )
+		}
 	}
 	else if ( idr_pr.hasKey(1) ) {
 		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", idr_pr{1}, filt_peaks )
-
 		idr_bb := peak_to_bigbed( "narrowPeak", idr_pr{1}, idr_pr{1}.dirName(), "idr peak pr" )
-
 		wait
-
 		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", idr_bb, [idr_pr{1}] )
 	}
 
