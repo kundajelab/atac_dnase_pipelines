@@ -6,7 +6,7 @@
 include "species.bds"
 
 help == ENCODE accession settings
-string ENCODE_accession = "" 			help ENCODE experiment accession ID (dataset in dpdx).
+string ENCODE_accession = "" 			help ENCODE experiment accession ID (or dataset).
 string ENCODE_award_rfa = "" 			help ENCODE award RFA (e.g. ENCODE3).
 string ENCODE_assay_category = "" 		help ENCODE assay category.
 string ENCODE_assay_title = "" 			help ENCODE assay title.

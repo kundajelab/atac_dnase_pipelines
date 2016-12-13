@@ -12,6 +12,8 @@ The DNase-seq pipeline specification is [here](https://docs.google.com/document/
 * Go to [Genomic pipelines in Kundaje lab](https://kundajelab.github.io/bds_pipeline_modules)
 * Go to [Discussion channel](https://groups.google.com/forum/#!forum/klab_genomic_pipelines_discuss)
 * Jump to [Usage](#usage)
+* Jump to [Output directory structure and file naming](#output-directory-structure-and-file-naming)
+* Jump to [ENCODE accession guideline](#encode-accession-guideline)
 * Jump to [Troubleshooting](#troubleshooting)
 
 # Installation
@@ -255,6 +257,10 @@ For multimapping,
 ```
 -multimapping [NO_MULTIMAPPING; 4 by default]
 ```
+To force a set of parameters (`-smooth_win 73 -idr_thresh 0.05 -multimapping 4`) for ENCODE3.
+```
+-ENCODE3
+```
 
 You can also define parameters in a configuration file. Key names in a configruation file are identical to parameter names on command line. 
 ```
@@ -275,46 +281,63 @@ To list all parameters and default values for them,
 $ bds atac.bds
 
 == atac pipeline settings
-        -type <string>                : Type of the pipeline. atac-seq or dnase-seq (default: atac-seq).
-        -dnase_seq <bool>             : DNase-Seq (no tn5 shifting).
-        -trimmed_fastq <bool>         : Skip fastq-trimming stage.
-        -align <bool>                 : Align only (no MACS2 peak calling or IDR or ataqc analysis).
-        -subsample_xcor <string>      : # reads to subsample for cross corr. analysis (default: 25M).
-        -subsample <string>           : # reads to subsample exp. replicates. Subsampled tagalign will be used for steps downstream (default: 0; no subsampling).
-        -true_rep <bool>              : No pseudo-replicates.
-        -no_idr <bool>                : No IDR analysis on called peaks. This will change p-value threshold (0.1->0.01) in MACS2 peak calling.
-        -no_ataqc <bool>              : No ATAQC
-        -csem <bool>                  : Use CSEM for alignment.
-        -mem_ataqc <string>           : Max. memory for ATAQC (default: 15G).
-        -wt_ataqc <string>            : Walltime for ATAQC (default: 23h, 23:00:00).
-        -smooth_win <string>          : Smoothing window size for MACS2 peak calling (default: 150).
-        -idr_thresh <string>          : IDR threshold : -log_10(score) (default: 0.1).
-        -old_trimmer <bool>           : Use legacy trim adapters (trim_galore and trimAdapter.py).
+        -type <string>                   : Type of the pipeline. atac-seq or dnase-seq (default: atac-seq).
+        -dnase_seq <bool>                : DNase-Seq (no tn5 shifting).
+        -trimmed_fastq <bool>            : Skip fastq-trimming stage.
+        -align <bool>                    : Align only (no MACS2 peak calling or IDR or ataqc analysis).
+        -subsample_xcor <string>         : # reads to subsample for cross corr. analysis (default: 25M).
+        -subsample <string>              : # reads to subsample exp. replicates. Subsampled tagalign will be used for steps downstream (default: 0; no subsampling).
+        -true_rep <bool>                 : No pseudo-replicates.
+        -no_idr <bool>                   : No IDR analysis on called peaks. This will change p-value threshold (0.1->0.01) in MACS2 peak calling.
+        -no_ataqc <bool>                 : No ATAQC
+        -no_xcor <bool>                  : No Cross-correlation analysis.
+        -csem <bool>                     : Use CSEM for alignment.
+        -smooth_win <string>             : Smoothing window size for MACS2 peak calling (default: 150).
+        -idr_thresh <string>             : IDR threshold : -log_10(score) (default: 0.1).
+        -old_trimmer <bool>              : Use legacy trim adapters (trim_galore and trimAdapter.py).
+        -ENCODE3 <bool>                  : Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE3.
+        -ENCODE <bool>                   : Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE.
 == configuration file settings
-        -c <string>                   : Configuration file path.
-        -env <string>                 : Environment file path.
+        -c <string>                      : Configuration file path.
+        -env <string>                    : Environment file path.
 == parallelization settings
-        -no_par <bool>                : Serialize all tasks (individual tasks can still use multiple threads up to '-nth').
-        -nth <int>                    : Maximum # threads for a pipeline. (default: 8).
+        -no_par <bool>                   : Serialize all tasks (individual tasks can still use multiple threads up to '-nth').
+        -nth <int>                       : Maximum # threads for a pipeline. (default: 8).
 == cluster/system/resource settings
-        -wt <string>                  : Walltime for all single-threaded tasks (example: 8:10:00, 3h, 3600, default: 5h50m, 5:50:00).
-        -memory <string>              : Maximum memory for all single-threaded tasks (equivalent to '-mem', example: 4.5G, 1024M, default: 7G).
-        -use_system <string>          : Force to use a system (equivalent to 'bds -s [SYSTEM_NAME] ...', any system defined in bds.config can be used).
-        -nice <int>                   : Set process priority for all tasks (default: 0; -20 (highest) ~ 19 (lowest) ).
-        -retrial <int>                : # of Retrial for failed tasks (default: 0).
-        -q <string>                   : Submit tasks to a specified cluster queue.
-        -unlimited_mem_wt <bool>      : Use unlimited max. memory and walltime.
+        -wt <string>                     : Walltime for all single-threaded tasks (example: 8:10:00, 3h, 3600, default: 5h50m, 5:50:00).
+        -memory <string>                 : Maximum memory for all single-threaded tasks (equivalent to '-mem', example: 4.5G, 1024M, default: 7G).
+        -use_system <string>             : Force to use a system (equivalent to 'bds -s [SYSTEM_NAME] ...', any system defined in bds.config can be used).
+        -nice <int>                      : Set process priority for all tasks (default: 0; -20 (highest) ~ 19 (lowest) ).
+        -retrial <int>                   : # of Retrial for failed tasks (default: 0).
+        -q <string>                      : Submit tasks to a specified cluster queue.
+        -unlimited_mem_wt <bool>         : Use unlimited max. memory and walltime.
 == shell environment settings
-        -mod <string>                 : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
-        -shcmd <string>               : Shell commands separated by ;. Shell var. must be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test").
-        -addpath <string>             : Path separated by ; or : to be PREPENDED to \$PATH (example: "/bin/test:${HOME}/utils").
-        -conda_env <string>           : Anaconda Python environment name for all softwares including Python2.
-        -conda_env_py3 <string>       : Anaconda Python environment name for Python3.
+        -mod <string>                    : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
+        -shcmd <string>                  : Shell commands separated by ;. Shell var. must be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test").
+        -addpath <string>                : Path separated by ; or : to be PREPENDED to \$PATH (example: "/bin/test:${HOME}/utils").
+        -conda_env <string>              : Anaconda Python environment name for all softwares including Python2.
+        -conda_env_py3 <string>          : Anaconda Python environment name for Python3.
 == output/title settings
-        -out_dir <string>             : Output directory (default: out).
-        -title <string>               : Prefix for HTML report and outputs without given prefix.
+        -out_dir <string>                : Output directory (default: out).
+        -title <string>                  : Prefix for HTML report and outputs without given prefix.
+== species settings
+        -species <string>                : Species. If not on kundaje lab servers, specify '-species_file' too.
+        -species_file <string>           : Species file path.
+        -species_browser <string>        : Species name in WashU genome browser.
+        -ref_fa <string>                 : Reference genome sequence fasta.
+        -chrsz <string>                  : Chromosome sizes file path (use fetchChromSizes from UCSC tools).
+        -blacklist <string>              : Blacklist bed.
+== ENCODE accession settings
+        -ENCODE_accession <string>       : ENCODE experiment accession ID (or dataset).
+        -ENCODE_award_rfa <string>       : ENCODE award RFA (e.g. ENCODE3).
+        -ENCODE_assay_category <string>  : ENCODE assay category.
+        -ENCODE_assay_title <string>     : ENCODE assay title.
+        -ENCODE_award <string>           : ENCODE award (e.g. /awards/U41HG007000/).
+        -ENCODE_lab <string>             : Lab (e.g. /labs/anshul-kundaje/)
+        -ENCODE_assembly <string>        : hg19, GRCh38, mm9, mm10.
+        -ENCODE_alias_prefix <string>    : Alias = Alias_prefix + filename
 == report settings
-        -url_base <string>            : URL base for output directory.
+        -url_base <string>               : URL base for output directory.
 == fastq input definition :
         Single-ended : For replicate '-fastq[REP_ID]', For control '-ctl_fastq[REP_ID]'
         Paired end : For replicate '-fastq[REP_ID]_[PAIR_ID]', For control '-ctl_fastq[REP_ID]_[PAIR_ID]'
@@ -329,57 +352,51 @@ $ bds atac.bds
         For two PR (self-pseudo-replicates), use '-peak[REP_ID]_pr1' and '-peak[REP_ID]_pr2'
         For two PPR (pooled pseudo-replicates), use '-peak_ppr1' and '-peak_ppr2'
 == input endedness settings (SE or PE) :
-        -se <bool>                    : Singled-ended data set. To specify it for each replicate, '-se[REP_ID]' for exp. reps, '-ctl_se[CTL_ID]' for control.
-        -pe <bool>                    : Paired end data set. To specify it for each replicate, '-pe[REP_ID]' for exp. reps, '-ctl_pe[CTL_ID]' for controls.
+        -se <bool>                       : Singled-ended data set. To specify it for each replicate, '-se[REP_ID]' for exp. reps, '-ctl_se[CTL_ID]' for control.
+        -pe <bool>                       : Paired end data set. To specify it for each replicate, '-pe[REP_ID]' for exp. reps, '-ctl_pe[CTL_ID]' for controls.
 == adapter sequence definition :
         Single-ended : For replicate '-adapter[REP_ID]'
         Paired end : For replicate '-adapter[REP_ID]_[PAIR_ID]'
-== species settings
-        -species <string>             : Species. If not on kundaje lab servers, specify '-species_file' too.
-        -species_file <string>        : Species file path.
-        -chrsz <string>               : Chromosome sizes file path (use fetchChromSizes from UCSC tools).
-        -seq <string>                 : Reference genome sequence directory path (where chr*.fa exist).
-        -gensz <string>               : Genome size; hs for human, mm for mouse.
-        -umap <string>                : Unique mappability tracks directory path (https://sites.google.com/site/anshulkundaje/projects/mappability).
-        -bwa_idx <string>             : BWA index (full path prefix of *.bwt file) .
-        -bwt_idx <string>             : Bowtie index (full path prefix of *.1.ebwt file).
-        -bwt2_idx <string>            : Bowtie2 index (full path prefix of *.1.bt2 file).
-        -blacklist <string>           : Blacklist bed.
-        -tss_enrich <string>          : TSS enrichment bed for ataqc.
-        -ref_fa <string>              : Reference genome sequence fasta.
-        -dnase <string>               : DNase bed for ataqc.
-        -prom <string>                : Promoter bed for ataqc.
-        -enh <string>                 : Enhancer bed for ataqc.
-        -reg2map <string>             : Reg2map for ataqc.
-        -roadmap_meta <string>        : Roadmap metadata for ataqc.
 == align multimapping settings
-        -multimapping <int>           : # alignments reported for multimapping (default: 0).
+        -multimapping <int>              : # alignments reported for multimapping (default: 0).
 == align bowtie2 settings (requirements: -bwt2_idx)
-        -wt_bwt2 <string>             : Walltime for bowtie2 (default: 23h, 23:00:00).
-        -mem_bwt2 <string>            : Max. memory for bowtie2 (default: 12G).
+        -bwt2_idx <string>               : Bowtie2 index (full path prefix of *.1.bt2 file).
+        -wt_bwt2 <string>                : Walltime for bowtie2 (default: 23h, 23:00:00).
+        -mem_bwt2 <string>               : Max. memory for bowtie2 (default: 12G).
 == adapter trimmer settings
-        -adapter_err_rate <string>    : Maximum allowed adapter error rate (# errors divided by the length of the matching adapter region, default: 0.20).
-        -min_trim_len <int>           : Minimum trim length for cutadapt -m, throwing away processed reads shorter than this (default: 5).
-        -wt_trim <string>             : Walltime for adapter trimming (default: 23h, 23:00:00).
-        -mem_trim <string>            : Max. memory for adapter trimming (default: 12G).
+        -adapter_err_rate <string>       : Maximum allowed adapter error rate (# errors divided by the length of the matching adapter region, default: 0.20).
+        -min_trim_len <int>              : Minimum trim length for cutadapt -m, throwing away processed reads shorter than this (default: 5).
+        -wt_trim <string>                : Walltime for adapter trimming (default: 23h, 23:00:00).
+        -mem_trim <string>               : Max. memory for adapter trimming (default: 12G).
 == postalign bam settings
-        -mapq_thresh <int>            : Threshold for low MAPQ reads removal (default: 30).
-        -rm_chr_from_tag <string>     : If specified, exclude lines with specified string from tagaligns. (example: 'other|ribo|mito|_', '_', default: blank)
-        -wt_dedup <string>            : Walltime for post-alignment filtering (default: 23h, 24:00:00).
-        -mem_dedup <string>           : Max. memory for post-alignment filtering (default: 12G).
-        -use_sambamba_markdup <bool>  : Use sambamba markdup instead of Picard MarkDuplicates (default: false).
+        -mapq_thresh <int>               : Threshold for low MAPQ reads removal (default: 30).
+        -rm_chr_from_tag <string>        : If specified, exclude lines with specified string from tagaligns. (example: 'other|ribo|mito|_', '_', default: blank)
+        -wt_dedup <string>               : Walltime for post-alignment filtering (default: 23h, 24:00:00).
+        -mem_dedup <string>              : Max. memory for post-alignment filtering (default: 12G).
+        -use_sambamba_markdup <bool>     : Use sambamba markdup instead of Picard MarkDuplicates (default: false).
 == postalign bed/tagalign settings
-        -fraglen0 <bool>              : Set predefined fragment length as zero for cross corr. analysis (add -speak=0 to run_spp.R).
-        -mem_shuf <string>            : Max. memory for UNIX shuf (default: 12G).
+        -fraglen0 <bool>                 : Set predefined fragment length as zero for cross corr. analysis (add -speak=0 to run_spp.R).
+        -mem_shuf <string>               : Max. memory for UNIX shuf (default: 12G).
 == callpeak macs2 settings (requirements: -chrsz -gensz)
-        -wt_macs2 <string>            : Walltime for MACS2 (default: 23h, 23:00:00).
-        -mem_macs2 <string>           : Max. memory for MACS2 (default: 15G).
+        -gensz <string>                  : Genome size; hs for human, mm for mouse.
+        -wt_macs2 <string>               : Walltime for MACS2 (default: 23h, 23:00:00).
+        -mem_macs2 <string>              : Max. memory for MACS2 (default: 15G).
 == callpeak naive overlap settings
-        -nonamecheck <bool>           : bedtools intersect -nonamecheck (bedtools>=2.24.0, use this if you get bedtools intersect naming convenction warnings/errors).
+        -nonamecheck <bool>              : bedtools intersect -nonamecheck (bedtools>=2.24.0, use this if you get bedtools intersect naming convenction warnings/errors).
 == callpeak etc settings
-        -npeak_filt <int>             : # top peaks filtered from a narrow peak files (default: 500000).
+        -npeak_filt <int>                : # top peaks filtered from a narrow peak files (default: 500000).
 == IDR settings
-        -idr_suffix <bool>            : Append IDR threshold to IDR output directory.
+        -idr_suffix <bool>               : Append IDR threshold to IDR output directory.
+== ATAQC settings
+        -tss_enrich <string>             : TSS enrichment bed for ataqc.
+        -dnase <string>                  : DNase bed (open chromatin region file) for ataqc.
+        -prom <string>                   : Promoter bed (promoter region file) for ataqc.
+        -enh <string>                    : Enhancer bed (enhancer region file) for ataqc.
+        -reg2map <string>                : Reg2map (file with cell type signals) for ataqc.
+        -reg2map_bed <string>            : Reg2map_bed (file of regions used to generate reg2map signals) for ataqc.
+        -roadmap_meta <string>           : Roadmap metadata for ataqc.
+        -mem_ataqc <string>              : Max. memory for ATAQC (default: 15G).
+        -wt_ataqc <string>               : Walltime for ATAQC (default: 23h, 23:00:00).
 ```
 
 ## Stopping / Resuming pipeline
@@ -449,7 +466,164 @@ There are two kinds of HTML reports provided by the pipeline.
 
       -url_base http://your/url/to/output -title [PREFIX_FOR_YOUR_REPORT]
 
-## Programming with BDS
+
+# Output directory structure and file naming
+
+For more details, refer to the file table section in an HTML report generated by the pipeline.
+```
+out                               # root dir. of outputs
+│
+├ align                           #  mapped alignments
+│ ├ rep1                          #   for true replicate 1 
+│ │ ├ *.trim.fastq.gz             #    adapter-trimmed fastq
+│ │ ├ *.bam                       #    raw bam
+│ │ ├ *.nodup.bam                 #    filtered and deduped bam
+│ │ ├ *.tagAlign.gz               #    tagAlign (bed6) generated from filtered bam
+│ │ └ *.tn5.tagAlign.gz           #    TN5 shifted tagAlign for ATAC pipeline (not for DNase pipeline)
+│ ├ rep2                          #   for true repilicate 2
+│ ...
+│ ├ pooled_rep                    #   for pooled replicate
+│ ├ pseudo_reps                   #   for self pseudo replicates
+│ │ ├ rep1                        #    for replicate 1
+│ │ │ ├ pr1                       #     for self pseudo replicate 1 of replicate 1
+│ │ │ ├ pr2                       #     for self pseudo replicate 2 of replicate 1
+│ │ ├ rep2                        #    for repilicate 2
+│ │ ...                           
+│ └ pooled_pseudo_reps            #   for pooled pseudo replicates
+│   ├ ppr1                        #    for pooled pseudo replicate 1 (rep1-pr1 + rep2-pr1 + ...)
+│   ├ ppr2                        #    for pooled pseudo replicate 2 (rep1-pr2 + rep2-pr2 + ...)
+│   ...
+│
+├ peak                            #  peaks called
+│ ├ macs2                         #   peaks generated by MACS2
+│ │ ├ rep1                        #    for replicate 1
+│ │ │ ├ *.narrowPeak.gz           #     narrowPeak (p-val threshold = 0.01)
+│ │ │ ├ *.gappedPeak.gz           #     gappedPeak (p-val threshold = 0.01)
+│ │ │ ├ *.filt.narrowPeak.gz      #     blacklist filtered narrowPeak 
+│ │ │ ├ *.filt.gappedPeak.gz      #     blacklist filtered gappedPeak
+│ │ │ ├ *.narrowPeak.bb           #     narrowPeak bigBed
+│ │ │ ├ *.gappedPeak.bb           #     gappedPeak bigBed
+│ │ │ ├ *.narrowPeak.hammock.gz   #     narrowPeak track for WashU browser
+│ │ │ ├ *.gappedPeak.hammock.gz   #     gappedPeak track for WashU browser
+│ │ │ ├ *.pval0.1.narrowPeak.gz   #     narrowPeak (p-val threshold = 0.1)
+│ │ │ ├ *.pval0.1.gappedPeak.gz   #     gappedPeak (p-val threshold = 0.1)
+│ │ ├ rep2                        #    for replicate 2
+│ │ ...
+│ │ ├ pseudo_reps                 #   for self pseudo replicates
+│ │ └ pooled_pseudo_reps          #   for pooled pseudo replicates
+│ │
+│ └ idr                           #   IDR thresholded peaks
+│   ├ true_reps                   #    for replicate 1
+│   │ ├ *.narrowPeak.gz           #     IDR thresholded narrowPeak
+│   │ ├ *.filt.narrowPeak.gz      #     IDR thresholded narrowPeak (blacklist filtered)
+│   │ └ *.12-col.bed.gz           #     IDR thresholded narrowPeak track for WashU browser
+│   ├ pseudo_reps                 #    for self pseudo replicates
+│   │ ├ rep1                      #    for replicate 1
+│   │ ...
+│   └ pooled_pseudo_reps          #    for pooled pseudo replicate
+│
+├ qc                              #  QC logs
+│ ├ *IDR_final.qc                 #   Final IDR QC
+│ ├ rep1                          #   for true replicate 1
+│ │ ├ *.align.log                 #    Bowtie2 mapping stat log
+│ │ ├ *.dup.qc                    #    Picard (or sambamba) MarkDuplicate QC log
+│ │ ├ *.pbc.qc                    #    PBC QC
+│ │ ├ *.nodup.flagstat.qc         #    Flagstat QC for filtered bam
+│ │ ├ *M.cc.qc                    #    Cross-correlation analysis score for tagAlign
+│ │ ├ *M.cc.plot.pdf/png          #    Cross-correlation analysis plot for tagAlign
+│ │ └ *_qc.html/txt               #    ATAQC report
+│ ...
+│
+├ signal                          #  signal tracks
+│ ├ macs2                         #   signal tracks generated by MACS2
+│ │ ├ rep1                        #    for true replicate 1 
+│ │ │ ├ *.pval.signal.bigwig      #     signal track for p-val
+│ │ │ └ *.fc.signal.bigwig        #     signal track for fold change
+│ ...
+│ └ pooled_rep                    #   for pooled replicate
+│ 
+└ report                   # files for HTML report
+```
+
+# ENCODE accession guideline
+
+For each pipeline rune, `ENCODE_summary.json` file is generated under the output directory (`-out_dir`) for ENCODE accession (uploading pipeline outputs to the ENCODE portal). This JSON file includes all metadata and QC metrics required for ENCODE accession.
+
+For ENCODE3, Please make sure that you run pipelines with `-ENCODE3` flag.
+
+Parameters required for ENCODE accesssion:
+```
+# required
+        -ENCODE_accession <string>       : ENCODE experiment accession ID (or dataset).
+        -ENCODE_award <string>           : ENCODE award (e.g. /awards/U41HG007000/).
+        -ENCODE_lab <string>             : Lab (e.g. /labs/anshul-kundaje/)
+        -ENCODE_assembly <string>        : hg19, GRCh38, mm9, mm10.
+        -ENCODE_alias_prefix <string>    : Alias = Alias_prefix + filename
+# optional
+        -ENCODE_award_rfa <string>       : ENCODE award RFA (e.g. ENCODE3).
+        -ENCODE_assay_category <string>  : ENCODE assay category.
+        -ENCODE_assay_title <string>     : ENCODE assay title.
+```
+
+We also provide an [ENCODE fastq downloader](https://github.com/kundajelab/ENCODE_downloader). It downloads fastqs matching award_rfa, assay_category and assay_title, and then automatically generate a shell script to run multiple pipelines. Such shell script also includes these ENCODE accession parameter set.
+
+## ENCODE accession spreadsheet (CSV) generation
+
+`./utils/parse_summary_ENCODE_accession_recursively.py` recursively finds `ENCODE_summary.json` files and parse them to generate one big CSV spreadsheet for ENCODE accession.
+
+```
+$ python ./utils/parse_summary_ENCODE_accession_recursively.py -h
+
+usage: ENCODE_summary.json parser for ENCODE accession [-h]
+                                                       [--out-file OUT_FILE]
+                                                       [--search-dir SEARCH_DIR]
+                                                       [--json-file JSON_FILE]
+                                                       [--sort-by-genome-and-exp]
+                                                       [--ignored-accession-ids-file IGNORED_ACCESSION_IDS_FILE]
+
+Recursively find ENCODE_summary.json, parse it and make a CSV for uploading to
+the ENCODE portal. Use https://github.com/ENCODE-DCC/pyencoded-
+tools/blob/master/ENCODE_submit_files.py for uploading.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --out-file OUT_FILE   Output CSV filename)
+  --search-dir SEARCH_DIR
+                        Root directory to search for ENCODE_summary.json
+  --json-file JSON_FILE
+                        Specify json file name to be parsed
+  --sort-by-genome-and-exp
+                        Sort rows by genomes and ENCODE experiment accession
+                        ID
+  --ignored-accession-ids-file IGNORED_ACCESSION_IDS_FILE
+                        Accession IDs in this text file will be ignored. (1
+                        acc. ID per line)
+```
+
+## QC metrics spreadsheet (TSV) generation
+
+`./utils/parse_summary_qc_recursively.py` recursively finds `ENCODE_summary.json` files and parse them to generate one big TSV spreadsheet for QC metrics.
+
+```
+$ python parse_summary_qc_recursively.py -h
+usage: ENCODE_summary.json parser for QC [-h] [--out-file OUT_FILE]
+                                         [--search-dir SEARCH_DIR]
+                                         [--json-file JSON_FILE]
+
+Recursively find ENCODE_summary.json, parse it and make a TSV spreadsheet of
+QC metrics.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --out-file OUT_FILE   Output TSV filename)
+  --search-dir SEARCH_DIR
+                        Root directory to search for ENCODE_summary.json
+  --json-file JSON_FILE
+                        Specify json file name to be parsed
+```
+
+
+# Programming with BDS
 
 * [Using genomic pipeline modules in Kundaje lab](https://kundajelab.github.io/bds_pipeline_modules/programming.html)
 
