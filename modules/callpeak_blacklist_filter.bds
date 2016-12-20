@@ -30,7 +30,7 @@ string blacklist_filter_peak( string filetype, string peak, string o_dir, string
 
 		sys bedtools intersect -v -a $peak -b $blacklist \
 			| awk 'BEGIN{OFS="\t"} {if ($5>1000) $5=1000; print $0}' \
-			| grep -P 'chr[0-9XY]+(?!_)' | gzip -nc > $filtered
+			| grep -P 'chr[\dXY]+[ \t]' | gzip -nc > $filtered
 
 		sys $shcmd_finalize
 	}

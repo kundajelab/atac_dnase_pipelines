@@ -30,11 +30,11 @@ string peak_to_bigbed( string filetype, string peak, string o_dir, string group 
 		sys $shcmd_init
 
 		sys zcat $peak | sort -k1,1 -k2,2n > $bigbed.tmp
-		// sys cat $chrsz | grep -P 'chr[0-9XY]+(?!_)' > $bigbed.chrsz.tmp
-		// sys bedToBigBed $bed_param $bigbed.tmp $bigbed.chrsz.tmp $bigbed
-		// sys rm -f $bigbed.tmp $bigbed.chrsz.tmp
-		sys bedToBigBed $bed_param $bigbed.tmp $chrsz $bigbed
-		sys rm -f $bigbed.tmp
+		sys cat $chrsz | grep -P 'chr[\dXY]+[ \t]' > $bigbed.chrsz.tmp
+		sys bedToBigBed $bed_param $bigbed.tmp $bigbed.chrsz.tmp $bigbed
+		sys rm -f $bigbed.tmp $bigbed.chrsz.tmp
+		// sys bedToBigBed $bed_param $bigbed.tmp $chrsz $bigbed
+		// sys rm -f $bigbed.tmp
 
 		sys $shcmd_finalize
 	}
