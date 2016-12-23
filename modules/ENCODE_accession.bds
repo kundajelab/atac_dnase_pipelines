@@ -120,12 +120,15 @@ add_ENCODE_metadata_to_summary_json( "bigWig", "" , "fold change over control" ,
 */
 
 void add_ENCODE_metadata_to_summary_json( string file_format, string file_format_type, string output_type, \
+	string step_run, \
 	string file, string[] derived_from ) {
 	json := _get_ENCODE_accession_template( file, derived_from )
 	json{"file_format"} = file_format
 	if ( file_format_type != "" ) \
 		json{"file_format_type"} = file_format_type
 	json{"output_type"} = output_type
+	if ( step_run != "" ) \
+		json{"step_run"} = step_run
 	_summary_ENCODE_accession.add( map_to_json_str(json) )
 }
 

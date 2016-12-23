@@ -480,7 +480,8 @@ void align_SE( int rep, int nth_rep ) {
 		wait
 
 		if ( fastqs.size() > 0 ) \
-			add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", filt_bam_, fastqs )
+			add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", \
+				"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", filt_bam_, fastqs )
 	}
 
 	string tag
@@ -525,9 +526,6 @@ void align_SE( int rep, int nth_rep ) {
 		add_file_to_report( final_tag_, "tag-align", group, "Alignment/$long/Tag-align" )
 
 		wait
-
-		// if ( filt_bam_ != "" ) \
-		// 	add_ENCODE_metadata_to_summary_json( "tagAlign", "bed6" , "" , final_tag_ , [filt_bam_] )
 
 		if ( !true_rep ) {
 
@@ -677,7 +675,9 @@ void align_PE( int rep, int nth_rep ) {
 		wait
 
 		if ( fastqs_pair1.size() > 0 || fastqs_pair2.size() > 0 ) \
-			add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", filt_bam_, fastqs_pair1+fastqs_pair2 )
+			add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", \
+				"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", \
+				filt_bam_, fastqs_pair1+fastqs_pair2 )
 	}
 
 	string bedpe, subsampled_bedpe, tag
@@ -757,9 +757,6 @@ void align_PE( int rep, int nth_rep ) {
 				"Alignment/Pseudo-replicates/$long/Pseudo-replicate 2/Tag-align" )			
 		}
 		wait
-
-		// if ( filt_bam_ != "" ) \
-		// 	add_ENCODE_metadata_to_summary_json( "tagAlign", "bed6", "", final_tag_, [filt_bam_] )
 
 		string subsampled_tag_xcor
 
@@ -1129,17 +1126,23 @@ void filter_peak_and_convert_to_bigbed() {
 		filt_gpeak_001 := \
 			blacklist_filter_peak( "gappedPeak", gpeak_001{rep}, (gpeak_001{rep}).dirName(), "gpeak $rep" )
 		wait
-		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "filtered peaks", filt_peak_001, [filt_bam{rep}])
-		add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "filtered peaks", filt_gpeak_001, [filt_bam{rep}])
-		add_ENCODE_metadata_to_summary_json( "bigWig", "", "signal p-value", pval_bigwig_001{rep}, [filt_bam{rep}])
-		add_ENCODE_metadata_to_summary_json( "bigWig", "", "fold change over control",  fc_bigwig_001{rep}, [filt_bam{rep}])
+		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "filtered peaks", \
+			"anshul-kundaje:atac-seq-peaks-filter-step-run-v1", filt_peak_001, [filt_bam{rep}])
+		add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "filtered peaks", \
+			"anshul-kundaje:atac-seq-peaks-filter-step-run-v1", filt_gpeak_001, [filt_bam{rep}])
+		add_ENCODE_metadata_to_summary_json( "bigWig", "", "signal p-value", \
+			"anshul-kundaje:atac-seq-signal-generation-step-run-v1", pval_bigwig_001{rep}, [filt_bam{rep}])
+		add_ENCODE_metadata_to_summary_json( "bigWig", "", "fold change over control", \
+			"anshul-kundaje:atac-seq-signal-generation-step-run-v1", fc_bigwig_001{rep}, [filt_bam{rep}])
 
 		npeak_bb := peak_to_bigbed( "narrowPeak", filt_peak_001, filt_peak_001.dirName(), "peak $rep" )
 		gpeak_bb := peak_to_bigbed( "gappedPeak", filt_gpeak_001, filt_gpeak_001.dirName(), "gpeak $rep" )
 
 		wait
-		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "filtered peaks", npeak_bb, [filt_peak_001])
-		add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "filtered peaks", gpeak_bb, [filt_gpeak_001])
+		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "filtered peaks", \
+			"anshul-kundaje:atac-seq-peaks-to-bigbed-step-run-v1", npeak_bb, [filt_peak_001])
+		add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "filtered peaks", \
+			"anshul-kundaje:atac-seq-peaks-to-bigbed-step-run-v1", gpeak_bb, [filt_gpeak_001])
 
 		filt_peaks.add(filt_peak_001)
 		filt_gpeaks.add(filt_gpeak_001)
@@ -1150,38 +1153,48 @@ void filter_peak_and_convert_to_bigbed() {
 	// IDR peaks
 	if ( idr_opt ) {
 		// find idr_opt and idr_consv		
-		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", idr_opt, filt_peaks )
+		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", \
+			"anshul-kundaje:atac-seq-idr-step-run-v1", idr_opt, filt_peaks )
 		idr_opt_bb := peak_to_bigbed( "narrowPeak", idr_opt, idr_opt.dirName(), "idr peak opt" )
 		wait
-		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", idr_opt_bb, [idr_opt])
+		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", \
+			"anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1", idr_opt_bb, [idr_opt])
 
 		if ( idr_consv && get_basename( idr_opt )!=get_basename( idr_consv ) ) {
-			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "conservative idr thresholded peaks", idr_consv, filt_peaks )
+			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "conservative idr thresholded peaks", \
+				"anshul-kundaje:atac-seq-idr-step-run-v1", idr_consv, filt_peaks )
 			idr_consv_bb := peak_to_bigbed( "narrowPeak", idr_consv, idr_consv.dirName(), "idr peak consv" )
 			wait
-			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "conservative idr thresholded peaks", idr_consv_bb, [idr_consv] )
+			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "conservative idr thresholded peaks", \
+				"anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1", idr_consv_bb, [idr_consv] )
 		}
 	}
 	else if ( idr_pr.hasKey(1) ) {
-		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", idr_pr{1}, filt_peaks )
+		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", \
+			"anshul-kundaje:atac-seq-idr-step-run-v1", idr_pr{1}, filt_peaks )
 		idr_bb := peak_to_bigbed( "narrowPeak", idr_pr{1}, idr_pr{1}.dirName(), "idr peak pr" )
 		wait
-		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", idr_bb, [idr_pr{1}] )
+		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", \
+			"anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1", idr_bb, [idr_pr{1}] )
 	}
 
 	// naive overlap peaks
 	if ( peak_overlap ) {
-		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "replicated peaks", peak_overlap, filt_peaks )
+		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "replicated peaks", \
+			"anshul-kundaje:atac-seq-overlap-step-run-v1", peak_overlap, filt_peaks )
 		npeak_bb := peak_to_bigbed( "narrowPeak", peak_overlap, peak_overlap.dirName(), "peak overlap" )
 		wait
-		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "replicated peaks", npeak_bb, [peak_overlap] )
+		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "replicated peaks", \
+			"anshul-kundaje:atac-seq-replicated-peaks-conversion-step-run-v1", npeak_bb, [peak_overlap] )
 	}
 
 	if ( gpeak_overlap ) {
-		add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "replicated peaks", gpeak_overlap, filt_gpeaks )
+		add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "replicated peaks", \
+			"anshul-kundaje:atac-seq-overlap-step-run-v1", gpeak_overlap, filt_gpeaks )
 		gpeak_bb := peak_to_bigbed( "gappedPeak", gpeak_overlap, gpeak_overlap.dirName(), "gpeak overlap" )
 		wait
-		add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "replicated peaks", gpeak_bb, [gpeak_overlap] )
+		add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "replicated peaks", \
+			"anshul-kundaje:atac-seq-replicated-peaks-conversion-step-run-v1", gpeak_bb, [gpeak_overlap] )
 	}
 
 	wait
