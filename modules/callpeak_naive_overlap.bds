@@ -40,8 +40,8 @@ string naive_overlap_peak( string filetype, string peak_pooled, string peak_rep1
 	string cmd1
 	if ( path_exists( blacklist ) ) {
 		cmd1 = "bedtools intersect -v -a $peak_final -b $blacklist "+\
-			" | grep -P 'chr[\dXY]+[ \t]'"+\
-			" | awk 'BEGIN{OFS=\"\t\"} {if ($5>1000) $5=1000; print $0}'"+\
+			" | grep -P 'chr[\\dXY]+[ \\t]'"+\
+			" | awk 'BEGIN{OFS=\"\\t\"} {if ($5>1000) $5=1000; print $0}'"+\
 			" | gzip -nc > $filt_peak_final"
 	}
 	else {

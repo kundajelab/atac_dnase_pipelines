@@ -51,11 +51,11 @@ string[] idr2( string peak1, string peak2, string pooled, string idr_thresh, str
 
 	if ( path_exists( blacklist ) ) {
 		cmd1 = "bedtools intersect -v -a $peak_idr_trk_tmp -b $blacklist"+\
-			" | grep -P 'chr[\dXY]+[ \t]'"+\
-			" | awk 'BEGIN{OFS=\"\t\"} {if ($5>1000) $5=1000; print $0}'"+\
+			" | grep -P 'chr[\\dXY]+[ \\t]'"+\
+			" | awk 'BEGIN{OFS=\"\\t\"} {if ($5>1000) $5=1000; print $0}'"+\
 			" | gzip -nc > $filt_peak_idr_trk_tmp"
-		cmd2 = "zcat $filt_peak_idr_trk_tmp | awk 'BEGIN{OFS=\"\t\"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' | gzip -nc > $filt_peak_idr"
-		cmd3 = "zcat $filt_peak_idr_trk_tmp | awk 'BEGIN{OFS=\"\t\"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' | gzip -nc > $filt_peak_idr_trk"
+		cmd2 = "zcat $filt_peak_idr_trk_tmp | awk 'BEGIN{OFS=\"\\t\"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10}' | gzip -nc > $filt_peak_idr"
+		cmd3 = "zcat $filt_peak_idr_trk_tmp | awk 'BEGIN{OFS=\"\\t\"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' | gzip -nc > $filt_peak_idr_trk"
 	}
 	else {
 		cmd1 = "echo"
