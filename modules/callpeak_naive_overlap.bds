@@ -51,7 +51,7 @@ string naive_overlap_peak( string filetype, string peak_pooled, string peak_rep1
 	in 	:= [ peak_pooled, peak_rep1, peak_rep2 ]
 	out 	:= path_exists(blacklist) ? filt_peak_final : peak_final
 	
-	taskName:= "naive_overlap_thresh " + group
+	taskName:= "naive_overlap " + group
 	timeout := 3600 // to get queued fast
 
 	wait_par( cpus )
@@ -103,18 +103,18 @@ string naive_overlap_peak( string filetype, string peak_pooled, string[] peaks, 
 	string command
 	for (int i=0;i<peaks.size();i++) {
 		if ( i == 0 ) {
-			command += "intersectBed $nonamecheck_param -wo -a <(zcat -f $peak_pooled) -b <(zcat -f " + peaks[i] + ") | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | "
+			command += "intersectBed $nonamecheck_param -wo -a <(zcat -f $peak_pooled) -b <(zcat -f " + peaks[i] + ") | awk 'BEGIN{FS=\"\\t\";OFS=\"\\t\"} $awk_param' | cut -f $cut_param | sort | uniq | "
 		}
 		else {
-			command += "intersectBed $nonamecheck_param -wo -a stdin -b <(zcat -f " + peaks[i] + ") | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | "
+			command += "intersectBed $nonamecheck_param -wo -a stdin -b <(zcat -f " + peaks[i] + ") | awk 'BEGIN{FS=\"\\t\";OFS=\"\\t\"} $awk_param' | cut -f $cut_param | sort | uniq | "
 		}		
 	}
 	command += "gzip -nc > $peak_PooledInReps"
 
 	string command2
 	if ( peak_ppr1 != "" )  {
-		command2 = "intersectBed $nonamecheck_param -wo -a <(zcat -f $peak_pooled) -b <(zcat -f $peak_ppr1) | awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | " + \
-		 	   "intersectBed $nonamecheck_param -wo -a stdin -b <(zcat -f $peak_ppr2) |    awk 'BEGIN{FS=\"\t\";OFS=\"\t\"} $awk_param' | cut -f $cut_param | sort | uniq | " + \
+		command2 = "intersectBed $nonamecheck_param -wo -a <(zcat -f $peak_pooled) -b <(zcat -f $peak_ppr1) | awk 'BEGIN{FS=\"\\t\";OFS=\"\\t\"} $awk_param' | cut -f $cut_param | sort | uniq | " + \
+		 	   "intersectBed $nonamecheck_param -wo -a stdin -b <(zcat -f $peak_ppr2) |    awk 'BEGIN{FS=\"\\t\";OFS=\"\\t\"} $awk_param' | cut -f $cut_param | sort | uniq | " + \
 			   "gzip -nc > $peak_PooledInPsRep1AndPsRep2"
 	}
 	else {
@@ -125,8 +125,8 @@ string naive_overlap_peak( string filetype, string peak_pooled, string[] peaks, 
 	string command3
 	if ( path_exists( blacklist ) ) {
 		command3 = "bedtools intersect -v -a $peak_final -b $blacklist "+\
-			" | grep -P 'chr[0-9XY]+(?!_)'"+\
-			" | awk 'BEGIN{OFS=\"\t\"} {if ($5>1000) $5=1000; print $0}'"+\
+			" | grep -P 'chr[\\dXY]+[ \\t]'"+\
+			" | awk 'BEGIN{OFS=\"\\t\"} {if ($5>1000) $5=1000; print $0}'"+\
 			" | gzip -nc > $filt_peak_final"
 	}
 	else {
@@ -136,7 +136,7 @@ string naive_overlap_peak( string filetype, string peak_pooled, string[] peaks, 
 	in 	:= [ peak_pooled ] + peaks + [peak_ppr1, peak_ppr2]
 	out 	:= path_exists(blacklist) ? filt_peak_final : peak_final
 
-	taskName:= "naive_overlap_thresh " + group
+	taskName:= "naive_overlap " + group
 
 	wait_par( cpus )
 
