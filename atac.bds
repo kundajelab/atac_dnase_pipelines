@@ -130,7 +130,7 @@ void init_etc_atac() {
 
 	default_is_pe 	= true
 	fraglen0 	= true // set fragment length explicitly as zero for cross corr. analysis
-	rm_chr_from_tag = "chrM"; // remove lines with chrM in _bam_to_tag
+	if ( rm_chr_from_tag == "" ) rm_chr_from_tag = "chrM"; // remove lines with chrM in _bam_to_tag
 }
 
 void print_atac() {
