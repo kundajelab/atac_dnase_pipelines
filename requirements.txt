@@ -16,7 +16,7 @@ ucsc-bigWigAverageOverBed
 ucsc-bedtobigbed
 macs2 ==2.1.0
 boost ==1.57.0
-gnuplot ==5.0.3
+gnuplot #==5.0.3
 numpy ==1.10.2 #1.9.0, 1.8.2 conflicts with ATAQC
 scipy ==0.17.0 
 matplotlib
