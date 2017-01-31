@@ -3,6 +3,7 @@
 
 include "graphviz.bds"
 include "filetable.bds"
+include "log_parser.bds"
 include "ENCODE_accession.bds"
 
 
@@ -50,154 +51,91 @@ void add_file_to_report( string file, string label, string group, string hrchy )
 	add_file_to_table( [file], [hrchy] )
 }
 
-// bwa logs (*.flagstat.qc): 1 table
-string parse_flagstat_to_html( string id, string[] names, string[] logs, string[] header, bool after_filt ) {
+// qc_type must exist in qc_types = ["flagstat","dup","flagstat_filt","pbc","xcor","idr","ataqc"]
+// if horz, groups show on the first row. otherwise on the first column
+// if horz
+//        | item1  | item2  | ...
+// -------+--------+--------+-------
+// group1 | val    | val    + ...
+// group2 | val    | val    + ...
+// ...
+// else
+//       | group1 | group2 | ...
+// ------+--------+--------+-------
+// item1 | val    | val    + ...
+// item2 | val    | val    + ...
+// ...
 
+string html_table_multiple_logs( string table_name, bool horz, string qc_type, string[] groups, string[] logs ) {
 	if ( logs.size() == 0 ) return ""
-	html := "<div id='flagstat_$id'><b>Flagstat QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-	table_header := ["Reads (QC-passed)","Reads (QC-failed)","Dupes (QC-passed)","Dupes (QC-failed)","Mapped Reads","% Mapped"]
-	html += html_table_header( ["&nbsp"] + table_header )
+	html := "<div id='table_"+table_name.replace(" ","-")+\
+		"'><b>$table_name</b><div style='padding-left: "+_padding_left+"px'>\n<table border='1'>\n"
+	header := get_log_header( qc_type )
+	if ( !header.size() ) header = get_header_multi_col_txt( logs[0] ) // for ataqc
 
-	// parse dup.qc
-	for ( int i=0; i<logs.size(); i++ ) {
-		// quite ugly parsing.... sorry
-		log := logs[i]
-		name := names[i]
-		lines := log.readLines()
+	// split keys and descriptions
+	string[] keys
+	string[] descs
+	for ( int j=0; j<header.size(); j++ ) {
+		key_and_desc := split_by_first_chr( header[j], ":" )
+		keys.add(key_and_desc[0])
+		descs.add( key_and_desc.size()>1 ? key_and_desc[1] : key_and_desc[0])
+	}
 
-		string read1, read2, dupe1, dupe2, mapped, percent
-
-		for ( string line : lines ) {
-			if ( line.indexOf(" in total ") > -1 ) {
-				tmp1 := line.split(" in total ")
-				line1 := tmp1[0]
-					tmp1 = line1.split( " \\+ " )
-					read1 = tmp1[0]
-					read2 = tmp1[1]
+	// write table header
+	if ( horz ) {
+		html += "<tr>"
+		if (logs.size()>1) html += "<th>&nbsp</th>"
+		html += "<th nowrap align=left>"+descs.join("</th><th nowrap align=left>")+"</th></tr>\n"
+		for ( int i=0; i<logs.size(); i++ ) {
+			log := logs[i]
+			map := parse_log( qc_type, log )
+			html += "<tr>"
+			if (logs.size()>1) html += "<td>"+html_link( log, groups[i] )+"</td>"
+			for ( int j=0; j<header.size() ;j++ ) {				
+				if ( map.hasKey(keys[j]) ) html += "<td>"+map{keys[j]}+"</td>"
+				else html += "<td>&nbsp</td>"
 			}
-			if ( line.indexOf(" duplicates") > -1 ) {
-				tmp2 := line.split(" duplicates")
-				line2 := tmp2[0]
-					tmp2 = line2.split( " \\+ " )
-					dupe1 = tmp2[0]
-					dupe2 = tmp2[1]
-			}
-			if ( line.indexOf(" mapped (") > -1 ) {
-				tmp3 := line.split(" mapped \\(")				
-				line3_1 := tmp3[0]
-					tmp3_1 := line3_1.split( " \\+ " )
-					mapped = tmp3_1[0]
-				line3_2 := tmp3[1]
-					tmp3_2 := line3_2.split( "\\%\\:" )					
-					percent = tmp3_2[0]
-			}
+			html += "</tr>\n"
 		}
-		html += "<tr><td>"+html_link( log, name )+"</td><td>$read1</td><td>$read2</td><td>$dupe1</td><td>$dupe2</td><td>$mapped</td><td>$percent</td></tr>"
-
-		// add to QC summary table
-		_summary_qc.add( map_to_json_str( { "info"=>name,"qc_type"=>after_filt? "filt_flagstat_qc":"flagstat_qc",\
-						"header"=>array_to_str(table_header,"\\t"),\
-						"contents"=>"$read1\\t$read2\\t$dupe1\\t$dupe2\\t$mapped\\t$percent" } ) ) }
-
-	html += "</table>"
-	html += "</div></div><br>"
-
-	return html
-}
-
-
-// bowtie2 logs (*.align.log): 1 table
-string parse_align_log_to_html( string id, string[] names, string[] logs, string[] header ) {
-	if ( logs.size() == 0 ) return ""
-
-	html := "<div id='bwt2_log_$id'><b>Bowtie2 QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-	table_header := ["Total Reads","% Aligned"]
-	html += html_table_header( ["&nbsp"] + table_header )
-
-	// parse dup.qc
-	for ( int i=0; i<logs.size(); i++ ) {
-		// quite ugly parsing.... sorry
-		log := logs[i]
-		name := names[i]
-		lines := log.readLines()
-
-		string read1, percent
-		for ( string line : lines ) {
-			if ( line.indexOf(" reads; of these:") > -1 ) {
-				tmp1 := line.split(" reads")
-				read1 = tmp1[0]
+	}
+	else {
+		if (logs.size()>1) html += "<tr><th nowrap align=left>&nbsp</th><th nowrap align=left>"+groups.join("</th><th nowrap align=left>")+"</th></tr>\n"
+		for ( int j=0; j<header.size() ;j++ ) {
+			html += "<tr><th nowrap align=left>"+descs[j]+"</th>"
+			for ( int i=0; i<logs.size(); i++ ) {
+				log := logs[i]
+				map := parse_log( qc_type, log )
+				if ( map.hasKey(keys[j]) ) html += "<td>"+map{keys[j]}+"</td>"
+				else html += "<td>&nbsp</td>"
 			}
-			if ( line.indexOf(" overall alignment rate") > -1 ) {
-
-				tmp2 := line.split("\\%")
-				percent = tmp2[0]
-			}
+			html += "</tr>\n"
 		}
-		html += "<tr><td>"+html_link( log, name )+"</td><td>$read1</td><td>$percent</td></tr>"
+	}
 
-		// add to QC summary table
-		_summary_qc.add( map_to_json_str( { "info"=>name,"qc_type"=>"align_log",\
-						"header"=>array_to_str(table_header,"\\t"),\
-						"contents"=>"$read1\\t$percent" } ) )
+	// add to ENCODE QC summary JSON
+	for ( int i=0; i<logs.size(); i++ ) {
+		log := logs[i]
+		map := parse_log( qc_type, log )
+		string[] vals
+		for ( int j=0; j<header.size() ;j++ ) {
+			if ( map.hasKey(keys[j]) ) vals.add(map{keys[j]})
+			else vals.add("")
+		}
+		// add to ENCODE QC summary table
+		_summary_qc.add( map_to_json_str( \
+				{ "info"=>groups[i],"qc_type"=>qc_type,\
+				"header"=>array_to_str(keys,"\\t"),\
+				"contents"=>array_to_str(vals,"\\t") } ) ) 
 	}
 
 	html += "</table>"
 	html += "</div></div><br>"
-
 	return html
 }
 
-// MarkDuplicate (post-align) logs (*.dup.qc): 1 table
-string parse_dup_to_html( string id, string[] names, string[] logs, string[] headers ) {
-	if ( logs.size() == 0 ) return ""
-
-	html := "<div id='dup_$id'><b>Dup QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-	table_header := ["Unpaired Reads", "Paired Reads", "Unmapped Reads", "Unpaired Dupes", "Paired Dupes", "Paired Opt. Dupes", "% Dupes"]
-	html += html_table_header( ["&nbsp"] + table_header )
-
-	// parse dup.qc
-	for ( int i=0; i<logs.size(); i++ ) {
-		log := logs[i]
-		name := names[i]
-		line := get_stdout( "cat $log | grep 'Unknown Library' | awk '{ print $3,$4,$5,$6,$7,$8,$9; }'" )	
-		html += "<tr><td>"+html_link( log, name )+"</td><td>" + line.replace(" ","</td><td>") + "</td></tr>"
-
-		// add to QC summary table
-		_summary_qc.add( map_to_json_str( { "info"=>name,"qc_type"=>"dup_qc",\
-						"header"=>array_to_str(table_header,"\\t"),\
-						"contents"=>line.replace(" ","\\t") } ) )
-	}
-
-	html += "</table>"
-	html += "</div></div><br>"
-
-	return html
-}
-
-// Library complexcity (post-align) logs (*.pbc.qc) : 1 table
-string parse_pbc_to_html( string id, string[] names, string[] logs, string[] header ) {
-	if ( logs.size() == 0 ) return ""
-
-	html := "<div id='pbc_$id'><b>PBC QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"	
-	table_header := ["Total Read Pairs","Distinct Read Pairs","One Read Pair","Two Read Pairs","NRF = Distinct/Total","PBC1 = OnePair/Distinct","PBC2 = OnePair/TwoPair"]
-	html += html_table_header( ["&nbsp"] + table_header  )
-
-	// parse pbc.qc
-	for ( int i=0; i<logs.size(); i++ ) {
-		log := logs[i]
-		name := names[i]
-		line := log.read()
-		html += "<tr><td>"+html_link( log, name )+"</td><td>" + line.replace("\t","</td><td>") + "</td></tr>"
-
-		// add to QC summary table
-		_summary_qc.add( map_to_json_str( { "info"=>name,"qc_type"=>"pbc_qc",\
-						"header"=>array_to_str(table_header,"\\t"),\
-						"contents"=>line.trim().replace("\t","\\t") } ) )
-	}
-
-	html += "</table>"
-	// help
-	html += "<p>" + "NRF (non redundant fraction) <br>" + \
+string html_help_pbc() {
+	return "<div id='help-pbc'><p>" + "NRF (non redundant fraction) <br>" + \
 			"PBC1 (PCR Bottleneck coefficient 1) <br>" + \
 			"PBC2 (PCR Bottleneck coefficient 2) <br>" + \
 			"PBC1 is the primary measure. Provisionally <br>" + \
@@ -207,95 +145,15 @@ string parse_pbc_to_html( string id, string[] names, string[] logs, string[] hea
 			"<li>0.8-0.9 is mild bottlenecking </li>" + \
 			"<li>0.9-1.0 is no bottlenecking </li>" + \
 			"</ul>" + \
-			"</p>"
-	html += "</div></div><br>"
-
-	return html
+			"</p></div>"
 }
 
-// Cross correlation analysis log (*.cc.qc): 1 table + img (png converted from pdf)
-string parse_xcor_to_html( string id, string[] names, string[] logs, string[] pdfs, string[] header ) {
-	if ( logs.size() == 0 ) return ""
-
-	html := "<div id='xcor_$id'><b>Cross-correlation QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-	table_header := ["numReads","estFragLen","corr_estFragLen","PhantomPeak","corr_phantomPeak","argmin_corr","min_corr","NSC","RSC"]
-	html += html_table_header( ["&nbsp"] + table_header )
-
-	// parse cc.qc
-	for ( int i=0; i<logs.size(); i++ ) {
-		log := logs[i]
-		name := names[i]
-		lines := log.readLines();
-		items := lines[0].split("\t")
-		items.removeIdx(0) // remove file name
-		items.removeIdx(items.size()-1) // remove quality tag		
-		html += "<tr><td>"+html_link( log, name )+"</td><td>" + items.join("\t").replace("\t","</td><td>") + "</td></tr>"
-
-		// add to QC summary table
-		_summary_qc.add( map_to_json_str( { "info"=>name,"qc_type"=>"xcor_qc",\
-						"header"=>array_to_str(table_header,"\\t"),\
-						"contents"=>items.join("\\t") } ) )
-	}
-
-	html += "</table>"
-	// help
-	html += "<p>" + "Normalized strand cross-correlation coefficient (NSC) = col9 in outFile <br>" + \
+string html_help_xcor() {
+	return "<div id='help-xcor'><p>" + "Normalized strand cross-correlation coefficient (NSC) = col9 in outFile <br>" + \
 			"Relative strand cross-correlation coefficient (RSC) = col10 in outFile <br>" + \
 			"Estimated fragment length = col3 in outFile, take the top value <br>" + \
 			"Important columns highlighted, but all/whole file can be stored for display <br>" + \
 			 "</p><br>"
-	// images
-	for ( int i=0; i<pdfs.size(); i++ ) {
-		png := pdf_to_png( pdfs[i] )
-		html += html_img( png, 500, header[i] ) + "&nbsp"
-	}	
-
-	html += "</div></div><br>"
-
-	return html
-}
-
-void parse_ataqc_txt( string id, string[] names, string[] logs ) {
-	if ( logs.size() == 0 ) return
-
-	for ( int i=0; i<logs.size(); i++ ) {
-		log := logs[i]
-		name := names[i]
-		lines := log.readLines();
-		string table_header, contents
-		for ( string line : lines ) {
-			line = line.replace(" reads; of these:","")
-			arr := line.split("\t")
-			for ( int j=1;j<arr.size();j++) {
-				//table_header += (j==1 ? (arr[0] + "\t") : ("\t"))
-				table_header += (arr.size()==2 ? (arr[0] + "\t") : (arr[0]+"-$j\t"))
-				contents += arr[j] + "\t"
-			}
-		}
-		// add to QC summary table
-		_summary_qc.add( map_to_json_str( { "info"=>name,"qc_type"=>"ataqc_qc",\
-						"header"=>table_header.trim().replace("\t","\\t"),\
-						"contents"=>contents.trim().replace("\t","\\t") } ) )
-	}	
-}
-
-// IDR logs : 1 table
-string parse_idr_to_html( string id, string log ) {
-	if ( log == "" ) return ""
-
-	html := "<div id='$id'><b>IDR QC ($id)</b><div style='padding-left: "+_padding_left+"px'>"
-	html += html_link( log, get_basename( log ) )
-	html += "<table border='1'><tr>"
-	lines := log.readLines()
-	html += "<tr><th>" + lines[0].replace("\t","</th><th>") + "</th></tr>" // read 2nd line of idr qc file
-	html += "<tr><td>" + lines[1].replace("\t","</td><td>") + "</td></tr>" // read 2nd line of idr qc file
-	html += "</table>"
-	html += "</div></div><br>"
-
-	_summary_qc.add( map_to_json_str( { "info"=>"rep1","qc_type"=>"final_idr_qc",\
-					"header"=>lines[0].replace("\t","\\t"),\
-					"contents"=>lines[1].replace("\t","\\t") } ) )
-	return html
 }
 
 // WashU Epigenome browser datahub (json format)
@@ -349,15 +207,6 @@ string html_epg_browser_viz( string[] files, string[] types, string[] names, str
 	html += "</div></div><br>\n\n"
 
 	return html
-}
-
-string html_table_header( string[] head ) {
-	html := "<table border='1'><tr>"
-	for ( int i=0; i<head.size(); i++ ) {
-		html += "<th>"+head[i]+"</th>"
-	}
-	
-	return html + "</tr>"
 }
 
 string html_link( string path, string name ) {

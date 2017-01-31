@@ -1,0 +1,304 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+
+qc_types := ["flagstat","dup","flagstat_filt","pbc","xcor","idr","ataqc"]
+
+// "keyname:description"
+// keyname matches with that in ENCODE quality metric profile JSON
+// 	flagstat: https://www.encodeproject.org/profiles/samtools_flagstats_quality_metric.json
+// 	pbc+xcor: https://www.encodeproject.org/profiles/chipseq_filter_quality_metric.json
+// 	IDR: https://www.encodeproject.org/profiles/idr_quality_metric.json
+// This is ugly but BDS does not have an ordered Dict...
+header_flagstat := [ "total:Total", "total_qc_failed:Total(QC-failed)", \
+		"duplicates:Dupes", "duplicates_qc_failed:Dupes(QC-failed)", \
+		"mapped:Mapped", "mapped_qc_failed:Mapped(QC-failed)", "mapped_pct:% Mapped", \
+		"paired:Paired", "paired_qc_failed:Paired(QC-failed)", \
+		"read1:Read1", "read1_qc_failed:Read1(QC-failed)", \
+		"read2:Read2", "read2_qc_failed:Read2(QC-failed)", \
+		"paired_properly:Properly Paired", "paired_properly_qc_failed:Properly Paired(QC-failed)", \
+		"paired_properly_pct:% Properly Paired", \
+		"with_itself:With itself", "with_itself_qc_failed:With itself(QC-failed)", \
+		"singletons:Singletons", "singletons_qc_failed:Singletons(QC-failed)", "singletons_pct:% Singleton", \
+ 		"diff_chroms:Diff. Chroms", "diff_chroms_qc_failed:Diff. Chroms (QC-failed)" ]
+header_pbc := [ "total_read_pairs:Total Read Pairs","distinct_read_pairs:Distinct Read Pairs",\
+		"one_read_pair:One Read Pair","two_read_pair:Two Read Pairs",\
+		"NRF:NRF = Distinct/Total","PBC1:PBC1 = OnePair/Distinct","PBC2:PBC2 = OnePair/TwoPair"]
+header_dup := ["unpaired_reads:Unpaired Reads", "paired_reads:Paired Reads", "unmapped_reads:Unmapped Reads", \
+		"unpaired_dupes:Unpaired Dupes", "paired_dupes:Paired Dupes", "paired_opt_dupes:Paired Opt. Dupes", "dupes_pct:% Dupes"]
+header_xcor := ["num_reads:Reads","est_frag_len:Est. Fragment Len.","corr_est_frag_len:Corr. Est. Fragment Len.", \
+		"phantom_peak:Phantom Peak","corr_phantom_peak:Corr. Phantom Peak","argmin_corr:Argmin. Corr.","min_corr:Min. Corr.",\
+		"NSC:NSC","RSC:RSC"]
+header_idr := ["Nt:Nt","N1:N1","N2:N2","Np:Np","N_opt:N optimal","N_consv:N conservative","opt_set:Optimal Set","consv_set:Conservative Set",\
+		"rescue_ratio:Rescue Ratio","self_consistency_ratio:Self Consistency Ratio","reproducibility_test:Reproducibility Test"]
+
+string[] get_log_header( string qc_type ) {
+	if ( qc_type == "flagstat" || qc_type == "flagstat_filt" ) {
+		return header_flagstat
+	}
+	else if ( qc_type == "dup" ) {
+		return header_dup
+	}
+	else if ( qc_type == "pbc" ) {
+		return header_pbc
+	}
+	else if ( qc_type == "xcor" ) {
+		return header_xcor
+	}
+	else if ( qc_type == "idr" ) {
+		return header_idr
+	}
+	else if ( qc_type == "ataqc" ) {
+		string[] empty
+		return empty
+	}
+	else {
+		error("unsupported qc_type($qc_type)!")
+	}
+}
+
+string{} parse_log( string qc_type, string log ) {
+	if ( qc_type == "flagstat" || qc_type == "flagstat_filt" ) {
+		return parse_flagstat( log )
+	}
+	else if ( qc_type == "dup" ) {
+		return parse_dup( log )
+	}
+	else if ( qc_type == "pbc" ) {
+		return parse_pbc( log )
+	}
+	else if ( qc_type == "xcor" ) {
+		return parse_xcor( log )
+	}
+	else if ( qc_type == "idr" ) {
+		return parse_idr( log )
+	}
+	else if ( qc_type == "ataqc" ) {
+		return parse_multi_col_txt( log )
+	}
+	else {
+		error("unsupported qc_type($qc_type)!")
+	}
+}
+
+// samtools flagstats (*.flagstat.qc)
+string{} parse_flagstat( string log ) {
+	string{} result
+	lines := log.readLines()
+	//string read1, read2, dupe1, dupe2, mapped, percent
+	string total, total_qc_failed
+	string duplicates, duplicates_qc_failed
+	string mapped, mapped_qc_failed, mapped_pct
+	string paired, paired_qc_failed
+	string read1, read1_qc_failed
+	string read2, read2_qc_failed
+	string paired_properly, paired_properly_qc_failed, paired_properly_pct
+	string with_itself, with_itself_qc_failed
+	string singletons, singletons_qc_failed, singletons_pct
+	string diff_chroms, diff_chroms_qc_failed
+	
+	for ( string line : lines ) {
+		if ( line.indexOf(" in total ") > -1 ) {
+			tmp1 := line.split(" in total ")
+			line1 := tmp1[0]
+				tmp1 = line1.split( " \\+ " )
+				total = tmp1[0]
+				total_qc_failed = tmp1[1]
+		}
+		if ( line.indexOf(" duplicates") > -1 ) {
+			tmp2 := line.split(" duplicates")
+			line2 := tmp2[0]
+				tmp2 = line2.split( " \\+ " )
+				duplicates = tmp2[0]
+				duplicates_qc_failed = tmp2[1]
+		}
+		if ( line.indexOf(" mapped (") > -1 ) {
+			tmp3 := line.split(" mapped \\(")				
+			line3_1 := tmp3[0]
+				tmp3_1 := line3_1.split( " \\+ " )
+				mapped = tmp3_1[0]
+				mapped_qc_failed = tmp3_1[1]
+			line3_2 := tmp3[1]
+				tmp3_2 := line3_2.split( "\\%\\:" )					
+				mapped_pct = tmp3_2[0]
+		}
+		if ( line.indexOf(" paired in sequencing") > -1 ) {
+			tmp2 := line.split(" paired in sequencing")
+			line2 := tmp2[0]
+				tmp2 = line2.split( " \\+ " )
+				paired = tmp2[0]
+				paired_qc_failed = tmp2[1]
+		}
+		if ( line.indexOf(" read1") > -1 ) {
+			tmp2 := line.split(" read1")
+			line2 := tmp2[0]
+				tmp2 = line2.split( " \\+ " )
+				read1 = tmp2[0]
+				read1_qc_failed = tmp2[1]
+		}
+		if ( line.indexOf(" read2") > -1 ) {
+			tmp2 := line.split(" read2")
+			line2 := tmp2[0]
+				tmp2 = line2.split( " \\+ " )
+				read2 = tmp2[0]
+				read2_qc_failed = tmp2[1]
+		}
+		if ( line.indexOf(" properly paired (") > -1 ) {
+			tmp3 := line.split(" properly paired \\(")				
+			line3_1 := tmp3[0]
+				tmp3_1 := line3_1.split( " \\+ " )
+				paired_properly = tmp3_1[0]
+				paired_properly_qc_failed = tmp3_1[1]
+			line3_2 := tmp3[1]
+				tmp3_2 := line3_2.split( "\\%\\:" )					
+				paired_properly_pct = tmp3_2[0]
+		}
+		if ( line.indexOf(" with itself and mate mapped") > -1 ) {
+			tmp3 := line.split(" with itself and mate mapped")
+			line3_1 := tmp3[0]
+				tmp3_1 := line3_1.split( " \\+ " )
+				with_itself = tmp3_1[0]
+				with_itself_qc_failed = tmp3_1[1]
+		}
+		if ( line.indexOf(" singletons (") > -1 ) {
+			tmp3 := line.split(" singletons \\(")				
+			line3_1 := tmp3[0]
+				tmp3_1 := line3_1.split( " \\+ " )
+				singletons = tmp3_1[0]
+				singletons_qc_failed = tmp3_1[1]
+			line3_2 := tmp3[1]
+				tmp3_2 := line3_2.split( "\\%\\:" )					
+				singletons_pct = tmp3_2[0]
+		}		
+		if ( line.indexOf(" with mate mapped to a different chr (mapQ>=5)") > -1 ) {
+			tmp3 := line.split(" with mate mapped to a different chr")
+			line3_1 := tmp3[0]
+				tmp3_1 := line3_1.split( " \\+ " )
+				diff_chroms = tmp3_1[0]
+				diff_chroms_qc_failed = tmp3_1[1]
+		}
+	}
+	result{"total"} = total
+	result{"total_qc_failed"} = total_qc_failed
+	result{"duplicates"} = duplicates
+	result{"duplicates_qc_failed"} = duplicates_qc_failed
+	result{"mapped"} = mapped
+	result{"mapped_qc_failed"} = mapped_qc_failed
+	result{"mapped_pct"} = mapped_pct
+	result{"paired"} = paired
+	result{"paired_qc_failed"} = paired_qc_failed
+	result{"read1"} = read1
+	result{"read1_qc_failed"} = read1_qc_failed
+	result{"read2"} = read2
+	result{"read2_qc_failed"} = read2_qc_failed
+	result{"paired_properly"} = paired_properly
+	result{"paired_properly_qc_failed"} = paired_properly_qc_failed
+	result{"paired_properly_pct"} = paired_properly_pct
+	result{"with_itself"} = with_itself
+	result{"with_itself_qc_failed"} = with_itself_qc_failed
+	result{"singletons"} = singletons
+	result{"singletons_qc_failed"} = singletons_qc_failed
+	result{"singletons_pct"} = singletons_pct
+	result{"diff_chroms"} = diff_chroms
+	result{"diff_chroms_qc_failed"} = diff_chroms_qc_failed
+	return result
+}
+
+// MarkDuplicate (post-align) logs (*.dup.qc): 1 table
+string{} parse_dup( string log ) {
+	string{} result
+	line := get_stdout( "cat $log | grep 'Unknown Library' | awk '{ print $3,$4,$5,$6,$7,$8,$9; }'" )	
+	arr := line.trim().split(" ")
+	result{"unpaired_reads"} = arr[0]
+	result{"paired_reads"} = arr[1]
+	result{"unmapped_reads"} = arr[2]
+	result{"unpaired_dupes"} = arr[3]
+	result{"paired_dupes"} = arr[4]
+	result{"paired_opt_dupes"} = arr[5]
+	result{"dupes_pct"} = arr[6]
+	return result
+}
+
+// Library complexcity (post-align) logs (*.pbc.qc) : 1 table
+string{} parse_pbc( string log ) {
+	string{} result
+	line := log.read()
+	arr := line.trim().split("\t")
+
+	result{"total_read_pairs"} = arr[0]
+	result{"distinct_read_pairs"} = arr[1]
+	result{"one_read_pair"} = arr[2]
+	result{"two_read_pair"} = arr[3]
+	result{"NRF"} = arr[4]
+	result{"PBC1"} = arr[5]
+	result{"PBC2"} = arr[6]
+	return result
+}
+
+// Cross correlation analysis log (*.cc.qc): 1 table + img (png converted from pdf)
+string{} parse_xcor( string log ) {
+	string{} result
+	lines := log.readLines();
+	items := lines[0].split("\t")
+	items.removeIdx(0) // remove file name
+	items.removeIdx(items.size()-1) // remove quality tag		
+	result{"num_reads"} = items[0]
+	result{"est_frag_len"} = items[1]
+	result{"corr_est_frag_len"} = items[2]
+	result{"phantom_peak"} = items[3]
+	result{"corr_phantom_peak"} = items[4]
+	result{"argmin_corr"} = items[5]
+	result{"min_corr"} = items[6]
+	result{"NSC"} = items[7]
+	result{"RSC"} = items[8]
+	return result
+}
+
+// IDR logs : 1 table
+string{} parse_idr( string log ) {
+	string{} result
+	lines := log.readLines()
+	header := lines[0].trim().split("\t")
+	content := lines[1].trim().split("\t")
+	for ( int i=0; i<header.size(); i++ ) {
+		result{header[i]} = content[i]
+	}
+	return result
+}
+
+// multi column text file ATAQC result txt
+// ex) NAME_OF_CONTENT\tVAL_1\tVAL_2\tVAL_3
+//	-> result{NAME_OF_CONTENT-1}=VAL1
+//	-> result{NAME_OF_CONTENT-2}=VAL2
+//	-> result{NAME_OF_CONTENT-3}=VAL3
+string{} parse_multi_col_txt( string log ) {
+	string{} result
+	lines := log.readLines();
+	string table_header, content
+	for ( string line : lines ) {
+		line = line.replace(" reads; of these:","")
+		arr := line.split("\t")
+		for ( int j=1;j<arr.size();j++) {
+			header := arr[0] + (arr.size()==2 ? "" : "-$j")
+			content := arr[j]
+			result{header} = content
+		}
+	}
+	return result
+}
+
+string[] get_header_multi_col_txt( string log ) {
+	string[] result
+	lines := log.readLines();
+	string table_header
+	for ( string line : lines ) {
+		line = line.replace(" reads; of these:","").replace(":","-")
+		arr := line.split("\t")
+		for ( int j=1;j<arr.size();j++) {
+			header := arr[0] + (arr.size()==2 ? "" : "-$j")
+			result.add(header)
+		}
+	}
+	return result
+}
+

@@ -232,6 +232,22 @@ string[] map_to_array( string{} map ) {
 	return array
 }
 
+// returns an array of length 2
+string[] split_by_first_chr( string s, string delim ) {
+	string[] result
+	if ( s.indexOf(delim) < 0 ) {
+		// error("delimiter ($delim) does not exists in the target string ($s)")
+		result.add(s)
+	}
+	else {
+		key := s.substr(0,s.indexOf(delim))
+		desc := s.substr(s.indexOf(delim)+1)
+		result.add(key)
+		result.add(desc)
+	}
+	return result
+}
+
 //// string parsing functions
 
 int parse_time( string str ) {

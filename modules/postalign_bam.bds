@@ -9,7 +9,7 @@ include "module_template.bds"
 
 help == postalign bam settings
 mapq_thresh	:= 30 		help Threshold for low MAPQ reads removal (default: 30).
-rm_chr_from_tag := "" 		help If specified, exclude lines with specified string from tagaligns. (example: 'other|ribo|mito|_', '_', default: blank)
+rm_chr_from_tag := "" 		help Perl style reg-ex to exclude reads from tag-aligns. (example: 'other|ribo|mito|_', '_', default: blank)
 
 wt_dedup 	:= "23h" 	help Walltime for post-alignment filtering (default: 23h, 24:00:00).
 mem_dedup	:= "12G" 	help Max. memory for post-alignment filtering (default: 12G).
@@ -61,6 +61,35 @@ void init_postalign_bam() {
 	print( "Walltime (bam filter)\t\t: $wt_dedup\n")
 	print( "Max. memory (bam filter)\t: $mem_dedup\n")
 	print( "Use sambamba markdup (instead of picard)\t: $use_sambamba_markdup\n")
+}
+
+// use sambamba
+string samtools_flagstat_bam( string bam, string o_dir, string group ) {
+
+	prefix 		:= replace_dir( rm_ext( bam, "bam" ), o_dir )
+	qc 		:= "$prefix.flagstat.qc"
+
+	in 	:= [ bam ]
+	out 	:= qc
+
+	taskName:= "flagstat_bam " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys sambamba flagstat -t 1 $bam > $qc
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
 }
 
 string[] dedup_bam( string bam, string o_dir, string log_o_dir, string group, int nth_dedup ) {

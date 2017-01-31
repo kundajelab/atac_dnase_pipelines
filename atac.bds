@@ -48,7 +48,7 @@ include "modules/ENCODE_accession.bds"
 // Important output file names are stored in global variables (usually a string map string{} with a key with replicate id, pair id)
 // e.g. filt_bam{"1"} = filtered bam for replicate 1, peak_pr1{"2"} = peak file for pseudo replicate 1 of replicate 2
 
-string{} fastq, align_log, bam, filt_bam, dup_qc, flagstat_nodup_qc, pbc_qc, xcor_qc, xcor_plot
+string{} fastq, align_log, flagstat_qc, bam, filt_bam, dup_qc, flagstat_nodup_qc, pbc_qc, xcor_qc, xcor_plot
 string{} final_tag, final_tag_pr1, final_tag_pr2
 
 string{} peak, peak_001, peak_pr1, peak_pr2
@@ -59,8 +59,8 @@ string gpeak_pooled, gpeak_pooled_001, gpeak_ppr1, gpeak_ppr2, gpeak_overlap
 
 string{} pval_bigwig_001, fc_bigwig_001
 
-string{} idr_tr, idr_pr, idr_tr_png, idr_pr_png
-string idr_ppr, idr_opt, idr_consv, idr_ppr_png
+string{} idr_tr, idr_pr, idr_tr_png, idr_pr_png, idr_tr_log, idr_pr_log
+string idr_ppr, idr_opt, idr_consv, idr_ppr_png, idr_ppr_log
 
 string idr_qc
 
@@ -206,7 +206,7 @@ void init_filetable() { // init file table labels in HTML report
 	add_label_to_table("Filtered bam")
 	add_label_to_table("Sorted bam")
 	add_label_to_table("Dedup. log")
-	add_label_to_table("Map. flagstat log")
+	add_label_to_table("Bowtie2 map. flagstat log")
 	add_label_to_table("PBC log")
 	add_label_to_table("Bedpe")
 	add_label_to_table("Subsampled bedpe")
@@ -450,17 +450,26 @@ void align_SE( int rep, int nth_rep ) {
 		else {
 			( bam_, align_log_ ) = bowtie2( p1, aln_o_dir, qc_o_dir, group, nth_rep, !trimmed_fastq )
 		}
+		wait
+
+		flagstat_qc_ := samtools_flagstat_bam( bam_, qc_o_dir, group )
 
 		bam{rep} = bam_
 		align_log{rep} = align_log_
+		flagstat_qc{rep} = flagstat_qc_
 
 		add_file_to_report( bam_, "bam", group, "Alignment/$long/Bam" )		
 		add_file_to_table( align_log_, "QC and logs/$long/Bowtie2 map. log")
+		add_file_to_table( flagstat_qc_, "QC and logs/$long/Bowtie2 map. flagstat log")
 
 		wait
+
+		string[] empty
+		add_ENCODE_quality_metrics_to_summary_json( "samtools_flagstats_quality_metric", \
+			"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", [bam_], [flagstat_qc_], empty )
 	}
 
-	string filt_bam_, dup_qc_
+	string filt_bam_, dup_qc_, pbc_qc_
 
 	if ( is_input_fastq( rep ) || is_input_bam( rep ) ) {
 
@@ -469,10 +478,11 @@ void align_SE( int rep, int nth_rep ) {
 			bam{rep} = bam_
 		}
 
-		( filt_bam_, dup_qc_, flagstat_nodup_qc{rep}, pbc_qc{rep} ) \
+		( filt_bam_, dup_qc_, flagstat_nodup_qc{rep}, pbc_qc_ ) \
 						= dedup_bam( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
 		filt_bam{rep} = filt_bam_
 		dup_qc{rep} = dup_qc_
+		pbc_qc{rep} = pbc_qc_
 
 		add_file_to_report( filt_bam_, "filt. bam", group, "Alignment/$long/Filtered & deduped bam" )
 		add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
@@ -556,6 +566,12 @@ void align_SE( int rep, int nth_rep ) {
 
 			add_file_to_report( final_tag_, "tag-align", group, "Alignment/$long/Tag-align" )
 			add_file_to_table( xcor_plot_, "QC and logs/$long/Cross-corr. plot" )
+
+			wait
+			if ( pbc_qc_ ) \
+				add_ENCODE_quality_metrics_to_summary_json( "complexity_xcorr_quality_metric", \
+					"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", \
+					[filt_bam_], [pbc_qc_, xcor_qc_], [ "false", 0, xcor_plot_] )
 		}
 	}
 }
@@ -645,16 +661,26 @@ void align_PE( int rep, int nth_rep ) {
 		fastq{rep+",2"} = p2
 
 		( bam_, align_log_ ) = bowtie2_PE( p1, p2, aln_o_dir, qc_o_dir, group, nth_rep, !trimmed_fastq )
+		wait
+
+		flagstat_qc_ := samtools_flagstat_bam( bam_, qc_o_dir, group )
+
 		bam{rep} = bam_
 		align_log{rep} = align_log_
+		flagstat_qc{rep} = flagstat_qc_
 
 		add_file_to_report( bam_, "bam", group, "Alignment/$long/Bam" )		
 		add_file_to_table( align_log_, "QC and logs/$long/Bowtie2 map. log")
+		add_file_to_table( flagstat_qc_, "QC and logs/$long/Bowtie2 map. flagstat log")
 
 		wait
+
+		string[] empty
+		add_ENCODE_quality_metrics_to_summary_json( "samtools_flagstats_quality_metric", \
+				"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", [bam_], [flagstat_qc_], empty )
 	}
 
-	string filt_bam_, dup_qc_
+	string filt_bam_, dup_qc_, pbc_qc_
 
 	if ( is_input_fastq( rep ) || is_input_bam( rep ) ) {
 
@@ -663,11 +689,12 @@ void align_PE( int rep, int nth_rep ) {
 			bam{rep} = bam_
 		}
 
-		(filt_bam_, dup_qc_, flagstat_nodup_qc{rep}, pbc_qc{rep} ) \
+		(filt_bam_, dup_qc_, flagstat_nodup_qc{rep}, pbc_qc_ ) \
 			= dedup_bam_PE( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
 
 		filt_bam{rep} = filt_bam_
 		dup_qc{rep} = dup_qc_
+		pbc_qc{rep} = pbc_qc_
 
 		add_file_to_report( filt_bam_, "filt. bam", group, "Alignment/$long/Filtered & deduped bam" )
 		add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
@@ -778,6 +805,13 @@ void align_PE( int rep, int nth_rep ) {
 
 			add_file_to_report( final_tag_, "tag-align", group, "Alignment/$long/Tag-align" )
 			add_file_to_table( xcor_plot_, "QC and logs/$long/Cross-corr. plot" )
+
+			wait
+
+			if ( pbc_qc_ ) \
+				add_ENCODE_quality_metrics_to_summary_json( "complexity_xcorr_quality_metric", \
+					"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", \
+					[filt_bam_], [pbc_qc_, xcor_qc_], [ "true", 0, xcor_plot_] )			
 		}
 	}
 }
@@ -1057,7 +1091,7 @@ void do_idr() {
 
 			idr_true_o_dir 	:= mkdir( "$idr_o_dir/true_reps/rep$i-rep$j" )
 
-			(idr_tr{"$i,$j"}, idr_tr_png{"$i,$j"} ) \
+			(idr_tr{"$i,$j"}, idr_tr_png{"$i,$j"}, idr_tr_log{"$i,$j"} ) \
 				= idr2( top_peak{i}, top_peak{j}, top_peak_pooled, idr_thresh, "p.value", idr_true_o_dir, "rep$i-rep$j" )
 
 			add_file_to_report( idr_tr{"$i,$j"}, "IDR peak", "rep$i-rep$j", "Peaks/IDR/True replicates/Rep. $i vs. Rep. $j/IDR peak" )
@@ -1068,7 +1102,7 @@ void do_idr() {
 
 			idr_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep$i" )
 
-			(idr_pr{i}, idr_pr_png{i}) \
+			(idr_pr{i}, idr_pr_png{i}, idr_pr_log{i}) \
 				= idr2( top_peak_pr1{i}, top_peak_pr2{i}, top_peak{i}, idr_thresh, "p.value", idr_pr_o_dir, "rep$i-pr" )
 
 			add_file_to_report( idr_pr{i}, "IDR peak", "rep$i-pr", "Peaks/IDR/Pseudo-replicates/Replicate $i/IDR peak" )
@@ -1080,7 +1114,7 @@ void do_idr() {
 
 		idr_ppr_o_dir := mkdir( "$idr_o_dir/pooled_pseudo_reps" )
 
-		(idr_ppr, idr_ppr_png) \
+		(idr_ppr, idr_ppr_png, idr_ppr_log) \
 			= idr2( top_peak_ppr1, top_peak_ppr2, top_peak_pooled, idr_thresh, "p.value", idr_ppr_o_dir, "ppr" )
 
 		add_file_to_report( idr_ppr, "IDR peak", "ppr", "Peaks/IDR/Pooled pseudo-replicates/IDR peak" )
@@ -1150,32 +1184,43 @@ void filter_peak_and_convert_to_bigbed() {
 
 	wait
 
-	// IDR peaks
-	if ( idr_opt ) {
-		// find idr_opt and idr_consv		
-		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", \
-			"anshul-kundaje:atac-seq-idr-step-run-v1", idr_opt, filt_peaks )
-		idr_opt_bb := peak_to_bigbed( "narrowPeak", idr_opt, idr_opt.dirName(), "idr peak opt" )
-		wait
-		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", \
-			"anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1", idr_opt_bb, [idr_opt])
+	if ( idr_qc && idr_opt && idr_consv ) {
 
-		if ( idr_consv && get_basename( idr_opt )!=get_basename( idr_consv ) ) {
-			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "conservative idr thresholded peaks", \
-				"anshul-kundaje:atac-seq-idr-step-run-v1", idr_consv, filt_peaks )
-			idr_consv_bb := peak_to_bigbed( "narrowPeak", idr_consv, idr_consv.dirName(), "idr peak consv" )
+		// IDR peaks
+		if ( idr_pr.hasKey(1) && get_num_rep()==1 ) {
+			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", \
+				"anshul-kundaje:atac-seq-idr-step-run-v1", idr_pr{1}, filt_peaks )
+			idr_bb := peak_to_bigbed( "narrowPeak", idr_pr{1}, idr_pr{1}.dirName(), "idr peak pr" )
 			wait
-			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "conservative idr thresholded peaks", \
-				"anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1", idr_consv_bb, [idr_consv] )
+			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", \
+				"anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1", idr_bb, [idr_pr{1}] )
 		}
-	}
-	else if ( idr_pr.hasKey(1) ) {
-		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", \
-			"anshul-kundaje:atac-seq-idr-step-run-v1", idr_pr{1}, filt_peaks )
-		idr_bb := peak_to_bigbed( "narrowPeak", idr_pr{1}, idr_pr{1}.dirName(), "idr peak pr" )
-		wait
-		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", \
-			"anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1", idr_bb, [idr_pr{1}] )
+		else {
+			// find idr_opt and idr_consv		
+			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", \
+				"anshul-kundaje:atac-seq-idr-step-run-v1", idr_opt, filt_peaks )
+			idr_opt_bb := peak_to_bigbed( "narrowPeak", idr_opt, idr_opt.dirName(), "idr peak opt" )
+			wait
+			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", \
+				"anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1", idr_opt_bb, [idr_opt])
+
+			if ( idr_consv && get_basename( idr_opt )!=get_basename( idr_consv ) ) {
+				add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "conservative idr thresholded peaks", \
+					"anshul-kundaje:atac-seq-idr-step-run-v1", idr_consv, filt_peaks )
+				idr_consv_bb := peak_to_bigbed( "narrowPeak", idr_consv, idr_consv.dirName(), "idr peak consv" )
+				wait
+				add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "conservative idr thresholded peaks", \
+					"anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1", idr_consv_bb, [idr_consv] )
+			}
+		}
+		add_ENCODE_quality_metrics_to_summary_json( "idr_quality_metric", \
+			"anshul-kundaje:atac-seq-idr-step-run-v1", \
+			filt_peaks, [idr_qc], \
+			[ idr_thresh, \
+			idr_tr_png.hasKey("1,2") ? idr_tr_png{"1,2"} : "", idr_pr_png{1}, \
+				idr_pr_png.hasKey(2) ? idr_pr_png{2} : "", idr_ppr_png, \
+			idr_tr_log.hasKey("1,2") ? idr_tr_log{"1,2"} : "", idr_pr_log{1}, \
+				idr_pr_log.hasKey(2) ? idr_pr_log{2} : "", idr_ppr_log] )
 	}
 
 	// naive overlap peaks
@@ -1270,61 +1315,56 @@ void report() {
 
 string html_atac_QC() {
 
-	string[] align_qcs, dup_qcs, flagstat_nodup_qcs, pbc_qcs, xcor_qcs, xcor_plots, ataqc_qcs
-	string[] align_headers, dup_headers, flagstat_nodup_headers, pbc_headers, xcor_headers, ataqc_headers
+	string[] align_qcs, flagstat_qcs, dup_qcs, flagstat_nodup_qcs, pbc_qcs, xcor_qcs, xcor_plots, ataqc_qcs
+	string[] groups
 
 	for ( int rep=1; rep <= get_num_rep(); rep++) {
 
 		group := "rep$rep"
 		key := "$rep"
-
-		//html_rep_by_id += html_xcor( group, 	[ group ], [ xcor_qc{key} ], [ xcor_plot{key} ], [ group ] )
+		groups.add( group )
 
 		if ( xcor_qc.hasKey( key ) )	{
 			xcor_qcs 		+= xcor_qc{key}
 			xcor_plots 		+= xcor_plot{key}
-			xcor_headers 		+= group
 		}
-
-		if ( align_log.hasKey( key ) ) 		align_qcs 		+= align_log{key}
+		if ( flagstat_qc.hasKey( key ) )	flagstat_qcs 		+= flagstat_qc{key}
 		if ( dup_qc.hasKey( key ) ) 		dup_qcs 		+= dup_qc{key}
 		if ( flagstat_nodup_qc.hasKey( key ) )	flagstat_nodup_qcs 	+= flagstat_nodup_qc{key}
 		if ( pbc_qc.hasKey( key ) ) 		pbc_qcs			+= pbc_qc{key}
 		if ( ataqc_qc.hasKey( key ) )		ataqc_qcs		+= ataqc_qc{key}
-
-		if ( align_log.hasKey( key ) ) 		align_headers 		+= group
-		if ( dup_qc.hasKey( key ) ) 		dup_headers 		+= group
-		if ( flagstat_nodup_qc.hasKey( key ) )	flagstat_nodup_headers 	+= group
-		if ( pbc_qc.hasKey( key ) ) 		pbc_headers		+= group
-		if ( ataqc_qc.hasKey( key ) )		ataqc_headers		+= group
 	}
 
 	html := "<div id='atac_qc'>"
+	html += html_table_multiple_logs( "Flagstat (raw) QC", true, "flagstat", groups, flagstat_qcs )
+	html += html_table_multiple_logs( "Dup. QC", true, "dup", groups, dup_qcs )
+	html += html_table_multiple_logs( "Flagstat (filtered) QC", true, "flagstat_filt", groups, flagstat_nodup_qcs )
+	html += html_table_multiple_logs( "PBC QC", true, "pbc", groups, pbc_qcs )
+	if ( pbc_qcs.size()>0 ) html += html_help_pbc()
+	html += html_table_multiple_logs( "Cross-corr. QC", true, "xcor", groups, xcor_qcs )
+	if ( xcor_qcs.size()>0 ) html += html_help_xcor()
 
-	html += parse_align_log_to_html( "all", 	align_headers, align_qcs, align_headers )
-	html += parse_dup_to_html( "all", 		dup_headers, dup_qcs, dup_headers )
-	html += parse_flagstat_to_html( "all, filtered",flagstat_nodup_headers, flagstat_nodup_qcs, flagstat_nodup_headers, true )
-	html += parse_pbc_to_html( "all", 		pbc_headers, pbc_qcs, pbc_headers )
-	html += parse_xcor_to_html( "all", 		xcor_headers, xcor_qcs, xcor_plots, xcor_headers )
-
-	// if idr qc's exists, add them to html
-
-	if ( idr_qc != "" ) html += parse_idr_to_html( "idr", idr_qc )
-
-	for ( int i=1; i<=get_num_rep(); i++ ) {
-
-		for ( int j=i+1; j<=get_num_rep(); j++ ) {
-			if ( idr_tr_png.hasKey("$i,$j") ) html += html_img( idr_tr_png{"$i,$j"}, 800, "true reps (rep$i-rep$j)" ) + "&nbsp"
-		}
-
-		if ( !true_rep ) {
-			if ( idr_pr_png.hasKey(i) ) html += html_img( idr_pr_png{i}, 800, "rep$i pseudo-reps" ) + "&nbsp"
-		}
+	// xcor images
+	for ( int i=0; i<xcor_plots.size(); i++ ) {
+		png := pdf_to_png( xcor_plots[i] )
+		html += html_img( png, 500, groups[i] ) + "&nbsp"
 	}
 
+	// if idr qc's exists, add them to html
+	if ( idr_qc != "" ) html += html_table_multiple_logs( "IDR QC", true, "idr", ["rep1"], [idr_qc] )
+	for ( int i=1; i<=get_num_rep(); i++ ) {
+		for ( int j=i+1; j<=get_num_rep(); j++ ) {
+			if ( idr_tr_png.hasKey("$i,$j") ) \
+				html += html_img( idr_tr_png{"$i,$j"}, 800, "true reps (rep$i-rep$j)" ) + "&nbsp"
+		}
+		if ( !true_rep ) {
+			if ( idr_pr_png.hasKey(i) ) \
+				html += html_img( idr_pr_png{i}, 800, "rep$i pseudo-reps" ) + "&nbsp"
+		}
+	}
 	if ( idr_ppr_png != "" ) html += html_img( idr_ppr_png, 800, "pooled pseudo-reps" ) + "&nbsp"
 
-	parse_ataqc_txt( "all", ataqc_headers, ataqc_qcs )
+	html += html_table_multiple_logs( "ATAQC", false, "ataqc", groups, ataqc_qcs )
 
 	html += "</div><br>"
 	return html

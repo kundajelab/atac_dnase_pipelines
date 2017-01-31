@@ -4,6 +4,7 @@
 // supported file_format : [fastq,bam,tagAlign,bigWig,bedpe]
 
 include "species.bds"
+include "log_parser.bds"
 
 help == ENCODE accession settings
 string ENCODE_accession = "" 			help ENCODE experiment accession ID (or dataset).
@@ -17,6 +18,7 @@ string ENCODE_alias_prefix = "KLAB_PIPELINE"	help Alias = Alias_prefix + filenam
 
 string[] _summary_qc
 string[] _summary_ENCODE_accession
+string[] _summary_ENCODE_qc
 
 /*
 description 	file_format 	file_format_type 	output_type
@@ -67,6 +69,7 @@ void write_summary_json() {
 	ret += "\t\"ENCODE_accession\" : \"" + ENCODE_accession + "\",\n"
 	ret += "\t\"species\" : \"" + species + "\",\n"
 	ret += "\t\"title\" : \"" + title + "\",\n"
+
 	ret += "\t\"data_files\" : [\n"
 	cnt := 0
 	for ( string json : _summary_ENCODE_accession ) {
@@ -91,6 +94,19 @@ void write_summary_json() {
 			cnt2 += 1
 			ret += ("\t\t"+val+"\n")
 			if ( cnt != _summary_qc.size() && cnt2 == lines.size() ) ret += "\t\t,\n"
+ 		}
+	}
+	ret += "\t],\n"
+	ret += "\t\"ENCODE_quality_metrics\" : [\n"
+	cnt = 0
+	for ( string json : _summary_ENCODE_qc ) {
+		cnt += 1
+		cnt2 := 0
+		lines := json.split("\n")
+		for ( string val : lines ) {
+			cnt2 += 1
+			ret += ("\t\t"+val+"\n")
+			if ( cnt != _summary_ENCODE_qc.size() && cnt2 == lines.size() ) ret += "\t\t,\n"
  		}
 	}
 	ret += "\t]\n"
@@ -132,15 +148,95 @@ void add_ENCODE_metadata_to_summary_json( string file_format, string file_format
 	_summary_ENCODE_accession.add( map_to_json_str(json) )
 }
 
-string{} _get_ENCODE_accession_template( string file, string[] derived_from ) {
-	map := _read_metadata( file )
+//entry of infos can be any string value or filepath (png,pdf,txt...)
+void add_ENCODE_quality_metrics_to_summary_json( string ENCODE_qc_type, string step_run, \
+						string[] quality_metric_of, string[] logs, string[] infos ) {
+	string{} json
+	json{"dataset"} = ENCODE_accession // ENCODE experiment accession ID
+	json{"award"} = ENCODE_award // ENCODE rfa
+	json{"lab"} = ENCODE_lab // lab
+	json{"assembly"} = ENCODE_assembly
+	json{"quality_metric_of:array"} = _get_ENCODE_aliases( quality_metric_of )
+	json{"step_run"} = step_run
+	
+	if ( ENCODE_qc_type == "samtools_flagstats_quality_metric" ) { // flagstat (raw)
+		//"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1"
+		map := parse_log( "flagstat", logs[0] ) // parse flagstat log file
+	        json{"diff_chroms"} = map{"diff_chroms"}
+	        json{"diff_chroms_qc_failed"} = map{"diff_chroms_qc_failed"}
+	        json{"duplicates"} = map{"duplicates"}
+	        json{"duplicates_qc_failed"} = map{"duplicates_qc_failed"}
+	        json{"mapped"} = map{"mapped"}
+	        json{"mapped_pct"} = map{"mapped_pct"}
+	        json{"mapped_qc_failed"} = map{"mapped_qc_failed"}
+	        json{"paired"} = map{"paired"}
+	        json{"paired_properly"} = map{"paired_properly"}
+	        json{"paired_properly_pct"} = map{"paired_properly_pct"}
+	        json{"paired_properly_qc_failed"} = map{"paired_properly_qc_failed"}
+	        json{"paired_qc_failed"} = map{"paired_qc_failed"}
+	        json{"read1"} = map{"read1"}
+	        json{"read1_qc_failed"} = map{"read1_qc_failed"}
+	        json{"read2"} = map{"read2"}
+	        json{"read2_qc_failed"} = map{"read2_qc_failed"}
+	        json{"singletons"} = map{"singletons"}
+	        json{"singletons_pct"} = map{"singletons_pct"}
+	        json{"singletons_qc_failed"} = map{"singletons_qc_failed"}
+	        json{"total"} = map{"total"}
+	        json{"total_qc_failed"} = map{"total_qc_failed"}
+	        json{"with_itself"} = map{"with_itself"}
+	        json{"with_itself_qc_failed"} = map{"with_itself_qc_failed"}
+	}
+	else if ( ENCODE_qc_type == "complexity_xcorr_quality_metric" ) { // xcor + pbc
+		//"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1"
+		map_pbc := parse_log( "pbc", logs[0] )
+		map_xcor := parse_log( "xcor", logs[1] )
+		json{"NSC"} = map_xcor{"NSC"}
+		json{"RSC"} = map_xcor{"RSC"}
+		json{"fragment length"} = map_xcor{"corr_est_frag_len"}
+		json{"PBC1"} = map_pbc{"PBC1"}
+		json{"PBC2"} = map_pbc{"PBC2"}
+		json{"NRF"} = map_pbc{"NRF"}
+		json{"sample size"} = map_xcor{"num_reads"}
+		json{"paired-end"} = infos[0]
+		json{"read length"} = infos[1]
+		json{"cross_correlation_plot"} = infos[2] //xcor_plot
+	}
+	else if ( ENCODE_qc_type == "idr_quality_metric" ) {
+		//"anshul-kundaje:atac-seq-idr-step-run-v1"
+		map := parse_log( "idr", logs[0] )
+		json{"Np"} = map{"Np"}
+		json{"Nt"} = map{"Nt"}
+		json{"N1"} = map{"N1"}
+		json{"N2"} = map{"N2"}
+		json{"N_optimal"} = map{"N_opt"}
+		json{"N_conservative"} = map{"N_consv"}
+		json{"self_consistency_ratio"} = map{"self_consistency_ratio"}
+		json{"rescue_ratio"} = map{"rescue_ratio"}
+		json{"reproducibility_test"} = map{"reproducibility_test"}
+		json{"IDR_cutoff"} = infos[0]
+		if ( infos[1] ) json{"IDR_plot_true"} = infos[1]
+		if ( infos[2] ) json{"IDR_plot_rep1_pr"} = infos[2]
+		if ( infos[3] ) json{"IDR_plot_rep2_pr"} = infos[3]
+		if ( infos[4] ) json{"IDR_plot_pool_pr"} = infos[4]
+		if ( infos[5] ) json{"IDR_parameters_true"} = infos[5] // idr_log (*.log.txt)
+		if ( infos[6] ) json{"IDR_parameters_rep1_pr"} = infos[6]
+		if ( infos[7] ) json{"IDR_parameters_rep2_pr"} = infos[7]
+		if ( infos[8] ) json{"IDR_parameters_pool_pr"} = infos[8]
+	}
+	else {
+		error("Unsupported ENCODE_qc_type ($ENCODE_qc_type)!\n")
+	}
 
+	_summary_ENCODE_qc.add( map_to_json_str(json) )	
+}
+
+string _get_ENCODE_aliases( string[] derived_from ) {
 	// derived_from	
 	string[] arr
-	for ( string file_derived : derived_from ) {
-		if ( get_basename(file_derived).startsWith("ENCF") && file_derived.indexOf(".fastq.gz") > -1 ) {
+	for ( string file : derived_from ) {
+		if ( get_basename(file).startsWith("ENCF") && file.indexOf(".fastq.gz") > -1 ) {
 			// for fastqs, their file name prefixes are accesion IDs
-			file2 := get_basename(file_derived).replace(".trim","").split(".fastq.gz")[0]
+			file2 := get_basename(file).replace(".trim","").split(".fastq.gz")[0]
 			if ( file2.indexOf("_") > 0 ) {
 				arr.add( file2.split("_")[0] )
 				arr.add( file2.split("_")[1] )
@@ -150,11 +246,16 @@ string{} _get_ENCODE_accession_template( string file, string[] derived_from ) {
 			}
 		}
 		else {
-			map_derived_from := _read_metadata( file_derived ) 
+			map_derived_from := _read_metadata( file ) 
 			arr.add( (map_derived_from{"aliases:array"}).replace("[","").replace("]","") )
 		}
 	}
-	map{"derived_from:array"} = arr.size() ? ("[" + array_to_str(arr,";") + "]") : ""
+	return arr.size() ? ("[" + array_to_str(arr,";") + "]") : ""
+}
+
+string{} _get_ENCODE_accession_template( string file, string[] derived_from ) {
+	map := _read_metadata( file )
+	map{"derived_from:array"} = _get_ENCODE_aliases( derived_from )
 	return map
 }
 

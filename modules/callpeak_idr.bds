@@ -44,6 +44,7 @@ string[] idr2( string peak1, string peak2, string pooled, string idr_thresh, str
 	filt_peak_idr_trk_tmp	:= "$prefix.IDR"+"$idr_thresh.filt.13-col.bed.gz"
 
 	idr_out 	:= "$prefix.unthresholded-peaks.txt"
+	idr_log 	:= "$prefix.IDR"+"$idr_thresh.log.txt"
 	idr_out_gz	:= "$idr_out.gz"
 	png 		:= "$idr_out.png"
 
@@ -64,8 +65,8 @@ string[] idr2( string peak1, string peak2, string pooled, string idr_thresh, str
 	}
 
 	in 	:= [peak1, peak2, pooled]
-	out 	:= path_exists( blacklist ) ?  	[filt_peak_idr, png, idr_out_gz, filt_peak_idr_trk ] : \
-						[peak_idr, png, idr_out_gz, peak_idr_trk]
+	out 	:= path_exists( blacklist ) ?  	[filt_peak_idr, png, idr_log, idr_out_gz, filt_peak_idr_trk ] : \
+						[peak_idr,      png, idr_log, idr_out_gz, peak_idr_trk]
 	taskName:= "idr2 " + group
 
 	wait_par( cpus )
@@ -76,7 +77,7 @@ string[] idr2( string peak1, string peak2, string pooled, string idr_thresh, str
 
 		sys idr --samples $peak1 $peak2 --peak-list $pooled --input-file-type narrowPeak \
 			--output-file $idr_out --rank $rank --soft-idr-threshold $idr_thresh \
-			--plot --use-best-multisummit-IDR
+			--plot --use-best-multisummit-IDR --log-output-file $idr_log
 		
 		sys idr_thresh_transformed=$(awk -v p=$idr_thresh 'BEGIN{print -log(p)/log(10)}')
 
@@ -135,44 +136,47 @@ string[] idr_final_qc( string{} idr_tr, string{} idr_pr, string idr_ppr, \
 
 	//// find optimal set and conservative set
 	string optimal_set, conservative_set
+	int N_opt, N_consv
 	string idr_opt_set, idr_consv_set
 	string idr_opt_set_new, idr_consv_set_new // copy of above two
 
 	if ( Nt > 0 ) {
 
 		// optimal set
-		optimal_set 		= (Nt > Np) ? _get_group_from_key(key_tr_best) : "pooled_pseudo_rep"
-		idr_opt_set 		= (Nt > Np) ? idr_tr_best : idr_ppr
+		optimal_set 	= (Nt > Np) ? _get_group_from_key(key_tr_best) : "pooled_pseudo_rep"
+		idr_opt_set 	= (Nt > Np) ? idr_tr_best : idr_ppr
+		N_opt 		= (Nt > Np) ? Nt : Np
 
 		// conservative set
-		conservative_set 	= _get_group_from_key(key_tr_best)
-		idr_consv_set  	 	= idr_tr_best
-
-		// make copies of them
-		idr_opt_o_dir 		:= mkdir( "$idr_o_dir/optimal_set" )
-		idr_consv_o_dir 	:= mkdir( "$idr_o_dir/conservative_set" )
-
-		idr_opt_set_new		= copy( idr_opt_set, idr_opt_o_dir )	
-		idr_consv_set_new 	= copy( idr_consv_set, idr_consv_o_dir )
-		
-		// for browser tracks
-		idr_opt_set_trk 	:= _get_idr_peak_trk( idr_opt_set ) // for browser tracks
-		idr_consv_set_trk	:= _get_idr_peak_trk( idr_consv_set ) // for browser tracks
-
-		copy( idr_opt_set_trk, idr_opt_o_dir )
-		copy( idr_consv_set_trk, idr_consv_o_dir )
-
-		wait
+		conservative_set= _get_group_from_key(key_tr_best)
+		idr_consv_set  	= idr_tr_best
+		N_consv 	= Nt
 	}
 	else {
-		optimal_set 		= "N/A"
-		idr_opt_set 		= ""
-		idr_opt_set_new		= ""
+		optimal_set 	= "self_pseudo_rep_rep1"
+		idr_opt_set 	= idr_pr{1}
+		N_opt 		= N[0]
 
-		conservative_set 	= "N/A"
-		idr_consv_set  	 	= ""
-		idr_consv_set_new 	= ""
+		conservative_set= optimal_set
+		idr_consv_set  	= idr_opt_set
+		N_consv 	= N_opt
 	}
+
+	// make copies of them
+	idr_opt_o_dir 		:= mkdir( "$idr_o_dir/optimal_set" )
+	idr_consv_o_dir 	:= mkdir( "$idr_o_dir/conservative_set" )
+
+	idr_opt_set_new		= copy( idr_opt_set, idr_opt_o_dir )	
+	idr_consv_set_new 	= copy( idr_consv_set, idr_consv_o_dir )
+	
+	// for browser tracks
+	idr_opt_set_trk 	:= _get_idr_peak_trk( idr_opt_set ) // for browser tracks
+	idr_consv_set_trk	:= _get_idr_peak_trk( idr_consv_set ) // for browser tracks
+
+	copy( idr_opt_set_trk, idr_opt_o_dir )
+	copy( idr_consv_set_trk, idr_consv_o_dir )
+
+	wait
 
 	//// compute IDR scores
 
@@ -182,12 +186,15 @@ string[] idr_final_qc( string{} idr_tr, string{} idr_pr, string idr_ppr, \
 	real max_N = N.size() > 0 ? _max( N ) : 0
 	real min_N = N.size() > 0 ? _min( N ) : 0
 
-	rescue_ratio 		:= max_Np_Nt / min_Np_Nt
-	self_consistency_ratio 	:= max_N / min_N
-	reproducibility 	:= 1
+	real rescue_ratio, self_consistency_ratio
+	if ( min_Np_Nt > 0 )	rescue_ratio 		= max_Np_Nt / min_Np_Nt
+	else 			rescue_ratio 		= 0.0
+	if ( min_N> 0 )  	self_consistency_ratio 	= max_N / min_N
+	else 			self_consistency_ratio 	= 1.0
+	reproducibility 	:= "pass"
 
-	if ( rescue_ratio > 2.0 || self_consistency_ratio > 2.0 ) reproducibility = 0 // BORDERLINE
-	if ( rescue_ratio > 2.0 && self_consistency_ratio > 2.0 ) reproducibility = -1 // FAIL
+	if ( rescue_ratio > 2.0 || self_consistency_ratio > 2.0 ) reproducibility = "borderline" // BORDERLINE
+	if ( rescue_ratio > 2.0 && self_consistency_ratio > 2.0 ) reproducibility = "fail" // FAIL
 	
 	// Fraction of Reads in Peaks (FRiP) will be added later
 
@@ -220,8 +227,8 @@ string[] idr_final_qc( string{} idr_tr, string{} idr_pr, string idr_ppr, \
 
 		sys $shcmd_init
 
-		sys echo -e "Nt\t$col_lbl""Np\tconservative_set\toptimal_set\trescue_ratio\tself_consistency_ratio\treproducibility" > $qc
-		sys echo -e "$Nt\t$col_val""$Np\t$conservative_set\t$optimal_set\t$rescue_ratio\t$self_consistency_ratio\t$reproducibility" >> $qc
+		sys echo -e "Nt\t$col_lbl""Np\tN_opt\tN_consv\topt_set\tconsv_set\trescue_ratio\tself_consistency_ratio\treproducibility_test" > $qc
+		sys echo -e "$Nt\t$col_val""$Np\t$N_opt\t$N_consv\t$optimal_set\t$conservative_set\t$rescue_ratio\t$self_consistency_ratio\t$reproducibility" >> $qc
 
 		sys $shcmd_finalize
 	}
