@@ -1265,6 +1265,11 @@ void ataqc() {
 
 void ataqc( int rep ) {
 
+	if ( true_rep || no_idr ) {
+		print("Warning: ATAQC cannot run with the flag -true_rep or -no_idr\n");
+		return
+	}
+
 	group := get_group_name( rep )
 	long  := get_long_group_name( rep )
 
@@ -1273,23 +1278,31 @@ void ataqc( int rep ) {
 
 	if ( bam.hasKey(rep) ) {
 
-		string idr_ataqc
+		string idr_ataqc, peak
 
-		if ( no_idr ) 			idr_ataqc = ""
-		else if ( get_num_rep() == 1 ) 	idr_ataqc = idr_pr{1}
-		else 				idr_ataqc = idr_opt
+		if ( no_idr ) 			{
+			idr_ataqc = ""
+		}
+		else if ( get_num_rep() == 1 ) 	{
+			idr_ataqc = idr_pr{1}
+			peak = idr_pr{rep}
+		}
+		else {
+			idr_ataqc = idr_opt
+			peak = idr_pr{rep}
+		}
 
 		string ataqc_html
 
 		if ( is_se( rep ) ) {
 
 			( ataqc_html, ataqc_qc{rep} ) = ataqc( fastq{rep}, "", bam{rep}, align_log{rep}, pbc_qc{rep}, \
-				dup_qc{rep}, filt_bam{rep}, final_tag{rep}, pval_bigwig_001{rep}, peak_001{rep}, \
+				dup_qc{rep}, filt_bam{rep}, final_tag{rep}, pval_bigwig_001{rep}, peak, \
 				peak_overlap, idr_ataqc, qc_o_dir, group )
 		}
 		else {
 			( ataqc_html, ataqc_qc{rep} ) = ataqc( fastq{rep+",1"}, fastq{rep+",2"}, bam{rep}, align_log{rep}, pbc_qc{rep}, \
-				dup_qc{rep}, filt_bam{rep}, final_tag{rep}, pval_bigwig_001{rep}, peak_001{rep}, \
+				dup_qc{rep}, filt_bam{rep}, final_tag{rep}, pval_bigwig_001{rep}, peak, \
 				peak_overlap, idr_ataqc, qc_o_dir, group )
 		}
 
