@@ -8,7 +8,7 @@ include "module_template.bds"
 
 help == align bowtie2 settings (requirements: -bwt2_idx)
 bwt2_idx	:= ""		help Bowtie2 index (full path prefix of *.1.bt2 file).
-wt_bwt2		:= "23h"	help Walltime for bowtie2 (default: 23h, 23:00:00).
+wt_bwt2		:= "47h"	help Walltime for bowtie2 (default: 47h, 47:00:00).
 mem_bwt2	:= "12G"	help Max. memory for bowtie2 (default: 12G).
 
 
