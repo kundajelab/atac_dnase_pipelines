@@ -17,7 +17,7 @@ reg2map_bed 	:= ""		help Reg2map_bed (file of regions used to generate reg2map s
 roadmap_meta 	:= ""		help Roadmap metadata for ataqc.
 
 mem_ataqc 	:= "15G"	help Max. memory for ATAQC (default: 15G).
-wt_ataqc	:= "23h"	help Walltime for ATAQC (default: 23h, 23:00:00).
+wt_ataqc	:= "47h"	help Walltime for ATAQC (default: 47h, 47:00:00).
 
 grp_color_ataqc := "pink"
 
