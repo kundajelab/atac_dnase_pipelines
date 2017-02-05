@@ -1,0 +1,31 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "species.bds"
+
+string get_read_length_log( string fastq, string o_dir, string group ) { 
+
+	prefix 	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
+	log 	:= "$prefix.read_length.txt"
+
+	in 	:= [ fastq ]
+	out 	:= log
+
+	taskName:= "read_length "+group
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys python $(which get_read_length_from_fastq.py) $fastq > $log
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}

@@ -31,6 +31,7 @@ include "modules/input_adapter.bds"
 
 include "modules/align_bowtie2.bds"
 include "modules/align_trim_adapter.bds"
+include "modules/align_etc.bds"
 
 include "modules/postalign_bam.bds"
 include "modules/postalign_bed.bds"
@@ -387,7 +388,7 @@ void align_SE( int rep, int nth_rep ) {
 	aln_o_dir := mkdir( "$out_dir/align/$group" ) // create align output directory
 	qc_o_dir  := mkdir( "$out_dir/qc/$group" ) // create qc output dir.
 
-	string bam_
+	string bam_, read_length_log, flagstat_qc_
 	string[] fastqs
 
 	if ( is_input_fastq( rep ) ) {
@@ -428,6 +429,8 @@ void align_SE( int rep, int nth_rep ) {
 				trimmed_fastqs.add( p1 )
 				add_file_to_report( p1, "trimmed\\nfastq$suffix" , group, "Alignment/$long/Trimmed fastq$suffix" )
 			}
+
+			if ( i==0 ) read_length_log = get_read_length_log( trimmed_fastqs[0], qc_o_dir, group )
 		}
 		wait
 
@@ -452,7 +455,7 @@ void align_SE( int rep, int nth_rep ) {
 		}
 		wait
 
-		flagstat_qc_ := samtools_flagstat_bam( bam_, qc_o_dir, group )
+		flagstat_qc_ = samtools_flagstat_bam( bam_, qc_o_dir, group )
 
 		bam{rep} = bam_
 		align_log{rep} = align_log_
@@ -461,12 +464,6 @@ void align_SE( int rep, int nth_rep ) {
 		add_file_to_report( bam_, "bam", group, "Alignment/$long/Bam" )		
 		add_file_to_table( align_log_, "QC and logs/$long/Bowtie2 map. log")
 		add_file_to_table( flagstat_qc_, "QC and logs/$long/Bowtie2 map. flagstat log")
-
-		wait
-
-		string[] empty
-		add_ENCODE_quality_metrics_to_summary_json( "samtools_flagstats_quality_metric", \
-			"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", [bam_], [flagstat_qc_], empty )
 	}
 
 	string filt_bam_, dup_qc_, pbc_qc_
@@ -492,6 +489,10 @@ void align_SE( int rep, int nth_rep ) {
 		if ( fastqs.size() > 0 ) \
 			add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", \
 				"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", filt_bam_, fastqs )
+		if ( flagstat_qc_ ) { 
+			add_ENCODE_quality_metrics_to_summary_json( "samtools_flagstats_quality_metric", \
+				"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", [filt_bam_], [flagstat_qc_] )
+		}
 	}
 
 	string tag
@@ -568,10 +569,10 @@ void align_SE( int rep, int nth_rep ) {
 			add_file_to_table( xcor_plot_, "QC and logs/$long/Cross-corr. plot" )
 
 			wait
-			if ( pbc_qc_ ) \
+			if ( pbc_qc_ && read_length_log ) \
 				add_ENCODE_quality_metrics_to_summary_json( "complexity_xcorr_quality_metric", \
 					"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", \
-					[filt_bam_], [pbc_qc_, xcor_qc_], [ "false", 0, xcor_plot_] )
+					[filt_bam_], [pbc_qc_, xcor_qc_, read_length_log], [ "false", xcor_plot_] )
 		}
 	}
 }
@@ -584,7 +585,7 @@ void align_PE( int rep, int nth_rep ) {
 	aln_o_dir := mkdir( "$out_dir/align/$group" ) // create align output directory
 	qc_o_dir  := mkdir( "$out_dir/qc/$group" ) // create qc output dir.
 
-	string bam_, align_log_
+	string bam_, align_log_, read_length_log, flagstat_qc_
 	string[] fastqs_pair1, fastqs_pair2
 
 	if ( is_input_fastq( rep ) ) {
@@ -641,6 +642,7 @@ void align_PE( int rep, int nth_rep ) {
 				add_file_to_report( p1, "trimmed\\nfastq 1$suffix", group, "Alignment/$long/Trimmed fastq 1$suffix" )
 				add_file_to_report( p2, "trimmed\\nfastq 2$suffix", group, "Alignment/$long/Trimmed fastq 2$suffix" )
 			}
+			if ( i==0 ) read_length_log = get_read_length_log( trimmed_fastqs_pair1[0], qc_o_dir, group )
 		}
 		wait
 
@@ -663,7 +665,7 @@ void align_PE( int rep, int nth_rep ) {
 		( bam_, align_log_ ) = bowtie2_PE( p1, p2, aln_o_dir, qc_o_dir, group, nth_rep, !trimmed_fastq )
 		wait
 
-		flagstat_qc_ := samtools_flagstat_bam( bam_, qc_o_dir, group )
+		flagstat_qc_ = samtools_flagstat_bam( bam_, qc_o_dir, group )
 
 		bam{rep} = bam_
 		align_log{rep} = align_log_
@@ -672,12 +674,6 @@ void align_PE( int rep, int nth_rep ) {
 		add_file_to_report( bam_, "bam", group, "Alignment/$long/Bam" )		
 		add_file_to_table( align_log_, "QC and logs/$long/Bowtie2 map. log")
 		add_file_to_table( flagstat_qc_, "QC and logs/$long/Bowtie2 map. flagstat log")
-
-		wait
-
-		string[] empty
-		add_ENCODE_quality_metrics_to_summary_json( "samtools_flagstats_quality_metric", \
-				"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", [bam_], [flagstat_qc_], empty )
 	}
 
 	string filt_bam_, dup_qc_, pbc_qc_
@@ -705,6 +701,10 @@ void align_PE( int rep, int nth_rep ) {
 			add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", \
 				"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", \
 				filt_bam_, fastqs_pair1+fastqs_pair2 )
+		if ( flagstat_qc_) { 
+			add_ENCODE_quality_metrics_to_summary_json( "samtools_flagstats_quality_metric", \
+				"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", [filt_bam_], [flagstat_qc_] )
+		}
 	}
 
 	string bedpe, subsampled_bedpe, tag
@@ -808,10 +808,10 @@ void align_PE( int rep, int nth_rep ) {
 
 			wait
 
-			if ( pbc_qc_ ) \
+			if ( pbc_qc_ && read_length_log ) \
 				add_ENCODE_quality_metrics_to_summary_json( "complexity_xcorr_quality_metric", \
 					"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", \
-					[filt_bam_], [pbc_qc_, xcor_qc_], [ "true", 0, xcor_plot_] )			
+					[filt_bam_], [pbc_qc_, xcor_qc_, read_length_log], [ "true", xcor_plot_] )			
 		}
 	}
 }
@@ -1188,11 +1188,11 @@ void filter_peak_and_convert_to_bigbed() {
 
 		// IDR peaks
 		if ( idr_pr.hasKey(1) && get_num_rep()==1 ) {
-			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", \
+			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "pseudoreplicated idr thresholded peaks", \
 				"anshul-kundaje:atac-seq-idr-step-run-v1", idr_pr{1}, filt_peaks )
 			idr_bb := peak_to_bigbed( "narrowPeak", idr_pr{1}, idr_pr{1}.dirName(), "idr peak pr" )
 			wait
-			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", \
+			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "pseudoreplicated idr thresholded peaks", \
 				"anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1", idr_bb, [idr_pr{1}] )
 		}
 		else {

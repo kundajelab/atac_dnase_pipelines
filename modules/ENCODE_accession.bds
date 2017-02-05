@@ -150,14 +150,21 @@ void add_ENCODE_metadata_to_summary_json( string file_format, string file_format
 
 //entry of infos can be any string value or filepath (png,pdf,txt...)
 void add_ENCODE_quality_metrics_to_summary_json( string ENCODE_qc_type, string step_run, \
+						string[] quality_metric_of, string[] logs ) {
+	string[] empty
+	add_ENCODE_quality_metrics_to_summary_json( ENCODE_qc_type, step_run, quality_metric_of, logs, empty )
+}
+
+void add_ENCODE_quality_metrics_to_summary_json( string ENCODE_qc_type, string step_run, \
 						string[] quality_metric_of, string[] logs, string[] infos ) {
 	string{} json
-	json{"dataset"} = ENCODE_accession // ENCODE experiment accession ID
+	// json{"dataset"} = ENCODE_accession // ENCODE experiment accession ID
 	json{"award"} = ENCODE_award // ENCODE rfa
 	json{"lab"} = ENCODE_lab // lab
-	json{"assembly"} = ENCODE_assembly
+	// json{"assembly"} = ENCODE_assembly
 	json{"quality_metric_of:array"} = _get_ENCODE_aliases( quality_metric_of )
 	json{"step_run"} = step_run
+	json{"ENCODE_qc_type"} = ENCODE_qc_type
 	
 	if ( ENCODE_qc_type == "samtools_flagstats_quality_metric" ) { // flagstat (raw)
 		//"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1"
@@ -192,28 +199,30 @@ void add_ENCODE_quality_metrics_to_summary_json( string ENCODE_qc_type, string s
 		map_xcor := parse_log( "xcor", logs[1] )
 		json{"NSC"} = map_xcor{"NSC"}
 		json{"RSC"} = map_xcor{"RSC"}
-		json{"fragment length"} = map_xcor{"corr_est_frag_len"}
+		json{"fragment length"} = map_xcor{"est_frag_len"}
 		json{"PBC1"} = map_pbc{"PBC1"}
 		json{"PBC2"} = map_pbc{"PBC2"}
 		json{"NRF"} = map_pbc{"NRF"}
 		json{"sample size"} = map_xcor{"num_reads"}
 		json{"paired-end"} = infos[0]
-		json{"read length"} = infos[1]
-		json{"cross_correlation_plot"} = infos[2] //xcor_plot
+		json{"cross_correlation_plot"} = infos[1] //xcor_plot
+		json{"read length"} = (logs[2]).readLines()[0]
 	}
 	else if ( ENCODE_qc_type == "idr_quality_metric" ) {
 		//"anshul-kundaje:atac-seq-idr-step-run-v1"
 		map := parse_log( "idr", logs[0] )
-		json{"Np"} = map{"Np"}
-		json{"Nt"} = map{"Nt"}
-		json{"N1"} = map{"N1"}
-		json{"N2"} = map{"N2"}
-		json{"N_optimal"} = map{"N_opt"}
-		json{"N_conservative"} = map{"N_consv"}
-		json{"self_consistency_ratio"} = map{"self_consistency_ratio"}
-		json{"rescue_ratio"} = map{"rescue_ratio"}
-		json{"reproducibility_test"} = map{"reproducibility_test"}
 		json{"IDR_cutoff"} = infos[0]
+		json{"N1"} = map{"N1"}
+		if ( parse_real(map{"rescue_ratio"}) > 0.0 ) { // for two-replicate case, 
+			json{"rescue_ratio"} = map{"rescue_ratio"}
+			json{"Np"} = map{"Np"}
+			json{"Nt"} = map{"Nt"}
+			json{"N2"} = map{"N2"}
+			json{"N_optimal"} = map{"N_opt"}
+			json{"N_conservative"} = map{"N_consv"}
+			json{"self_consistency_ratio"} = map{"self_consistency_ratio"}
+			json{"reproducibility_test"} = map{"reproducibility_test"}
+		}
 		if ( infos[1] ) json{"IDR_plot_true"} = infos[1]
 		if ( infos[2] ) json{"IDR_plot_rep1_pr"} = infos[2]
 		if ( infos[3] ) json{"IDR_plot_rep2_pr"} = infos[3]

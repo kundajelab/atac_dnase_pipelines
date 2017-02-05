@@ -7,11 +7,12 @@ import json
 import subprocess
 import collections
 import argparse
+import xlwt
 
 parser = argparse.ArgumentParser(prog='ENCODE_summary.json parser for ENCODE QC import', \
                                     description='Recursively find ENCODE_summary.json, parse it and make an excel file for importing quality metrics to the ENCODE portal. Use https://github.com/ENCODE-DCC/pyencoded-tools/blob/master/ENCODE_import_data.py for uploading.')
-parser.add_argument('out-file-prefix', type=str, \
-                        help='Output TSV filename prefix, output files will be [PREFIX].[QC_TYPE].tsv')
+parser.add_argument('out_file', metavar='out-file', type=str, \
+                        help='Output Excel filename (extention should be .xls, not .xlsx)')
 parser.add_argument('--search-dir', type=str, default='.', \
                         help='Root directory to search for ENCODE_summary.json')
 parser.add_argument('--json-file', type=str, default='ENCODE_summary.json', \
@@ -42,73 +43,96 @@ for json_file in json_files:
         jsons.append( json.load(f) )
  
 # look at headers first
-raw_headers = list()
+raw_headers = dict()
 
 for json in jsons:
-    if not 'ENCODE_quality_metrics' in json:
-        continue
+    if json['ENCODE_accession'] in ignored_accession_ids: continue
+    if not 'ENCODE_quality_metrics' in json: continue
     data_files = json['ENCODE_quality_metrics']
     for data_file in data_files:
+        ENCODE_qc_type = data_file["ENCODE_qc_type"]
+        if not raw_headers.has_key( "ENCODE_qc_type" ):
+            raw_headers[ ENCODE_qc_type ] = list()
         for key in data_file:
-            if not key in raw_headers:
-                raw_headers.append( key )
-# sort header
-order_by_header = collections.defaultdict(int, \
-    {
-        'file_format':20,
-        'file_format_type':19,
-        'output_type':18,
-        'dataset':17,
-        'assembly':16,
-        'aliases:array':15,
-        'derived_from:array':14,
-        'md5sum':13,
-        'award':12,
-        'lab':11,
-        'submitted_file_name':10,
-    })
+            if key == "ENCODE_qc_type": continue
+            if not key in raw_headers[ ENCODE_qc_type ]:
+                raw_headers[ ENCODE_qc_type ].append( key )
 
-headers = sorted(raw_headers, key=lambda x: order_by_header[x], reverse=True)
+# write header (fhs=file handles)
+workbook = xlwt.Workbook()
+sheets = {}
 
-# write header
-args.out_file_prefix.write( ','.join( headers ) +'\n')
-
-lines = list()
-
-def find_submitted_file_name( submitted_file_name ):
-    # recursively find file under a working directory and return path relative to working dir.
-    files = subprocess.check_output("find . -type f -name '%s'" % (submitted_file_name), \
-                shell=True ).strip().split('\n')
-    return files[0]
+cnt=0
+for ENCODE_qc_type in raw_headers:
+    title = "".join([word.title().replace("Idr","IDR") for word in ENCODE_qc_type.split("_")])
+    print "Creating a sheet with name: ", title
+    # sheet = workbook.add_sheet(str(cnt))
+    sheet = workbook.add_sheet(title)
+    sheets[ENCODE_qc_type] = sheet
+    for i, header in enumerate(raw_headers[ENCODE_qc_type]):
+        sheet.write(0,i,header)
+    cnt+=1
+    # fh = open( "%s.%s.tsv" % (args.out_file_prefix,ENCODE_qc_type) ,'w')
+    # fh.write(delimiter.join(raw_headers[ENCODE_qc_type]))
+    # fh.write("\n")
+    # fhs[ENCODE_qc_type] = fh
 
 # for each replicate, write contents
+lines = dict()
 for json in jsons:
-    if not 'data_files' in json:
-        continue
     if json['ENCODE_accession'] in ignored_accession_ids: continue
+    if not 'ENCODE_quality_metrics' in json: continue
     data_files = json['ENCODE_quality_metrics']
     for data_file in data_files:
+        ENCODE_qc_type = data_file["ENCODE_qc_type"]
+        if not lines.has_key(ENCODE_qc_type): 
+            lines[ENCODE_qc_type] = list()
         line = collections.OrderedDict()
-        for key in headers:
+        for key in raw_headers[ENCODE_qc_type]:
             if key in data_file:
-                # if key == 'submitted_file_name':
-                #     line[key] = find_submitted_file_name( data_file[key] )
-                # else:
                 line[key] = data_file[key]
             else:
                 line[key] = ""
-        lines.append(line)
+        lines[ENCODE_qc_type].append(line)
 
-# sort lines
-if args.sort_by_genome_and_exp:
-    sorted_lines = sorted(lines, key = lambda x: (\
-        x['assembly'],\
-        x['dataset']) )
-else:
-    sorted_lines = lines
+def is_float(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
 
-for line in sorted_lines:
-    result = ''
-    for key in headers:
-        result += (line[key]+ ('' if key==headers[-1] else ','))
-    args.out_file_prefix .write( result + '\n' )
+def is_int(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+def is_bool(s):
+    if s.lower() in ['true','t','false','f']:
+        return True
+    else:
+        return False
+
+sorted_lines = lines
+for ENCODE_qc_type in sorted_lines:
+    data = sorted_lines[ENCODE_qc_type]
+    sheet = sheets[ENCODE_qc_type]
+    row = 1
+    for line in data:
+        for col, key in enumerate(line):
+            val = line[key]
+            if key.endswith('_pct'):
+                val += "%"
+            if is_int(val):
+                val = int(val)
+            elif is_float(val):
+                val = float(val)
+            # elif is_bool(val):
+            # else:                
+            #     style = xlwt.easyxf()
+            sheet.write(row, col, label=val)
+        row += 1
+
+workbook.save(args.out_file)
