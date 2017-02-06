@@ -88,8 +88,6 @@ if [ ${INSTALL_WIGGLER_AND_MCR} == 1 ]; then
   add_to_activate
 fi
 
-conda install glibc -c asmeurer -y
-
 source deactivate
 
 
