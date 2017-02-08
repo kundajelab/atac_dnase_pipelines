@@ -475,14 +475,20 @@ void align_SE( int rep, int nth_rep ) {
 			bam{rep} = bam_
 		}
 
-		( filt_bam_, dup_qc_, flagstat_nodup_qc{rep}, pbc_qc_ ) \
-						= dedup_bam( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
+		if ( no_dup_removal ) {
+			string tmp
+			( filt_bam_, tmp ) = dedup_bam( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
+		}
+		else {
+			( filt_bam_, dup_qc_, flagstat_nodup_qc{rep}, pbc_qc_ ) \
+							= dedup_bam( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
+			dup_qc{rep} = dup_qc_
+			pbc_qc{rep} = pbc_qc_
+			add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
+		}
 		filt_bam{rep} = filt_bam_
-		dup_qc{rep} = dup_qc_
-		pbc_qc{rep} = pbc_qc_
 
 		add_file_to_report( filt_bam_, "filt. bam", group, "Alignment/$long/Filtered & deduped bam" )
-		add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
 
 		wait
 
@@ -685,15 +691,21 @@ void align_PE( int rep, int nth_rep ) {
 			bam{rep} = bam_
 		}
 
-		(filt_bam_, dup_qc_, flagstat_nodup_qc{rep}, pbc_qc_ ) \
-			= dedup_bam_PE( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
+		if ( no_dup_removal ) {
+			string tmp
+			(filt_bam_, tmp ) \
+				= dedup_bam_PE( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
+		}
+		else {		
+			(filt_bam_, dup_qc_, flagstat_nodup_qc{rep}, pbc_qc_ ) \
+				= dedup_bam_PE( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
+			dup_qc{rep} = dup_qc_
+			pbc_qc{rep} = pbc_qc_
+			add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
+		}
 
 		filt_bam{rep} = filt_bam_
-		dup_qc{rep} = dup_qc_
-		pbc_qc{rep} = pbc_qc_
-
 		add_file_to_report( filt_bam_, "filt. bam", group, "Alignment/$long/Filtered & deduped bam" )
-		add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
 
 		wait
 
@@ -1267,6 +1279,10 @@ void ataqc( int rep ) {
 
 	if ( true_rep || no_idr ) {
 		print("Warning: ATAQC cannot run with the flag -true_rep or -no_idr\n");
+		return
+	}
+	if ( no_dup_removal ) {
+		print("Warning: ATAQC cannot run with the flag -no_dup_removal\n");
 		return
 	}
 
