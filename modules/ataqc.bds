@@ -44,7 +44,7 @@ void init_ataqc() {
 	print( "Promoter bed for ataqc\t\t: $prom\n" )
 	print( "Enhancer bed for ataqc\t\t: $enh\n" )
 	print( "Reg2map for ataqc\t\t\t: $reg2map\n" )
-	print( "Reg2map_bed for ataqc\t\t: $reg2map\n" )
+	print( "Reg2map_bed for ataqc\t\t: $reg2map_bed\n" )
 	print( "Roadmap metadata for ataqc\t: $roadmap_meta\n" )
 	print( "Max. memory for ATAQC\t\t\t: $mem_ataqc\n")
 	print( "Walltime for ATAQC\t\t\t: $wt_ataqc\n")
@@ -62,9 +62,10 @@ bool chk_ataqc() {
 	if ( blacklist == "" ) 	{ print("Warning: Blacklist bed is missing ( '-blacklist' )!\n"); disable_ataqc  = true }
 	if ( prom == "" ) 	{ print("Warning: Promoter bed is missing ( '-prom' )!\n"); disable_ataqc  = true }
 	if ( enh == "" ) 	{ print("Warning: Enhancer bed is missing ( '-enh' )!\n"); disable_ataqc  = true }
-	if ( reg2map == "" ) 	{ print("Warning: reg2map is missing ( '-reg2map' )!\n"); disable_ataqc  = true }
-	if ( reg2map_bed == "" ){ print("Warning: reg2map_bed is missing ( '-reg2map_bed' )!\n"); disable_ataqc  = true }
-	if ( roadmap_meta == "" ) { print("Warning: Roadmap metadata are missing ( '-roadmap_meta' )!\n"); disable_ataqc  = true }
+	// if ( reg2map == "" ) 	{ print("Warning: reg2map is missing ( '-reg2map' )!\n"); disable_ataqc  = true }
+	// if ( reg2map_bed == "" ){ print("Warning: reg2map_bed is missing ( '-reg2map_bed' )!\n"); disable_ataqc  = true }
+	// if ( roadmap_meta == "" ) { print("Warning: Roadmap metadata are missing ( '-roadmap_meta' )!\n"); disable_ataqc  = true }
+	print(reg2map_bed)
 
 	if ( disable_ataqc ) {
 		print("\nDisabling ATAQC...\n")
@@ -83,11 +84,17 @@ string[] ataqc( string fastq1, string fastq2, string bam, string align_log, stri
 	txt 		:= "$prefix"+"_qc.txt"
 	prefix_basename := get_basename( prefix )
 
-	param_fastq 	:= (fastq2!="") ? "--fastq1 $fastq1 --fastq2 $fastq2" : "--fastq1 $fastq1"
-	param_overlap 	:= (peak_naive_overlap!="") ? "--naive_overlap_peaks $peak_naive_overlap" : ""
-	param_idr 	:= (idr_peak!="") ? "--idr_peaks $idr_peak" : ""
-	param_use_sambamba	:=	(use_sambamba_markdup) ? "--use_sambamba_markdup" : ""
+	param_fastq 	:= (fastq2!="") ? " --fastq1 $fastq1 --fastq2 $fastq2" : " --fastq1 $fastq1"
+	param_overlap 	:= (peak_naive_overlap!="") ? " --naive_overlap_peaks $peak_naive_overlap" : ""
+	param_idr 	:= (idr_peak!="") ? " --idr_peaks $idr_peak" : ""
+	param_use_sambamba	:=	(use_sambamba_markdup) ? " --use_sambamba_markdup" : ""
 
+	param_reg2map 	:= (reg2map!="") ? " --reg2map $reg2map" : ""
+	param_reg2map_bed 	:= (reg2map_bed!="") ? " --reg2map_bed $reg2map_bed" : ""
+	param_meta	:= (roadmap_meta!="") ? " --meta $roadmap_meta" : ""
+
+	print(reg2map_bed)
+	
 	species_ataqc 	:= species.indexOf("_")>=0 ? (species.split("_"))[0] : species
 	print("species_ataqc: $species_ataqc\n")
 
@@ -125,9 +132,6 @@ string[] ataqc( string fastq1, string fastq2, string bam, string align_log, stri
 		    --blacklist $blacklist \
 		    --prom $prom \
 		    --enh $enh \
-		    --reg2map $reg2map \
-		    --reg2map_bed $reg2map_bed \
-		    --meta $roadmap_meta \
 		    --pbc $pbc_log\
 		    $param_fastq \
 		    --alignedbam $bam \
@@ -137,7 +141,8 @@ string[] ataqc( string fastq1, string fastq2, string bam, string align_log, stri
 		    --finalbam $filt_bam \
 		    --finalbed $bed \
 		    --bigwig $bigwig \
-		    --peaks $peak $param_overlap $param_idr $param_use_sambamba
+		    --peaks $peak $param_overlap $param_idr $param_use_sambamba \
+		    $param_reg2map $param_reg2map_bed $param_meta
 
 		sys $shcmd_finalize
 	}

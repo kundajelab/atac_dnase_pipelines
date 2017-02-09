@@ -18,8 +18,11 @@ parser.add_argument('--json-file', type=str, default='ENCODE_summary.json', \
                         help='Specify json file name to be parsed')
 parser.add_argument('--sort-by-genome-and-exp', dest='sort_by_genome_and_exp', action='store_true', \
                         help='Sort rows by genomes and ENCODE experiment accession ID')
-parser.add_argument('--ignored-accession-ids-file', type=str, \
+group_accession_ids = parser.add_mutually_exclusive_group()
+group_accession_ids.add_argument('--ignored-accession-ids-file', type=str, \
                         help='Accession IDs in this text file will be ignored. (1 acc. ID per line)')
+group_accession_ids.add_argument('--accession-ids-file', type=str, \
+                        help='Only accession IDs in this text file will be downloaded. (1 acc. ID per line). Others will be ignored.')
 parser.set_defaults(sort_by_genome_and_exp=False)
 
 args = parser.parse_args()
@@ -31,6 +34,12 @@ if args.ignored_accession_ids_file and os.path.isfile(args.ignored_accession_ids
         ignored_accession_ids = f.read().splitlines()
     ignored_accession_ids = \
         [accession_id for accession_id in ignored_accession_ids if accession_id and not accession_id.startswith("#") ]
+accession_ids = []
+if args.accession_ids_file and os.path.isfile(args.accession_ids_file):
+    with open(args.accession_ids_file,'r') as f:
+        accession_ids = f.read().splitlines()
+    accession_ids = \
+        [accession_id for accession_id in accession_ids if accession_id and not accession_id.startswith("#") ]
 
 # find all ENCODE_summary.json recursively
 json_files = subprocess.check_output("find %s -name %s" % (args.search_dir,args.json_file), \
@@ -85,7 +94,8 @@ def find_submitted_file_name( submitted_file_name ):
 for json in jsons:
     if not 'data_files' in json:
         continue
-    if json['ENCODE_accession'] in ignored_accession_ids: continue
+    if ignored_accession_ids and json['ENCODE_accession'] in ignored_accession_ids: continue
+    if accession_ids and not json['ENCODE_accession'] in accession_ids: continue
     data_files = json['data_files']
     for data_file in data_files:
         line = collections.OrderedDict()

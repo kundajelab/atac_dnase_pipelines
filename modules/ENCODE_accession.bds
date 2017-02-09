@@ -115,26 +115,6 @@ void write_summary_json() {
 	"$out_dir/ENCODE_summary.json".write( ret )
 }
 
-/*
-add_ENCODE_metadata_to_summary_json( "tagAlign", "bed6", "", final_tag_ , [filt_bam_] )
-add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "filtered peaks",  , )
-add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "filtered peaks",  , )
-add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "filtered peaks",  , )
-add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "filtered peaks",  , )
-add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "idr thresholded peaks",  , )
-add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", )
-add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "conservative idr thresholded peaks", )
-add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "idr thresholded peaks", )
-add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", )
-add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "conservative idr thresholded peaks", )
-add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "replicated peaks",  , )
-add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "replicated peaks",  , )
-add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "replicated peaks",  , )
-add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "replicated peaks",  , )
-add_ENCODE_metadata_to_summary_json( "bigWig", "" , "signal p-value" ,  , )
-add_ENCODE_metadata_to_summary_json( "bigWig", "" , "fold change over control" ,  , )
-*/
-
 void add_ENCODE_metadata_to_summary_json( string file_format, string file_format_type, string output_type, \
 	string step_run, \
 	string file, string[] derived_from ) {

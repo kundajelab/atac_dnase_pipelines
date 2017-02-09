@@ -1198,8 +1198,10 @@ void filter_peak_and_convert_to_bigbed() {
 
 	if ( idr_qc && idr_opt && idr_consv ) {
 
+		string[] idr_ENCODE 
 		// IDR peaks
 		if ( idr_pr.hasKey(1) && get_num_rep()==1 ) {
+			idr_ENCODE = [idr_pr{1}]
 			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "pseudoreplicated idr thresholded peaks", \
 				"anshul-kundaje:atac-seq-idr-step-run-v1", idr_pr{1}, filt_peaks )
 			idr_bb := peak_to_bigbed( "narrowPeak", idr_pr{1}, idr_pr{1}.dirName(), "idr peak pr" )
@@ -1209,6 +1211,7 @@ void filter_peak_and_convert_to_bigbed() {
 		}
 		else {
 			// find idr_opt and idr_consv		
+			idr_ENCODE = [idr_opt] //, idr_consv]
 			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", \
 				"anshul-kundaje:atac-seq-idr-step-run-v1", idr_opt, filt_peaks )
 			idr_opt_bb := peak_to_bigbed( "narrowPeak", idr_opt, idr_opt.dirName(), "idr peak opt" )
@@ -1227,7 +1230,7 @@ void filter_peak_and_convert_to_bigbed() {
 		}
 		add_ENCODE_quality_metrics_to_summary_json( "idr_quality_metric", \
 			"anshul-kundaje:atac-seq-idr-step-run-v1", \
-			filt_peaks, [idr_qc], \
+			idr_ENCODE, [idr_qc], \
 			[ idr_thresh, \
 			idr_tr_png.hasKey("1,2") ? idr_tr_png{"1,2"} : "", idr_pr_png{1}, \
 				idr_pr_png.hasKey(2) ? idr_pr_png{2} : "", idr_ppr_png, \
