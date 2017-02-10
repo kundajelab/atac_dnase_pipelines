@@ -137,6 +137,8 @@ for ENCODE_qc_type in sorted_lines:
             val = line[key]
             if key.endswith('_pct'):
                 val += "%"
+            if val.startwith('null') or val.startswith('N/A:N/A'):
+                val = "null"
             if is_int(val):
                 val = int(val)
             elif is_float(val):
