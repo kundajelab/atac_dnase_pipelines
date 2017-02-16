@@ -20,7 +20,7 @@ if [ "$#" -lt 2 ]; then
   echo "Genome data files will be installed on [DATA_DIR]/[GENOME]."
   echo "A species file [DATA_DIR]/${SPECIES_FILE_BASENAME} will be generated and added to default.conf."
   echo
-  echo "Supported genomes: hg19, mm9, hg38 (BETA), mm10 (BETA), hg38_ENCODE (BETA), mm10_ENCODE (BETA)"
+  echo "Supported genomes: hg19, mm9, hg38, mm10, hg38_ENCODE, mm10_ENCODE"
   echo
   echo "Usage: ./install_genome_data.sh [GENOME] [DATA_DIR]"
   echo "  Example: ./install_genome_data.sh hg19 $TMP/genome_data"
@@ -36,16 +36,8 @@ echo
 
 ## show warning
 
-if [[ $GENOME == "hg19" || $GENOME == "mm9" ]]; then
+if [[ $GENOME == "hg19" || $GENOME == "mm9" || $GENOME == "hg38" || $GENOME == "mm10" || $GENOME == "hg38_ENCODE" || $GENOME == "mm10_ENCODE" ]]; then
   echo
-elif [[ $GENOME == "hg38" ]]; then
-  echo "Warning: hg38 is BETA (GRCh38.p3). There is no ATAQC data and unique mappability tracks."
-  echo "Press any key to continue..."
-  read -n1
-elif [[ $GENOME == "mm10" ]]; then
-  echo "Warning: mm10 is BETA (GRCm38.p4). There is no ATAQC data and unique mappability tracks."
-  echo "Press any key to continue..."
-  read -n1
 elif [[ $GENOME == "macam7" ]]; then
   echo "Warning: macam7 is BETA (MacaM 7.8). There is no ATAQC data, unique mappability tracks and blacklist (IDR peaks will not be filtered)."
   echo "Press any key to continue..."
