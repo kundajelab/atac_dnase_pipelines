@@ -62,11 +62,11 @@ echo
 if [ $GENOME == "hg19" ]; then
 
   REF_FA="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/encodeDCC/referenceSequences/male.hg19.fa.gz"
-  UMAP="https://personal.broadinstitute.org/anshul/projects/umap/encodeHg19Male/globalmap_k20tok54.tgz"
+  UMAP="http://mitra.stanford.edu/kundaje/genome_data/hg19/globalmap_k20tok54.tgz"
   BLACKLIST="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz"
 
   # data for ATAQC
-  TSS_ENRICH="http://mitra.stanford.edu/kundaje/genome_data/hg19/ataqc/hg19_RefSeq_stranded.bed.gz"
+  TSS_ENRICH="http://mitra.stanford.edu/kundaje/genome_data/hg19/ataqc/hg19_gencode_tss_unique.bed.gz"
   DNASE="http://mitra.stanford.edu/kundaje/genome_data/hg19/ataqc/reg2map_honeybadger2_dnase_all_p10_ucsc.bed.gz"
   PROM="http://mitra.stanford.edu/kundaje/genome_data/hg19/ataqc/reg2map_honeybadger2_dnase_prom_p2.bed.gz"
   ENH="http://mitra.stanford.edu/kundaje/genome_data/hg19/ataqc/reg2map_honeybadger2_dnase_enh_p2.bed.gz"
@@ -76,11 +76,11 @@ if [ $GENOME == "hg19" ]; then
 elif [ $GENOME == "mm9" ]; then
 
   REF_FA="http://hgdownload-test.cse.ucsc.edu/goldenPath/mm9/encodeDCC/referenceSequences/male.mm9.fa.gz"
-  UMAP="https://personal.broadinstitute.org/anshul/projects/umap/mm9/globalmap_k20tok54.tgz"
-  BLACKLIST="https://personal.broadinstitute.org/anshul/projects/mouse/blacklist/mm9-blacklist.bed.gz"
+  UMAP="http://mitra.stanford.edu/kundaje/genome_data/mm9/globalmap_k20tok54.tgz"
+  BLACKLIST="http://mitra.stanford.edu/kundaje/genome_data/mm9/mm9-blacklist.bed.gz"
 
   # data for ATAQC
-  TSS_ENRICH="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/mm9.gencode.vM1.transcript.TSS.bed"
+  TSS_ENRICH="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/mm9_gencode_tss_unique.bed.gz"
   DNASE="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/mm9_dhs_universal_ucsc_v1.bed.gz"
   PROM="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/mm9_dhs_prom_ucsc_v1.bed.gz"
   ENH="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/mm9_dhs_enh_ucsc_v1.bed.gz"
@@ -92,10 +92,28 @@ elif [ $GENOME == "hg38" ]; then
   REF_FA="ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_human/release_23/GRCh38.p3.genome.fa.gz"
   BLACKLIST="http://mitra.stanford.edu/kundaje/genome_data/hg38/hg38.blacklist.bed.gz"
 
+  # data for ATAQC
+  TSS_ENRICH="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_gencode_tss_unique.bed.gz"
+  DNASE="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_univ_dhs_ucsc.bed.gz"
+  PROM="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/tss_master_trimmed.bed.gz"
+  ENH="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_enh_ucsc.bed.gz"
+  REG2MAP_BED="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_celltype_compare_subsample.bed.gz"
+  REG2MAP="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_dnase_avg_fseq_signal_formatted.txt.gz"
+  ROADMAP_META="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_dnase_avg_fseq_signal_metadata.txt"
+
 elif [ $GENOME == "mm10" ]; then
 
   REF_FA="ftp://ftp.sanger.ac.uk/pub/gencode/Gencode_mouse/release_M10/GRCm38.p4.genome.fa.gz"
   BLACKLIST="http://mitra.stanford.edu/kundaje/genome_data/mm10/mm10.blacklist.bed.gz"
+
+  # data for ATAQC
+  TSS_ENRICH="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mm10_gencode_tss_unique.bed.gz"
+  DNASE="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mm10_univ_dhs_ucsc.bed.gz"
+  PROM="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/tss_mm10_master.bed.gz"
+  ENH="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mmm10_enh_dhs_ucsc.bed.gz"
+  REG2MAP_BED="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mm10_celltype_compare_subsample.bed.gz"
+  REG2MAP="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mm10_dnase_avg_fseq_signal_formatted.txt.gz"
+  ROADMAP_META="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mm10_dnase_avg_fseq_signal_metadata.txt"
 
 elif [ $GENOME == "hg38_ENCODE" ]; then
 
@@ -103,11 +121,29 @@ elif [ $GENOME == "hg38_ENCODE" ]; then
   BLACKLIST="http://mitra.stanford.edu/kundaje/genome_data/hg38/hg38.blacklist.bed.gz"
   SPECIES_BROWSER="hg38" # species name in WashU browser track, if it's same as species name, skip it
 
+  # data for ATAQC
+  TSS_ENRICH="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_gencode_tss_unique.bed.gz"
+  DNASE="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_univ_dhs_ucsc.bed.gz"
+  PROM="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/tss_master_trimmed.bed.gz"
+  ENH="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_enh_ucsc.bed.gz"
+  REG2MAP_BED="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_celltype_compare_subsample.bed.gz"
+  REG2MAP="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_dnase_avg_fseq_signal_formatted.txt.gz"
+  ROADMAP_META="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_dnase_avg_fseq_signal_metadata.txt"
+
 elif [ $GENOME == "mm10_ENCODE" ]; then
 
   REF_FA="https://www.encodeproject.org/files/mm10_no_alt_analysis_set_ENCODE/@@download/mm10_no_alt_analysis_set_ENCODE.fasta.gz"
   BLACKLIST="http://mitra.stanford.edu/kundaje/genome_data/mm10/mm10.blacklist.bed.gz"
   SPECIES_BROWSER="mm10" # species name in WashU browser track, if it's same as species name, skip it
+
+  # data for ATAQC
+  TSS_ENRICH="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mm10_gencode_tss_unique.bed.gz"
+  DNASE="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mm10_univ_dhs_ucsc.bed.gz"
+  PROM="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/tss_mm10_master.bed.gz"
+  ENH="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mmm10_enh_dhs_ucsc.bed.gz"
+  REG2MAP_BED="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mm10_celltype_compare_subsample.bed.gz"
+  REG2MAP="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mm10_dnase_avg_fseq_signal_formatted.txt.gz"
+  ROADMAP_META="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mm10_dnase_avg_fseq_signal_metadata.txt"
 
 elif [ $GENOME == "macam7" ]; then
 
@@ -132,6 +168,7 @@ if [[ $DNASE != "" ]]; then wget -N -c $DNASE; fi
 if [[ $PROM != "" ]]; then wget -N -c $PROM; fi
 if [[ $ENH != "" ]]; then wget -N -c $ENH; fi
 if [[ $REG2MAP != "" ]]; then wget -N -c $REG2MAP; fi
+if [[ $REG2MAP_BED != "" ]]; then wget -N -c $REG2MAP_BED; fi
 if [[ $ROADMAP_META != "" ]]; then wget -N -c $ROADMAP_META; fi
 
 ## extract unique mappability tracks
@@ -210,6 +247,7 @@ if [[ $(grep "\[$GENOME\]" ${SPECIES_FILE} | wc -l) < 1 ]]; then
   if [[ $PROM != "" ]]; then PROM_PATH="${DATA_DIR}/$GENOME/ataqc/$(basename $PROM)"; fi
   if [[ $ENH != "" ]]; then ENH_PATH="${DATA_DIR}/$GENOME/ataqc/$(basename $ENH)"; fi
   if [[ $REG2MAP != "" ]]; then REG2MAP_PATH="${DATA_DIR}/$GENOME/ataqc/$(basename $REG2MAP)"; fi
+  if [[ $REG2MAP_BED != "" ]]; then REG2MAP_BED_PATH="${DATA_DIR}/$GENOME/ataqc/$(basename $REG2MAP_BED)"; fi
   if [[ $ROADMAP_META != "" ]]; then ROADMAP_META_PATH="${DATA_DIR}/$GENOME/ataqc/$(basename $ROADMAP_META)"; fi
 
   echo -e "[$GENOME] # installed by install_genome_data.sh" >> ${SPECIES_FILE}
@@ -233,6 +271,7 @@ if [[ $(grep "\[$GENOME\]" ${SPECIES_FILE} | wc -l) < 1 ]]; then
   if [[ ${PROM_PATH} != "" ]]; then echo -e "prom\t= ${PROM_PATH}" >> ${SPECIES_FILE}; fi
   if [[ ${ENH_PATH} != "" ]]; then echo -e "enh\t= ${ENH_PATH}" >> ${SPECIES_FILE}; fi
   if [[ ${REG2MAP_PATH} != "" ]]; then echo -e "reg2map\t= ${REG2MAP_PATH}" >> ${SPECIES_FILE}; fi
+  if [[ ${REG2MAP_BED_PATH} != "" ]]; then echo -e "reg2map_bed\t= ${REG2MAP_BED_PATH}" >> ${SPECIES_FILE}; fi
   if [[ ${ROADMAP_META_PATH} != "" ]]; then echo -e "roadmap_meta\t= ${ROADMAP_META_PATH}" >> ${SPECIES_FILE}; fi
   if [[ ${EXTRA_LINE} != "" ]]; then echo -e "${EXTRA_LINE}" >> ${SPECIES_FILE}; fi
   echo "" >> ${SPECIES_FILE}
