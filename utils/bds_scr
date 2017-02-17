@@ -36,6 +36,11 @@ fi
 
 PARAM=
 
+if [ $(find $LOG_FILE_NAME -mmin -2 | wc -l) != "0" ]; then
+  echo "error: log file handle is open or very fresh (modified in past 2 minutes)."
+  exit 3
+fi
+
 for ((i=$PARAM_START_IDX;i<=$#;i++)); do
   PARAM="$PARAM ${!i}"
 done
