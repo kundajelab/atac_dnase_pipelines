@@ -1152,6 +1152,7 @@ void do_idr() {
 // black list filter and then convert to bigbed (for true replicates only)
 void filter_peak_and_convert_to_bigbed() { 
 	if ( align ) return
+	if ( !path_exists( blacklist ) ) return
 
 	// peaks for true replicates
 	if ( get_num_rep() > 1 ) {
