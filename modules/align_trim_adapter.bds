@@ -6,7 +6,7 @@ include "module_template.bds"
 
 
 help == adapter trimmer settings
-adapter_err_rate	:= "0.20" 	help Maximum allowed adapter error rate (# errors divided by the length of the matching adapter region, default: 0.20).
+adapter_err_rate	:= "0.10" 	help Maximum allowed adapter error rate (# errors divided by the length of the matching adapter region, default: 0.10).
 min_trim_len		:= 5 		help Minimum trim length for cutadapt -m, throwing away processed reads shorter than this (default: 5).
 
 wt_trim			:= "23h"	help Walltime for adapter trimming (default: 23h, 23:00:00).
