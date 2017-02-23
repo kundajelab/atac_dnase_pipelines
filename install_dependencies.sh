@@ -52,7 +52,7 @@ mkdir -p $CONDA_EXTRA $CONDA_ACTIVATE_D
 cd $CONDA_EXTRA
 git clone https://github.com/kundajelab/phantompeakqualtools
 chmod 755 -R phantompeakqualtools
-CONTENTS=("export PATH=\$PATH:$CONDA_EXTRA/phantompeakqualtools")
+CONTENTS=("export PATH=$CONDA_EXTRA/phantompeakqualtools:\$PATH")
 add_to_activate
 
 if [ ${INSTALL_WIGGLER_AND_MCR} == 1 ]; then
