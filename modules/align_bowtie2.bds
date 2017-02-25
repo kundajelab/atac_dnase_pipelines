@@ -139,7 +139,7 @@ string[] bowtie2_PE( string fastq1, string fastq2, string o_dir, string log_o_di
 		//sys bowtie2 $param -X2000 --mm --threads $nth_bwt2 -x $bwt2_idx \
 		//	-1 $fastq1 -2 $fastq2 2>$log | \
 		//	samtools view -Su /dev/stdin | sambamba sort -t 1 /dev/stdin -o $bam
-		sys bowtie2 $param -X2000 --mm --threads $nth_bwt2 -x $bwt2_idx \
+		sys bowtie2 $param -X2000 --mm --local --threads $nth_bwt2 -x $bwt2_idx \
 			-1 $fastq1 -2 $fastq2 2>$log | \
 			samtools view -Su /dev/stdin | samtools sort - $prefix
 		sys samtools index $bam
