@@ -73,9 +73,9 @@ elif [ $GENOME == "mm9" ]; then
 
   # data for ATAQC
   TSS_ENRICH="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/mm9_gencode_tss_unique.bed.gz"
-  DNASE="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/mm9_dhs_universal_ucsc_v1.bed.gz"
-  PROM="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/mm9_dhs_prom_ucsc_v1.bed.gz"
-  ENH="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/mm9_dhs_enh_ucsc_v1.bed.gz"
+  DNASE="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/mm9_prep_v3/mm9_univ_dhs_ucsc.from_mm10.bed.gz"
+  PROM="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/tss_mm9_master.from_mm10.bed.gz"
+  ENH="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/mm9_enh_dhs_ucsc.from_mm10.bed.gz"
   REG2MAP="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/dnase_avgs_merged_named.fseq.vals.gz"
   ROADMAP_META="http://mitra.stanford.edu/kundaje/genome_data/mm9/ataqc/accession_to_name.txt"
 
@@ -86,9 +86,9 @@ elif [ $GENOME == "hg38" ]; then
 
   # data for ATAQC
   TSS_ENRICH="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_gencode_tss_unique.bed.gz"
-  DNASE="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_univ_dhs_ucsc.bed.gz"
-  PROM="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/tss_master_trimmed.bed.gz"
-  ENH="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_enh_ucsc.bed.gz"
+  DNASE="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/reg2map_honeybadger2_dnase_all_p10_ucsc.hg19_to_hg38.bed.gz"
+  PROM="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/reg2map_honeybadger2_dnase_prom_p2.hg19_to_hg38.bed.gz"
+  ENH="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/reg2map_honeybadger2_dnase_enh_p2.hg19_to_hg38.bed.gz"
   REG2MAP_BED="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_celltype_compare_subsample.bed.gz"
   REG2MAP="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_dnase_avg_fseq_signal_formatted.txt.gz"
   ROADMAP_META="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_dnase_avg_fseq_signal_metadata.txt"
@@ -115,9 +115,9 @@ elif [ $GENOME == "hg38_ENCODE" ]; then
 
   # data for ATAQC
   TSS_ENRICH="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_gencode_tss_unique.bed.gz"
-  DNASE="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_univ_dhs_ucsc.bed.gz"
-  PROM="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/tss_master_trimmed.bed.gz"
-  ENH="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_enh_ucsc.bed.gz"
+  DNASE="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/reg2map_honeybadger2_dnase_all_p10_ucsc.hg19_to_hg38.bed.gz"
+  PROM="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/reg2map_honeybadger2_dnase_prom_p2.hg19_to_hg38.bed.gz"
+  ENH="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/reg2map_honeybadger2_dnase_enh_p2.hg19_to_hg38.bed.gz"
   REG2MAP_BED="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_celltype_compare_subsample.bed.gz"
   REG2MAP="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_dnase_avg_fseq_signal_formatted.txt.gz"
   ROADMAP_META="http://mitra.stanford.edu/kundaje/genome_data/hg38/ataqc/hg38_dnase_avg_fseq_signal_metadata.txt"
