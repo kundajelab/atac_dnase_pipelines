@@ -28,7 +28,7 @@ string blacklist_filter_peak( string filetype, string peak, string o_dir, string
 
 		sys $shcmd_init
 
-		sys bedtools intersect -v -a $peak -b $blacklist \
+		sys bedtools intersect -v -a <(zcat -f $peak) -b <(zcat -f $blacklist) \
 			| awk 'BEGIN{OFS="\t"} {if ($5>1000) $5=1000; print $0}' \
 			| grep -P 'chr[\dXY]+[ \t]' | gzip -nc > $filtered
 

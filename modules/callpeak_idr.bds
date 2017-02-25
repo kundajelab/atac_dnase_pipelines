@@ -51,7 +51,7 @@ string[] idr2( string peak1, string peak2, string pooled, string idr_thresh, str
 	string cmd1, cmd2, cmd3
 
 	if ( path_exists( blacklist ) ) {
-		cmd1 = "bedtools intersect -v -a $peak_idr_trk_tmp -b $blacklist"+\
+		cmd1 = "bedtools intersect -v -a <(zcat -f $peak_idr_trk_tmp) -b <(zcat -f $blacklist)"+\
 			" | grep -P 'chr[\\dXY]+[ \\t]'"+\
 			" | awk 'BEGIN{OFS=\"\\t\"} {if ($5>1000) $5=1000; print $0}'"+\
 			" | gzip -nc > $filt_peak_idr_trk_tmp"
