@@ -80,7 +80,7 @@ string naive_overlap_peak( string filetype, string peak_pooled, string peak_rep1
 
 	add_task_to_graph( in, out, group, "NAIVE\\nOVERLAP\\n" + _get_short_filetype(filetype), grp_color_naive_overlap )
 			   
-	return filt_peak_final
+	return out
 }
 
 // peaks = [peak_rep1, peak_rep2, ...]
@@ -164,7 +164,7 @@ string naive_overlap_peak( string filetype, string peak_pooled, string[] peaks, 
 
 	add_task_to_graph( in, out, group, "NAIVE\\nOVERLAP\\n" + _get_short_filetype(filetype), grp_color_naive_overlap )
 	
-	return filt_peak_final
+	return out
 }
 
 string _get_awk_param( string filetype ) {
