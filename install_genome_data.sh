@@ -34,25 +34,6 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 SPECIES_FILE=${DATA_DIR}/${SPECIES_FILE_BASENAME}
 echo 
 
-## show warning
-
-if [[ $GENOME == "hg19" || $GENOME == "mm9" || $GENOME == "hg38" || $GENOME == "mm10" || $GENOME == "hg38_ENCODE" || $GENOME == "mm10_ENCODE" ]]; then
-  echo
-elif [[ $GENOME == "macam7" ]]; then
-  echo "Warning: macam7 is BETA (MacaM 7.8). There is no ATAQC data, unique mappability tracks and blacklist (IDR peaks will not be filtered)."
-  echo "Press any key to continue..."
-  read -n1
-elif [[ $GENOME == "dm3" ]]; then
-  echo "Warning: dm3 is BETA (D. melanogaster). There is no ATAQC data, unique mappability tracks and blacklist (IDR peaks will not be filtered)."
-  echo "Press any key to continue..."
-  read -n1
-else
-  echo "Error: unsupported genome $GENOME"
-  exit 1
-fi
-
-echo 
-
 ## data URLs
 
 if [ $GENOME == "hg19" ]; then
@@ -150,6 +131,33 @@ elif [ $GENOME == "dm3" ]; then
   
   REF_FA="http://hgdownload-test.cse.ucsc.edu/goldenPath/dm3/bigZips/dm3.2bit"
 fi
+
+## show warning
+
+if [[ ${REF_FA} == "" ]]; then
+  echo "Error: unsupported genome $GENOME"
+  exit 1
+fi
+
+if [[ ${BLACKLIST} == "" ]]; then
+  echo "Warning: blacklist is not provided for $GENOME. IDR peaks will not be filtered."
+  echo "Press any key to continue..."
+  read -n1
+fi
+
+if [[ ${UMAP} == "" ]] && [[ ${CONDA_ENV} == "aquas_chipseq" ]]; then
+  echo "Warning: unique mappability tracks are not provided for $GENOME."
+  echo "Press any key to continue..."
+  read -n1
+fi
+
+if [[ ${TSS_ENRICH} == "" ]] && [[ ${CONDA_ENV} == "bds_atac" ]]; then
+  echo "Warning: Data for ATAQC are not provided for $GENOME. No ATAQC will be available."
+  echo "Press any key to continue..."
+  read -n1
+fi
+
+echo 
 
 ## create directories
 mkdir -p ${DATA_DIR}/$GENOME
