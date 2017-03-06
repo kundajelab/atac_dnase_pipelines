@@ -42,6 +42,10 @@ elif [[ $GENOME == "macam7" ]]; then
   echo "Warning: macam7 is BETA (MacaM 7.8). There is no ATAQC data, unique mappability tracks and blacklist (IDR peaks will not be filtered)."
   echo "Press any key to continue..."
   read -n1
+elif [[ $GENOME == "dm3" ]]; then
+  echo "Warning: dm3 is BETA (D. melanogaster). There is no ATAQC data, unique mappability tracks and blacklist (IDR peaks will not be filtered)."
+  echo "Press any key to continue..."
+  read -n1
 else
   echo "Error: unsupported genome $GENOME"
   exit 1
@@ -142,6 +146,9 @@ elif [ $GENOME == "macam7" ]; then
   REF_FA="http://www.unmc.edu/rhesusgenechip/MacaM_Rhesus_Genome_v7.fasta.bz2"
   EXTRA_LINE="nonamecheck = true # for bedtools >= 2.24. this prevents name convention error in bedtools intersect"
 
+elif [ $GENOME == "dm3" ]; then
+  
+  REF_FA="http://hgdownload-test.cse.ucsc.edu/goldenPath/dm3/bigZips/dm3.2bit"
 fi
 
 ## create directories
@@ -177,6 +184,9 @@ if [[ ${REF_FA} == *.gz ]]; then
 elif [[ ${REF_FA} == *.bz2 ]]; then
   REF_FA_PREFIX=$(basename ${REF_FA} .bz2)
   bzip2 -d -f -c ${REF_FA_PREFIX}.bz2 > ${REF_FA_PREFIX}
+elif [[ ${REF_FA} == *.2bit ]]; then
+  REF_FA_PREFIX=$(basename ${REF_FA} .2bit).fa
+  twoBitToFa $(basename ${REF_FA}) ${REF_FA_PREFIX}
 else
   REF_FA_PREFIX=$(basename ${REF_FA})  
 fi

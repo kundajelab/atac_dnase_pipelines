@@ -14,6 +14,7 @@ ucsc-bigwiginfo
 ucsc-bedclip
 ucsc-bigWigAverageOverBed
 ucsc-bedtobigbed
+ucsc-twobittofa
 macs2 ==2.1.0
 boost ==1.57.0
 gnuplot #==5.0.3
@@ -45,4 +46,4 @@ preseq ==2.0.2
 trim-galore ==0.4.1 # for old trimmer
 python-levenshtein # for old trimmer (trimAdapter.py)
 #glibc #segmentation fault in conda with openssl
-
+pyfaidx ==0.4.7.1
