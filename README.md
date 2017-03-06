@@ -456,6 +456,11 @@ $ screen -X -S [SCR_NAME] quit
 $ kill_scr [SCR_NAME]
 ```
 
+## How to customize genome data installer?
+
+Please refer to the section `Installer for genome data` on [BDS pipeline programming](https://kundajelab.github.io/bds_pipeline_modules/programming.html).
+
+
 ## Useful HTML reports
 
 There are two kinds of HTML reports provided by the pipeline.
