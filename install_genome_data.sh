@@ -29,7 +29,7 @@ if [ "$#" -lt 2 ]; then
 fi
 
 GENOME=$1
-DATA_DIR=$2
+DATA_DIR=$(realpath $2)
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 SPECIES_FILE=${DATA_DIR}/${SPECIES_FILE_BASENAME}
 echo 
