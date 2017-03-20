@@ -103,6 +103,15 @@ for json in jsons:
             if key in data_file:
                 if key == 'submitted_file_name':
                     line[key] = find_submitted_file_name( data_file[key] )
+                    metadata_file = line[key]+'.meta'
+                    if os.path.exists(metadata_file):
+                        with open(metadata_file,mode='r') as f:
+                            for l in f:
+                                if 'md5sum' in l:
+                                    md5sum = l.split('=')[1].strip()
+                                    if md5sum != data_file['md5sum']:
+                                        print('Warning: In accession {}, md5sum of file {} does not match! (json:{}, actual:{})'.format(
+                                            json['ENCODE_accession'], line[key], data_file['md5sum'], md5sum ))
                 else:
                     line[key] = data_file[key]
             else:
