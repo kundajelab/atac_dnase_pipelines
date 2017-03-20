@@ -14,6 +14,9 @@ $cmd = join(' ', @ARGV);
 
 $qsub = "sbatch --export=ALL ";
 $qsub .= "-n 1 --ntasks-per-node=1 --cpus-per-task=$cpus " if( $cpus > 0 );
+if ( $queue ne "" ) {
+	$qsub .= "-p $queue ";
+}
 if( $mem > 0 ) {
 	$mem = ceil($mem/1000000); # MB
 	$qsub .= "--mem-per-cpu $mem ";
