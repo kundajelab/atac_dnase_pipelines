@@ -30,7 +30,7 @@ string[] get_fastq( int ctl, int rep, int p ) {
 	// allow up to 10 fastqs to be pooled (i.e. fastq1 fastq1:2 fastq1:3, ...)
 	string[] suffix
 	suffix.add("")
-	for ( int i=1; i<=10; i++ ) {
+	for ( int i=1; i<=99; i++ ) {
 		suffix.add(":$i")
 	}
 
