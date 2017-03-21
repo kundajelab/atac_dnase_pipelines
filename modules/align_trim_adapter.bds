@@ -58,26 +58,28 @@ string[] detect_adapter( string fastq, string o_dir, string group ) {
 }
 
 string parse_adapter_log( string log ) {
-
 	string adapter
-
 	lines := log.readLines()
-
 	for ( int i=0; i<lines.size(); i++ ) {
 		if ( lines[i].indexOf("Sequences analysed") > -1 ) {
-			line := lines[i+1]
-			arr := line.split("\t")
-			adapter = arr[2]
+			if ( i+1>lines.size()-1 ) {
+				adapter = ""
+			}
+			else {
+				line := lines[i+1]
+				arr := line.split("\t")
+				if (arr.size()<3) adapter = ""
+				else adapter = arr[2]
+			}
 			break;
 		}
 	}
-
-	if ( adapter == "" ) error("No adapter found ($log)!")
-
+	//if ( adapter == "" ) error("No adapter found ($log)!")
 	return adapter
 }
 
 string trim_adapters( string fastq, string adapter, string o_dir, string group, string graph_suffix ) {
+	if ( !adapter ) return fastq
 
 	prefix	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	p_gz	:= "$prefix"+".trim.fastq.gz"
@@ -110,6 +112,7 @@ string trim_adapters( string fastq, string adapter, string o_dir, string group, 
 
 string[] trim_adapters_PE( string fastq1, string fastq2, string adapter1, string adapter2, string o_dir, \
 				string group, string graph_suffix ) {
+	if ( !adapter1 || !adapter2 ) return [fastq1, fastq2]
 
 	prefix1	:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir )
 	prefix2	:= replace_dir( rm_ext( fastq2, ["fastq","fq"] ), o_dir )

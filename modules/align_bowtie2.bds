@@ -37,7 +37,7 @@ void chk_align_bwt2() {
 	}
 }
 
-string[] bowtie2( string fastq, string o_dir, string log_o_dir, string group, int nth_bwt2, bool trimmed ) { 
+string[] bowtie2( string fastq, string o_dir, string log_o_dir, string group, int nth_bwt2 ) { 
 
 	prefix 	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	prefix2	:= replace_dir( prefix, log_o_dir )
@@ -73,7 +73,7 @@ string[] bowtie2( string fastq, string o_dir, string log_o_dir, string group, in
 	return out
 }
 
-string[] bowtie2_csem( string fastq, string o_dir, string log_o_dir, string group, int nth_bwt2, bool trimmed ) {
+string[] bowtie2_csem( string fastq, string o_dir, string log_o_dir, string group, int nth_bwt2 ) {
 
 	prefix 	:= replace_dir( rm_ext( fastq, ["fastq","fq"] ), o_dir )
 	prefix2 := replace_dir( prefix, log_o_dir )
@@ -115,8 +115,7 @@ string[] bowtie2_csem( string fastq, string o_dir, string log_o_dir, string grou
 	return out
 }
 
-// trimmed_fastq : fastqs are trimmed or not
-string[] bowtie2_PE( string fastq1, string fastq2, string o_dir, string log_o_dir, string group, int nth_bwt2, bool trimmed ) { 
+string[] bowtie2_PE( string fastq1, string fastq2, string o_dir, string log_o_dir, string group, int nth_bwt2 ) { 
 
 	prefix 	:= replace_dir( rm_ext( fastq1, ["fastq","fq"] ), o_dir ) + ".PE2SE"
 	prefix2 := replace_dir( prefix, log_o_dir )

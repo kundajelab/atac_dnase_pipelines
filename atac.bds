@@ -419,8 +419,10 @@ void align_SE( int rep, int nth_rep ) {
 						wait tid
 
 						adapter := parse_adapter_log( adapter_log )
-
-						print("\nDetected adapter for $group (SE) : $adapter\n")
+						if ( adapter ) \
+							print("\nDetected adapter for $group (SE) : $adapter\n")
+						else \
+							print("\nDetected adapter for $group (SE) : No adapter detected.\n")
 						adapters.add( adapter )
 					}
 
@@ -430,7 +432,7 @@ void align_SE( int rep, int nth_rep ) {
 				add_file_to_report( p1, "trimmed\\nfastq$suffix" , group, "Alignment/$long/Trimmed fastq$suffix" )
 			}
 
-			if ( i==0 ) read_length_log = get_read_length_log( trimmed_fastqs[0], qc_o_dir, group )
+			//if ( i==0 ) read_length_log = get_read_length_log( trimmed_fastqs[0], qc_o_dir, group )
 		}
 		wait
 
@@ -447,11 +449,12 @@ void align_SE( int rep, int nth_rep ) {
 
 		string align_log_ 
 
+		read_length_log = get_read_length_log( p1, qc_o_dir, group )
  		if ( csem ) {
-			( bam_, align_log_ ) = bowtie2_csem( p1, aln_o_dir, qc_o_dir, group, nth_rep, !trimmed_fastq )
+			( bam_, align_log_ ) = bowtie2_csem( p1, aln_o_dir, qc_o_dir, group, nth_rep )
 		}
 		else {
-			( bam_, align_log_ ) = bowtie2( p1, aln_o_dir, qc_o_dir, group, nth_rep, !trimmed_fastq )
+			( bam_, align_log_ ) = bowtie2( p1, aln_o_dir, qc_o_dir, group, nth_rep )
 		}
 		wait
 
@@ -492,12 +495,17 @@ void align_SE( int rep, int nth_rep ) {
 
 		wait
 
+		// For ENCODE accession, use different step name for single rep case
+		string ENCODE_step_name
+		if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-single-rep-v1"
+		else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-v1"
+
 		if ( fastqs.size() > 0 ) \
 			add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", \
-				"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", filt_bam_, fastqs )
+				ENCODE_step_name, filt_bam_, fastqs )
 		if ( flagstat_qc_ ) { 
 			add_ENCODE_quality_metrics_to_summary_json( "samtools_flagstats_quality_metric", \
-				"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", [filt_bam_], [flagstat_qc_] )
+				ENCODE_step_name, [filt_bam_], [flagstat_qc_] )
 		}
 	}
 
@@ -575,10 +583,16 @@ void align_SE( int rep, int nth_rep ) {
 			add_file_to_table( xcor_plot_, "QC and logs/$long/Cross-corr. plot" )
 
 			wait
-			if ( pbc_qc_ && read_length_log ) \
+			string ENCODE_step_name
+			if ( pbc_qc_ && read_length_log ) {
+				if ( get_num_rep() == 1 ) \
+					ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-single-rep-v1"
+				else 			  \
+					ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-v1"
 				add_ENCODE_quality_metrics_to_summary_json( "complexity_xcorr_quality_metric", \
-					"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", \
+					ENCODE_step_name, \
 					[filt_bam_], [pbc_qc_, xcor_qc_, read_length_log], [ "false", xcor_plot_] )
+			}
 		}
 	}
 }
@@ -633,7 +647,10 @@ void align_PE( int rep, int nth_rep ) {
 						adapter1 := parse_adapter_log( adapter_log1 )
 						adapter2 := parse_adapter_log( adapter_log2 )
 
-						print("\nDetected adapter for $group (PE) : $adapter1, $adapter2\n")
+						if ( adapter1 && adapter2 ) \
+							print("\nDetected adapter for $group (PE) : $adapter1, $adapter2\n")
+						else \
+							print("\nDetected adapter for $group (SE) : No adapter detected.\n")
 						adapters.add( adapter1 )
 						adapters.add( adapter2 )
 					}
@@ -648,7 +665,7 @@ void align_PE( int rep, int nth_rep ) {
 				add_file_to_report( p1, "trimmed\\nfastq 1$suffix", group, "Alignment/$long/Trimmed fastq 1$suffix" )
 				add_file_to_report( p2, "trimmed\\nfastq 2$suffix", group, "Alignment/$long/Trimmed fastq 2$suffix" )
 			}
-			if ( i==0 ) read_length_log = get_read_length_log( trimmed_fastqs_pair1[0], qc_o_dir, group )
+			//if ( i==0 ) read_length_log = get_read_length_log( trimmed_fastqs_pair1[0], qc_o_dir, group )
 		}
 		wait
 
@@ -668,7 +685,8 @@ void align_PE( int rep, int nth_rep ) {
 		fastq{rep+",1"} = p1
 		fastq{rep+",2"} = p2
 
-		( bam_, align_log_ ) = bowtie2_PE( p1, p2, aln_o_dir, qc_o_dir, group, nth_rep, !trimmed_fastq )
+		read_length_log = get_read_length_log( p1, qc_o_dir, group )
+		( bam_, align_log_ ) = bowtie2_PE( p1, p2, aln_o_dir, qc_o_dir, group, nth_rep )
 		wait
 
 		flagstat_qc_ = samtools_flagstat_bam( bam_, qc_o_dir, group )
@@ -709,13 +727,16 @@ void align_PE( int rep, int nth_rep ) {
 
 		wait
 
-		if ( fastqs_pair1.size() > 0 || fastqs_pair2.size() > 0 ) \
+		string ENCODE_step_name
+		if ( get_num_rep()==1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-single-rep-v1"
+		else 			ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-v1"
+		if ( fastqs_pair1.size() > 0 || fastqs_pair2.size() > 0 ) {
 			add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", \
-				"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", \
-				filt_bam_, fastqs_pair1+fastqs_pair2 )
+				ENCODE_step_name, filt_bam_, fastqs_pair1+fastqs_pair2 )
+		}
 		if ( flagstat_qc_) { 
 			add_ENCODE_quality_metrics_to_summary_json( "samtools_flagstats_quality_metric", \
-				"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", [filt_bam_], [flagstat_qc_] )
+				ENCODE_step_name, [filt_bam_], [flagstat_qc_] )
 		}
 	}
 
@@ -819,11 +840,16 @@ void align_PE( int rep, int nth_rep ) {
 			add_file_to_table( xcor_plot_, "QC and logs/$long/Cross-corr. plot" )
 
 			wait
-
-			if ( pbc_qc_ && read_length_log ) \
+			string ENCODE_step_name
+			if ( pbc_qc_ && read_length_log ) {
+				if ( get_num_rep() == 1 ) \
+					ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-single-rep-v1"
+				else 			  \
+					ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-v1"			
 				add_ENCODE_quality_metrics_to_summary_json( "complexity_xcorr_quality_metric", \
-					"anshul-kundaje:atac-seq-trim-align-filter-step-run-v1", \
-					[filt_bam_], [pbc_qc_, xcor_qc_, read_length_log], [ "true", xcor_plot_] )			
+					ENCODE_step_name, \
+					[filt_bam_], [pbc_qc_, xcor_qc_, read_length_log], [ "true", xcor_plot_] )
+			}
 		}
 	}
 }
@@ -1173,23 +1199,32 @@ void filter_peak_and_convert_to_bigbed() {
 		filt_gpeak_001 := \
 			blacklist_filter_peak( "gappedPeak", gpeak_001{rep}, (gpeak_001{rep}).dirName(), "gpeak $rep" )
 		wait
+		// For ENCODE accession, use different step name for single rep case
+		string ENCODE_step_name
+		if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-peaks-filter-step-run-single-rep-v1"
+		else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-peaks-filter-step-run-v1"
 		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "filtered peaks", \
-			"anshul-kundaje:atac-seq-peaks-filter-step-run-v1", filt_peak_001, [filt_bam{rep}])
+			ENCODE_step_name, filt_peak_001, [filt_bam{rep}])
 		add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "filtered peaks", \
-			"anshul-kundaje:atac-seq-peaks-filter-step-run-v1", filt_gpeak_001, [filt_bam{rep}])
+			ENCODE_step_name, filt_gpeak_001, [filt_bam{rep}])
+
+		if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-signal-generation-step-run-single-rep-v1"
+		else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-signal-generation-step-run-v1"
 		add_ENCODE_metadata_to_summary_json( "bigWig", "", "signal p-value", \
-			"anshul-kundaje:atac-seq-signal-generation-step-run-v1", pval_bigwig_001{rep}, [filt_bam{rep}])
+			ENCODE_step_name, pval_bigwig_001{rep}, [filt_bam{rep}])
 		add_ENCODE_metadata_to_summary_json( "bigWig", "", "fold change over control", \
-			"anshul-kundaje:atac-seq-signal-generation-step-run-v1", fc_bigwig_001{rep}, [filt_bam{rep}])
+			ENCODE_step_name, fc_bigwig_001{rep}, [filt_bam{rep}])
 
 		npeak_bb := peak_to_bigbed( "narrowPeak", filt_peak_001, filt_peak_001.dirName(), "peak $rep" )
 		gpeak_bb := peak_to_bigbed( "gappedPeak", filt_gpeak_001, filt_gpeak_001.dirName(), "gpeak $rep" )
 
 		wait
+		if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-filtered-peaks-to-bigbed-step-run-single-rep-v1"
+		else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-filtered-peaks-to-bigbed-step-run-v1"
 		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "filtered peaks", \
-			"anshul-kundaje:atac-seq-peaks-to-bigbed-step-run-v1", npeak_bb, [filt_peak_001])
+			ENCODE_step_name, npeak_bb, [filt_peak_001])
 		add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "filtered peaks", \
-			"anshul-kundaje:atac-seq-peaks-to-bigbed-step-run-v1", gpeak_bb, [filt_gpeak_001])
+			ENCODE_step_name, gpeak_bb, [filt_gpeak_001])
 
 		filt_peaks.add(filt_peak_001)
 		filt_gpeaks.add(filt_gpeak_001)
@@ -1197,40 +1232,50 @@ void filter_peak_and_convert_to_bigbed() {
 
 	wait
 
+	string ENCODE_step_name
 	if ( idr_qc && idr_opt && idr_consv ) {
 
 		string[] idr_ENCODE 
 		// IDR peaks
 		if ( idr_pr.hasKey(1) && get_num_rep()==1 ) {
 			idr_ENCODE = [idr_pr{1}]
+			ENCODE_step_name = "anshul-kundaje:atac-seq-unreplicated-idr-step-run-single-rep-v1"
 			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "pseudoreplicated idr thresholded peaks", \
-				"anshul-kundaje:atac-seq-idr-step-run-v1", idr_pr{1}, filt_peaks )
+				ENCODE_step_name, idr_pr{1}, filt_peaks )
 			idr_bb := peak_to_bigbed( "narrowPeak", idr_pr{1}, idr_pr{1}.dirName(), "idr peak pr" )
 			wait
+			ENCODE_step_name = "anshul-kundaje:atac-seq-pseudoreplicated-idr-peaks-conversion-step-run-single-rep-v1"			
 			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "pseudoreplicated idr thresholded peaks", \
-				"anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1", idr_bb, [idr_pr{1}] )
+				ENCODE_step_name, idr_bb, [idr_pr{1}] )
 		}
 		else {
 			// find idr_opt and idr_consv		
-			idr_ENCODE = [idr_opt] //, idr_consv]
+			idr_ENCODE = [idr_opt]
+			ENCODE_step_name = "anshul-kundaje:atac-seq-idr-step-run-v1"
 			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "optimal idr thresholded peaks", \
-				"anshul-kundaje:atac-seq-idr-step-run-v1", idr_opt, filt_peaks )
+				ENCODE_step_name, idr_opt, filt_peaks )
 			idr_opt_bb := peak_to_bigbed( "narrowPeak", idr_opt, idr_opt.dirName(), "idr peak opt" )
 			wait
+			ENCODE_step_name = "anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1"
 			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "optimal idr thresholded peaks", \
-				"anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1", idr_opt_bb, [idr_opt])
+				ENCODE_step_name, idr_opt_bb, [idr_opt])
 
 			if ( idr_consv && get_basename( idr_opt )!=get_basename( idr_consv ) ) {
+				ENCODE_step_name = "anshul-kundaje:atac-seq-idr-step-run-v1"
 				add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "conservative idr thresholded peaks", \
-					"anshul-kundaje:atac-seq-idr-step-run-v1", idr_consv, filt_peaks )
+					ENCODE_step_name, idr_consv, filt_peaks )
 				idr_consv_bb := peak_to_bigbed( "narrowPeak", idr_consv, idr_consv.dirName(), "idr peak consv" )
 				wait
+				ENCODE_step_name = "anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1"
 				add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "conservative idr thresholded peaks", \
-					"anshul-kundaje:atac-seq-idr-peaks-conversion-step-run-v1", idr_consv_bb, [idr_consv] )
+					ENCODE_step_name, idr_consv_bb, [idr_consv] )
 			}
 		}
+
+		if ( get_num_rep()==1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-unreplicated-idr-step-run-single-rep-v1"
+		else 			ENCODE_step_name = "anshul-kundaje:atac-seq-idr-step-run-v1"
 		add_ENCODE_quality_metrics_to_summary_json( "idr_quality_metric", \
-			"anshul-kundaje:atac-seq-idr-step-run-v1", \
+			ENCODE_step_name, \
 			idr_ENCODE, [idr_qc], \
 			[ idr_thresh, \
 			idr_tr_png.hasKey("1,2") ? idr_tr_png{"1,2"} : "", idr_pr_png{1}, \
@@ -1240,22 +1285,43 @@ void filter_peak_and_convert_to_bigbed() {
 	}
 
 	// naive overlap peaks
+	string ENCODE_peak_name
 	if ( peak_overlap ) {
-		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "replicated peaks", \
-			"anshul-kundaje:atac-seq-overlap-step-run-v1", peak_overlap, filt_peaks )
+		if ( get_num_rep()==1 ) {
+			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-single-rep-v1"
+			ENCODE_peak_name = "stable peaks"
+		}
+		else {
+			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-v1"
+			ENCODE_peak_name = "replicated peaks"
+		}
+		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", ENCODE_peak_name, \
+			ENCODE_step_name, peak_overlap, filt_peaks )
 		npeak_bb := peak_to_bigbed( "narrowPeak", peak_overlap, peak_overlap.dirName(), "peak overlap" )
 		wait
-		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "replicated peaks", \
-			"anshul-kundaje:atac-seq-replicated-peaks-conversion-step-run-v1", npeak_bb, [peak_overlap] )
+		if ( get_num_rep()==1 )	ENCODE_step_name = "anshul-kundaje:atac-seq-stable-peaks-conversion-step-run-v1"
+		else 			ENCODE_step_name = "anshul-kundaje:atac-seq-replicated-peaks-conversion-step-run-v1"
+		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", ENCODE_peak_name, \
+			ENCODE_step_name, npeak_bb, [peak_overlap] )
 	}
 
 	if ( gpeak_overlap ) {
-		add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "replicated peaks", \
-			"anshul-kundaje:atac-seq-overlap-step-run-v1", gpeak_overlap, filt_gpeaks )
+		if ( get_num_rep()==1 ) {
+			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-single-rep-v1"
+			ENCODE_peak_name = "stable peaks"
+		}
+		else {
+			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-v1"
+			ENCODE_peak_name = "replicated peaks"
+		}
+		add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", ENCODE_peak_name, \
+			ENCODE_step_name, gpeak_overlap, filt_gpeaks )
 		gpeak_bb := peak_to_bigbed( "gappedPeak", gpeak_overlap, gpeak_overlap.dirName(), "gpeak overlap" )
 		wait
-		add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "replicated peaks", \
-			"anshul-kundaje:atac-seq-replicated-peaks-conversion-step-run-v1", gpeak_bb, [gpeak_overlap] )
+		if ( get_num_rep()==1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-stable-peaks-conversion-step-run-v1"
+		else 			ENCODE_step_name = "anshul-kundaje:atac-seq-replicated-peaks-conversion-step-run-v1"
+		add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", ENCODE_peak_name, \
+			ENCODE_step_name, gpeak_bb, [gpeak_overlap] )
 	}
 
 	wait

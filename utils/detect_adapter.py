@@ -38,7 +38,10 @@ def detect_adapters_and_cnts(fname, max_n_lines=1000000):
 
 def detect_most_likely_adapter(fname):
     observed_adapters, adapter_cnts, n_obs_adapters = detect_adapters_and_cnts(fname)
-    best_adapter = observed_adapters[0]
+    if observed_adapters:
+        best_adapter = observed_adapters[0]
+    else:
+        best_adapter = ""
 
     if VERBOSE:
         print("\n\nAUTO-DETECTING ADAPTER TYPE\n===========================")
