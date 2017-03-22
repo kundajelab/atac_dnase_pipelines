@@ -105,6 +105,65 @@ string[] idr2( string peak1, string peak2, string pooled, string idr_thresh, str
 	return out
 }
 
+// use this for chipseq
+string FRiP_shifted( string tag, string peak_file, int fraglen, string o_dir, string group ) {
+	prefix 	:= replace_dir( rm_ext( peak_file, "gz" ), o_dir )
+	qc 	:= "$prefix.FRiP.qc"
+
+	int half_fraglen = fraglen/2
+
+	in := [tag, peak_file]
+	out := qc
+
+	taskName:= "FRiP " + group
+	wait_par( cpus )
+	tid := task( out<-in ) {
+		sys $shcmd_init
+		// method1
+		sys val1=$(bedtools slop -i $tag -g $chrsz -s -l -$half_fraglen -r $half_fraglen | \
+			awk '{if ($2>=0 && $3>=0 && $2<=$3) print $0}' | \
+			bedtools intersect -a stdin -b $peak_file -wa -u | wc -l)
+		// method2 (more accurate)
+		// sys bedtools sort -i $peak_file | bedtools merge -i stdin | gzip -nc > $tmp
+		// sys val1=$(bedtools slop -i $tag -g $chrsz -s -l -$half_fraglen -r $half_fraglen | \
+		// 	awk '{if ($2>=0 && $3>=0 && $2<=$3) print $0}' | \
+		// 	sort -k1,1 -k2,2n | \
+		// 	bedtools intersect -a $tmp -b stdin -c -sorted | awk '{sum+=$4} END{print sum}')
+		// sys rm -f $tmp
+		sys val2=$(zcat $tag | wc -l)
+		sys awk 'BEGIN {print '${val1}'/'${val2}'}' > $qc
+		sys $shcmd_finalize
+	}
+	register_par( tid, cpus )
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
+// use this for atac/dnase seq
+string FRiP( string tag, string peak_file, string o_dir, string group ) {
+	prefix 	:= replace_dir( rm_ext( peak_file, "gz" ), o_dir )
+	qc 	:= "$prefix.FRiP.qc"
+
+	in := [tag, peak_file]
+	out := qc
+
+	taskName:= "FRiP " + group
+	wait_par( cpus )
+	tid := task( out<-in ) {
+		sys $shcmd_init
+		// method1
+		sys val1=$(bedtools intersect -a $tag -b $peak_file -wa -u | wc -l)
+		sys val2=$(zcat $tag | wc -l)
+		sys awk 'BEGIN {print '${val1}'/'${val2}'}' > $qc
+		sys $shcmd_finalize
+	}
+	register_par( tid, cpus )
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
 // idr_tr: IDR peaks for true replicate (key:"rep_id1,rep_id2") e.g. "1,2" for rep1 and rep2
 // idr_pr: IDR peaks for pseudo replicates (key:"rep") e.g. "1" for pseudo replicates of replicate 1
 string[] idr_final_qc( string{} idr_tr, string{} idr_pr, string idr_ppr, \
@@ -196,8 +255,6 @@ string[] idr_final_qc( string{} idr_tr, string{} idr_pr, string idr_ppr, \
 	if ( rescue_ratio > 2.0 || self_consistency_ratio > 2.0 ) reproducibility = "borderline" // BORDERLINE
 	if ( rescue_ratio > 2.0 && self_consistency_ratio > 2.0 ) reproducibility = "fail" // FAIL
 	
-	// Fraction of Reads in Peaks (FRiP) will be added later
-
 	// write on IDR FINAL QC file
 	prefix 	:= "$qc_o_dir/" + (title=="" ? "" : (title+"_") ) + group
 	qc 	:= prefix+"IDR_final.qc"

@@ -2,7 +2,7 @@
 #vim: syntax=java
 
 
-qc_types := ["flagstat","dup","flagstat_filt","pbc","xcor","idr","ataqc"]
+qc_types := ["flagstat","dup","flagstat_filt","pbc","xcor","idr","ataqc","idr_FRiP"]
 
 // "keyname:description"
 // keyname matches with that in ENCODE quality metric profile JSON
@@ -31,6 +31,7 @@ header_xcor := ["num_reads:Reads","est_frag_len:Est. Fragment Len.","corr_est_fr
 		"NSC:NSC","RSC:RSC"]
 header_idr := ["Nt:Nt","N1:N1","N2:N2","Np:Np","N_opt:N optimal","N_consv:N conservative","opt_set:Optimal Set","consv_set:Conservative Set",\
 		"rescue_ratio:Rescue Ratio","self_consistency_ratio:Self Consistency Ratio","reproducibility_test:Reproducibility Test"]
+header_idr_FRiP := ["FRiP:Fraction of Reads in Peak"]
 
 string[] get_log_header( string qc_type ) {
 	if ( qc_type == "flagstat" || qc_type == "flagstat_filt" ) {
@@ -47,6 +48,9 @@ string[] get_log_header( string qc_type ) {
 	}
 	else if ( qc_type == "idr" ) {
 		return header_idr
+	}
+	else if ( qc_type == "idr_FRiP" ) {		
+		return header_idr_FRiP
 	}
 	else if ( qc_type == "ataqc" ) {
 		string[] empty
@@ -72,6 +76,9 @@ string{} parse_log( string qc_type, string log ) {
 	}
 	else if ( qc_type == "idr" ) {
 		return parse_idr( log )
+	}
+	else if ( qc_type == "idr_FRiP" ) {
+		return parse_idr_FRiP( log )
 	}
 	else if ( qc_type == "ataqc" ) {
 		return parse_multi_col_txt( log )
@@ -263,6 +270,15 @@ string{} parse_idr( string log ) {
 	for ( int i=0; i<header.size(); i++ ) {
 		result{header[i]} = content[i]
 	}
+	return result
+}
+
+// IDR logs : 1 table
+string{} parse_idr_FRiP( string log ) {
+	string{} result
+	line := log.read()
+	arr := line.trim().split("\t")
+	result{"FRiP"} = arr[0]
 	return result
 }
 

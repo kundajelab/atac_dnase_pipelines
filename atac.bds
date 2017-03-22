@@ -51,6 +51,7 @@ include "modules/ENCODE_accession.bds"
 
 string{} fastq, align_log, flagstat_qc, bam, filt_bam, dup_qc, flagstat_nodup_qc, pbc_qc, xcor_qc, xcor_plot
 string{} final_tag, final_tag_pr1, final_tag_pr2
+string final_tag_pooled, final_tag_ppr1, final_tag_ppr2
 
 string{} peak, peak_001, peak_pr1, peak_pr2
 string peak_pooled, peak_pooled_001, peak_ppr1, peak_ppr2, peak_overlap
@@ -64,6 +65,7 @@ string{} idr_tr, idr_pr, idr_tr_png, idr_pr_png, idr_tr_log, idr_pr_log
 string idr_ppr, idr_opt, idr_consv, idr_ppr_png, idr_ppr_log
 
 string idr_qc
+string{} idr_qc_FRiP
 
 string{} ataqc_qc
 
@@ -889,27 +891,19 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 	string[] tags, tags_pr1, tags_pr2
 
 	for ( int rep=1; rep<=get_num_rep(); rep++ ) {
-
 		tags.add( final_tag{rep} )
-
 	 	if ( !true_rep ) {
 			tags_pr1.add( final_tag_pr1{rep} )
 			tags_pr2.add( final_tag_pr2{rep} )
 		}
 	}
-
-	string final_tag_pooled, final_tag_ppr1, final_tag_ppr2
 	
 	if ( get_num_rep() > 1 ) {
-
 	 	aln_pooled_o_dir := mkdir( "$out_dir/align/pooled_rep" )
-
 		final_tag_pooled = pool_tag( tags, aln_pooled_o_dir, "pooled_rep" )
-
 		add_file_to_report( final_tag_pooled, "tag-align", "pooled_rep", "Alignment/Pooled replicate/Tag-align" )
 
 		if ( !true_rep ) {
-
 			// Make shifted tags for pooled pseudo rep (ppr).
 		 	aln_ppr1_o_dir   := mkdir( "$out_dir/align/pooled_pseudo_reps/ppr1" )
 		 	aln_ppr2_o_dir   := mkdir( "$out_dir/align/pooled_pseudo_reps/ppr2" )
@@ -1170,6 +1164,21 @@ void do_idr() {
 	add_file_to_report( idr_opt, "opt. IDR peak", "", "Peaks/IDR/Optimal set/IDR peak" )
 	add_file_to_report( idr_consv, "consv. IDR peak", "", "Peaks/IDR/Conservative set/IDR peak" )
 
+	// FRiP (fraction of reads in peak)
+	if ( !is_input_peak() ) {
+		for ( int rep=1; rep<=get_num_rep(); rep++ ) {
+			idr_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep$rep" )
+			idr_qc_FRiP{"rep$rep-pr"} = \
+				FRiP( final_tag{rep}, idr_pr{rep}, idr_pr_o_dir, "rep$rep-pr" )
+			add_file_to_table( idr_qc_FRiP{"rep$rep-pr"}, "QC and logs/IDR/Pseudo-replicates/Replicate $rep/FRiP" )
+		}
+		if ( get_num_rep()>1 ) {
+			idr_ppr_o_dir := mkdir( "$idr_o_dir/pooled_pseudo_reps" )
+			idr_qc_FRiP{"ppr"} = \
+				FRiP( final_tag_pooled, idr_ppr, idr_ppr_o_dir, "ppr" )
+			add_file_to_table( idr_qc_FRiP{"ppr"}, "QC and logs/IDR/Pooled pseudo-replicates/FRiP" )
+		}
+	}
 	wait
 
 	print( "\n== Done do_idr()\n" )
@@ -1451,6 +1460,12 @@ string html_atac_QC() {
 
 	// if idr qc's exists, add them to html
 	if ( idr_qc != "" ) html += html_table_multiple_logs( "IDR QC", true, "idr", ["rep1"], [idr_qc] )
+	// IDR FRiP
+	if ( idr_qc_FRiP.size()>0 ) {
+		html += html_table_multiple_logs( "IDR FRiP", true, "idr_FRiP", idr_qc_FRiP )
+		html += html_help_idr_FRiP()
+	}	
+		
 	for ( int i=1; i<=get_num_rep(); i++ ) {
 		for ( int j=i+1; j<=get_num_rep(); j++ ) {
 			if ( idr_tr_png.hasKey("$i,$j") ) \

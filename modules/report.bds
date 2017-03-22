@@ -66,6 +66,27 @@ void add_file_to_report( string file, string label, string group, string hrchy )
 // item2 | val    | val    + ...
 // ...
 
+// input is single file
+string html_table_multiple_logs( string table_name, bool horz, string qc_type, string log ) {
+	// key->group, val->log
+	string[] groups, logs
+	groups.add("null")
+	logs.add( log )
+	return html_table_multiple_logs( table_name, horz, qc_type, groups, logs )
+}
+
+// input is map of files
+string html_table_multiple_logs( string table_name, bool horz, string qc_type, string{} map ) {
+	// key->group, val->log
+	string[] groups, logs
+	for ( string key : map.keys() ) {
+		groups.add(key)
+		logs.add( map{key} )
+	}
+	return html_table_multiple_logs( table_name, horz, qc_type, groups, logs )
+}
+
+// input is two arrays (group, log)
 string html_table_multiple_logs( string table_name, bool horz, string qc_type, string[] groups, string[] logs ) {
 	if ( logs.size() == 0 ) return ""
 	html := "<div id='table_"+table_name.replace(" ","-")+\
@@ -153,6 +174,13 @@ string html_help_xcor() {
 			"Relative strand cross-correlation coefficient (RSC) = col10 in outFile <br>" + \
 			"Estimated fragment length = col3 in outFile, take the top value <br>" + \
 			"Important columns highlighted, but all/whole file can be stored for display <br>" + \
+			 "</p><br>"
+}
+
+string html_help_idr_FRiP() {
+	return "<div id='help-idr-FRiP'><p>" + "ppr: Pooled pseudo replicate <br>" + \
+			"rep1-pr : Pseudo replicates from replicate 1 <br>" + \
+			"rep2-pr : Pseudo replicates from replicate 2" + \
 			 "</p><br>"
 }
 
