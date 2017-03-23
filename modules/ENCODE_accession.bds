@@ -212,6 +212,9 @@ void add_ENCODE_quality_metrics_to_summary_json( string ENCODE_qc_type, string s
 		if ( infos[7] ) json{"IDR_parameters_rep2_pr"} = infos[7]
 		if ( infos[8] ) json{"IDR_parameters_pool_pr"} = infos[8]
 	}
+	else if ( ENCODE_qc_type == "generic_quality_metric" ) {
+		json{"All calculated QC"} = logs[0]
+	}
 	else {
 		error("Unsupported ENCODE_qc_type ($ENCODE_qc_type)!\n")
 	}
