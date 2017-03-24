@@ -180,7 +180,8 @@ string html_help_xcor() {
 string html_help_idr_FRiP() {
 	return "<div id='help-idr-FRiP'><p>" + "ppr: Pooled pseudo replicate <br>" + \
 			"rep1-pr : Pseudo replicates from replicate 1 <br>" + \
-			"rep2-pr : Pseudo replicates from replicate 2" + \
+			"rep2-pr : Pseudo replicates from replicate 2 <br>" + \
+			"repi-repj : True replicates (rep i vs. rep j)" +  \
 			 "</p><br>"
 }
 

@@ -110,7 +110,7 @@ string FRiP_shifted( string tag, string peak_file, int fraglen, string o_dir, st
 	prefix 	:= replace_dir( rm_ext( peak_file, "gz" ), o_dir )
 	qc 	:= "$prefix.FRiP.qc"
 
-	int half_fraglen = fraglen/2
+	int half_fraglen = (fraglen+1)/2
 
 	in := [tag, peak_file]
 	out := qc

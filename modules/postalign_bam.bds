@@ -451,6 +451,34 @@ string[] markdup_bam_sambamba( string bam, string o_dir, string log_o_dir, strin
 	return out
 }
 
+string anonymize_filt_bam( string filt_bam, string o_dir, string group ) {
+
+	prefix 		:= replace_dir( rm_ext( filt_bam, "bam" ), o_dir )
+	anon_bam 	:= "$prefix.anon.bam"
+
+	in 	:= [ filt_bam ]
+	out 	:= anon_bam
+
+	taskName:= "anon_bam " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+		sys tmp_var="NF"
+		sys samtools view -h $filt_bam \
+			| awk -F '\t' 'BEGIN {OFS="\t"} { if ($0 !~ /^@/) { $6=length($10)"="; gsub(/[A-z]/, "N", $10); $11="*"; $14=$'NF'; } print }' \
+			| cut -f 1-14 \
+			| samtools view -bS - > $anon_bam
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	return out
+}
+
 string nmsrt_bam( string bam, string o_dir, string group ) {
 
 	prefix 		:= replace_dir( rm_ext( bam, "bam" ), o_dir )
