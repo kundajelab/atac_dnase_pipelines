@@ -18,6 +18,8 @@ The DNase-seq pipeline specification is [here](https://docs.google.com/document/
 
 # Installation
 
+Install software/database in a correct order according to your system. For example on Kundaje lab's clusters, you only need to install one software [Pipeline](#pipeline).
+
 * General computer
   * [Java](#java)
   * [Conda](#conda)
@@ -30,16 +32,12 @@ The DNase-seq pipeline specification is [here](https://docs.google.com/document/
   * [Pipeline](#pipeline)
 
 * Stanford SCG cluster
-  * [Conda](#conda)
   * [BigDataScript](#bigdatascript)
   * [Pipeline](#pipeline)
-  * [Dependencies](#dependencies)
 
 * Stanford Sherlock cluster
-  * [Conda](#conda)
   * [BigDataScript](#bigdatascript)
   * [Pipeline](#pipeline)
-  * [Dependencies](#dependencies)
 
 ## Java
 
@@ -67,7 +65,7 @@ Install Java 8 (jdk >= 1.8 or jre >= 1.8) on your system. If you don't have supe
 
 ## Conda
 
-Install Miniconda3 [latest](https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh) on your system.
+Install Miniconda3 [latest](https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh) on your system. **IMPORTANT** Make sure that the absolute path of the destination directory is short. Long path will cause an error in the depenecies installation step [issue #8](https://github.com/kundajelab/TF_chipseq_pipeline/issues/8).
 
 ```
 $ wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -100,7 +98,7 @@ Add `export PATH=$PATH:$HOME/.bds` to your `$HOME/.bashrc`. If Java memory occur
 
 ## Pipeline
 
-Get the latest version of the pipeline. **Don't forget to add `--recursive`**. ATAC-Seq pipeline uses modules in an external git repo (ataqc). ATAQC will not work correctly without `--recursive`.
+Get the latest version of the pipeline. **Don't forget to add `--recursive`**. ATAC-Seq pipeline uses modules from an external git repo (ataqc). ATAQC will not work correctly without `--recursive`.
 
 ```
 $ git clone https://github.com/kundajelab/atac_dnase_pipelines --recursive
@@ -112,12 +110,6 @@ Install software dependencies automatically. It will create two conda environmen
 
 ```
 $ ./install_dependencies.sh
-```
-
-If you see the following error, see [issue #8](https://github.com/kundajelab/TF_chipseq_pipeline/issues/8)
-
-```
-Error: ERROR: placeholder '/root/miniconda3/envs/_build_placehold_placehold_placehold_placehold_placehold_p' too short in: glib-2.43.0-2
 ```
 
 If you don't use `install_dependencies.sh`, manually replace BDS's default `bds.config` with a correct one:
