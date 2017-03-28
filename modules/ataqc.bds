@@ -93,8 +93,6 @@ string[] ataqc( string fastq1, string fastq2, string bam, string align_log, stri
 	param_reg2map_bed 	:= (reg2map_bed!="") ? " --reg2map_bed $reg2map_bed" : ""
 	param_meta	:= (roadmap_meta!="") ? " --meta $roadmap_meta" : ""
 
-	print(reg2map_bed)
-	
 	species_ataqc 	:= species.indexOf("_")>=0 ? (species.split("_"))[0] : species
 	print("species_ataqc: $species_ataqc\n")
 
