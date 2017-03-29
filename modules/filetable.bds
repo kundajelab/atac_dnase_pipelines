@@ -68,7 +68,11 @@ string html_filetable() { // graphviz diagram
 }
 
 string html_link_url( string path ) {
-	return "<a href='" + get_rel_path( path ) + "' target='_blank'>" + get_rel_path( path ) + "</a><br>"
+	rel_path := get_rel_path( path )
+	if ( rel_path.startsWith("./") ) \
+		return "<a href='" + rel_path + "' target='_blank'>" + rel_path + "</a><br>"
+	else \
+		return rel_path + "<br>"
 }
 
 void _construct_filetable() {

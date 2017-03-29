@@ -21,11 +21,14 @@ header_flagstat := [ "total:Total", "total_qc_failed:Total(QC-failed)", \
 		"with_itself:With itself", "with_itself_qc_failed:With itself(QC-failed)", \
 		"singletons:Singletons", "singletons_qc_failed:Singletons(QC-failed)", "singletons_pct:% Singleton", \
  		"diff_chroms:Diff. Chroms", "diff_chroms_qc_failed:Diff. Chroms (QC-failed)" ]
-header_pbc := [ "total_read_pairs:Total Read Pairs","distinct_read_pairs:Distinct Read Pairs",\
+header_pbc_SE := [ "total_read_pairs:Total Reads","distinct_read_pairs:Distinct Reads",\
+		"one_read_pair:One Read","two_read_pair:Two Reads",\
+		"NRF:NRF = Distinct/Total","PBC1:PBC1 = OneRead/Distinct","PBC2:PBC2 = OneRead/TwoReads"]
+header_pbc_PE := [ "total_read_pairs:Total Read Pairs","distinct_read_pairs:Distinct Read Pairs",\
 		"one_read_pair:One Read Pair","two_read_pair:Two Read Pairs",\
 		"NRF:NRF = Distinct/Total","PBC1:PBC1 = OnePair/Distinct","PBC2:PBC2 = OnePair/TwoPair"]
 header_dup := ["unpaired_reads:Unpaired Reads", "paired_reads:Paired Reads", "unmapped_reads:Unmapped Reads", \
-		"unpaired_dupes:Unpaired Dupes", "paired_dupes:Paired Dupes", "paired_opt_dupes:Paired Opt. Dupes", "dupes_pct:% Dupes"]
+		"unpaired_dupes:Unpaired Dupes", "paired_dupes:Paired Dupes", "paired_opt_dupes:Paired Opt. Dupes", "dupes_pct:% Dupes/100"]
 header_xcor := ["num_reads:Reads","est_frag_len:Est. Fragment Len.","corr_est_frag_len:Corr. Est. Fragment Len.", \
 		"phantom_peak:Phantom Peak","corr_phantom_peak:Corr. Phantom Peak","argmin_corr:Argmin. Corr.","min_corr:Min. Corr.",\
 		"NSC:NSC","RSC:RSC"]
@@ -40,8 +43,11 @@ string[] get_log_header( string qc_type ) {
 	else if ( qc_type == "dup" ) {
 		return header_dup
 	}
-	else if ( qc_type == "pbc" ) {
-		return header_pbc
+	else if ( qc_type == "pbc" || qc_type == "pbc_SE" ) {
+		return header_pbc_SE
+	}
+	else if ( qc_type == "pbc_PE" ) {
+		return header_pbc_PE
 	}
 	else if ( qc_type == "xcor" ) {
 		return header_xcor
@@ -68,7 +74,7 @@ string{} parse_log( string qc_type, string log ) {
 	else if ( qc_type == "dup" ) {
 		return parse_dup( log )
 	}
-	else if ( qc_type == "pbc" ) {
+	else if ( qc_type == "pbc" || qc_type == "pbc_SE" || qc_type == "pbc_PE" ) {
 		return parse_pbc( log )
 	}
 	else if ( qc_type == "xcor" ) {
@@ -126,8 +132,9 @@ string{} parse_flagstat( string log ) {
 				mapped = tmp3_1[0]
 				mapped_qc_failed = tmp3_1[1]
 			line3_2 := tmp3[1]
-				tmp3_2 := line3_2.split( "\\%\\:" )					
-				mapped_pct = tmp3_2[0]
+				// tmp3_2 := line3_2.split( "\\%\\:" )
+				tmp3_2 := line3_2.split( "\\:" )
+				mapped_pct = tmp3_2[0].replace("%","")
 		}
 		if ( line.indexOf(" paired in sequencing") > -1 ) {
 			tmp2 := line.split(" paired in sequencing")
@@ -157,8 +164,9 @@ string{} parse_flagstat( string log ) {
 				paired_properly = tmp3_1[0]
 				paired_properly_qc_failed = tmp3_1[1]
 			line3_2 := tmp3[1]
-				tmp3_2 := line3_2.split( "\\%\\:" )					
-				paired_properly_pct = tmp3_2[0]
+				// tmp3_2 := line3_2.split( "\\%\\:" )
+				tmp3_2 := line3_2.split( "\\:" )
+				paired_properly_pct = tmp3_2[0].replace("%","")
 		}
 		if ( line.indexOf(" with itself and mate mapped") > -1 ) {
 			tmp3 := line.split(" with itself and mate mapped")
@@ -174,8 +182,9 @@ string{} parse_flagstat( string log ) {
 				singletons = tmp3_1[0]
 				singletons_qc_failed = tmp3_1[1]
 			line3_2 := tmp3[1]
-				tmp3_2 := line3_2.split( "\\%\\:" )					
-				singletons_pct = tmp3_2[0]
+				// tmp3_2 := line3_2.split( "\\%\\:" )
+				tmp3_2 := line3_2.split( "\\:" )
+				singletons_pct = tmp3_2[0].replace("%","")
 		}		
 		if ( line.indexOf(" with mate mapped to a different chr (mapQ>=5)") > -1 ) {
 			tmp3 := line.split(" with mate mapped to a different chr")

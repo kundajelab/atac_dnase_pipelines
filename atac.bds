@@ -95,6 +95,8 @@ void main() { // atac pipeline starts here
 	// blacklist-filter peaks and also make ENCODE accession metadata for them
 	filter_peak_and_convert_to_bigbed() 
 
+	tar_all_logs()
+
 	report()
 }
 
@@ -167,6 +169,7 @@ void init_filetable() { // init file table labels in HTML report
  	// : Items added later will have higher rank
 
 	// Level 1
+	add_label_to_table("Raw reads")
 	add_label_to_table("Alignment")
 	add_label_to_table("Signal tracks")
 	add_label_to_table("Peaks")
@@ -401,8 +404,7 @@ void align_SE( int rep, int nth_rep ) {
 		for ( int i=0; i<fastqs.size(); i++) {
 			id := i+1
 			suffix := fastqs.size()==1 ? "" : ":$id"
-
-			add_file_to_report( fastqs[i], "fastq$suffix", group, "Alignment/$long/Fastq$suffix" )
+			// add_file_to_report( fastqs[i], "fastq$suffix", group, "Raw reads/$long/Fastq$suffix" )
 
 			if ( trimmed_fastq ) {
 				trimmed_fastqs.add( fastqs[i] )
@@ -431,17 +433,15 @@ void align_SE( int rep, int nth_rep ) {
 					p1 = trim_adapters( fastqs[i], adapters[0], aln_o_dir, group, suffix )
 				}
 				trimmed_fastqs.add( p1 )
-				add_file_to_report( p1, "trimmed\\nfastq$suffix" , group, "Alignment/$long/Trimmed fastq$suffix" )
+				// add_file_to_report( p1, "trimmed\\nfastq$suffix" , group, "Raw reads/$long/Trimmed fastq$suffix" )
 			}
-
-			//if ( i==0 ) read_length_log = get_read_length_log( trimmed_fastqs[0], qc_o_dir, group )
 		}
 		wait
 
 		string p1
 		if ( trimmed_fastqs.size() > 1 ) { // if multiple fastqs are given, pool trimmed fastqs
 			p1 = pool_fastq( trimmed_fastqs, aln_o_dir, group )
-			add_file_to_report( p1, "pooled\\nfastq" , group, "Alignment/$long/Pooled fastq" )
+			// add_file_to_report( p1, "pooled\\nfastq" , group, "Raw reads/$long/Pooled fastq" )
 			wait
 		}
 		else {
@@ -459,19 +459,53 @@ void align_SE( int rep, int nth_rep ) {
 			( bam_, align_log_ ) = bowtie2( p1, aln_o_dir, qc_o_dir, group, nth_rep )
 		}
 		wait
+		align_log{rep} = align_log_
+		add_file_to_table( align_log_, "QC and logs/$long/Bowtie2 map. log")
 
-		flagstat_qc_ = samtools_flagstat_bam( bam_, qc_o_dir, group )
+		flagstat_qc_ = samtools_flagstat_bam( bam_, qc_o_dir, group )		
+		wait
+		flagstat_qc{rep} = flagstat_qc_
+		add_file_to_table( flagstat_qc_, "QC and logs/$long/Bowtie2 map. flagstat log")
+
+		// add to report
+		tmp_log := parse_flagstat( flagstat_qc_ )
+		raw_reads := metric_prefix( parse_int( tmp_log{"total"} ) )		
+		mapped_reads := metric_prefix( parse_int( tmp_log{"mapped"} ) )
+		if ( trimmed_fastqs.size() > 1 ) { // if multiple fastqs are given, pool trimmed fastqs
+			for ( int i=0; i<fastqs.size(); i++) {
+				id := i+1
+				suffix := fastqs.size()==1 ? "" : ":$id"
+				add_file_to_report( fastqs[i], "fastq$suffix", group, \
+					"Raw reads/$long/Fastq$suffix" )
+				if ( !trimmed_fastq ) {
+					add_file_to_report( trimmed_fastqs[i], "trimmed\\nfastq$suffix", group, \
+						"Raw reads/$long/Trimmed fastq$suffix" )
+				}
+			}
+			add_file_to_report( p1, "pooled\\nfastq" + (raw_reads ? "\\n$raw_reads" : ""), group, \
+				"Raw reads/$long/Pooled fastq"+ (raw_reads ? " ($raw_reads)" : "") )
+		}
+		else {
+			for ( int i=0; i<fastqs.size(); i++) {
+				if ( trimmed_fastq ) {
+					add_file_to_report( fastqs[i], "fastq" + (raw_reads ? "\\n$raw_reads" : ""), group, \
+						"Raw reads/$long/Fastq"+ (raw_reads ? " ($raw_reads)" : "") )
+				}
+				else {
+					add_file_to_report( fastqs[i], "fastq", group, \
+						"Raw reads/$long/Fastq" )
+					add_file_to_report( trimmed_fastqs[i], "trimmed\\nfastq" + (raw_reads ? "\\n$raw_reads" : ""), group, \
+						"Raw reads/$long/Trimmed fastq"+ (raw_reads ? " ($raw_reads)" : "") )
+				}
+			}
+		}
 
 		bam{rep} = bam_
-		align_log{rep} = align_log_
-		flagstat_qc{rep} = flagstat_qc_
-
-		add_file_to_report( bam_, "bam", group, "Alignment/$long/Bam" )		
-		add_file_to_table( align_log_, "QC and logs/$long/Bowtie2 map. log")
-		add_file_to_table( flagstat_qc_, "QC and logs/$long/Bowtie2 map. flagstat log")
+		add_file_to_report( bam_, "bam" + (mapped_reads ? "\\n$mapped_reads" : ""), group, \
+			"Alignment/$long/Bam" + (mapped_reads ? " ($mapped_reads)" : "") )
 	}
 
-	string filt_bam_, dup_qc_, pbc_qc_
+	string filt_bam_, dup_qc_, pbc_qc_, flagstat_nodup_qc_
 
 	if ( is_input_fastq( rep ) || is_input_bam( rep ) ) {
 
@@ -482,20 +516,26 @@ void align_SE( int rep, int nth_rep ) {
 
 		if ( no_dup_removal ) {
 			string tmp
-			( filt_bam_, tmp ) = dedup_bam( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
+			( filt_bam_, flagstat_nodup_qc_, pbc_qc ) \
+						= dedup_bam( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
 		}
 		else {
-			( filt_bam_, dup_qc_, flagstat_nodup_qc{rep}, pbc_qc_ ) \
-							= dedup_bam( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
+			( filt_bam_, dup_qc_, flagstat_nodup_qc_, pbc_qc_ ) \
+						= dedup_bam( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
 			dup_qc{rep} = dup_qc_
-			pbc_qc{rep} = pbc_qc_
 			add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
 		}
-		filt_bam{rep} = filt_bam_
-
-		add_file_to_report( filt_bam_, "filt. bam", group, "Alignment/$long/Filtered & deduped bam" )
-
+		pbc_qc{rep} = pbc_qc_
+		add_file_to_table( dup_qc_, "QC and logs/$long/PBC log")
 		wait
+		// add to report
+		flagstat_nodup_qc{rep} = flagstat_nodup_qc_
+		add_file_to_table( flagstat_nodup_qc_, "QC and logs/$long/Filtered flagstat log")
+		tmp_log := parse_flagstat( flagstat_nodup_qc_ )
+		deduped_reads := metric_prefix( parse_int( tmp_log{"total"} ) )
+		filt_bam{rep} = filt_bam_
+		add_file_to_report( filt_bam_, "filt. bam" + (deduped_reads ? "\\n$deduped_reads" : ""), group, \
+			"Alignment/$long/Filtered & deduped bam" + (deduped_reads ? " ($deduped_reads)" : "") )
 
 		// For ENCODE accession, use different step name for single rep case
 		string ENCODE_step_name
@@ -624,8 +664,8 @@ void align_PE( int rep, int nth_rep ) {
 			id := i+1
 			suffix := fastqs_pair1.size()==1 ? "" : ":$id"
 
-			add_file_to_report( fastqs_pair1[i], "fastq 1$suffix", group, "Alignment/$long/Fastq 1$suffix" )
-			add_file_to_report( fastqs_pair2[i], "fastq 2$suffix", group, "Alignment/$long/Fastq 2$suffix" )
+			// add_file_to_report( fastqs_pair1[i], "fastq 1$suffix", group, "Raw reads/$long/Fastq 1$suffix" )
+			// add_file_to_report( fastqs_pair2[i], "fastq 2$suffix", group, "Raw reads/$long/Fastq 2$suffix" )
 
 			if ( trimmed_fastq ) {
 				trimmed_fastqs_pair1.add( fastqs_pair1[i] )
@@ -664,8 +704,8 @@ void align_PE( int rep, int nth_rep ) {
 				trimmed_fastqs_pair1.add( p1 )
 				trimmed_fastqs_pair2.add( p2 )
 
-				add_file_to_report( p1, "trimmed\\nfastq 1$suffix", group, "Alignment/$long/Trimmed fastq 1$suffix" )
-				add_file_to_report( p2, "trimmed\\nfastq 2$suffix", group, "Alignment/$long/Trimmed fastq 2$suffix" )
+				// add_file_to_report( p1, "trimmed\\nfastq 1$suffix", group, "Raw reads/$long/Trimmed fastq 1$suffix" )
+				// add_file_to_report( p2, "trimmed\\nfastq 2$suffix", group, "Raw reads/$long/Trimmed fastq 2$suffix" )
 			}
 			//if ( i==0 ) read_length_log = get_read_length_log( trimmed_fastqs_pair1[0], qc_o_dir, group )
 		}
@@ -675,8 +715,8 @@ void align_PE( int rep, int nth_rep ) {
 		if ( trimmed_fastqs_pair1.size() > 1 ) { // if multiple fastqs are given, pool trimmed fastqs
 			p1 = pool_fastq( trimmed_fastqs_pair1, aln_o_dir, group )
 			p2 = pool_fastq( trimmed_fastqs_pair2, aln_o_dir, group )
-			add_file_to_report( p1, "pooled\\nfastq 1" , group, "Alignment/$long/Pooled fastq 1" )
-			add_file_to_report( p2, "pooled\\nfastq 2" , group, "Alignment/$long/Pooled fastq 2" )
+			// add_file_to_report( p1, "pooled\\nfastq 1" , group, "Raw reads/$long/Pooled fastq 1" )
+			// add_file_to_report( p2, "pooled\\nfastq 2" , group, "Raw reads/$long/Pooled fastq 2" )
 			wait
 		}
 		else {
@@ -690,19 +730,66 @@ void align_PE( int rep, int nth_rep ) {
 		read_length_log = get_read_length_log( p1, qc_o_dir, group )
 		( bam_, align_log_ ) = bowtie2_PE( p1, p2, aln_o_dir, qc_o_dir, group, nth_rep )
 		wait
+		align_log{rep} = align_log_
+		add_file_to_table( align_log_, "QC and logs/$long/Bowtie2 map. log")
 
 		flagstat_qc_ = samtools_flagstat_bam( bam_, qc_o_dir, group )
-
-		bam{rep} = bam_
-		align_log{rep} = align_log_
+		wait
 		flagstat_qc{rep} = flagstat_qc_
-
-		add_file_to_report( bam_, "bam", group, "Alignment/$long/Bam" )		
-		add_file_to_table( align_log_, "QC and logs/$long/Bowtie2 map. log")
 		add_file_to_table( flagstat_qc_, "QC and logs/$long/Bowtie2 map. flagstat log")
+
+		// add to report
+		tmp_log := parse_flagstat( flagstat_qc_ )
+		raw_reads := metric_prefix( parse_int( tmp_log{"total"} ) )
+		half_raw_reads := metric_prefix( parse_int( tmp_log{"total"} )/2 )
+		if ( trimmed_fastqs_pair1.size() > 1 ) { // if multiple fastqs are given, pool trimmed fastqs
+			for ( int i=0; i<fastqs_pair1.size(); i++) {
+				id := i+1
+				suffix := fastqs_pair1.size()==1 ? "" : ":$id"
+				add_file_to_report( fastqs_pair1[i], "fastq 1$suffix", group, \
+					"Raw reads/$long/Fastq 1$suffix" )
+				add_file_to_report( fastqs_pair2[i], "fastq 2$suffix", group, \
+					"Raw reads/$long/Fastq 2$suffix" )
+				if ( !trimmed_fastq ) {
+					add_file_to_report( trimmed_fastqs_pair1[i], "trimmed\\nfastq 1$suffix", group, \
+						"Raw reads/$long/Trimmed fastq 1$suffix" )
+					add_file_to_report( trimmed_fastqs_pair2[i], "trimmed\\nfastq 2$suffix", group, \
+						"Raw reads/$long/Trimmed fastq 2$suffix" )
+				}
+			}
+			add_file_to_report( p1, "pooled\\nfastq 1" + (half_raw_reads ? "\\n$half_raw_reads" : ""), group, \
+				"Raw reads/$long/Pooled fastq 1"+ (half_raw_reads ? " ($half_raw_reads)" : "") )
+			add_file_to_report( p2, "pooled\\nfastq 2" + (half_raw_reads ? "\\n$half_raw_reads" : ""), group, \
+				"Raw reads/$long/Pooled fastq 2"+ (half_raw_reads ? " ($half_raw_reads)" : "") )
+		}
+		else {
+			for ( int i=0; i<fastqs_pair1.size(); i++) {
+				if ( trimmed_fastq ) {
+					add_file_to_report( fastqs_pair1[i], "fastq 1" + (half_raw_reads ? "\\n$half_raw_reads" : ""), group, \
+						"Raw reads/$long/Fastq 1"+ (half_raw_reads ? " ($half_raw_reads)" : "") )
+					add_file_to_report( fastqs_pair2[i], "fastq 2" + (half_raw_reads ? "\\n$half_raw_reads" : ""), group, \
+						"Raw reads/$long/Fastq 2"+ (half_raw_reads ? " ($half_raw_reads)" : "") )
+				}
+				else {
+					add_file_to_report( fastqs_pair1[i], "fastq 1", group, \
+						"Raw reads/$long/Fastq 1" )
+					add_file_to_report( fastqs_pair2[i], "fastq 2", group, \
+						"Raw reads/$long/Fastq 2" )
+					add_file_to_report( trimmed_fastqs_pair1[i], "trimmed\\nfastq 1" + (half_raw_reads ? "\\n$half_raw_reads" : ""), group, \
+						"Raw reads/$long/Trimmed fastq 1"+ (half_raw_reads ? " ($half_raw_reads)" : "") )
+					add_file_to_report( trimmed_fastqs_pair2[i], "trimmed\\nfastq 2" + (half_raw_reads ? "\\n$half_raw_reads" : ""), group, \
+						"Raw reads/$long/Trimmed fastq 2"+ (half_raw_reads ? " ($half_raw_reads)" : "") )
+				}
+			}
+		}
+
+		mapped_reads := metric_prefix( parse_int( tmp_log{"mapped"} ) )
+		bam{rep} = bam_
+		add_file_to_report( bam_, "bam" + (mapped_reads ? "\\n$mapped_reads" : ""), group, \
+			"Alignment/$long/Bam" + (mapped_reads ? " ($mapped_reads)" : "") )
 	}
 
-	string filt_bam_, dup_qc_, pbc_qc_
+	string filt_bam_, dup_qc_, pbc_qc_, flagstat_nodup_qc_
 
 	if ( is_input_fastq( rep ) || is_input_bam( rep ) ) {
 
@@ -713,21 +800,26 @@ void align_PE( int rep, int nth_rep ) {
 
 		if ( no_dup_removal ) {
 			string tmp
-			(filt_bam_, tmp ) \
+			(filt_bam_, flagstat_nodup_qc_, pbc_qc_ ) \
 				= dedup_bam_PE( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
 		}
 		else {		
-			(filt_bam_, dup_qc_, flagstat_nodup_qc{rep}, pbc_qc_ ) \
+			(filt_bam_, dup_qc_, flagstat_nodup_qc_, pbc_qc_ ) \
 				= dedup_bam_PE( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
 			dup_qc{rep} = dup_qc_
-			pbc_qc{rep} = pbc_qc_
 			add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
 		}
-
-		filt_bam{rep} = filt_bam_
-		add_file_to_report( filt_bam_, "filt. bam", group, "Alignment/$long/Filtered & deduped bam" )
-
+		pbc_qc{rep} = pbc_qc_
+		add_file_to_table( dup_qc_, "QC and logs/$long/PBC log")
 		wait
+		// add to report
+		flagstat_nodup_qc{rep} = flagstat_nodup_qc_
+		add_file_to_table( flagstat_nodup_qc_, "QC and logs/$long/Filtered flagstat log")		
+		tmp_log := parse_flagstat( flagstat_nodup_qc_ )
+		deduped_reads := metric_prefix( parse_int( tmp_log{"total"} ) )
+		filt_bam{rep} = filt_bam_
+		add_file_to_report( filt_bam_, "filt. bam" + (deduped_reads ? "\\n$deduped_reads" : ""), group, \
+			"Alignment/$long/Filtered & deduped bam" + (deduped_reads ? " ($deduped_reads)" : "") )
 
 		string ENCODE_step_name
 		if ( get_num_rep()==1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-single-rep-v1"
@@ -1126,7 +1218,7 @@ void do_idr() {
 			(idr_tr{"$i,$j"}, idr_tr_png{"$i,$j"}, idr_tr_log{"$i,$j"} ) \
 				= idr2( top_peak{i}, top_peak{j}, top_peak_pooled, idr_thresh, "p.value", idr_true_o_dir, "rep$i-rep$j" )
 
-			add_file_to_report( idr_tr{"$i,$j"}, "IDR peak", "rep$i-rep$j", "Peaks/IDR/True replicates/Rep. $i vs. Rep. $j/IDR peak" )
+			add_file_to_report( idr_tr{"$i,$j"}, "IDR peak", "rep$i-rep$j", "Peaks/MACS2/IDR/True replicates/Rep. $i vs. Rep. $j/IDR peak" )
 			add_file_to_table( idr_tr_png{"$i,$j"}, "QC and logs/IDR/True replicates/Rep. $i vs. Rep. $j/IDR plot" )
 		}
 
@@ -1137,7 +1229,7 @@ void do_idr() {
 			(idr_pr{i}, idr_pr_png{i}, idr_pr_log{i}) \
 				= idr2( top_peak_pr1{i}, top_peak_pr2{i}, top_peak{i}, idr_thresh, "p.value", idr_pr_o_dir, "rep$i-pr" )
 
-			add_file_to_report( idr_pr{i}, "IDR peak", "rep$i-pr", "Peaks/IDR/Pseudo-replicates/Replicate $i/IDR peak" )
+			add_file_to_report( idr_pr{i}, "IDR peak", "rep$i-pr", "Peaks/MACS2/IDR/Pseudo-replicates/Replicate $i/IDR peak" )
 			add_file_to_table( idr_pr_png{i}, "QC and logs/IDR/Pseudo-replicates/Replicate $i/IDR plot" )
 		}
 	}
@@ -1149,7 +1241,7 @@ void do_idr() {
 		(idr_ppr, idr_ppr_png, idr_ppr_log) \
 			= idr2( top_peak_ppr1, top_peak_ppr2, top_peak_pooled, idr_thresh, "p.value", idr_ppr_o_dir, "ppr" )
 
-		add_file_to_report( idr_ppr, "IDR peak", "ppr", "Peaks/IDR/Pooled pseudo-replicates/IDR peak" )
+		add_file_to_report( idr_ppr, "IDR peak", "ppr", "Peaks/MACS2/IDR/Pooled pseudo-replicates/IDR peak" )
 		add_file_to_table( idr_ppr_png, "QC and logs/IDR/Pooled pseudo-replicates/IDR plot" )
 	}
 
@@ -1161,8 +1253,8 @@ void do_idr() {
 	(idr_qc, idr_opt, idr_consv) = idr_final_qc( idr_tr, idr_pr, idr_ppr, idr_o_dir, qc_o_dir, "" )
 
 	add_file_to_report( idr_qc, "IDR QC log", "", "QC and logs/IDR/IDR QC log" )
-	add_file_to_report( idr_opt, "opt. IDR peak", "", "Peaks/IDR/Optimal set/IDR peak" )
-	add_file_to_report( idr_consv, "consv. IDR peak", "", "Peaks/IDR/Conservative set/IDR peak" )
+	add_file_to_report( idr_opt, "opt. IDR peak", "", "Peaks/MACS2/IDR/Optimal set/IDR peak" )
+	add_file_to_report( idr_consv, "consv. IDR peak", "", "Peaks/MACS2/IDR/Conservative set/IDR peak" )
 
 	// FRiP (fraction of reads in peak)
 	if ( !is_input_peak() ) {
@@ -1409,7 +1501,11 @@ void report() {
 
 	wait
 
-	html := html_pipeline_version( "https://github.com/kundajelab/atac_dnase_pipelines/commit" ) // pipeline version info
+	string html
+	html += html_title()
+	html += html_cmd_line_args()
+	html += html_conf_file_info()
+	html += html_pipeline_version( "https://github.com/kundajelab/atac_dnase_pipelines/commit" ) // pipeline version info
 	html += html_filetable() 	// treeview for directory and file structure
 	html += html_atac_tracks() 	// epigenome browser tracks
 	html += html_graph()	// graphviz workflow diagram
@@ -1444,39 +1540,42 @@ string html_atac_QC() {
 	}
 
 	html := "<div id='atac_qc'>"
-	html += html_table_multiple_logs( "Flagstat (raw) QC", true, "flagstat", groups, flagstat_qcs )
-	html += html_table_multiple_logs( "Dup. QC", true, "dup", groups, dup_qcs )
-	html += html_table_multiple_logs( "Flagstat (filtered) QC", true, "flagstat_filt", groups, flagstat_nodup_qcs )
-	html += html_table_multiple_logs( "PBC QC", true, "pbc", groups, pbc_qcs )
+	html += html_table_multiple_logs( "Flagstat (raw) QC", false, "flagstat", groups, flagstat_qcs )
+	html += html_table_multiple_logs( "Dup. QC", false, "dup", groups, dup_qcs )
+	html += html_table_multiple_logs( "Flagstat (filtered) QC", false, "flagstat_filt", groups, flagstat_nodup_qcs )
+	html += html_table_multiple_logs( "Library Complexity QC", false, has_pe() ? "pbc_PE" : "pbc", groups, pbc_qcs )
 	if ( pbc_qcs.size()>0 ) html += html_help_pbc()
-	html += html_table_multiple_logs( "Cross-corr. QC", true, "xcor", groups, xcor_qcs )
-	if ( xcor_qcs.size()>0 ) html += html_help_xcor()
-
+	html += html_table_multiple_logs( "Enrichment QC (strand cross-correlation measures)", false, "xcor", groups, xcor_qcs )
+	if ( xcor_qcs.size()>0 ) html += html_help_xcor( subsample_xcor, has_se(), has_pe() )
 	// xcor images
 	for ( int i=0; i<xcor_plots.size(); i++ ) {
 		png := pdf_to_png( xcor_plots[i] )
 		html += html_img( png, 500, groups[i] ) + "&nbsp"
 	}
-
-	// if idr qc's exists, add them to html
-	if ( idr_qc != "" ) html += html_table_multiple_logs( "IDR QC", true, "idr", ["rep1"], [idr_qc] )
 	// IDR FRiP
 	if ( idr_qc_FRiP.size()>0 ) {
-		html += html_table_multiple_logs( "IDR FRiP", true, "idr_FRiP", idr_qc_FRiP )
+		html += html_table_multiple_logs( "Enrichment QC (Fraction of reads in peaks)", false, "idr_FRiP", idr_qc_FRiP )
 		html += html_help_idr_FRiP()
 	}	
-		
+	// if idr qc's exists, add them to html
+	if ( idr_qc != "" ) {
+		html += html_table_multiple_logs( "Reproducibility QC and Peak Detection Statistics (Irreproducible Discovery Rate)", \
+							false, "idr", ["rep1"], [idr_qc] )
+		html += html_help_idr( idr_thresh )
+	}
 	for ( int i=1; i<=get_num_rep(); i++ ) {
 		for ( int j=i+1; j<=get_num_rep(); j++ ) {
 			if ( idr_tr_png.hasKey("$i,$j") ) \
 				html += html_img( idr_tr_png{"$i,$j"}, 800, "true reps (rep$i-rep$j)" ) + "&nbsp"
 		}
+	}
+	if ( idr_ppr_png != "" ) html += html_img( idr_ppr_png, 800, "pooled pseudo-reps" ) + "&nbsp"
+	for ( int i=1; i<=get_num_rep(); i++ ) {
 		if ( !true_rep ) {
 			if ( idr_pr_png.hasKey(i) ) \
 				html += html_img( idr_pr_png{i}, 800, "rep$i pseudo-reps" ) + "&nbsp"
 		}
 	}
-	if ( idr_ppr_png != "" ) html += html_img( idr_ppr_png, 800, "pooled pseudo-reps" ) + "&nbsp"
 
 	html += html_table_multiple_logs( "ATAQC", false, "ataqc", groups, ataqc_qcs )
 
@@ -1525,3 +1624,33 @@ bool is_dnase_seq() {
 	return type.toLower().startsWith( "dnase" )
 }
 
+void tar_all_logs() {
+	// *.align.log: bowtie2 log
+	// *_qc.txt: ATAQC text report
+	// *_qc.html: ATAQC HTML report
+	string tar_gz
+	mkdir("$out_dir/qc")
+	if ( title ) tar_gz = "$out_dir/qc/$title.all_quality_metrics.tar.gz"
+	else tar_gz = "$out_dir/qc/all_quality_metrics.tar.gz"
+
+	taskName:= "tar_all_logs"
+	system 	:= "local"
+	tid := task {
+		sys cd $out_dir
+		sys find . -type f \
+			-name '*.align.log' -or \
+			-name '*.qc' -or \
+			-name '*.pdf' -or \
+			-name '*.png' -or \
+			-name '*_qc.txt' -or \
+			-name '*_qc.html' -or \
+			-name '*read_length.txt' \
+			| xargs tar -czvf $tar_gz
+	}
+
+	wait
+
+	string[] empty
+	add_ENCODE_quality_metrics_to_summary_json( "generic_quality_metric", "", \
+							empty, [tar_gz] )
+}

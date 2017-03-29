@@ -32,9 +32,11 @@ void init_git() { // print latest git commit info
 string html_pipeline_version( string git_url_prefix ) {
 	string html	
 	if ( latest_git_commit_sha1 != "" ) {
-		html = "<div id='latest_git_commit'><b>Pipeline version</b> (latest git commit SHA1):"+\
+		html += "<div id='latest_git_commit'><b>Pipeline version</b><br><p>"
+		html += "Latest git commit SHA1: "+\
 			"<a target=_blank, href=$git_url_prefix/$latest_git_commit_sha1>$latest_git_commit_sha1</a>"+\
-			" ($latest_git_commit_date)</div><br>\n"
+			" ($latest_git_commit_date)\n"
+		html += "</p></div><br>\n"
 	}
 
 	return html

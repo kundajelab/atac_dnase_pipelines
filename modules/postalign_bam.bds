@@ -107,7 +107,7 @@ string[] dedup_bam( string bam, string o_dir, string log_o_dir, string group, in
 	filt_bam 	:= "$prefix.filt.bam"
 
 	in	:= [ bam ]
-	out	:= no_dup_removal ? [filt_bam ] : [ nodup_bam, dup_qc, map_qc, pbc_qc ]
+	out	:= no_dup_removal ? [filt_bam, map_qc, pbc_qc ] : [ nodup_bam, dup_qc, map_qc, pbc_qc ]
 
 	cpus 	:= (nth_dedup==1) ? -1 : nth_dedup; mem := get_res_mem(mem_dedup,nth_dedup);	timeout := get_res_wt(wt_dedup)
 
@@ -231,7 +231,7 @@ string[] dedup_bam_PE( string bam, string o_dir, string log_o_dir, string group,
 	filt_bam 	:= "$prefix.filt.bam"
 
 	in 	:= [ bam ]
-	out 	:= no_dup_removal ? [ filt_bam ] : [ nodup_bam, dup_qc, map_qc, pbc_qc ]
+	out 	:= no_dup_removal ? [ filt_bam, map_qc, pbc_qc ] : [ nodup_bam, dup_qc, map_qc, pbc_qc ]
 
 	cpus 	:= (nth_dedup==1) ? -1 : nth_dedup; mem := get_res_mem(mem_dedup,nth_dedup);	timeout := get_res_wt(wt_dedup)
 

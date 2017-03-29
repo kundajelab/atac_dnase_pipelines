@@ -32,6 +32,6 @@ void init_output() {
 
 string get_rel_path( string path ) { // get relative path according to $out_dir
 	rel_path := path.path().replace( out_dir.path(), "." )
-	if ( rel_path == path.path() ) 	return ""
+	if ( rel_path == path.path() ) 	return path //""
 	else 				return rel_path
 }

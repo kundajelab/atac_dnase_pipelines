@@ -105,7 +105,7 @@ string trim_adapters( string fastq, string adapter, string o_dir, string group, 
 
 	register_par( tid, cpus )
 
-	add_task_to_graph( in, out, group, "CUTADAPT\\n$graph_suffix", grp_color_trim_adapter )
+	add_task_to_graph( in, out, group, "CUT-\\nADAPT$graph_suffix", grp_color_trim_adapter )
 
 	return out
 }
@@ -145,7 +145,7 @@ string[] trim_adapters_PE( string fastq1, string fastq2, string adapter1, string
 
 	register_par( tid, cpus )
 
-	add_task_to_graph( in, out, group, "CUTADAPT\\n$graph_suffix", grp_color_trim_adapter )
+	add_task_to_graph( in, out, group, "CUT-\\nADAPT$graph_suffix", grp_color_trim_adapter )
 
 	return out
 }

@@ -162,17 +162,19 @@ string _make_dot( string file ) {
 				new_in_label := _find_label( new_in_path )
 				in_group := _find_group( new_in_path )
 				in_full := "$new_in_label-$in_group"
-				in_rel_path:= "../" + get_rel_path( new_in_path )
-
+				in_rel_path:= get_rel_path( new_in_path )
+				string in_extra_param
+				if ( path_exists("$out_dir/$in_rel_path") ) in_extra_param = "href=\"../$in_rel_path\","
 				nodes{in_full} = "\t\"$in_full\" [label=\"$new_in_label\",id=\"$in_full\"style=\"$grp_style_node\","+\
-						"fillcolor=$grp_color_node,tooltip=\"$in_rel_path\",href=\"$in_rel_path\",target=\"_blank\"];"
+						"fillcolor=$grp_color_node,tooltip=\"$in_rel_path\",$in_extra_param target=\"_blank\"];"
 
 				out_group := _find_group( out[j] )
 				out_full  := "$out_label-$out_group"
-				out_rel_path := "../" + get_rel_path( out[j] )
-
+				out_rel_path := get_rel_path( out[j] )
+				string out_extra_param
+				if ( path_exists("$out_dir/$out_rel_path") ) out_extra_param = "href=\"../$out_rel_path\","
 				nodes{out_full} = "\t\"$out_full\" [label=\"$out_label\",id=\"$out_full\",style=\"$grp_style_node\","+\
-						"fillcolor=$grp_color_node,tooltip=\"$out_rel_path\",href=\"$out_rel_path\",target=\"_blank\"];"
+						"fillcolor=$grp_color_node,tooltip=\"$out_rel_path\",$out_extra_param target=\"_blank\"];"
 
 				in_to_out := "\t\"$in_full\" -> \"$out_full\";\n"
 

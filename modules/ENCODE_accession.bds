@@ -142,8 +142,8 @@ void add_ENCODE_quality_metrics_to_summary_json( string ENCODE_qc_type, string s
 	json{"award"} = ENCODE_award // ENCODE rfa
 	json{"lab"} = ENCODE_lab // lab
 	// json{"assembly"} = ENCODE_assembly
-	json{"quality_metric_of:array"} = _get_ENCODE_aliases( quality_metric_of )
-	json{"step_run"} = step_run
+	if ( quality_metric_of ) json{"quality_metric_of:array"} = _get_ENCODE_aliases( quality_metric_of )
+	if ( step_run ) json{"step_run"} = step_run
 	json{"ENCODE_qc_type"} = ENCODE_qc_type
 	
 	if ( ENCODE_qc_type == "samtools_flagstats_quality_metric" ) { // flagstat (raw)
