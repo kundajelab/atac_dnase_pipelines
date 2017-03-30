@@ -1206,8 +1206,21 @@ void do_idr() {
 		add_file_to_report( gpeak_overlap, "g. peak\\noverlap", "", "Peaks/MACS2/Naive overlap/Gapped peak" )
 
 	// do IDR
-
-	idr_o_dir := mkdir( "$out_dir/peak/idr" )
+	peak_o_dir := "$out_dir/peak/macs2"
+	idr_o_dir_old_version := "$peak_o_dir/../idr"
+	idr_o_dir := "$peak_o_dir/idr"
+	// for backward compatility (old version has idr on out/peak), make symlink for old dir. to new dir. 
+	if ( path_exists( idr_o_dir_old_version ) ) { 
+		system := "local"
+		task {
+			sys cd $peak_o_dir
+			sys rm -f idr
+			sys ln -s ../idr
+		}
+	}
+	else {
+		idr_o_dir = mkdir( idr_o_dir )
+	}
 
 	for ( int i=1; i<=get_num_rep(); i++ ) {
 
