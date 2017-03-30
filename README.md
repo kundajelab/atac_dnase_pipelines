@@ -155,6 +155,47 @@ $ ./install_genome_data.sh [GENOME] /your/data/bds_pipeline_genome_data
 
 You can find a species file `[SPECIES_FILE]` on `/your/data/bds_pipeline_genome_data` for each pipeline type. Then others can use the genome data by adding `-species_file [SPECIES_FILE_PATH]` to the pipeline command line. Or they need to add `species_file = [SPECIES_FILE_PATH]` to the section `[default]` in their `./default.env`.
 
+# Installation for internet-free computers
+
+The pipeline does not need internet connection but installers (`install_dependencies.sh` and `install_genome_data.sh`) do need it. So the workaround should be that first install dependencies and genome data on a computer that is connected to the internet and then move Conda and genome database directories to your internet-free one. Both computers should have **THE SAME LINUX VERSION**. 
+
+* On your computer that has an internet access,
+  * Follow [the installation instruction for general computers](#installation)
+  * Move your Miniconda3 directory to `$HOME/miniconda3` on your internet-free computer.
+  * Move your genome database directory, which has `bds_atac_species.conf` and directories per species, to `$HOME/genome_data` on your internet-free computer. `$HOME/genome_data` on your internet-free computer should have `bds_atac_species.conf`.
+  * Move your BDS directory `$HOME/.bds` to `$HOME/.bds` on your internet-free computer.
+  * Move your pipeline directory `atac_dnase_pipelines/` to `$HOME/atac_dnase_pipelines/` on your internet-free computer.
+
+* On your internet-free computer,
+  * Add your `miniconda3/bin` and BDS binary to `$PATH` in your bash initialization script (`$HOME/.bashrc` or `$HOME/.bash_profile`).
+
+     ```
+     export PATH="$PATH:$HOME/miniconda3/bin"
+     export PATH="$PATH:$HOME/.bds"
+     ```
+
+  * Modify `[default]` section in `$HOME/atac_dnase_pipelines/default.env`.
+
+     ```
+     [default]
+     conda_bin_dir=$HOME/miniconda3/bin
+     species_file=$HOME/genome_data/bds_atac_species.conf
+     ```
+
+* Modify all paths in `$HOME/genome_data/bds_atac_species.conf` so that they correctly point to the right files.
+* Check BDS version.
+     ```
+     $ bds -version
+     Bds 0.99999e (build 2016-08-26 06:34), by Pablo Cingolani
+     ```
+* Make sure that your java rumtime version is >= 1.8.
+     ```
+     $ java -version
+     java version "1.8.0_111"
+     Java(TM) SE Runtime Environment (build 1.8.0_111-b14)
+     Java HotSpot(TM) 64-Bit Server VM (build 25.111-b14, mixed mode)
+     ```
+
 # Usage
 
 We recommend using BASH to run pipelines.
