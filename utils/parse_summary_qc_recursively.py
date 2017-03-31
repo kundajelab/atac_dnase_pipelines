@@ -2,7 +2,9 @@
 
 # written by Jin Lee, 2016
 
-import os, sys
+import os
+import sys
+import re
 import argparse
 import json
 import subprocess
@@ -54,6 +56,9 @@ headers['common'] = [\
 for json in jsons:
     for qc_file in json['qc_files']:
         qc_type = qc_file['qc_type']
+        if qc_type == 'pbc_PE':
+            qc_type = 'pbc'
+            qc_file['qc_type'] = qc_type
         header_list = qc_file['header'].split('\t')        
         if not qc_type in headers or len(headers[qc_type])<len(header_list):
             headers[qc_type] = header_list
@@ -80,7 +85,9 @@ for json in jsons:
     # count # of replicates per sample
     replicates = set()
     for qc_file in json['qc_files']:
-        replicates.add( qc_file['info'] )
+        info = qc_file['info'].replace('-pr','' )
+        if not re.match(r'^rep\d+$', info): continue
+        replicates.add( info )
 
     for rep in sorted(replicates):
         result = json['ENCODE_award_rfa']+'\t'+\
@@ -95,7 +102,9 @@ for json in jsons:
             registered_header_list = headers[qc_type]
             found = False
             for qc_file in json['qc_files']:
-                if rep != qc_file['info']:
+                info = qc_file['info'].replace('-pr','' )
+                if not re.match(r'^rep\d+$', info): continue
+                if rep != info:
                     continue
                 if qc_type == qc_file['qc_type']:
                     header_list = qc_file['header'].split('\t')
