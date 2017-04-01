@@ -239,6 +239,7 @@ string{} parse_dup( string log ) {
 string{} parse_pbc( string log ) {
 	string{} result
 	line := log.read()
+	print("DEBUG parse_pbc($log): $line\n")
 	arr := line.trim().split("\t")
 
 	result{"total_read_pairs"} = arr[0]

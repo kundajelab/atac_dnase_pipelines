@@ -526,7 +526,7 @@ void align_SE( int rep, int nth_rep ) {
 			add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
 		}
 		pbc_qc{rep} = pbc_qc_
-		add_file_to_table( dup_qc_, "QC and logs/$long/PBC log")
+		add_file_to_table( pbc_qc_, "QC and logs/$long/PBC log")
 		wait
 		// add to report
 		flagstat_nodup_qc{rep} = flagstat_nodup_qc_
@@ -803,14 +803,14 @@ void align_PE( int rep, int nth_rep ) {
 			(filt_bam_, flagstat_nodup_qc_, pbc_qc_ ) \
 				= dedup_bam_PE( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
 		}
-		else {		
+		else {
 			(filt_bam_, dup_qc_, flagstat_nodup_qc_, pbc_qc_ ) \
 				= dedup_bam_PE( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
 			dup_qc{rep} = dup_qc_
 			add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
 		}
 		pbc_qc{rep} = pbc_qc_
-		add_file_to_table( dup_qc_, "QC and logs/$long/PBC log")
+		add_file_to_table( pbc_qc_, "QC and logs/$long/PBC log")
 		wait
 		// add to report
 		flagstat_nodup_qc{rep} = flagstat_nodup_qc_
