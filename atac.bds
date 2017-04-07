@@ -538,16 +538,18 @@ void align_SE( int rep, int nth_rep ) {
 			"Alignment/$long/Filtered & deduped bam" + (deduped_reads ? " ($deduped_reads)" : "") )
 
 		// For ENCODE accession, use different step name for single rep case
-		string ENCODE_step_name
-		if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-single-rep-v1"
-		else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-v1"
+		if ( is_input_fastq( rep ) ) {
+			string ENCODE_step_name
+			if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-single-rep-v1"
+			else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-v1"
 
-		if ( fastqs.size() > 0 ) \
-			add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", \
-				ENCODE_step_name, filt_bam_, fastqs )
-		if ( flagstat_qc_ ) { 
-			add_ENCODE_quality_metrics_to_summary_json( "samtools_flagstats_quality_metric", \
-				ENCODE_step_name, [filt_bam_], [flagstat_qc_] )
+			if ( fastqs.size() > 0 ) \
+				add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", \
+					ENCODE_step_name, filt_bam_, fastqs )
+			if ( flagstat_qc_ ) { 
+				add_ENCODE_quality_metrics_to_summary_json( "samtools_flagstats_quality_metric", \
+					ENCODE_step_name, [filt_bam_], [flagstat_qc_] )
+			}
 		}
 	}
 
@@ -821,16 +823,18 @@ void align_PE( int rep, int nth_rep ) {
 		add_file_to_report( filt_bam_, "filt. bam" + (deduped_reads ? "\\n$deduped_reads" : ""), group, \
 			"Alignment/$long/Filtered & deduped bam" + (deduped_reads ? " ($deduped_reads)" : "") )
 
-		string ENCODE_step_name
-		if ( get_num_rep()==1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-single-rep-v1"
-		else 			ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-v1"
-		if ( fastqs_pair1.size() > 0 || fastqs_pair2.size() > 0 ) {
-			add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", \
-				ENCODE_step_name, filt_bam_, fastqs_pair1+fastqs_pair2 )
-		}
-		if ( flagstat_qc_) { 
-			add_ENCODE_quality_metrics_to_summary_json( "samtools_flagstats_quality_metric", \
-				ENCODE_step_name, [filt_bam_], [flagstat_qc_] )
+		if ( is_input_fastq( rep ) ) {
+			string ENCODE_step_name
+			if ( get_num_rep()==1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-single-rep-v1"
+			else 			ENCODE_step_name = "anshul-kundaje:atac-seq-trim-align-filter-step-run-v1"
+			if ( fastqs_pair1.size() > 0 || fastqs_pair2.size() > 0 ) {
+				add_ENCODE_metadata_to_summary_json( "bam", "", "alignments", \
+					ENCODE_step_name, filt_bam_, fastqs_pair1+fastqs_pair2 )
+			}
+			if ( flagstat_qc_) { 
+				add_ENCODE_quality_metrics_to_summary_json( "samtools_flagstats_quality_metric", \
+					ENCODE_step_name, [filt_bam_], [flagstat_qc_] )
+			}
 		}
 	}
 
@@ -1664,6 +1668,11 @@ void tar_all_logs() {
 	wait
 
 	string[] empty
-	add_ENCODE_quality_metrics_to_summary_json( "generic_quality_metric", "", \
+	string ENCODE_step_name
+	if ( get_num_rep() == 1 ) \
+		ENCODE_step_name = "anshul-kundaje:atac-seq-unreplicated-idr-step-run-single-rep-v1"
+	else \
+		ENCODE_step_name = "anshul-kundaje:atac-seq-idr-step-run-v1"
+	add_ENCODE_quality_metrics_to_summary_json( "generic_quality_metric", ENCODE_step_name, \
 							empty, [tar_gz] )
 }

@@ -92,8 +92,8 @@ for ENCODE_qc_type in raw_headers:
 # for each replicate, write contents
 lines = dict()
 for json in jsons:
-    if json['ENCODE_accession'] in ignored_accession_ids: continue
-    if not 'ENCODE_quality_metrics' in json: continue
+    if ignored_accession_ids and json['ENCODE_accession'] in ignored_accession_ids: continue
+    if accession_ids and not json['ENCODE_accession'] in accession_ids: continue
     data_files = json['ENCODE_quality_metrics']
     for data_file in data_files:
         ENCODE_qc_type = data_file["ENCODE_qc_type"]
