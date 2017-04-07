@@ -1319,31 +1319,32 @@ void filter_peak_and_convert_to_bigbed() {
 		wait
 		// For ENCODE accession, use different step name for single rep case
 		string ENCODE_step_name
-		if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-peaks-filter-step-run-single-rep-v1"
-		else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-peaks-filter-step-run-v1"
-		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "filtered peaks", \
-			ENCODE_step_name, filt_peak_001, [filt_bam{rep}])
-		add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "filtered peaks", \
-			ENCODE_step_name, filt_gpeak_001, [filt_bam{rep}])
+		if ( is_input_fastq( rep ) ) {
+			if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-peaks-filter-step-run-single-rep-v1"
+			else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-peaks-filter-step-run-v1"
+			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "filtered peaks", \
+				ENCODE_step_name, filt_peak_001, [filt_bam{rep}])
+			add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "filtered peaks", \
+				ENCODE_step_name, filt_gpeak_001, [filt_bam{rep}])
 
-		if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-signal-generation-step-run-single-rep-v1"
-		else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-signal-generation-step-run-v1"
-		add_ENCODE_metadata_to_summary_json( "bigWig", "", "signal p-value", \
-			ENCODE_step_name, pval_bigwig_001{rep}, [filt_bam{rep}])
-		add_ENCODE_metadata_to_summary_json( "bigWig", "", "fold change over control", \
-			ENCODE_step_name, fc_bigwig_001{rep}, [filt_bam{rep}])
+			if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-signal-generation-step-run-single-rep-v1"
+			else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-signal-generation-step-run-v1"
+			add_ENCODE_metadata_to_summary_json( "bigWig", "", "signal p-value", \
+				ENCODE_step_name, pval_bigwig_001{rep}, [filt_bam{rep}])
+			add_ENCODE_metadata_to_summary_json( "bigWig", "", "fold change over control", \
+				ENCODE_step_name, fc_bigwig_001{rep}, [filt_bam{rep}])
 
-		npeak_bb := peak_to_bigbed( "narrowPeak", filt_peak_001, filt_peak_001.dirName(), "peak $rep" )
-		gpeak_bb := peak_to_bigbed( "gappedPeak", filt_gpeak_001, filt_gpeak_001.dirName(), "gpeak $rep" )
+			npeak_bb := peak_to_bigbed( "narrowPeak", filt_peak_001, filt_peak_001.dirName(), "peak $rep" )
+			gpeak_bb := peak_to_bigbed( "gappedPeak", filt_gpeak_001, filt_gpeak_001.dirName(), "gpeak $rep" )
 
-		wait
-		if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-filtered-peaks-to-bigbed-step-run-single-rep-v1"
-		else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-filtered-peaks-to-bigbed-step-run-v1"
-		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "filtered peaks", \
-			ENCODE_step_name, npeak_bb, [filt_peak_001])
-		add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "filtered peaks", \
-			ENCODE_step_name, gpeak_bb, [filt_gpeak_001])
-
+			wait
+			if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-filtered-peaks-to-bigbed-step-run-single-rep-v1"
+			else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-filtered-peaks-to-bigbed-step-run-v1"
+			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "filtered peaks", \
+				ENCODE_step_name, npeak_bb, [filt_peak_001])
+			add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "filtered peaks", \
+				ENCODE_step_name, gpeak_bb, [filt_gpeak_001])
+		}
 		filt_peaks.add(filt_peak_001)
 		filt_gpeaks.add(filt_gpeak_001)
 	}
