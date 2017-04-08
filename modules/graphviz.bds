@@ -106,7 +106,7 @@ string html_graph() { // graph diagram
 }
 
 string _make_dot( string file ) {
-	dot_contents := "digraph {\n\nrankdir=LR\n\nnode [shape=$grp_shape_node,style=\"$grp_style_node\",margin=0,fontsize=$grp_fontsize_node];" + \
+	dot_contents := "strict digraph {\n\nrankdir=LR\n\nnode [shape=$grp_shape_node,style=\"$grp_style_node\",margin=0,fontsize=$grp_fontsize_node];" + \
 			"\nedge [color=$grp_color_edge,fontsize=$grp_fontsize_node,arrowsize=0.5];\n\n";
 
 	string{} nodes // key: file type, val: 1 line node definition
