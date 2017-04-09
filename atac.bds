@@ -1398,11 +1398,15 @@ void filter_peak_and_convert_to_bigbed() {
 		add_ENCODE_quality_metrics_to_summary_json( "idr_quality_metric", \
 			ENCODE_step_name, \
 			idr_ENCODE, [idr_qc], \
-			[ idr_thresh, \
-			idr_tr_png.hasKey("1,2") ? idr_tr_png{"1,2"} : "", idr_pr_png{1}, \
-				idr_pr_png.hasKey(2) ? idr_pr_png{2} : "", idr_ppr_png, \
-			idr_tr_log.hasKey("1,2") ? idr_tr_log{"1,2"} : "", idr_pr_log{1}, \
-				idr_pr_log.hasKey(2) ? idr_pr_log{2} : "", idr_ppr_log] )
+				[ idr_thresh, \
+				idr_tr_png.hasKey("1,2") ? idr_tr_png{"1,2"} : "", \
+				idr_pr_png.hasKey(1) ? idr_pr_png{1} : "", \
+				idr_pr_png.hasKey(2) ? idr_pr_png{2} : "", \
+				idr_ppr_png, \
+				idr_tr_log.hasKey("1,2") ? idr_tr_log{"1,2"} : "", \
+				idr_pr_log.hasKey(1) ? idr_pr_log{1} : "", \
+				idr_pr_log.hasKey(2) ? idr_pr_log{2} : "", \
+				idr_ppr_log] )
 	}
 
 	// naive overlap peaks
