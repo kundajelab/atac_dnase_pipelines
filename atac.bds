@@ -1276,12 +1276,14 @@ void do_idr() {
 	// FRiP (fraction of reads in peak)
 	if ( !is_input_peak() ) {
 		for ( int rep=1; rep<=get_num_rep(); rep++ ) {
-			idr_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep$rep" )
-			idr_qc_FRiP{"rep$rep-pr"} = \
-				FRiP( final_tag{rep}, idr_pr{rep}, idr_pr_o_dir, "rep$rep-pr" )
-			add_file_to_table( idr_qc_FRiP{"rep$rep-pr"}, "QC and logs/IDR/Pseudo-replicates/Replicate $rep/FRiP" )
+			if ( idr_pr.hasKey(rep) ) {
+				idr_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep$rep" )
+				idr_qc_FRiP{"rep$rep-pr"} = \
+					FRiP( final_tag{rep}, idr_pr{rep}, idr_pr_o_dir, "rep$rep-pr" )
+				add_file_to_table( idr_qc_FRiP{"rep$rep-pr"}, "QC and logs/IDR/Pseudo-replicates/Replicate $rep/FRiP" )
+			}
 		}
-		if ( get_num_rep()>1 ) {
+		if ( get_num_rep()>1 && idr_ppr ) {
 			idr_ppr_o_dir := mkdir( "$idr_o_dir/pooled_pseudo_reps" )
 			idr_qc_FRiP{"ppr"} = \
 				FRiP( final_tag_pooled, idr_ppr, idr_ppr_o_dir, "ppr" )
