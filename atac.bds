@@ -1354,7 +1354,7 @@ void filter_peak_and_convert_to_bigbed() {
 	wait
 
 	string ENCODE_step_name
-	if ( idr_qc && idr_opt && idr_consv ) {
+	if ( !no_idr && idr_qc && idr_opt && idr_consv ) {
 
 		string[] idr_ENCODE 
 		// IDR peaks
