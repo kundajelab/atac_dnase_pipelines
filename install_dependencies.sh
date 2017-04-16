@@ -46,6 +46,11 @@ CONDA_BIN=$(dirname $(which activate))
 CONDA_EXTRA="$CONDA_BIN/../extra"
 CONDA_ACTIVATE_D="$CONDA_BIN/../etc/conda/activate.d"
 CONDA_INIT="$CONDA_ACTIVATE_D/init.sh"
+CONDA_LIB="$CONDA_BIN/../lib"
+if [[ $(find $CONDA_LIB -name 'PKG-INFO' -not -perm -o+r | wc -l ) > 0 ]]; then
+  find $CONDA_LIB -name 'PKG-INFO' -not -perm -o+r -exec dirname {} \; | xargs chmod o+r -R
+fi
+
 mkdir -p $CONDA_EXTRA $CONDA_ACTIVATE_D
 
 ### install Anshul's phantompeakqualtool
