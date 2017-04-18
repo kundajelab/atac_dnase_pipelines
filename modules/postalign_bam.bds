@@ -15,6 +15,7 @@ no_dup_removal 	:= false	help No dupe removal when filtering raw bam.
 wt_dedup 	:= "23h" 	help Walltime for post-alignment filtering (default: 23h, 24:00:00).
 mem_dedup	:= "12G" 	help Max. memory for post-alignment filtering (default: 12G).
 
+dup_marker 	:= "picard"	help Dup marker for filtering mapped reaads in BAMs: picard or sambamba (default: picard).
 use_sambamba_markdup	:= false	help Use sambamba markdup instead of Picard MarkDuplicates (default: false).
 
 
@@ -55,6 +56,7 @@ void init_postalign_bam() {
 
 	wt_dedup 		= get_conf_val( wt_dedup, 		["wt_dedup"] )
 	mem_dedup 		= get_conf_val( mem_dedup, 		["mem_dedup"] )
+	dup_marker 		= get_conf_val( dup_marker, 		["dup_marker"] )
 	use_sambamba_markdup	= get_conf_val_bool( use_sambamba_markdup, ["use_sambamba_markdup"] )
 
 	print("\n\n== postalign bam settings\n")
@@ -63,7 +65,16 @@ void init_postalign_bam() {
 	print( "No dupe removal in filtering raw bam\t: $no_dup_removal\n")
 	print( "Walltime (bam filter)\t\t: $wt_dedup\n")
 	print( "Max. memory (bam filter)\t: $mem_dedup\n")
+	print( "Dup marker\t\t\t\t: $dup_marker\n")	
 	print( "Use sambamba markdup (instead of picard)\t: $use_sambamba_markdup\n")
+
+	dup_marker = dup_marker.toLower()
+	if ( dup_marker != "sambamba" && dup_marker != "picard" ) {
+		error("Choose dup marker between 'sambamba' or 'picard'!")
+	}
+	if ( use_sambamba_markdup ) {
+		dup_marker = "sambamba"
+	}
 }
 
 // use sambamba
@@ -156,7 +167,7 @@ string[] dedup_bam( string bam, string o_dir, string log_o_dir, string group, in
 
 			string dupmark_bam, dup_qc
 
-			if ( use_sambamba_markdup ) {
+			if ( dup_marker == "sambamba" ) {
 				(dupmark_bam, dup_qc) = markdup_bam_sambamba( filt_bam, o_dir, log_o_dir, group, nth_dedup )
 			} 
 			else {
@@ -292,7 +303,7 @@ string[] dedup_bam_PE( string bam, string o_dir, string log_o_dir, string group,
 			/////// step 2
 			string dupmark_bam, dup_qc
 
-			if ( use_sambamba_markdup ) {
+			if ( dup_marker == "sambamba" ) {
 				(dupmark_bam, dup_qc) = markdup_bam_sambamba( filt_bam, o_dir, log_o_dir, group, nth_dedup )
 			}
 			else {

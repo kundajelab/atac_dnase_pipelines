@@ -7,7 +7,7 @@ include "conf.bds"
 help == cluster/system/resource settings
 wt 		:= "5h50m"	help Walltime for all single-threaded tasks (example: 8:10:00, 3h, 3600, default: 5h50m, 5:50:00).
 memory 		:= "7G"		help Maximum memory for all single-threaded tasks (equivalent to '-mem', example: 4.5G, 1024M, default: 7G).
-use_system 	:= "" 		help Force to use a system (equivalent to 'bds -s [SYSTEM_NAME] ...', any system defined in bds.config can be used).
+use_system 	:= "local"	help Force to use a system (equivalent to 'bds -s [SYSTEM_NAME] ...', any system defined in bds.config can be used).
 nice 		:= 0 		help Set process priority for all tasks (default: 0; -20 (highest) ~ 19 (lowest) ).
 retrial		:= 0 		help # of Retrial for failed tasks (default: 0).
 q 		:= ""		help Submit tasks to a specified cluster queue.

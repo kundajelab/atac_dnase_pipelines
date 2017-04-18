@@ -5,7 +5,7 @@ include "conf.bds"
 
 
 help == species settings
-species		:= "" 		help Species. If not on kundaje lab servers, specify '-species_file' too.
+species		:= "" 		help Species. need to specify '-species_file' too if you have not installed genome database with 'install_genome_data.sh'.
 species_file	:= ""		help Species file path.
 species_browser := "" 		help Species name in WashU genome browser.
 
