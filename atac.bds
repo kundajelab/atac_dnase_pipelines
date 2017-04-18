@@ -1213,7 +1213,7 @@ void do_idr() {
 	peak_o_dir := "$out_dir/peak/macs2"
 	idr_o_dir_old_version := "$peak_o_dir/../idr"
 	idr_o_dir := "$peak_o_dir/idr"
-	// for backward compatility (old version has idr on out/peak), make symlink for old dir. to new dir. 
+	// for backward compatibility (old version has idr on out/peak), make symlink for old dir. to new dir. 
 	if ( path_exists( idr_o_dir_old_version ) ) { 
 		system := "local"
 		task {
@@ -1225,6 +1225,7 @@ void do_idr() {
 	else {
 		idr_o_dir = mkdir( idr_o_dir )
 	}
+	wait
 
 	for ( int i=1; i<=get_num_rep(); i++ ) {
 
