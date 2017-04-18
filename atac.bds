@@ -1236,7 +1236,7 @@ void do_idr() {
 				= idr2( top_peak{i}, top_peak{j}, top_peak_pooled, idr_thresh, "p.value", idr_true_o_dir, "rep$i-rep$j" )
 
 			add_file_to_report( idr_tr{"$i,$j"}, "IDR peak", "rep$i-rep$j", "Peaks/MACS2/IDR/True replicates/Rep. $i vs. Rep. $j/IDR peak" )
-			add_file_to_table( idr_tr_png{"$i,$j"}, "QC and logs/IDR/True replicates/Rep. $i vs. Rep. $j/IDR plot" )
+			add_file_to_table( idr_tr_png{"$i,$j"}, "QC and logs/IDR/True replicates/Rep. $i vs. Rep. $j/IDR plot" )	
 		}
 
 		if ( !true_rep ) {
@@ -1261,7 +1261,36 @@ void do_idr() {
 		add_file_to_report( idr_ppr, "IDR peak", "ppr", "Peaks/MACS2/IDR/Pooled pseudo-replicates/IDR peak" )
 		add_file_to_table( idr_ppr_png, "QC and logs/IDR/Pooled pseudo-replicates/IDR plot" )
 	}
+	wait
 
+	// FRiP calculation
+	for ( int i=1; i<=get_num_rep(); i++ ) {
+		for ( int j=i+1; j<=get_num_rep(); j++ ) {
+			idr_true_o_dir 	:= mkdir( "$idr_o_dir/true_reps/rep$i-rep$j" )
+			if ( final_tag_pooled ) {
+				idr_qc_FRiP{"rep$i-rep$j"} = \
+					FRiP( final_tag_pooled, idr_tr{"$i,$j"}, idr_true_o_dir, "rep$i-rep$j" )
+				add_file_to_table( idr_qc_FRiP{"rep$i-rep$j"}, \
+					"QC and logs/IDR/True replicates/Rep. $i vs. Rep. $j/FRiP" )
+			}
+		}
+		if ( !true_rep ) {
+			idr_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep$i" )
+			if ( final_tag.hasKey(i) ) {
+				idr_qc_FRiP{"rep$i-pr"} = \
+					FRiP( final_tag{i}, idr_pr{i}, idr_pr_o_dir, "rep$i-pr" )
+				add_file_to_table( idr_qc_FRiP{"rep$i-pr"}, \
+					"QC and logs/IDR/Pseudo-replicates/Replicate $i/FRiP" )
+			}
+		}
+	}
+	if ( !true_rep && get_num_rep() > 1 ) {
+		idr_ppr_o_dir := mkdir( "$idr_o_dir/pooled_pseudo_reps" )
+		if ( final_tag_pooled ) {
+			idr_qc_FRiP{"ppr"} = FRiP( final_tag_pooled, idr_ppr, idr_ppr_o_dir, "ppr" )
+			add_file_to_table( idr_qc_FRiP{"ppr"}, "QC and logs/IDR/Pooled pseudo-replicates/FRiP" )
+		}
+	}
 	wait
 
 	qc_o_dir := mkdir( "$out_dir/qc" ) // create qc output dir.
@@ -1272,25 +1301,6 @@ void do_idr() {
 	add_file_to_report( idr_qc, "IDR QC log", "", "QC and logs/IDR/IDR QC log" )
 	add_file_to_report( idr_opt, "opt. IDR peak", "", "Peaks/MACS2/IDR/Optimal set/IDR peak" )
 	add_file_to_report( idr_consv, "consv. IDR peak", "", "Peaks/MACS2/IDR/Conservative set/IDR peak" )
-
-	// FRiP (fraction of reads in peak)
-	if ( !is_input_peak() ) {
-		for ( int rep=1; rep<=get_num_rep(); rep++ ) {
-			if ( idr_pr.hasKey(rep) ) {
-				idr_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep$rep" )
-				idr_qc_FRiP{"rep$rep-pr"} = \
-					FRiP( final_tag{rep}, idr_pr{rep}, idr_pr_o_dir, "rep$rep-pr" )
-				add_file_to_table( idr_qc_FRiP{"rep$rep-pr"}, "QC and logs/IDR/Pseudo-replicates/Replicate $rep/FRiP" )
-			}
-		}
-		if ( get_num_rep()>1 && idr_ppr ) {
-			idr_ppr_o_dir := mkdir( "$idr_o_dir/pooled_pseudo_reps" )
-			idr_qc_FRiP{"ppr"} = \
-				FRiP( final_tag_pooled, idr_ppr, idr_ppr_o_dir, "ppr" )
-			add_file_to_table( idr_qc_FRiP{"ppr"}, "QC and logs/IDR/Pooled pseudo-replicates/FRiP" )
-		}
-	}
-	wait
 
 	print( "\n== Done do_idr()\n" )
 }
@@ -1398,7 +1408,12 @@ void filter_peak_and_convert_to_bigbed() {
 			else 			ENCODE_step_name = "anshul-kundaje:atac-seq-idr-step-run-v1"
 			add_ENCODE_quality_metrics_to_summary_json( "idr_quality_metric", \
 				ENCODE_step_name, \
-				idr_ENCODE, [idr_qc], \
+				idr_ENCODE, \
+					[ idr_qc, \
+					idr_qc_FRiP.hasKey("ppr") ? idr_qc_FRiP{"ppr"} : "",\
+					idr_qc_FRiP.hasKey("rep1-rep2") ? idr_qc_FRiP{"rep1-rep2"} : "",\
+					idr_qc_FRiP.hasKey("rep1-pr") ? idr_qc_FRiP{"rep1-pr"} : "",\
+					idr_qc_FRiP.hasKey("rep2-pr") ? idr_qc_FRiP{"rep2-pr"} : ""], \
 					[ idr_thresh, \
 					idr_tr_png.hasKey("1,2") ? idr_tr_png{"1,2"} : "", \
 					idr_pr_png.hasKey(1) ? idr_pr_png{1} : "", \
@@ -1407,7 +1422,7 @@ void filter_peak_and_convert_to_bigbed() {
 					idr_tr_log.hasKey("1,2") ? idr_tr_log{"1,2"} : "", \
 					idr_pr_log.hasKey(1) ? idr_pr_log{1} : "", \
 					idr_pr_log.hasKey(2) ? idr_pr_log{2} : "", \
-					idr_ppr_log] )
+					idr_ppr_log])
 		}
 	}
 

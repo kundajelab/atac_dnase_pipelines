@@ -65,7 +65,6 @@ bool chk_ataqc() {
 	// if ( reg2map == "" ) 	{ print("Warning: reg2map is missing ( '-reg2map' )!\n"); disable_ataqc  = true }
 	// if ( reg2map_bed == "" ){ print("Warning: reg2map_bed is missing ( '-reg2map_bed' )!\n"); disable_ataqc  = true }
 	// if ( roadmap_meta == "" ) { print("Warning: Roadmap metadata are missing ( '-roadmap_meta' )!\n"); disable_ataqc  = true }
-	print(reg2map_bed)
 
 	if ( disable_ataqc ) {
 		print("\nDisabling ATAQC...\n")
