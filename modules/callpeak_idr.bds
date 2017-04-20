@@ -153,7 +153,7 @@ string FRiP( string tag, string peak_file, string o_dir, string group ) {
 	tid := task( out<-in ) {
 		sys $shcmd_init
 		// method1
-		sys val1=$(bedtools intersect -a $tag -b <(zcat -f $peak_file) -wa -u | wc -l)
+		sys val1=$(bedtools intersect -a <(zcat -f $tag) -b <(zcat -f $peak_file) -wa -u | wc -l)
 		sys val2=$(zcat $tag | wc -l)
 		sys awk 'BEGIN {print '${val1}'/'${val2}'}' > $qc
 		sys $shcmd_finalize
