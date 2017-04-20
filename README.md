@@ -109,7 +109,7 @@ $ git clone https://github.com/kundajelab/atac_dnase_pipelines --recursive
 Install software dependencies automatically. It will create two conda environments (bds_atac and bds_atac_py3) under your conda.
 
 ```
-$ ./install_dependencies.sh
+$ bash install_dependencies.sh
 ```
 
 If you don't use `install_dependencies.sh`, manually replace BDS's default `bds.config` with a correct one:
@@ -118,13 +118,13 @@ If you don't use `install_dependencies.sh`, manually replace BDS's default `bds.
 $ cp bds.config ./utils/bds_scr $HOME/.bds
 ```
 
-If `install_dependencies.sh` fails, run `./uninstall_dependencies.sh`, fix problems and then try `./install_dependencies.sh` again.
+If `install_dependencies.sh` fails, run `./uninstall_dependencies.sh`, fix problems and then try `bash install_dependencies.sh` again.
 
 If you have super-user privileges on your system, it is recommended to install Miniconda3 on `/opt/miniconda3/` and share conda environment with others.
 
 ```
 $ sudo su
-$ ./install_dependencies.sh
+$ bash install_dependencies.sh
 $ chmod 755 -R /opt/miniconda3/  # if you get some annoying permission issues.
 ```
 
@@ -143,14 +143,14 @@ Install genome data for a specific genome `[GENOME]`. Currently `hg19`, `mm9`, `
 
 ```
 # DO NOT run this on a login node
-$ ./install_genome_data.sh [GENOME] [DATA_DIR]
+$ bash install_genome_data.sh [GENOME] [DATA_DIR]
 ```
 
 If you have super-user privileges on your system, it is recommended to install genome data on `/your/data/bds_pipeline_genome_data` and share them with others.
 
 ```
 $ sudo su
-$ ./install_genome_data.sh [GENOME] /your/data/bds_pipeline_genome_data
+$ bash install_genome_data.sh [GENOME] /your/data/bds_pipeline_genome_data
 ```
 
 You can find a species file `[SPECIES_FILE]` on `/your/data/bds_pipeline_genome_data` for each pipeline type. Then others can use the genome data by adding `-species_file [SPECIES_FILE_PATH]` to the pipeline command line. Or they need to add `species_file = [SPECIES_FILE_PATH]` to the section `[default]` in their `./default.env`.
