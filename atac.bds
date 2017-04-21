@@ -16,7 +16,7 @@ no_ataqc 	:= false 	help No ATAQC
 no_xcor 	:= false 	help No Cross-correlation analysis.
 csem	 	:= false	help Use CSEM for alignment.
 smooth_win 	:= "150" 	help Smoothing window size for MACS2 peak calling (default: 150).
-idr_thresh 	:= "0.1"	help IDR threshold : -log_10(score) (default: 0.1).
+idr_thresh 	:= 0.1		help IDR threshold : -log_10(score) (default: 0.1).
 old_trimmer 	:= false 	help Use legacy trim adapters (trim_galore and trimAdapter.py).
 ENCODE3		:= false	help Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE3.
 ENCODE		:= false	help Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE.
@@ -35,8 +35,9 @@ include "modules/align_etc.bds"
 
 include "modules/postalign_bam.bds"
 include "modules/postalign_bed.bds"
+include "modules/postalign_xcor.bds"
 
-include "modules/callpeak_macs2.bds"
+include "modules/callpeak_macs2_atac.bds"
 include "modules/callpeak_naive_overlap.bds"
 include "modules/callpeak_filter.bds"
 include "modules/callpeak_idr.bds"
@@ -123,7 +124,7 @@ void read_conf_atac() {
 	csem 		= get_conf_val_bool( csem, 		["csem"] )
 	smooth_win	= get_conf_val( smooth_win,		["smooth_win"] )
 	dnase_seq 	= get_conf_val_bool( dnase_seq, 	["dnase_seq"] )
-	idr_thresh 	= get_conf_val( idr_thresh, 		["idr_thresh"] )
+	idr_thresh 	= get_conf_val_real( idr_thresh, 	["idr_thresh"] )
 	subsample_xcor 	= get_conf_val( subsample_xcor,		["subsample_xcor"] )
 	subsample	= get_conf_val( subsample, 		["subsample"] )
 	old_trimmer 	= get_conf_val_bool( old_trimmer,	["old_trimmer"] )
@@ -1415,7 +1416,7 @@ void filter_peak_and_convert_to_bigbed() {
 					idr_qc_FRiP.hasKey("rep1-rep2") ? idr_qc_FRiP{"rep1-rep2"} : "",\
 					idr_qc_FRiP.hasKey("rep1-pr") ? idr_qc_FRiP{"rep1-pr"} : "",\
 					idr_qc_FRiP.hasKey("rep2-pr") ? idr_qc_FRiP{"rep2-pr"} : ""], \
-					[ idr_thresh, \
+					[ "$idr_thresh", \
 					idr_tr_png.hasKey("1,2") ? idr_tr_png{"1,2"} : "", \
 					idr_pr_png.hasKey(1) ? idr_pr_png{1} : "", \
 					idr_pr_png.hasKey(2) ? idr_pr_png{2} : "", \

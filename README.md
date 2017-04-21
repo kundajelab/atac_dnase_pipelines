@@ -326,7 +326,7 @@ $ bds atac.bds
         -no_xcor <bool>                  : No Cross-correlation analysis.
         -csem <bool>                     : Use CSEM for alignment.
         -smooth_win <string>             : Smoothing window size for MACS2 peak calling (default: 150).
-        -idr_thresh <string>             : IDR threshold : -log_10(score) (default: 0.1).
+        -idr_thresh <real>               : IDR threshold : -log_10(score) (default: 0.1).
         -old_trimmer <bool>              : Use legacy trim adapters (trim_galore and trimAdapter.py).
         -ENCODE3 <bool>                  : Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE3.
         -ENCODE <bool>                   : Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE.
@@ -348,13 +348,14 @@ $ bds atac.bds
         -mod <string>                    : Modules separated by ; (example: "bowtie/2.2.4; bwa/0.7.7; picard-tools/1.92").
         -shcmd <string>                  : Shell commands separated by ;. Shell var. must be written as ${VAR} not as $VAR (example: "export PATH=${PATH}:/usr/test; VAR=test").
         -addpath <string>                : Path separated by ; or : to be PREPENDED to \$PATH (example: "/bin/test:${HOME}/utils").
-        -conda_env <string>              : Anaconda Python environment name for all softwares including Python2.
-        -conda_env_py3 <string>          : Anaconda Python environment name for Python3.
+        -conda_env <string>              : Anaconda Python (or Miniconda) environment name for all softwares including Python2.
+        -conda_env_py3 <string>          : Anaconda Python (or Miniconda) environment name for Python3.
+        -conda_bin_dir <string>          : Anaconda Python (or Miniconda) bin directory.
 == output/title settings
         -out_dir <string>                : Output directory (default: out).
         -title <string>                  : Prefix for HTML report and outputs without given prefix.
 == species settings
-        -species <string>                : Species. If not on kundaje lab servers, specify '-species_file' too.
+        -species <string>                : Species. need to specify '-species_file' too if you have not installed genome database with 'install_genome_data.sh'.
         -species_file <string>           : Species file path.
         -species_browser <string>        : Species name in WashU genome browser.
         -ref_fa <string>                 : Reference genome sequence fasta.
@@ -394,22 +395,31 @@ $ bds atac.bds
         -multimapping <int>              : # alignments reported for multimapping (default: 0).
 == align bowtie2 settings (requirements: -bwt2_idx)
         -bwt2_idx <string>               : Bowtie2 index (full path prefix of *.1.bt2 file).
-        -wt_bwt2 <string>                : Walltime for bowtie2 (default: 23h, 23:00:00).
+        -wt_bwt2 <string>                : Walltime for bowtie2 (default: 47h, 47:00:00).
         -mem_bwt2 <string>               : Max. memory for bowtie2 (default: 12G).
 == adapter trimmer settings
-        -adapter_err_rate <string>       : Maximum allowed adapter error rate (# errors divided by the length of the matching adapter region, default: 0.20).
+        -adapter_err_rate <string>       : Maximum allowed adapter error rate (# errors divided by the length of the matching adapter region, default: 0.10).
         -min_trim_len <int>              : Minimum trim length for cutadapt -m, throwing away processed reads shorter than this (default: 5).
         -wt_trim <string>                : Walltime for adapter trimming (default: 23h, 23:00:00).
         -mem_trim <string>               : Max. memory for adapter trimming (default: 12G).
 == postalign bam settings
         -mapq_thresh <int>               : Threshold for low MAPQ reads removal (default: 30).
-        -rm_chr_from_tag <string>        : If specified, exclude lines with specified string from tagaligns. (example: 'other|ribo|mito|_', '_', default: blank)
+        -rm_chr_from_tag <string>        : Perl style reg-ex to exclude reads from tag-aligns. (example: 'other|ribo|mito|_', '_', default: blank)
+        -no_dup_removal <bool>           : No dupe removal when filtering raw bam.
         -wt_dedup <string>               : Walltime for post-alignment filtering (default: 23h, 24:00:00).
         -mem_dedup <string>              : Max. memory for post-alignment filtering (default: 12G).
+        -dup_marker <string>             : Dup marker for filtering mapped reaads in BAMs: picard or sambamba (default: picard).
         -use_sambamba_markdup <bool>     : Use sambamba markdup instead of Picard MarkDuplicates (default: false).
 == postalign bed/tagalign settings
-        -fraglen0 <bool>                 : Set predefined fragment length as zero for cross corr. analysis (add -speak=0 to run_spp.R).
         -mem_shuf <string>               : Max. memory for UNIX shuf (default: 12G).
+        -fraglen0 <bool>                 : (LEGACY PARAM) Set predefined fragment length as zero for cross corr. analysis (add -speak=0 to run_spp.R).
+        -speak_xcor <int>                : Set user-defined cross-corr. peak strandshift (-speak= in run_spp.R). Use -1 to disable (default: -1).
+        -extra_param_xcor <string>       : Set extra parameters for run_spp.R (cross-corr. analysis only).
+== postalign bed/tagalign settings
+        -mem_shuf <string>               : Max. memory for UNIX shuf (default: 12G).
+        -fraglen0 <bool>                 : (LEGACY PARAM) Set predefined fragment length as zero for cross corr. analysis (add -speak=0 to run_spp.R).
+        -speak_xcor <int>                : Set user-defined cross-corr. peak strandshift (-speak= in run_spp.R). Use -1 to disable (default: -1).
+        -extra_param_xcor <string>       : Set extra parameters for run_spp.R (cross-corr. analysis only).
 == callpeak macs2 settings (requirements: -chrsz -gensz)
         -gensz <string>                  : Genome size; hs for human, mm for mouse.
         -wt_macs2 <string>               : Walltime for MACS2 (default: 23h, 23:00:00).
@@ -429,7 +439,7 @@ $ bds atac.bds
         -reg2map_bed <string>            : Reg2map_bed (file of regions used to generate reg2map signals) for ataqc.
         -roadmap_meta <string>           : Roadmap metadata for ataqc.
         -mem_ataqc <string>              : Max. memory for ATAQC (default: 15G).
-        -wt_ataqc <string>               : Walltime for ATAQC (default: 23h, 23:00:00).
+        -wt_ataqc <string>               : Walltime for ATAQC (default: 47h, 47:00:00).
 ```
 
 ## Stopping / Resuming pipeline

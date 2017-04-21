@@ -1,0 +1,152 @@
+#!/usr/bin/env bds
+#vim: syntax=java
+
+include "species.bds"
+include "module_template.bds"
+
+
+help == postalign bed/tagalign settings
+fraglen0	 := false 	help (LEGACY PARAM) Set predefined fragment length as zero for cross corr. analysis (add -speak=0 to run_spp.R).
+speak_xcor 	 := -1		help Set user-defined cross-corr. peak strandshift (-speak= in run_spp.R). Use -1 to disable (default: -1).
+extra_param_xcor := ""		help Set extra parameters for run_spp.R (cross-corr. analysis only).
+grp_color_xcor 	 := "yellowgreen"
+
+
+init_postalign_xcor()
+
+
+void init_postalign_xcor() {
+
+	fraglen0 	= get_conf_val_bool( fraglen0,		["fraglen0"] )
+	speak_xcor	= get_conf_val_int( speak_xcor,		["speak_xcor"] )
+	extra_param_xcor= get_conf_val( extra_param_xcor,	["extra_param_xcor"] )
+
+	// backward compatibility
+	if ( speak_xcor == -1 && fraglen0 ) speak_xcor = 0
+
+	print("\n\n== postalign cross-corr. analysis settings\n")
+	print( "Max. memory for UNIX shuf\t\t\t: $mem_shuf\n")
+	print( "User-defined cross-corr. peak strandshift\t: $speak_xcor\n")
+	print( "Extra parameters for cross-corr. analysis\t: $extra_param_xcor\n")
+}
+
+// This function is for cross correlation analysis in chipseq pipeline only for paired end data set
+// Output (subsampled) tagalign will restricted to one read end per pair
+string subsample_tag_PE_xcor( string tag, int nlines, string o_dir, string group ) {
+
+	prefix 		:= replace_dir( rm_ext( tag, ["tagAlign","bed"] ), o_dir )
+	nreads_per_mill := metric_prefix( nlines )
+
+	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
+
+	in 	:= [ tag ]
+	out 	:= subsampled_tag
+
+	taskName:= "subsample_tag_PE " + group
+	mem := get_res_mem(mem_shuf,1)
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		// join two consecutive lines in tag, subsample it and then take one read per pair
+		sys zcat $tag | sed 'N;s/\n/\t/' | \
+			grep -v "chrM" | shuf -n $nlines --random-source=$tag | \
+			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' | gzip -nc > $subsampled_tag
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
+// This function is for cross correlation analysis in chipseq pipeline only for paired end data set
+// Output (subsampled) tagalign will restricted to one read end per pair
+string subsample_bedpe_to_tag_xcor( string bedpe, int nlines, string o_dir, string group ) {
+	
+	prefix 		:= replace_dir( rm_ext( bedpe, ["bedpe","bed"] ), o_dir )
+	nreads_per_mill := metric_prefix( nlines )
+
+	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
+
+	in 	:= [ bedpe ]
+	out 	:= subsampled_tag
+	taskName:= "subsample_bedpe2tag " + group
+	mem := get_res_mem(mem_shuf,1)
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		//# Subsample tagAlign file
+		//# Restrict to one read end per pair for CC analysis
+		sys zcat $bedpe | \
+			grep -v "chrM" | shuf -n $nlines --random-source=$bedpe | \
+			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | gzip -nc > $subsampled_tag
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
+string[] xcor( string tag, string o_dir, string group, int nth_xcor ) {
+
+	// misc.
+	prefix 		:= replace_dir( rm_ext( tag, ["tagAlign","tag","bed"] ), o_dir )
+	xcor_score 	:= "$prefix.cc.qc"
+	xcor_plot 	:= "$prefix.cc.plot.pdf"	
+        param_speak     := speak_xcor > -1 ? "-speak=$speak_xcor" : ""
+
+	in 	:= [ tag ]
+	out 	:= [ xcor_score, xcor_plot ]
+
+	taskName:= "xcor " + group
+	cpus 	:= (nth_xcor==1) ? -1 : nth_xcor;	mem := get_res_mem(memory,nth_xcor);
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		// # if phantompeakqualtools is an old version, use run_spp_nodups.R. new version has run_spp.R only		
+		sys if [[ $(which run_spp_nodups.R 2> /dev/null | wc -l || echo) == "1" ]]; then RUN_SPP=$(which run_spp_nodups.R); \
+		    else RUN_SPP=$(which run_spp.R); \
+		    fi
+
+		//# CCSCORE FILE format
+		//# Filename <tab> numReads <tab> estFragLen <tab> correstFragLen <tab> PhantomPeak <tab> corrphantomPeak <tab> argmincorr <tab> mincorr <tab> phantomPeakCoef <tab> relPhantomPeakCoef <tab> QualityTag
+		sys Rscript ${RUN_SPP} -rf \
+			-c=$tag -p=$nth_xcor \
+			-filtchr=chrM -savp=$xcor_plot -out=$xcor_score $param_speak $extra_param_xcor
+		sys sed -r 's/,[^\t]+//g' $xcor_score > $xcor_score.tmp
+		sys mv $xcor_score.tmp $xcor_score
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group, "XCOR", grp_color_xcor )
+
+	return out
+}
+
+string get_fraglen( string xcor_score ) {   // get FRAGLEN (3rd column of cc score file) for spp(-speak=$FRAGLEN)	
+
+	cols := xcor_score.read().split("\t")
+	return cols[2]
+}
