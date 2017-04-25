@@ -23,7 +23,8 @@ void init_output() {
 		}
 		title = dirname
 	}
-	if ( !is_cmd_line_arg_empty() ) out_dir = mkdir( out_dir ) // create output directory and get absolute path for it	
+	if ( !is_cmd_line_arg_empty() ) out_dir = mkdir( out_dir ) // create output directory and get absolute path for it
+	title = replace_illegal_chrs( title )
 
 	print("\n\n== output directory/title info\n")
 	print( "Output dir.\t\t\t: $out_dir\n" )

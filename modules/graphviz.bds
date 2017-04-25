@@ -82,9 +82,10 @@ void add_task_to_graph( string in, string[] out, string box_group, string box_na
 
 string html_graph() { // graph diagram
 	wait // for thread safety
-
-	html := "<div id='graph'><b>Workflow diagram</b>&nbsp<small>(g. peak : gapped peak from MACS2, "+\
-		"n. peak : narrow peak from MACS2, r. peak : region peak from SPP)</small><br>"
+	html := "<button id='btn_toggle'>Toggle workflow</button><br><br>\n"+\
+		"<script>$('#btn_toggle').click(function() {$('#graph').toggle();});</script>"+\
+		"<div id='graph'><b>Workflow diagram</b>&nbsp<small>(g./b. peak : gapped/broad peak from MACS2, "+\
+		"n. peak : narrow peak from MACS2, r. peak : relaxed peak from SPP)</small><br>"
 	prefix := title=="" ? "" : (title+"_")
 	mkdir(rpt_aux_dir)
 	dot := _make_dot("$rpt_aux_dir/$prefix"+"workflow.dot")

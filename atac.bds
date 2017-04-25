@@ -1583,13 +1583,23 @@ string html_atac_QC() {
 	}
 
 	html := "<div id='atac_qc'>"
+	html += "<div style='float:left'>"
 	html += html_table_multiple_logs( "Flagstat (raw) QC", false, "flagstat", groups, flagstat_qcs )
+	html += "</div>"
+	html += "<div style='float:left'>"
 	html += html_table_multiple_logs( "Dup. QC", false, "dup", groups, dup_qcs )
+	html += "</div>"
+	html += "<div style='float:left'>"
 	html += html_table_multiple_logs( "Flagstat (filtered) QC", false, "flagstat_filt", groups, flagstat_nodup_qcs )
+	html += "</div>"
+	html += "<div style='float:left'>"
 	html += html_table_multiple_logs( "Library Complexity QC", false, has_pe() ? "pbc_PE" : "pbc", groups, pbc_qcs )
 	if ( pbc_qcs.size()>0 ) html += html_help_pbc()
+	html += "</div>"
+	html += "<div style='float:left'>"
 	html += html_table_multiple_logs( "Enrichment QC (strand cross-correlation measures)", false, "xcor", groups, xcor_qcs )
 	if ( xcor_qcs.size()>0 ) html += html_help_xcor( subsample_xcor, has_se(), has_pe() )
+	html += "</div>"
 	// xcor images
 	for ( int i=0; i<xcor_plots.size(); i++ ) {
 		png := pdf_to_png( xcor_plots[i] )
@@ -1597,14 +1607,18 @@ string html_atac_QC() {
 	}
 	// IDR FRiP
 	if ( idr_qc_FRiP.size()>0 ) {
+		html += "<div style='float:left'>"
 		html += html_table_multiple_logs( "Enrichment QC (Fraction of reads in peaks)", false, "idr_FRiP", idr_qc_FRiP )
 		html += html_help_idr_FRiP()
+		html += "</div>"
 	}	
 	// if idr qc's exists, add them to html
 	if ( idr_qc != "" ) {
+		html += "<div style='float:left'>"
 		html += html_table_multiple_logs( "Reproducibility QC and Peak Detection Statistics (Irreproducible Discovery Rate)", \
 							false, "idr", ["rep1"], [idr_qc] )
 		html += html_help_idr( idr_thresh )
+		html += "</div>"
 	}
 	for ( int i=1; i<=get_num_rep(); i++ ) {
 		for ( int j=i+1; j<=get_num_rep(); j++ ) {
@@ -1619,8 +1633,9 @@ string html_atac_QC() {
 				html += html_img( idr_pr_png{i}, 800, "rep$i pseudo-reps" ) + "&nbsp"
 		}
 	}
-
+	html += "<div style='float:left'>"
 	html += html_table_multiple_logs( "ATAQC", false, "ataqc", groups, ataqc_qcs )
+	html += "</div>"
 
 	html += "</div><br>"
 	return html
@@ -1628,22 +1643,28 @@ string html_atac_QC() {
 
 string html_atac_tracks() {
 
-	string[] track_files, track_types, track_names
-
-	if ( pval_bigwig_001.hasKey( "pooled" ) ) { track_types += "bigwig"; track_names += "$title pval (pooled)"; track_files += pval_bigwig_001{"pooled"} }
-
-	if ( peak_overlap != "" ) { track_types += "hammock"; track_names += "$title peak overlap"; track_files += peak_to_hammock( peak_overlap ) }
-	if ( gpeak_overlap != "" ) { track_types += "hammock"; track_names += "$title gpeak overlap"; track_files += peak_to_hammock( gpeak_overlap ) }
-	if ( idr_opt != "" ) {	track_types += "hammock"; track_names += "$title peak idr (opt. set)"; track_files += peak_to_hammock( _get_idr_peak_trk( idr_opt ) ) } // find IDR tracks
+	string[] trk_files, trk_types, trk_names, trk_colors
+	string color
 
 	for (int rep=1; rep<=get_num_rep(); rep++) {
-
-		if ( pval_bigwig_001.hasKey( "$rep" ) ) { track_types += "bigwig"; track_names += "$title pval (rep$rep)"; track_files += pval_bigwig_001{rep} }
-		if ( peak_001.hasKey( "$rep" ) ) { track_types += "hammock"; track_names += "$title peak (rep$rep)"; track_files += peak_to_hammock( peak_001{rep} ) }
-		if ( idr_pr.hasKey(rep) ) {	track_types += "hammock"; track_names += "$title peak idr (rep$rep-pr)"; track_files += peak_to_hammock( _get_idr_peak_trk( idr_pr{rep} ) ) }
+		color = get_predefined_rgb_str( rep )
+		if ( bam.hasKey(rep) ) { trk_types += "bam"; trk_names += "$title bam (rep$rep)"; trk_colors += color; trk_files += bam{rep} }
 	}
 
-	html := html_epg_browser_viz( track_files, track_types, track_names, species_browser )
+	color = get_predefined_rgb_str( 0 ) // color for pooled reps
+	if ( pval_bigwig_001.hasKey( "pooled" ) ) { trk_types += "bigwig"; trk_names += "$title pval (pooled)"; trk_colors += color; trk_files += pval_bigwig_001{"pooled"} }
+	if ( peak_overlap != "" ) { trk_types += "hammock"; trk_names += "$title peak overlap"; trk_colors += color; trk_files += peak_to_hammock( peak_overlap ) }
+	if ( gpeak_overlap != "" ) { trk_types += "hammock"; trk_names += "$title gpeak overlap"; trk_colors += color; trk_files += peak_to_hammock( gpeak_overlap ) }
+	if ( idr_opt != "" ) {	trk_types += "hammock"; trk_names += "$title peak idr (opt. set)"; trk_colors += color; trk_files += peak_to_hammock( _get_idr_peak_trk( idr_opt ) ) } // find IDR tracks
+
+	for (int rep=1; rep<=get_num_rep(); rep++) {
+		color = get_predefined_rgb_str( rep )
+		if ( pval_bigwig_001.hasKey( "$rep" ) ) { trk_types += "bigwig"; trk_names += "$title pval (rep$rep)"; trk_colors += color; trk_files += pval_bigwig_001{rep} }
+		if ( peak_001.hasKey( "$rep" ) ) { trk_types += "hammock"; trk_names += "$title peak (rep$rep)"; trk_colors += color; trk_files += peak_to_hammock( peak_001{rep} ) }
+		if ( idr_pr.hasKey(rep) ) {	trk_types += "hammock"; trk_names += "$title peak idr (rep$rep-pr)"; trk_colors += color; trk_files += peak_to_hammock( _get_idr_peak_trk( idr_pr{rep} ) ) }
+	}
+
+	html := html_epg_browser_viz( trk_files, trk_types, trk_names, trk_colors, species_browser )
 
 	return html
 }

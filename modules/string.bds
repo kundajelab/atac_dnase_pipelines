@@ -3,6 +3,15 @@
 
 //// basic string functions
 
+string replace_illegal_chrs( string str ) {
+	ret := str
+	illegals := [" ",";",":","/","\t","\n","~","`","!","@","#","$","%","^","&","*","(",")","="]
+	for ( string illegal : illegals ) {
+		ret = ret.replace(illegal,"_")
+	}
+	return ret
+}
+
 string rm_comment( string str ) { // remove substring after double slash "//"
 	trimmed := str.trim()
 	int pos = trimmed.indexOf("//")

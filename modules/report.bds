@@ -9,7 +9,7 @@ include "ENCODE_accession.bds"
 
 help == report settings
 url_base 	:= "" 		help URL base for output directory.
-
+viz_genome_coord:= "" 		help WashU genome browser genome coordinate (e.g. chr7:27117661-27153380).
 
 _padding_left	:= 20
 _report_file  	:= ""
@@ -20,6 +20,7 @@ init_report()
 
 void init_report() {
 	url_base = get_conf_val( url_base, 	["url_base"] )
+	viz_genome_coord = get_conf_val( viz_genome_coord, 	["viz_genome_coord"] )
 
 	prefix := (title=="") ? "" : (title+"_")
 	_report_file = "$out_dir/$prefix"+"report.html"
@@ -32,6 +33,8 @@ void init_report() {
 
 	print("\n\n== report settings\n")
 	print( "URL root for output directory\t: $url_base\n" )
+	print( "Genome coord. for browser tracks\t: $viz_genome_coord\n" )
+
 }
 
 void report( string body ) { // HTML report
@@ -127,8 +130,8 @@ string html_table_multiple_logs( string table_name, bool horz, string qc_type, s
 // input is two arrays (group, log)
 string html_table_multiple_logs( string table_name, bool horz, string qc_type, string[] groups, string[] logs ) {
 	if ( logs.size() == 0 ) return ""
-	html := "<div id='table_"+table_name.replace(" ","-")+\
-		"'><b>$table_name</b><div style='padding-left: "+_padding_left+"px'>\n<table border='1'>\n"
+	html := "<div id='table_"+table_name.replace(" ","-")+"'>" + \
+		"<b>$table_name</b>\n<table border='1' style='margin-right:15px;margin-bottom:15px'>\n"
 	header := get_log_header( qc_type )
 	if ( !header.size() ) header = get_header_multi_col_txt( logs[0] ) // for ataqc
 
@@ -195,7 +198,7 @@ string html_table_multiple_logs( string table_name, bool horz, string qc_type, s
 	}
 
 	html += "</table>"
-	html += "</div></div><br>"
+	html += "</div>"
 	return html
 }
 
@@ -257,7 +260,8 @@ string html_help_idr_FRiP() {
 }
 
 // WashU Epigenome browser datahub (json format)
-string html_epg_browser_viz( string[] files, string[] types, string[] names, string species ) {
+// color: string "R,G,B,#HEX"
+string html_epg_browser_viz( string[] files, string[] types, string[] names, string[] colors, string species ) {
 	if ( files.size() == 0 ) return ""
 
 	warn := (url_base=="") ? "(add <i>-url_base [URL_ROOT_DIR_FOR_OUT_DIR]</i> to the command line.)" : ""
@@ -267,33 +271,59 @@ string html_epg_browser_viz( string[] files, string[] types, string[] names, str
 	for ( int i=0; i<files.size(); i++ ) {
 		file := files[i]
 		type := types[i]
+		color_arr := colors[i].split(",")
+			r := color_arr[0]
+			g := color_arr[1]
+			b := color_arr[2]
+			hex := color_arr[3] 
+			color_str := '"pr":'+r+',"pg":'+g+',"pb":'+b
 		trackname := names[i].trim()
 
 		// add url_base
 		url 	:= _get_url( file )
-		if ( type == "bigwig") {
+		if ( type == "bam") {
+			// deep pink
+			json 	+= 	'{ "type": "bam", "name": "'+trackname+'", "url": "'+url+'", "mode": 2,' + \
+					'  "qtc" : { "forwardcolor" : "'+hex+'", "reversecolor" : "'+hex+'",'+color_str+'} },'
+		}
+		else if ( type == "bigwig") {
 			// deep pink
 			json 	+= 	'{ "type": "bigwig", "name": "'+trackname+'", "url": "'+url+'", "mode": 1,' + \
-					'  "qtc" : { "height": 30, "summeth":2, "smooth":3, "pr": 255, "pg": 20, "pb": 147,"thtype":1, "thmin":2, "thmax":40  } },'
+					'  "qtc" : { "height": 20, "summeth":2, "smooth":3, '+color_str+' ,"thtype":1, "thmin":2, "thmax":40  } },'
 		}
 		else if ( type == "hammock") { // peak must be converted to hammock type (browser specific format)	
-			if ( file.indexOf(".IDR") > -1 ) { // IDR narrowpeak has 11th (local IDR) and 12th (global IDR) columns
+			if ( file.indexOf(".IDR") > -1 ) { // bIDR narrowpeak has 11th (local IDR) and 12th (global IDR) columns
 				json += ' { "type": "hammock", "name": "'+trackname+'", "url": "'+url+'", "mode": "barplot", "showscoreidx":4,' + \
-					'   strokecolor:"#ff6600", scorescalelst:[{"type":1,"min":0,"max":40},{"type":0},{"type":0},{"type":0},{"type":0}],' + \
+					'   strokecolor: "#000000", scorescalelst:[{"type":1,"min":0,"max":40},{"type":0},{"type":0},{"type":0},{"type":0}],' + \
 					'   scorenamelst:["signal value","P value (-log10)","Q value (-log10)","local IDR (-log10)","global IDR (-log10)"],' + \
-					' "qtc": { "height" : 30, "summeth":2, "fontsize":"0pt","fontfamily":"sans-serif" } },'
+					' "qtc": { "height" : 15, bedcolor: "'+hex+'", "summeth":2, "fontsize":"0pt","fontfamily":"sans-serif" } },'
 			}
 			else {
 				json += ' { "type": "hammock", "name": "'+trackname+'", "url": "'+url+'", "mode": "barplot", "showscoreidx":1,' + \
-					'   strokecolor:"#ff6600", scorescalelst:[{"type":1,"min":0,"max":40},{"type":0},{"type":0},{"type":0}],' + \
+					'   strokecolor: "#000000", scorescalelst:[{"type":1,"min":0,"max":40},{"type":0},{"type":0},{"type":0}],' + \
 					'   scorenamelst:["signal value", "P value (-log10)","Q value (-log10)"],' + \
-					' "qtc": { "height" : 30, "summeth":2, "fontsize":"0pt","fontfamily":"sans-serif" } },'
+					' "qtc": { "height" : 15, bedcolor: "'+hex+'", "summeth":2, "fontsize":"0pt","fontfamily":"sans-serif" } },'
 			}
 		}
 	}
-
 	// add ref genome track
-	json += '{ "type":"native_track", "list":[ { "name":"refGene", "mode":"full", } ] },'
+	string ref_gene
+	if ( species.startsWith("hg38") ) ref_gene = "gencodeV23"
+	else if ( species.startsWith("hg19") ) ref_gene = "gencodeV19"
+	else if ( species.startsWith("mm") ) ref_gene = "ensGene"
+	else ref_gene = "refGene"
+	json += '{ "type":"native_track", "list":[ { "name":"'+ref_gene+'", "mode":"full", } ] },'
+	if ( viz_genome_coord ) {
+		arr := viz_genome_coord.split("[\:\-]")
+		chr := arr[0]
+		start := arr[1]
+		end := arr[2]
+		json += '{ "type":"coordinate_override", "coord":"'+chr+','+start+','+chr+','+end+'", },'
+	}
+
+	//hg38: gencodeV23
+	//hg19: gencodeV19
+	//mm10, mm9: ensGene
 	json += " ]" // json array ends here
 	prefix := title=="" ? "" : (title+"_")
 	json_file := "$out_dir/$prefix"+"tracks.json"
@@ -307,6 +337,16 @@ string html_epg_browser_viz( string[] files, string[] types, string[] names, str
 	html += "</div></div><br>\n\n"
 
 	return html
+}
+
+string get_predefined_rgb_str( int id ) {
+	if ( id == 0 ) return "255,0,255,#ff00ff" // fuchsia
+	else if ( id == 1 ) return "255,0,0,#ff0000" // red 
+	else if ( id == 2 ) return "0,0,255,#0000ff" // blue
+	else if ( id == 3 ) return "255,153,51,#ff9933" // orange
+	else if ( id == 4 ) return "102,153,0,#669900" // darkgreen
+	else if ( id == 5 ) return "0,153,204,#0099cc" // skyblue
+	else return "119,119,119,#777777" //darkgray
 }
 
 string html_link( string path, string name ) {
