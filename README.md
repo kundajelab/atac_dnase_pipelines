@@ -339,7 +339,7 @@ $ bds atac.bds
 == cluster/system/resource settings
         -wt <string>                     : Walltime for all single-threaded tasks (example: 8:10:00, 3h, 3600, default: 5h50m, 5:50:00).
         -memory <string>                 : Maximum memory for all single-threaded tasks (equivalent to '-mem', example: 4.5G, 1024M, default: 7G).
-        -use_system <string>             : Force to use a system (equivalent to 'bds -s [SYSTEM_NAME] ...', any system defined in bds.config can be used).
+        -system <string>                 : Force to use a system (equivalent to 'bds -s [SYSTEM_NAME] ...', any system defined in bds.config can be used).
         -nice <int>                      : Set process priority for all tasks (default: 0; -20 (highest) ~ 19 (lowest) ).
         -retrial <int>                   : # of Retrial for failed tasks (default: 0).
         -q <string>                      : Submit tasks to a specified cluster queue.

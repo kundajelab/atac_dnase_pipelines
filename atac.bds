@@ -1692,10 +1692,10 @@ void tar_all_logs() {
 	// *.align.log: bowtie2 log
 	// *_qc.txt: ATAQC text report
 	// *_qc.html: ATAQC HTML report
-	string tar_gz
+	string tar
 	mkdir("$out_dir/qc")
-	if ( title ) tar_gz = "$out_dir/qc/$title.all_quality_metrics.tar.gz"
-	else tar_gz = "$out_dir/qc/all_quality_metrics.tar.gz"
+	if ( title ) tar = "$out_dir/qc/$title.all_quality_metrics.tar"
+	else tar = "$out_dir/qc/all_quality_metrics.tar"
 
 	taskName:= "tar_all_logs"
 	system 	:= "local"
@@ -1709,7 +1709,7 @@ void tar_all_logs() {
 			-name '*_qc.txt' -or \
 			-name '*_qc.html' -or \
 			-name '*read_length.txt' \
-			| xargs tar -czvf $tar_gz
+			| xargs tar -cvf $tar
 	}
 
 	wait
@@ -1721,5 +1721,5 @@ void tar_all_logs() {
 	else \
 		ENCODE_step_name = "anshul-kundaje:atac-seq-idr-step-run-v1"
 	add_ENCODE_quality_metrics_to_summary_json( "generic_quality_metric", ENCODE_step_name, \
-							empty, [tar_gz] )
+							empty, [tar] )
 }
