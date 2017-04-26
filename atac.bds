@@ -1689,37 +1689,48 @@ bool is_dnase_seq() {
 }
 
 void tar_all_logs() {
-	// *.align.log: bowtie2 log
-	// *_qc.txt: ATAQC text report
-	// *_qc.html: ATAQC HTML report
-	string tar
-	mkdir("$out_dir/qc")
-	if ( title ) tar = "$out_dir/qc/$title.all_quality_metrics.tar"
-	else tar = "$out_dir/qc/all_quality_metrics.tar"
+	if ( !no_idr && idr_qc && idr_opt && idr_consv ) {
+		// *.align.log: bowtie2 log
+		// *_qc.txt: ATAQC text report
+		// *_qc.html: ATAQC HTML report
+		string tar
+		mkdir("$out_dir/qc")
+		if ( title ) tar = "$out_dir/qc/$title.all_quality_metrics.tar"
+		else tar = "$out_dir/qc/all_quality_metrics.tar"
 
-	taskName:= "tar_all_logs"
-	system 	:= "local"
-	tid := task {
-		sys cd $out_dir
-		sys find . -type f \
-			-name '*.align.log' -or \
-			-name '*.qc' -or \
-			-name '*.pdf' -or \
-			-name '*.png' -or \
-			-name '*_qc.txt' -or \
-			-name '*_qc.html' -or \
-			-name '*read_length.txt' \
-			| xargs tar -cvf $tar
+		taskName:= "tar_all_logs"
+		system 	:= "local"
+		tid := task {
+			sys cd $out_dir
+			sys find . -type f \
+				-name '*.align.log' -or \
+				-name '*.dot' -or \
+				-name '*.svg' -or \
+				-name '*.css' -or \
+				-name '*.json' -or \
+				-name '*.html' -or \
+				-name '*.js' -or \
+				-name '*.qc' -or \
+				-name '*.pdf' -or \
+				-name '*.png' -or \
+				-name '*_qc.txt' -or \
+				-name '*read_length.txt' \
+				| xargs tar -cvf $tar
+		}
+
+		wait
+
+		string[] quality_metric_of
+		string ENCODE_step_name
+		if ( idr_pr.hasKey(1) && get_num_rep()==1 ) {
+			ENCODE_step_name = "anshul-kundaje:atac-seq-unreplicated-idr-step-run-single-rep-v1"
+			quality_metric_of.add(idr_pr{1})
+		}
+		else {
+			ENCODE_step_name = "anshul-kundaje:atac-seq-idr-step-run-v1"
+			quality_metric_of.add(idr_opt)
+		}
+		add_ENCODE_quality_metrics_to_summary_json( "generic_quality_metric", ENCODE_step_name, \
+								quality_metric_of, [tar] )
 	}
-
-	wait
-
-	string[] empty
-	string ENCODE_step_name
-	if ( get_num_rep() == 1 ) \
-		ENCODE_step_name = "anshul-kundaje:atac-seq-unreplicated-idr-step-run-single-rep-v1"
-	else \
-		ENCODE_step_name = "anshul-kundaje:atac-seq-idr-step-run-v1"
-	add_ENCODE_quality_metrics_to_summary_json( "generic_quality_metric", ENCODE_step_name, \
-							empty, [tar] )
 }
