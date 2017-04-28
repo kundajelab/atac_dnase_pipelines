@@ -160,6 +160,8 @@ if [[ $UMAP != "" ]]; then tar zxvf $(basename $UMAP) --skip-old-files; fi
 echo "Extracting/processing data files..."
 cd ${DATA_DIR}/$GENOME
 
+source activate ${CONDA_ENV}
+
 if [[ ${REF_FA} == *.gz ]]; then 
   REF_FA_PREFIX=$(basename ${REF_FA} .gz)
   gzip -d -f -c ${REF_FA_PREFIX}.gz > ${REF_FA_PREFIX}
@@ -172,8 +174,6 @@ elif [[ ${REF_FA} == *.2bit ]]; then
 else
   REF_FA_PREFIX=$(basename ${REF_FA})  
 fi
-
-source activate ${CONDA_ENV}
 
 ## extract fasta per chromosome
 cd ${DATA_DIR}/$GENOME
