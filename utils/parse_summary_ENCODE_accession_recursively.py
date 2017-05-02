@@ -42,7 +42,7 @@ if args.accession_ids_file and os.path.isfile(args.accession_ids_file):
         [accession_id for accession_id in accession_ids if accession_id and not accession_id.startswith("#") ]
 
 # find all ENCODE_summary.json recursively
-json_files = subprocess.check_output("find %s -name %s" % (args.search_dir,args.json_file), \
+json_files = subprocess.check_output("find -L %s -name %s" % (args.search_dir,args.json_file), \
                                     shell=True ).strip().split('\n')
 # read json
 jsons = []

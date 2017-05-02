@@ -26,7 +26,7 @@ args = parser.parse_args()
 #     for f in filenames if os.path.splitext(f)[1] == 'qc_summary.json']
 
 # find all ENCODE_summary.json recursively
-json_files = subprocess.check_output("find %s -name %s" % (args.search_dir,args.json_file), \
+json_files = subprocess.check_output("find -L %s -name %s" % (args.search_dir,args.json_file), \
                                     shell=True ).strip().split('\n')
 # read json
 jsons = []
