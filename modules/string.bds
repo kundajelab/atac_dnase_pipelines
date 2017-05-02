@@ -195,6 +195,17 @@ string map_to_conf_str( string{} map ) { // like JSON
 	return ret
 }
 
+string[] get_map_keys( string{} map ) {
+	return map.keys()
+}
+
+string[] get_map_vals( string{} map ) {
+	string[] ret
+	for ( string key : map.keys() ) {
+		ret.add( map{key} )
+	}
+	return ret
+}
 
 bool is_in_array( string str, string[] arr ) { // case-insensitive
 	for( string val : arr ) \
