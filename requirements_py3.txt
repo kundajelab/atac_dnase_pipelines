@@ -2,3 +2,4 @@ idr ==2.0.3
 bedtools ==2.22
 python ==3.5
 pigz
+java-jdk ==8.0.92
