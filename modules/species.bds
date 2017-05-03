@@ -12,7 +12,7 @@ species_browser := "" 		help Species name in WashU genome browser.
 ref_fa 		:= ""		help Reference genome sequence fasta.
 chrsz 		:= "" 		help Chromosome sizes file path (use fetchChromSizes from UCSC tools).
 blacklist 	:= "" 		help Blacklist bed.
-
+seq_dir 	:= ""		help Reference genome sequence directory path (where chr*.fa exist).
 
 init_species()
 
@@ -28,6 +28,8 @@ void init_species() {
 	ref_fa 		= get_conf_val( ref_fa, 	["ref_fa"] )
 	chrsz		= get_conf_val( chrsz, 		["chrsz"] )
 	blacklist 	= get_conf_val( blacklist, 	["blacklist"] )
+	seq_dir 	= get_conf_val( seq_dir, 	["seq_dir"])
+
 	if ( species_browser == "" ) species_browser = species
 
 	print("\n\n== species settings\n")
@@ -37,6 +39,7 @@ void init_species() {
 	print( "Ref. genome seq. fasta\t\t: $ref_fa\n" )
 	print( "Chr. sizes file\t\t\t: $chrsz\n" )
 	print( "Black list bed\t\t\t: $blacklist\n" )
+	print( "Ref. genome seq. dir.\t\t: $seq_dir\n" )
 }
 
 void _read_species() { // check for species configruation files
