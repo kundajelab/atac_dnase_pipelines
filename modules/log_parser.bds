@@ -58,7 +58,7 @@ string[] get_log_header( string qc_type ) {
 	else if ( qc_type == "idr_FRiP" ) {		
 		return header_idr_FRiP
 	}
-	else if ( qc_type == "ataqc" ) {
+	else if ( qc_type == "ataqc" || qc_type == "num_peaks" ) {
 		string[] empty
 		return empty
 	}
@@ -86,7 +86,7 @@ string{} parse_log( string qc_type, string log ) {
 	else if ( qc_type == "idr_FRiP" ) {
 		return parse_idr_FRiP( log )
 	}
-	else if ( qc_type == "ataqc" ) {
+	else if ( qc_type == "ataqc" || qc_type == "num_peaks" ) {
 		return parse_multi_col_txt( log )
 	}
 	else {

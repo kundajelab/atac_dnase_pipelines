@@ -253,9 +253,21 @@ string html_help_idr_FRiP() {
 	return "<div id='help-idr-FRiP'><p>" + \
 		"<ul>" + \
 		"<li>ppr: IDR peaks comparing pooled pseudo replicates </li>" + \
-		"<li>rep1-pr : IDR peaks comparing pseudoreplicates from replicate 1 </li>" + \
-		"<li>rep2-pr : rep2-pr : IDR peaks comparing pseudoreplicates from replicate 2 </li>" + \
-		"<li>repi-repj : IDR peaks comparing true replicates (rep i vs. rep j) </li>" +  \
+		"<li>rep1-pr: IDR peaks comparing pseudoreplicates from replicate 1 </li>" + \
+		"<li>rep2-pr: IDR peaks comparing pseudoreplicates from replicate 2 </li>" + \
+		"<li>repi-repj: IDR peaks comparing true replicates (rep i vs. rep j) </li>" +  \
+		"</ul></p><br>"
+}
+
+string html_help_num_peaks() {
+	return "<div id='help-num-peaks'><p>" + \
+		"<ul>" + \
+		"<li>ppr1: Raw peaks called on the first pooled pseudoreplicates </li>" + \
+		"<li>ppr2: Raw peaks called on the second pooled pseudoreplicates </li>" + \
+		"<li>repi: Raw peaks called on true replicate i </li>" + \
+		"<li>repi-pr1 : Raw peaks called on the first pseudoreplicate from replicate i </li>" + \
+		"<li>repi-pr2 : Raw peaks called on the second pseudoreplicates from replicate i </li>" + \
+		"<li>overlap : Overlapped peaks (filtered if blacklist exists) </li>" +  \
 		"</ul></p><br>"
 }
 

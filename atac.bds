@@ -59,6 +59,7 @@ string peak_pooled, peak_pooled_001, peak_ppr1, peak_ppr2, peak_overlap
 
 string{} gpeak, gpeak_001, gpeak_pr1, gpeak_pr2
 string gpeak_pooled, gpeak_pooled_001, gpeak_ppr1, gpeak_ppr2, gpeak_overlap
+string num_peak_log
 
 string{} pval_bigwig_001, fc_bigwig_001
 
@@ -90,6 +91,8 @@ void main() { // atac pipeline starts here
 	read_input_peak() // if inputs are peaks, read them
 
 	do_idr()
+
+	log_number_of_peaks()
 
 	ataqc()
 
@@ -1309,6 +1312,33 @@ void do_idr() {
 	print( "\n== Done do_idr()\n" )
 }
 
+void log_number_of_peaks() {
+	if ( align ) return
+
+	log_o_dir := mkdir("$out_dir/qc")
+	num_peak_log = "$log_o_dir/number_of_peaks.txt"
+	string lines
+	for ( int rep=1; rep<=get_num_rep(); rep++) { // rep==0 : pooled
+		if ( peak.hasKey(rep) ) \
+			lines += "rep$rep\t"+get_num_lines( peak{rep} )+"\n"
+		if ( peak_pr1.hasKey(rep) ) \
+			lines += "rep$rep-pr1\t"+get_num_lines( peak_pr1{rep} )+"\n"
+		if ( peak_pr2.hasKey(rep) ) \
+			lines += "rep$rep-pr2\t"+get_num_lines( peak_pr2{rep} )+"\n"
+	}
+	if ( peak_pooled ) \
+		lines += "pooled\t"+get_num_lines( peak_pooled )+"\n"
+	if ( peak_ppr1 ) \
+		lines += "ppr1\t"+get_num_lines( peak_ppr1 )+"\n"
+	if ( peak_ppr2 ) \
+		lines += "ppr2\t"+get_num_lines( peak_ppr2 )+"\n"
+	if ( peak_overlap ) \
+		lines += "overlap\t"+get_num_lines( peak_overlap )+"\n"
+	if ( gpeak_overlap ) \
+		lines += "overlap (gpeak)\t"+get_num_lines( gpeak_overlap )+"\n"
+	num_peak_log.write(lines)
+}
+
 // black list filter and then convert to bigbed (for true replicates only)
 void filter_peak_and_convert_to_bigbed() { 
 	if ( align ) return
@@ -1607,13 +1637,20 @@ string html_atac_QC() {
 		png := pdf_to_png( xcor_plots[i] )
 		html += html_img( png, 500, groups[i] ) + "&nbsp"
 	}
+	// number of peaks
+	if ( num_peak_log ) {
+		html += "<div style='float:left'>"
+		html += html_table_multiple_logs( "Number of peaks", false, "num_peaks", num_peak_log )
+		html += html_help_num_peaks()
+		html += "</div>"
+	}	
 	// IDR FRiP
 	if ( idr_qc_FRiP.size()>0 ) {
 		html += "<div style='float:left'>"
 		html += html_table_multiple_logs( "Enrichment QC (Fraction of reads in peaks)", false, "idr_FRiP", idr_qc_FRiP )
 		html += html_help_idr_FRiP()
 		html += "</div>"
-	}	
+	}
 	// if idr qc's exists, add them to html
 	if ( idr_qc != "" ) {
 		html += "<div style='float:left'>"

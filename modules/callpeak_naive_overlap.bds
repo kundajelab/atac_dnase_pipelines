@@ -167,6 +167,34 @@ string naive_overlap_peak( string filetype, string peak_pooled, string[] peaks, 
 	return out
 }
 
+// input peaks are already blacklist-filtered
+string overlap_gpeak_over_npeak( string gpeak, string npeak, string o_dir, string group ) {
+
+	prefix 	:= replace_dir( rm_ext( gpeak, ["gappedPeak","gappedpeak"] ), o_dir )
+	gpeak_filt := "$prefix.filt_thru_npeak.gappedPeak.gz"
+
+	in 	:= [ gpeak, npeak ]
+	out 	:= gpeak_filt
+
+	taskName:= "overlap g/n " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys bedtools intersect -wa -u -a <(zcat -f $gpeak) -b <(zcat -f $npeak) | gzip -nc > $gpeak_filt
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
 string _get_awk_param( string filetype ) {
 
 	if ( filetype.toLower() == "narrowpeak" || filetype.toLower() == "regionpeak" ) {
