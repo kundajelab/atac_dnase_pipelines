@@ -84,8 +84,9 @@ args.out_file.write( '\t'.join( [ '\t'.join(headers[qc_type]) \
 for json in jsons:
     # count # of replicates per sample
     replicates = set()
-    for qc_file in json['qc_files']:
+    for qc_file in json['qc_files']:        
         info = qc_file['info'].replace('-pr','' )
+        if not info or info == 'null': info = 'rep1'
         if not re.match(r'^rep\d+$', info): continue
         replicates.add( info )
 
@@ -103,6 +104,7 @@ for json in jsons:
             found = False
             for qc_file in json['qc_files']:
                 info = qc_file['info'].replace('-pr','' )
+                if not info or info == 'null': info = 'rep1'
                 if not re.match(r'^rep\d+$', info): continue
                 if rep != info:
                     continue
