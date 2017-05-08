@@ -1197,18 +1197,24 @@ void do_idr() {
 		if ( !true_rep ) {
 			peak_overlap = naive_overlap_peak( "narrowPeak", \
 						top_peak{1}, top_peak_pr1{1}, top_peak_pr2{1}, overlap_o_dir, "" )
-			if ( !is_input_peak() ) \
-				gpeak_overlap = naive_overlap_peak( "gappedPeak", \
+			if ( !is_input_peak() ) {
+				gpeak_overlap_tmp := naive_overlap_peak( "gappedPeak", \
 						filt_gpeak{1}, filt_gpeak_pr1{1}, filt_gpeak_pr2{1}, overlap_o_dir, "" )
+				wait
+				gpeak_overlap = overlap_gpeak_over_npeak( gpeak_overlap_tmp, peak_overlap, overlap_o_dir, "" )
+			}
 		}
 	}
 	else {
 		peak_overlap = naive_overlap_peak( "narrowPeak", top_peak_pooled, map_to_array( top_peak ), \
 								  top_peak_ppr1, top_peak_ppr2, overlap_o_dir, "" )
 
-		if ( !is_input_peak() ) \
-			gpeak_overlap = naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, map_to_array( filt_gpeak ), \
+		if ( !is_input_peak() ) {
+			gpeak_overlap_tmp := naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, map_to_array( filt_gpeak ), \
 								  filt_gpeak_ppr1, filt_gpeak_ppr2, overlap_o_dir, "" )
+			wait
+			gpeak_overlap = overlap_gpeak_over_npeak( gpeak_overlap_tmp, peak_overlap, overlap_o_dir, "" )
+		}
 	}
 
 	add_file_to_report( peak_overlap, "n. peak\\noverlap", "", "Peaks/MACS2/Naive overlap/Narrow peak" )
