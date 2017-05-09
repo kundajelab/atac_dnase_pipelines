@@ -1322,7 +1322,7 @@ void log_number_of_peaks() {
 	if ( align ) return
 
 	log_o_dir := mkdir("$out_dir/qc")
-	num_peak_log = "$log_o_dir/number_of_peaks.txt"
+	num_peak_log = "$log_o_dir/" + (title ? (title+"_") : "" ) + "number_of_peaks.txt"
 	string lines
 	for ( int rep=1; rep<=get_num_rep(); rep++) { // rep==0 : pooled
 		if ( peak.hasKey(rep) ) \
@@ -1691,10 +1691,10 @@ string html_atac_tracks() {
 	string[] trk_files, trk_types, trk_names, trk_colors
 	string color
 
-	for (int rep=1; rep<=get_num_rep(); rep++) {
-		color = get_predefined_rgb_str( rep )
-		if ( bam.hasKey(rep) ) { trk_types += "bam"; trk_names += "$title bam (rep$rep)"; trk_colors += color; trk_files += bam{rep} }
-	}
+	// for (int rep=1; rep<=get_num_rep(); rep++) {
+	// 	color = get_predefined_rgb_str( rep )
+	// 	if ( bam.hasKey(rep) ) { trk_types += "bam"; trk_names += "$title bam (rep$rep)"; trk_colors += color; trk_files += bam{rep} }
+	// }
 
 	color = get_predefined_rgb_str( 0 ) // color for pooled reps
 	if ( pval_bigwig_001.hasKey( "pooled" ) ) { trk_types += "bigwig"; trk_names += "$title pval (pooled)"; trk_colors += color; trk_files += pval_bigwig_001{"pooled"} }
@@ -1760,6 +1760,7 @@ void tar_all_logs() {
 				-name '*.png' -or \
 				-name '*_qc.txt' -or \
 				-name '*read_length.txt' \
+				-name '*number_of_peaks.txt' \
 				| xargs tar -cvf $tar
 		}
 
