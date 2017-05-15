@@ -43,6 +43,7 @@ conda uninstall graphviz -y # graphviz in bioconda has segmentation fault bug
 conda install graphviz -c anaconda -y
 
 conda install ucsc-bedgraphtobigwig -c bioconda -y
+conda install ucsc-bedtobigbed -c bioconda -y
 
 CONDA_BIN=$(dirname $(which activate))
 CONDA_EXTRA="$CONDA_BIN/../extra"
