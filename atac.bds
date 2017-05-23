@@ -1783,166 +1783,83 @@ void tar_all_logs() {
 
 void ENCODE3_overall_qc() {
 	if ( !ENCODE3 ) return
-	/////// ENCODE3 standard
-	string{} QC_all // key: rep, val: 'keyname:value'
-
-	//// QC for the whole sample
-	// have two or more bio replicates? if not, at least two tech replicates required (EN-TEx) (FASTQ)
-	num_bio_rep := get_num_rep()
-	min_num_tech_rep := 10000000 // any big number
-	for ( int rep=1; rep<=get_num_rep(); rep++ ) {	
-		// at least two tech replicates required (EN-TEx) (FASTQ) if num_bio_rep < 2
-		fastqs := get_fastqs(rep)
-		num_fastqs := fastqs.size()
-		if ( fastqs ) {
-			int num_tech_rep
-			if ( is_se( rep ) ) 	num_tech_rep = num_fastqs
-			else 			num_tech_rep = num_fastqs/2
-			min_num_tech_rep = min( num_tech_rep, min_num_tech_rep )
-		}
-	}
-	QC_all{"num_bio_rep"} = num_bio_rep
-	QC_all{"min_num_tech_rep"} = min_num_tech_rep
-	if ( num_bio_rep >= 2 || min_num_tech_rep >= 2 ) QC_all{"num_rep_QC"} = "OK"
-	else QC_all{"num_rep_QC"} = "FAIL"
-
-	// IDR reproducibility test (IDR)
-	if ( idr_qc ) {
-		idr_log := parse_idr( idr_qc )
-		QC_all{"idr_reproducibility_QC"} = idr_log{"reproducibility_test"}
-	}
-	// FRIP >0.2 ok, > 0.3 good (FRIP)
-	if ( idr_qc_FRiP.hasKey("ppr") ) {
-		idr_qc_FRiP_log := parse_idr_FRiP( idr_qc_FRiP{"ppr"} )
-		FRiP := parse_real( idr_qc_FRiP_log{"FRiP"} )
-		QC_all{"FRiP"} = FRiP
-		QC_all{"FRiP_QC"} =   FRiP >= 0.3 ? "OK" : \
-				( FRiP >= 0.2 ? "ACCEPTABLE" : "FAIL" )
-	}
-	else if ( idr_qc_FRiP.hasKey("rep1-pr") ) {
-		idr_qc_FRiP_log := parse_idr_FRiP( idr_qc_FRiP{"rep1-pr"} )
-		FRiP := parse_real( idr_qc_FRiP_log{"FRiP"} )
-		QC_all{"FRiP"} = FRiP
-		QC_all{"FRiP_QC"} =   FRiP >= 0.3 ? "OK" : \
-				( FRiP >= 0.2 ? "ACCEPTABLE" : "FAIL" )
-	}
-	// npeak > 100000 ok, > 150000 good (ZCAT PEAK)	
-	if ( peak_pooled ) {
-		npeak := get_num_lines( peak_pooled )
-		QC_all{"num_peaks"} = npeak
-		QC_all{"num_peaks_QC"} = npeak >= 150000 ? "OK" : \
-					(   npeak >= 100000 ? "ACCEPTABLE" : "FAIL" )
-	}
-	else if ( peak.hasKey(1) ) {
-		npeak := get_num_lines( peak{1} )
-		QC_all{"num_peaks"} = npeak
-		QC_all{"num_peaks_QC"} = npeak >= 150000 ? "OK" : \
-					(   npeak >= 100000 ? "ACCEPTABLE" : "FAIL" )
-	}
-	// nIDRpeak > 50000 ok, > 70000 good (ZCAT IDRPEAK)
-	if ( idr_opt ) {
-		npeak := get_num_lines( idr_opt )
-		QC_all{"num_IDR_peaks"} = npeak
-		QC_all{"num_IDR_peaks_QC"} = npeak >= 70000 ? "OK" : \
-					(   npeak >= 50000 ? "ACCEPTABLE" : "FAIL" )
-	}
-	_summary_qc.add( map_to_json_str( \
-			{ "info"=>"rep1","qc_type"=>"ENCODE3_qc_all",\
-			"header"=>array_to_str(get_map_keys( QC_all ),"\\t"),\
-			"contents"=>array_to_str(get_map_vals( QC_all ),"\\t") } ) )
-
 	//// QC for individual replicate	
-	for ( int rep=1; rep<=get_num_rep(); rep++ ) {		
+	for ( int rep=1; rep<=get_num_rep(); rep++ ) {
 		string{} QC
+		if ( rep == 1 ) {
+			if ( idr_opt ) {
+				npeak := get_num_lines( idr_opt )
+				QC{"03_No. of IDR peaks"} = npeak
+				QC{"03_IDR peaks pass? (threshold > 70K)"} = npeak >= 70000 ? "OK" : "FAIL"
+			}	
+			if ( peak_overlap ) {
+				num_overlap_peaks := get_num_lines( peak_overlap )
+				QC{"04_No. of naive overlap peaks"} = num_overlap_peaks
+				QC{"04_Naive overlap peaks pass? (> 150K)"} = num_overlap_peaks >= 150000 ? "OK" : "FAIL"
+			}
+			// FRIP >0.1 ok
+			if ( idr_qc_FRiP.hasKey("ppr") ) {
+				idr_qc_FRiP_log := parse_idr_FRiP( idr_qc_FRiP{"ppr"} )
+				FRiP := parse_real( idr_qc_FRiP_log{"FRiP"} )
+				QC{"06_FRiP of pooled sample"} = FRiP
+				QC{"06_FRiP of pooled sample QC pass? (> 0.1)"} = FRiP >= 0.1 ? "OK" : "FAIL"
+			}
+			// IDR reproducibility test (IDR)
+			if ( idr_qc ) {
+				idr_log := parse_idr( idr_qc )
+				QC{"07_IDR reproducibility"} = idr_log{"reproducibility_test"}.toUpper()
+			}
+		}
 		if ( flagstat_qc.hasKey(rep) && flagstat_nodup_qc.hasKey(rep) ) {
 			flagstat_log := parse_flagstat(flagstat_qc{rep})
 			flagstat_nodup_log := parse_flagstat(flagstat_nodup_qc{rep})
-		
+
 			// num nodup reads > 50000000 (PE), > 25000000 (SE)
 			num_raw_reads := parse_int( flagstat_log{"total"} )			
 			num_mapped_reads := parse_int( flagstat_log{"mapped"} )
 			num_nodup_reads := parse_int( flagstat_nodup_log{"total"} )
-			QC{"num_nodup_reads"} = num_nodup_reads
+			QC{"01_No. of mapped nodup nomito reads"} = num_nodup_reads
 			if ( is_se( rep ) ) {
-				QC{"num_nodup_reads_QC"} = num_nodup_reads >= 25000000 ? "OK" : "FAIL"
+				QC{"01_Read depth pass? (>50M for PE, >25M SE)"} = num_nodup_reads >= 25000000 ? "OK" : "FAIL"
 			}
 			else {
-				QC{"num_nodup_reads_QC"} = num_nodup_reads >= 50000000 ? "OK" : "FAIL"
+				QC{"01_Read depth pass? (>50M for PE, >25M SE)"} = num_nodup_reads >= 50000000 ? "OK" : "FAIL"
 			}
 			// alignment rate > 80% ok, > 95% good (FLAGSTAT.%MAPPED)
 			alignment_rate := "$num_mapped_reads".parseReal()/"$num_raw_reads".parseReal()
-			QC{"alignment_rate"} = alignment_rate
-			QC{"alignment_rate_QC"} = alignment_rate >= 0.95 ? "OK" : \
+			QC{"02_Alignment rate"} = alignment_rate
+			QC{"02_Alignment rate pass? (>0.95 OK, >0.8 ACCEPTABLE"} = alignment_rate >= 0.95 ? "OK" : \
 						( alignment_rate >= 0.80 ? "ACCEPTABLE" : "FAIL" )
-			// NRF > 0.9 PBC1>0.9, PBC2>3 (PBC)
-			// npeak > 100000 ok, > 150000 good (ZCAT PEAK)
-			// nIDRpeak > 50000 ok, > 70000 good (ZCAT IDRPEAK)
 		}
-		// // FRIP >0.2 ok, > 0.3 good (FRIP)
-		// if ( idr_qc_FRiP.hasKey("rep$rep-pr") ) {
-		// 	idr_qc_FRiP_log := parse_idr_FRiP( idr_qc_FRiP{"rep$rep-pr"} )
-		// 	FRiP := parse_real( idr_qc_FRiP_log{"FRiP"} )
-		// 	QC{"FRiP_pseudo_replicate"} = FRiP
-		// 	QC{"FRiP_pseudo_replicate_QC"} =  FRiP >= 0.3 ? "OK" : \
-		// 					( FRiP >= 0.2 ? "ACCEPTABLE" : "FAIL" )
-		// }
+		// FRIP >0.1 ok
+		if ( idr_qc_FRiP.hasKey("rep$rep-pr") ) {
+			idr_qc_FRiP_log := parse_idr_FRiP( idr_qc_FRiP{"rep$rep-pr"} )
+			FRiP := parse_real( idr_qc_FRiP_log{"FRiP"} )
+			QC{"05_FRiP per replicate"} = FRiP
+			QC{"05_FRiP per replicate QC pass? (> 0.1)"} =  FRiP >= 0.1 ? "OK" : "FAIL"
+		}
 		if ( ataqc_qc.hasKey(rep) ) {
 			ataqc_log := parse_multi_col_txt( ataqc_qc{rep} )
+			// TSS enrichment (ATAQC) > 10
+			TSS_enrichment := parse_real( ataqc_log{"TSS_enrichment"} )
+			QC{"08_TSS enrichment"} = TSS_enrichment
+			QC{"08_TSS enrichment pass? (> 10)"} = TSS_enrichment >= 10.0 ? "OK" : "FAIL"
 			// NFR present (ATAQC)
-			QC{"NFR_presence_QC"} = ataqc_log.hasKey("Presence of NFR peak") ? \
+			QC{"09_NFR region"} = ataqc_log.hasKey("Presence of NFR peak") ? \
 					ataqc_log{"Presence of NFR peak"} : "N/A"
 			// (SKIP) mono-nucleosome peak present? 147*2 > length > 147.
-			QC{"presence_of_mononuc_peak_QC"} = ataqc_log.hasKey("Presence of Mono-Nuc peak") ? \
+			QC{"10_mono-nuc region"} = ataqc_log.hasKey("Presence of Mono-Nuc peak") ? \
 					ataqc_log{"Presence of Mono-Nuc peak"} : "N/A"
-			// TSS enrichment (ATAQC) 
-			//	hg19 <6:concerning, 6-10:acceptable,>10 ideal
-			//	hg38 <5:concerning, 5-7:acceptable,>7 ideal
-			//	mm9  <5:concerning, 5-7:acceptable,>7 ideal
-			//	mm10 <10:concerning, 10-15:acceptable,>15 ideal
-			TSS_enrichment := parse_real( ataqc_log{"TSS_enrichment"} )
-			QC{"TSS_enrichment"} = TSS_enrichment
-			if ( species.startsWith("hg19") ) {
-				QC{"TSS_enrichment_QC"} = TSS_enrichment >= 10.0 ? "OK" : \
-							( TSS_enrichment >= 6.0 ? "ACCEPTABLE" : "FAIL" )
-			}
-			else if ( species.startsWith("hg38") ) {
-				QC{"TSS_enrichment_QC"} = TSS_enrichment >= 7.0 ? "OK" : \
-							( TSS_enrichment >= 5.0 ? "ACCEPTABLE" : "FAIL" )
-			}
-			else if ( species.startsWith("mm9") ) {
-				QC{"TSS_enrichment_QC"} = TSS_enrichment >= 7.0 ? "OK" : \
-							( TSS_enrichment >= 5.0 ? "ACCEPTABLE" : "FAIL" )
-			}
-			else if ( species.startsWith("mm10") ) {
-				QC{"TSS_enrichment_QC"} = TSS_enrichment >= 7.0 ? "OK" : \
-							( TSS_enrichment >= 5.0 ? "ACCEPTABLE" : "FAIL" )
-			}
 		}
-		// // npeak > 100000 ok, > 150000 good (ZCAT PEAK)
-		// if ( peak.hasKey(rep) ) {
-		// 	npeak := get_num_lines( peak{rep} )
-		// 	QC{"num_called_peaks"} = npeak
-		// 	QC{"num_called_peaks_QC"} = npeak >= 150000 ? "OK" : \
-		// 				(   npeak >= 100000 ? "ACCEPTABLE" : "FAIL" )
-		// }
-		// // nIDRpeak > 50000 ok, > 70000 good (ZCAT IDRPEAK)
-		// if ( idr_pr.hasKey(rep) ) {
-		// 	npeak := get_num_lines( idr_pr{rep} )
-		// 	QC{"num_IDR_peaks"} = npeak
-		// 	QC{"num_IDR_peaks_QC"} = npeak >= 70000 ? "OK" : \
-		// 				(   npeak >= 50000 ? "ACCEPTABLE" : "FAIL" )
-		// }
+		if ( pbc_qc.hasKey(rep) ) {
+			pbc_log := parse_pbc(pbc_qc{rep})
+			QC{"11_NRF"} = pbc_log{"NRF"}
+			QC{"12_PBC1"} = pbc_log{"PBC1"}
+			QC{"13_PBC2"} = pbc_log{"PBC2"}
+		}
 		_summary_qc.add( map_to_json_str( \
-				{ "info"=>"rep$rep","qc_type"=>"ENCODE3_qc",\
+				{ "info"=>"rep$rep","qc_type"=>"ENCODE3_qc_consolidated",\
 				"header"=>array_to_str(get_map_keys( QC ),"\\t"),\
 				"contents"=>array_to_str(get_map_vals( QC ),"\\t") } ) )
 	}
-
-	/////// Uniform Processing Pipeline Restriction
-	// before trimming, read length > 45bp
-	// SE or PE
-	// Illumina preferred
-	// Barcodes in FASTQ should be indicated if exists
-	// Library insert size range
-	// hg38 or mm10
 }
