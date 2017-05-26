@@ -142,7 +142,7 @@ mkdir -p ${DATA_DIR}/$GENOME/seq
 echo "Downloading files..."
 cd ${DATA_DIR}/$GENOME
 if [[ $UMAP != "" ]]; then wget -N -c $UMAP; fi
-wget -N -c ${REF_FA}
+wget -c -O $(basename ${REF_FA}) ${REF_FA}
 if [[ $BLACKLIST != "" ]]; then wget -N -c $BLACKLIST; fi
 mkdir -p ataqc && cd ataqc
 if [[ $TSS_ENRICH != "" ]]; then wget -N -c $TSS_ENRICH; fi

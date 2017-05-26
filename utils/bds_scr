@@ -36,7 +36,7 @@ fi
 
 PARAM=
 
-if [ $(find $LOG_FILE_NAME -mmin -2 | wc -l) != "0" ]; then
+if [ $(find $LOG_FILE_NAME -mmin -2 2> /dev/null | wc -l) != "0" ]; then
   echo "error: log file handle is open or very fresh (modified in past 2 minutes)."
   exit 3
 fi
