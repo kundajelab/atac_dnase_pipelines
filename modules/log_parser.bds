@@ -223,7 +223,7 @@ string{} parse_flagstat( string log ) {
 // MarkDuplicate (post-align) logs (*.dup.qc): 1 table
 string{} parse_dup( string log ) {
 	string{} result
-	line := get_stdout( "cat $log | grep 'Unknown Library' | awk '{ print $3,$4,$5,$6,$7,$8,$9; }'" )	
+	line := get_stdout( "cat $log | grep -A1 UNPAIRED_READS_EXAMINED | grep -v UNPAIRED_READS_EXAMINED | awk '{ print $3,$4,$5,$6,$7,$8,$9; }'" )	
 	arr := line.trim().split(" ")
 	result{"unpaired_reads"} = arr[0]
 	result{"paired_reads"} = arr[1]
