@@ -19,7 +19,7 @@ macs2 ==2.1.0
 boost ==1.57.0
 gnuplot #==5.0.3
 numpy ==1.10.2 #1.9.0, 1.8.2 conflicts with ATAQC
-scipy ==0.17.0 
+scipy # ==0.17.0: to fix 'undefined symbol: PyUnicodeUCS2_DecodeUTF8'
 matplotlib
 libgfortran==3.0 # ataqc
 pandas ==0.18.0 #==0.16.1 # ataqc
