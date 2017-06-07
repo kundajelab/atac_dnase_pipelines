@@ -111,7 +111,7 @@ string[] ataqc( string fastq1, string fastq2, string bam, string align_log, stri
 		sys $shcmd_init
 
 		// To prevent java heap space error (Exception in thread "main" java.lang.OutOfMemoryError: Java heap space)
-		sys export _JAVA_OPTIONS="-Xms256M -Xmx$max_java_heap -XX:ParallelGCThreads=1"
+		sys export _JAVA_OPTIONS="-Xms256M -Xmx$max_java_heap -XX:ParallelGCThreads=1 -Djava.io.tmpdir=${TMPDIR}"
 
 		sys cd $o_dir
 
