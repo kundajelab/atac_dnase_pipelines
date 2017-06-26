@@ -525,6 +525,19 @@ $ screen -X -S [SCR_NAME] quit
 $ kill_scr [SCR_NAME]
 ```
 
+## Java issues (memory and temporary directory)
+
+Picard tools is used for marking dupes in the reads and it's based on Java. If you see any Java heap space errors then increase memory limit for Java with `-mem_ataqc [MEM]` (default: `20G`) and `-mem_dedup [MEM]` (default: `12G`).
+
+If your `/tmp` quickly fills up and you want to change temporary directory for all Java apps in the pipeline, then add the following line to your bash startup script (`$HOME/.bashrc`). Our pipeline takes in `$TMPDIR` (not `$TMP`) for all Java apps.
+
+```
+export TMPDIR=/your/temp/dir/
+```
+
+Another quick workaround for dealing with Java issues is not to use Picard tools in the pipeline. Add `-use_sambamba_markdup` to your command line and then you can use `sambamba markdup` instead of `picard markdup`.
+
+
 ## How to customize genome data installer?
 
 Please refer to the section `Installer for genome data` on [BDS pipeline programming](https://kundajelab.github.io/bds_pipeline_modules/programming.html).
@@ -729,6 +742,10 @@ Prepend a directory for `libncurses.so.5` to `LD_LIBRARY_PATH`. See `install_dep
 ```
 samtools: symbol lookup error: /lib/x86_64-linux-gnu/libncurses.so.5: undefined symbol: _nc_putchar
 ```
+
+### Error: could not find environment: bds_atac
+
+Unload any Anaconda Python modules. Remove locally installed Anaconda Python from your `$PATH`.
 
 ### Error: could not find environment: bds_atac
 
