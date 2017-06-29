@@ -395,7 +395,7 @@ string[] markdup_bam_picard( string bam, string o_dir, string log_o_dir, string 
 		//# Set Java environment variable with Xmx, because JVM will ignore our
 		//# runtime flag and use this if it has been set.
 		sys export _JAVA_OPTIONS="-Xms256M -Xmx$max_java_heap -XX:ParallelGCThreads=1"
-		sys if [ -d ${TMPDIR} ]; then \
+		sys if [ -d "${TMPDIR}" ]; then \
 			export _JAVA_OPTIONS="${_JAVA_OPTIONS} -Djava.io.tmpdir=${TMPDIR}"; \
 		fi
 		// to deal with horrible compatility issue for various versions of picard tools
