@@ -20,7 +20,7 @@ idr_thresh 	:= 0.1		help IDR threshold : -log_10(score) (default: 0.1).
 old_trimmer 	:= false 	help Use legacy trim adapters (trim_galore and trimAdapter.py).
 ENCODE3		:= false	help Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE3.
 ENCODE		:= false	help Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE.
-
+no_browser_tracks := false 	help Disable generation of genome browser tracks (workaround for bzip2 shared library issue).
 
 
 help() // show help contexts
@@ -135,6 +135,7 @@ void read_conf_atac() {
 	old_trimmer 	= get_conf_val_bool( old_trimmer,	["old_trimmer"] )
 	ENCODE3	 	= get_conf_val_bool( ENCODE3,		["ENCODE3"] )
 	ENCODE	 	= get_conf_val_bool( ENCODE,		["ENCODE","ENCODE1"] )
+	no_browser_tracks = get_conf_val_bool( no_browser_tracks,	["no_browser_tracks"] )
 }
 
 void init_etc_atac() {
@@ -163,6 +164,7 @@ void print_atac() {
 	print( "Use old trim adapters\t\t\t: $old_trimmer\n" )
 	print( "Force to use ENCODE3 parameter set\t: $ENCODE3\n" )
 	print( "Force to use ENCODE parameter set\t: $ENCODE\n" )
+	print( "Disable genome browser tracks\t: $no_browser_tracks\n" )
 
 	if ( dnase_seq ) type = "dnase-seq"	
 }
@@ -1687,6 +1689,7 @@ string html_atac_QC() {
 }
 
 string html_atac_tracks() {
+	if ( no_browser_tracks ) return ""
 
 	string[] trk_files, trk_types, trk_names, trk_colors
 	string color
