@@ -127,7 +127,7 @@ mkdir -p $CONDA_EXTRA
 ### uninstall IDR 2.0.3 and install the latest one
 conda uninstall idr -y
 cd $CONDA_EXTRA
-git clone https://github.com/nboley/idr
+git clone https://github.com/kundajelab/idr
 cd idr
 python3 setup.py install
 cd $CONDA_EXTRA
