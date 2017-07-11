@@ -10,11 +10,13 @@ ENV_NAME_PY3=bds_atac_py3
 ## install wiggler or not
 
 INSTALL_WIGGLER_AND_MCR=0
+INSTALL_GEM=0
+INSTALL_PEAKSEQ=0
 
 ## install packages from official channels (bioconda and r)
 
-conda create -n ${ENV_NAME} --file requirements.txt -y -c daler -c asmeurer -c defaults -c bioconda -c bcbio -c r
-conda create -n ${ENV_NAME_PY3} --file requirements_py3.txt -y -c daler -c asmeurer -c defaults -c bioconda -c bcbio -c r 
+conda create -n ${ENV_NAME} --file requirements.txt -y -c defaults -c bioconda -c r -c bcbio -c daler -c asmeurer
+conda create -n ${ENV_NAME_PY3} --file requirements_py3.txt -y -c defaults -c bioconda -c r -c bcbio -c daler -c asmeurer
 
 ### bash function definition
 
@@ -63,6 +65,10 @@ chmod 755 -R phantompeakqualtools
 CONTENTS=("export PATH=$CONDA_EXTRA/phantompeakqualtools:\$PATH")
 add_to_activate
 
+### disable locally installed python package lookup
+CONTENTS=("export PYTHONNOUSERSITE=True")
+add_to_activate
+
 if [ ${INSTALL_WIGGLER_AND_MCR} == 1 ]; then
   conda install -y -c conda-forge bc
   ### install Wiggler (for generating signal tracks)
@@ -96,6 +102,19 @@ if [ ${INSTALL_WIGGLER_AND_MCR} == 1 ]; then
   add_to_activate
 fi
 
+# install PeakSeq
+if [ ${INSTALL_PEAKSEQ} == 1 ]; then
+  cd $CONDA_EXTRA
+  wget http://archive.gersteinlab.org/proj/PeakSeq/Scoring_ChIPSeq/Code/C/PeakSeq_1.31.zip -N --no-check-certificate
+  unzip PeakSeq_1.31.zip
+  rm -f PeakSeq_1.31.zip
+  cd PeakSeq
+  make
+  chmod 755 bin/PeakSeq
+  cd $CONDA_BIN
+  ln -s $CONDA_EXTRA/PeakSeq/bin/PeakSeq
+fi
+
 source deactivate
 
 
@@ -113,6 +132,18 @@ cd idr
 python3 setup.py install
 cd $CONDA_EXTRA
 rm -rf idr
+
+# install GEM
+if [ ${INSTALL_GEM} == 1 ]; then
+  cd $CONDA_EXTRA
+  wget http://groups.csail.mit.edu/cgs/gem/download/gem.v3.0.tar.gz -N --no-check-certificate
+  tar zxvf gem.v3.0.tar.gz  
+  rm -f gem.v3.0.tar.gz  
+  cd gem
+  chmod 755 gem.jar
+  cd $CONDA_BIN
+  ln -s $CONDA_EXTRA/gem/gem.jar
+fi
 
 source deactivate
 
