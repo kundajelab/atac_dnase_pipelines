@@ -81,8 +81,8 @@ string[] macs2_atac( string tag, string smooth_window, string pval_thresh, bool 
 			--nomodel --shift -$shiftsize --extsize $smooth_window --broad --keep-dup all $extra_param_macs2
 
 		//# Sort by Col8 in descending order and replace long peak names in Column 4 with Peak_<peakRank>
-		sys sort -k 8gr,8gr "$prefix"_peaks.broadPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $bpeakfile
-		sys sort -k 14gr,14gr "$prefix"_peaks.gappedPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $gpeakfile
+		sys slopBed -i "$prefix"_peaks.broadPeak -g "$chrsz" -b 0 | sort -k 8gr,8gr | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $bpeakfile
+		sys slopBed -i "$prefix"_peaks.gappedPeak -g "$chrsz" -b 0 | sort -k 14gr,14gr | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $gpeakfile
 		sys rm -f "$prefix"_peaks.broadPeak
 		sys rm -f "$prefix"_peaks.gappedPeak
 
@@ -91,7 +91,7 @@ string[] macs2_atac( string tag, string smooth_window, string pval_thresh, bool 
 			--nomodel --shift -$shiftsize --extsize $smooth_window -B --SPMR --keep-dup all --call-summits $extra_param_macs2
 
 		//# Sort by Col8 in descending order and replace long peak names in Column 4 with Peak_<peakRank>
-		sys sort -k 8gr,8gr "$prefix"_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $peakfile
+		sys slopBed -i "$prefix"_peaks.narrowPeak -g "$chrsz" -b 0 | sort -k 8gr,8gr | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $peakfile
 		sys rm -f "$prefix"_peaks.narrowPeak
 		sys rm -f "$prefix"_peaks.xls
 		sys rm -f "$prefix"_summits.bed
