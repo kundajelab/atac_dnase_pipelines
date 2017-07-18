@@ -38,7 +38,7 @@ void chk_callpeak_macs2() {
 	if ( !path_exists( chrsz ) ) error("Chromosome size file (-chrsz) is missing! (file: $chrsz)")
 }
 
-string[] macs2_atac( string tag, string smooth_window, string pval_thresh, bool make_sig, \
+string[] macs2_atac_npeak_and_signal( string tag, string smooth_window, string pval_thresh, bool make_sig, \
 			string peak_o_dir, string sig_o_dir, string group ) {
 
 	pval_str 	:= (pval_thresh=="0.01") ? "" : ".pval$pval_thresh"	
@@ -46,7 +46,6 @@ string[] macs2_atac( string tag, string smooth_window, string pval_thresh, bool 
 	prefix_sig 	:= replace_dir( prefix, sig_o_dir )
 	
 	// peaks
-
 	peakfile 	:= "$prefix.narrowPeak.gz"
 	bpeakfile	:= "$prefix.broadPeak.gz"
 	gpeakfile	:= "$prefix.gappedPeak.gz"
@@ -64,9 +63,10 @@ string[] macs2_atac( string tag, string smooth_window, string pval_thresh, bool 
 	blacklist_exists := path_exists(blacklist)
 
 	in 	:= [ tag ]
-	out 	:= make_sig ? [ peakfile, gpeakfile, fc_bigwig, pval_bigwig ] : [ peakfile, gpeakfile ]
+	// out 	:= make_sig ? [ peakfile, gpeakfile, fc_bigwig, pval_bigwig ] : [ peakfile, gpeakfile ]
+	out 	:= make_sig ? [ peakfile, fc_bigwig, pval_bigwig ] : [ peakfile ]
 
-	taskName:= "macs2_atac " + group + pval_str
+	taskName:= "macs2 n/s " + group + pval_str
 	mem := get_res_mem(mem_macs2,1);	timeout := get_res_wt(wt_macs2)
 
 	wait_par( cpus )
@@ -78,16 +78,6 @@ string[] macs2_atac( string tag, string smooth_window, string pval_thresh, bool 
 
 		sys macs2 callpeak \
 			-t $tag -f BED -n "$prefix" -g "$gensz" -p $pval_thresh \
-			--nomodel --shift -$shiftsize --extsize $smooth_window --broad --keep-dup all $extra_param_macs2
-
-		//# Sort by Col8 in descending order and replace long peak names in Column 4 with Peak_<peakRank>
-		sys sort -k 8gr,8gr "$prefix"_peaks.broadPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $bpeakfile
-		sys sort -k 14gr,14gr "$prefix"_peaks.gappedPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $gpeakfile
-		sys rm -f "$prefix"_peaks.broadPeak
-		sys rm -f "$prefix"_peaks.gappedPeak
-
-		sys macs2 callpeak \
-			-t $tag -f BED -n "$prefix" -g "$gensz" -p $pval_thresh \
 			--nomodel --shift -$shiftsize --extsize $smooth_window -B --SPMR --keep-dup all --call-summits $extra_param_macs2
 
 		//# Sort by Col8 in descending order and replace long peak names in Column 4 with Peak_<peakRank>
@@ -95,12 +85,6 @@ string[] macs2_atac( string tag, string smooth_window, string pval_thresh, bool 
 		sys rm -f "$prefix"_peaks.narrowPeak
 		sys rm -f "$prefix"_peaks.xls
 		sys rm -f "$prefix"_summits.bed
-
-		// sys if [[ $blacklist_exists == "true" ]]; then \
-		// 	bedtools intersect -v -a $peakfile -b $blacklist | gzip -nc > $filt_peakfile; \
-		// 	bedtools intersect -v -a $gpeakfile -b $blacklist | gzip -nc > $filt_gpeakfile; \
-		// 	bedtools intersect -v -a $bpeakfile -b $blacklist | gzip -nc > $filt_bpeakfile; \
-		// fi
 
 		sys if [[ $make_sig == "false" ]]; then \
 			rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg; \
@@ -131,6 +115,57 @@ string[] macs2_atac( string tag, string smooth_window, string pval_thresh, bool 
 		sys rm -f $pval_bedgraph $pval_bedgraph_srt
 
 		sys rm -f "$prefix"_treat_pileup.bdg "$prefix"_control_lambda.bdg
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group, "MACS2\\np-val<$pval_thresh", grp_color_macs2 )
+
+	return out
+}
+
+string[] macs2_atac_gpeak_and_bpeak( string tag, string smooth_window, string pval_thresh, \
+			string peak_o_dir, string group ) {
+
+	pval_str 	:= (pval_thresh=="0.01") ? "" : ".pval$pval_thresh"	
+	prefix 		:= replace_dir( rm_ext( tag, ["bed","tagAlign"] ), peak_o_dir ) + ".pf$pval_str"
+	// peaks
+	bpeakfile	:= "$prefix.broadPeak.gz"
+	gpeakfile	:= "$prefix.gappedPeak.gz"
+
+	shiftsize := round( smooth_window.parseReal()/2.0 )
+
+	blacklist_exists := path_exists(blacklist)
+
+	in 	:= [ tag ]
+	// out 	:= make_sig ? [ peakfile, gpeakfile, fc_bigwig, pval_bigwig ] : [ peakfile, gpeakfile ]
+	out 	:= [ gpeakfile, bpeakfile ]
+
+	taskName:= "macs2 g/b " + group + pval_str
+	mem := get_res_mem(mem_macs2,1);	timeout := get_res_wt(wt_macs2)
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+	
+		sys $shcmd_init
+		sys export LC_COLLATE=C
+
+		// .tmp is to prevent file race condition with macs2_atac_npeak_and_signal
+		sys macs2 callpeak \
+			-t $tag -f BED -n "$prefix.tmp" -g "$gensz" -p $pval_thresh \
+			--nomodel --shift -$shiftsize --extsize $smooth_window --broad --keep-dup all $extra_param_macs2
+
+		//# Sort by Col8 in descending order and replace long peak names in Column 4 with Peak_<peakRank>
+		sys sort -k 8gr,8gr "$prefix.tmp"_peaks.broadPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $bpeakfile
+		sys sort -k 14gr,14gr "$prefix.tmp"_peaks.gappedPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $gpeakfile
+		sys rm -f "$prefix.tmp"_peaks.broadPeak
+		sys rm -f "$prefix.tmp"_peaks.gappedPeak
+		sys rm -f "$prefix.tmp"_peaks.xls
+		sys rm -f "$prefix.tmp"_summits.bed
+		sys rm -f "$prefix.tmp"_treat_pileup.bdg "$prefix.tmp"_control_lambda.bdg
 
 		sys $shcmd_finalize
 	}
