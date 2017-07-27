@@ -11,7 +11,6 @@ align	 	:= false	help Align only (no MACS2 peak calling or IDR or ataqc analysis
 subsample_xcor	:= "25M"	help # reads to subsample for cross corr. analysis (default: 25M).
 subsample 	:= "0" 		help # reads to subsample exp. replicates. Subsampled tagalign will be used for steps downstream (default: 0; no subsampling).
 true_rep 	:= false 	help No pseudo-replicates.
-no_idr 		:= false 	help No IDR analysis on called peaks. This will change p-value threshold (0.1->0.01) in MACS2 peak calling.
 no_ataqc 	:= false 	help No ATAQC
 no_xcor 	:= false 	help No Cross-correlation analysis.
 csem	 	:= false	help Use CSEM for alignment.
@@ -21,7 +20,12 @@ old_trimmer 	:= false 	help Use legacy trim adapters (trim_galore and trimAdapte
 ENCODE3		:= false	help Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE3.
 ENCODE		:= false	help Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE.
 no_browser_tracks := false 	help Disable generation of genome browser tracks (workaround for bzip2 shared library issue).
+overlap_pval_thresh := 0.01	help p-val threshold for overlapped peaks (default: 0.01).
+macs2_pval_thresh := 0.01	help MACS2 p-val threshold for calling peaks (default: 0.1).
+macs2_pval_thresh_bw := 0.01	help MACS2 p-val threshold for generating BIGWIG signal tracks (default: 0.1).
+enable_idr 	:= false 	help Enable IDR on called peaks.
 
+exclude_ppr_in_naive_overlap := false //help Exclude peaks from pooled pseudo replicates in naive overlap. This flag works for multiple replicate case only.
 disable_gb_peak := true // disable gapped/broad peak generation
 
 help() // show help contexts
@@ -124,7 +128,6 @@ void read_conf_atac() {
 	trimmed_fastq 	= get_conf_val_bool( trimmed_fastq,	["trimmed_fastq"] )
 	align		= get_conf_val_bool( align,		["align"] )
 	true_rep	= get_conf_val_bool( true_rep, 		["true_rep"] )
-	no_idr 		= get_conf_val_bool( no_idr, 		["no_idr"] )
 	no_ataqc 	= get_conf_val_bool( no_ataqc, 		["no_ataqc"] )
 	no_xcor 	= get_conf_val_bool( no_xcor, 		["no_xcor"] )
 	csem 		= get_conf_val_bool( csem, 		["csem"] )
@@ -137,6 +140,11 @@ void read_conf_atac() {
 	ENCODE3	 	= get_conf_val_bool( ENCODE3,		["ENCODE3"] )
 	ENCODE	 	= get_conf_val_bool( ENCODE,		["ENCODE","ENCODE1"] )
 	no_browser_tracks = get_conf_val_bool( no_browser_tracks,	["no_browser_tracks"] )
+	overlap_pval_thresh = get_conf_val_real( overlap_pval_thresh, 	["overlap_pval_thresh"] )
+	// exclude_ppr_in_naive_overlap = get_conf_val_bool( exclude_ppr_in_naive_overlap, ["exclude_ppr_in_naive_overlap"] )
+	macs2_pval_thresh = get_conf_val_real( macs2_pval_thresh, ["macs2_pval_thresh"] )
+	macs2_pval_thresh_bw = get_conf_val_real( macs2_pval_thresh_bw, ["macs2_pval_thresh_bw"] )
+	enable_idr 	= get_conf_val_bool( enable_idr,	["enable_idr"] )
 }
 
 void init_etc_atac() {
@@ -155,7 +163,6 @@ void print_atac() {
 	print( "# reads to subsample replicates (0 if no subsampling)\t: "+parse_number( subsample )+"\n")
 	print( "# reads to subsample for cross-corr. analysis \t: " +parse_number( subsample_xcor)+"\n")
 	print( "No pseudo replicates\t\t\t: $true_rep\n")
-	print( "No IDR analysis on peaks\t\t: $no_idr\n")
 	print( "No ATAQC (advanced QC report)\t\t: $no_ataqc\n")
 	print( "No Cross-corr. analysis\t\t\t: $no_xcor\n")
 	print( "Use CSEM for alignment\t\t\t: $csem\n")
@@ -166,6 +173,11 @@ void print_atac() {
 	print( "Force to use ENCODE3 parameter set\t: $ENCODE3\n" )
 	print( "Force to use ENCODE parameter set\t: $ENCODE\n" )
 	print( "Disable genome browser tracks\t: $no_browser_tracks\n" )
+	print( "p-val thresh. for overlapped peaks\t: $overlap_pval_thresh\n")
+	// print( "Exclude ppr in naive overlap\t: $exclude_ppr_in_naive_overlap\n")
+	print( "MACS2 p-val thresh. for peaks\t: $macs2_pval_thresh\n")
+	print( "MACS2 p-val thresh. for BIGWIGs\t\t: $macs2_pval_thresh_bw\n")
+	print( "Enable IDR on called peaks\t: $enable_idr\n")
 
 	if ( dnase_seq ) type = "dnase-seq"	
 }
@@ -266,7 +278,7 @@ void chk_param() {
 
 	if ( has_input_fastq() ) chk_align_bwt2()
 	if ( !align ) 		chk_callpeak_macs2()
-	if ( !no_idr ) 		chk_idr()
+	if ( enable_idr ) 		chk_idr()
 	if ( !no_ataqc ) {
 		no_ataqc = !chk_ataqc()
 	}
@@ -284,11 +296,6 @@ void chk_param() {
 	if ( has_pe_input_fastq() && csem ) {
 		error("CSEM (-csem) is not available for paired end fastqs!\n")
 	}
-
-	//if ( get_num_rep() > 2 && !no_idr ) {
-	//	print("Warning: IDR is available for one replicate or two replicates only. Disabling IDR...\n")
-	//	no_idr 	= true
-	//}
 
 	if ( ENCODE ) {
 		print("Info: ENCODE flag is on (-smooth_win 73 -idr_thresh 0.05 -multimapping 4).\n")
@@ -1033,30 +1040,39 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 		peak_o_dir 	:= mkdir( "$out_dir/peak/macs2/$group")
 		sig_o_dir 	:= mkdir( "$out_dir/signal/macs2/$group" )
 
-		// macs2 pval thresh = 0.01, signal track generation = true
-		// ( peak_001{rep}, gpeak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) \
-		( peak_001{rep}, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) \
-				= macs2_atac_npeak_and_signal( final_tag{rep}, "$smooth_win", 0.01, true, peak_o_dir, sig_o_dir, group )
-		add_file_to_report( peak_001{rep}, "n. peak\\np-val<0.01", group, "Peaks/MACS2/$long/Narrow peak (p-val thresh=.01)" )
+		// signal track generation = true
+		string peak_001_, gpeak_001_
+		( peak_001_, fc_bigwig_001{rep}, pval_bigwig_001{rep} ) \
+				= macs2_atac_npeak_and_signal( final_tag{rep}, "$smooth_win", macs2_pval_thresh_bw, true, peak_o_dir, sig_o_dir, group )
+		peak_001{rep} = peak_001_
+		add_file_to_report( peak_001{rep}, "n. peak\\np-val<$macs2_pval_thresh_bw", group, \
+			"Peaks/MACS2/$long/Narrow peak (p-val thresh=$macs2_pval_thresh_bw)" )
 		add_file_to_report( fc_bigwig_001{rep}, "signal fc", group, "Signal tracks/MACS2/$long/Fold enrichment" )
 		add_file_to_report( pval_bigwig_001{rep}, "signal p-val", group, "Signal tracks/MACS2/$long/P-value" )
 
 		if ( !disable_gb_peak ) {
-			( gpeak_001{rep}, tmp ) \
-					= macs2_atac_gpeak_and_bpeak( final_tag{rep}, "$smooth_win", 0.01, peak_o_dir, group )
-			add_file_to_report( gpeak_001{rep}, "g. peak\\np-val<0.01", group, "Peaks/MACS2/$long/Gapped peak (p-val thresh=.01)" )
+			( gpeak_001_, tmp ) \
+					= macs2_atac_gpeak_and_bpeak( final_tag{rep}, "$smooth_win", macs2_pval_thresh_bw, peak_o_dir, group )
+			gpeak_001{rep} = gpeak_001_
+			add_file_to_report( gpeak_001{rep}, "g. peak\\np-val<$macs2_pval_thresh_bw", group, \
+				"Peaks/MACS2/$long/Gapped peak (p-val thresh=$macs2_pval_thresh_bw)" )
 		}
+		if ( macs2_pval_thresh_bw == macs2_pval_thresh ) { // if two p-val threshold are the same, skip one of them.			
+			peak{rep} = peak_001_
+			if ( !disable_gb_peak ) {
+				gpeak{rep} = gpeak_001_
+			}
+		}
+		else {
+			( peak{rep}, tmp )  \
+					= macs2_atac_npeak_and_signal( final_tag{rep}, "$smooth_win", macs2_pval_thresh, false, peak_o_dir, sig_o_dir, group )
+			add_file_to_report( peak{rep}, "n. peak", group, "Peaks/MACS2/$long/Narrow peak" )
 
-		// macs2 pval thresh = 0.1
-		// ( peak{rep}, gpeak{rep} )  \
-		( peak{rep}, tmp )  \
-				= macs2_atac_npeak_and_signal( final_tag{rep}, "$smooth_win", 0.1, false, peak_o_dir, sig_o_dir, group )
-		add_file_to_report( peak{rep}, "n. peak", group, "Peaks/MACS2/$long/Narrow peak" )
-
-		if ( !disable_gb_peak ) {
-			( gpeak{rep}, tmp )  \
-					= macs2_atac_gpeak_and_bpeak( final_tag{rep}, "$smooth_win", 0.1, peak_o_dir, group )
-			add_file_to_report( gpeak{rep}, "g. peak", group, "Peaks/MACS2/$long/Gapped peak" )
+			if ( !disable_gb_peak ) {
+				( gpeak{rep}, tmp )  \
+						= macs2_atac_gpeak_and_bpeak( final_tag{rep}, "$smooth_win", macs2_pval_thresh, peak_o_dir, group )
+				add_file_to_report( gpeak{rep}, "g. peak", group, "Peaks/MACS2/$long/Gapped peak" )
+			}
 		}
 
 		if ( !true_rep ) {
@@ -1067,23 +1083,23 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 
 			// ( peak_pr1{rep}, gpeak_pr1{rep} ) \
 			( peak_pr1{rep}, tmp ) \
-				= macs2_atac_npeak_and_signal( final_tag_pr1{rep}, "$smooth_win", 0.1, false, peak_pr1_o_dir, sig_pr1_o_dir, "$group-pr1" )
+				= macs2_atac_npeak_and_signal( final_tag_pr1{rep}, "$smooth_win", macs2_pval_thresh, false, peak_pr1_o_dir, sig_pr1_o_dir, "$group-pr1" )
 			add_file_to_report( peak_pr1{rep}, "n. peak", "$group-pr1", "Peaks/MACS2/Pseudo-replicates/$long/Pseudo-replicate 1/Narrow peak" )
 
 			if ( !disable_gb_peak ) {
 				( gpeak_pr1{rep}, tmp ) \
-					= macs2_atac_gpeak_and_bpeak( final_tag_pr1{rep}, "$smooth_win", 0.1, peak_pr1_o_dir, "$group-pr1" )
+					= macs2_atac_gpeak_and_bpeak( final_tag_pr1{rep}, "$smooth_win", macs2_pval_thresh, peak_pr1_o_dir, "$group-pr1" )
 				add_file_to_report( gpeak_pr1{rep},"g. peak", "$group-pr1", "Peaks/MACS2/Pseudo-replicates/$long/Pseudo-replicate 1/Gapped peak" )
 			}
 
 			// ( peak_pr2{rep}, gpeak_pr2{rep} ) \
 			( peak_pr2{rep}, tmp ) \
-				= macs2_atac_npeak_and_signal( final_tag_pr2{rep}, "$smooth_win", 0.1, false, peak_pr2_o_dir, sig_pr2_o_dir, "$group-pr2" )
+				= macs2_atac_npeak_and_signal( final_tag_pr2{rep}, "$smooth_win", macs2_pval_thresh, false, peak_pr2_o_dir, sig_pr2_o_dir, "$group-pr2" )
 			add_file_to_report( peak_pr2{rep}, "n. peak", "$group-pr2", "Peaks/MACS2/Pseudo-replicates/$long/Pseudo-replicate 2/Narrow peak" )
 
 			if ( !disable_gb_peak ) {
 				( gpeak_pr2{rep}, tmp ) \
-					= macs2_atac_gpeak_and_bpeak( final_tag_pr2{rep}, "$smooth_win", 0.1, peak_pr2_o_dir, "$group-pr2" )
+					= macs2_atac_gpeak_and_bpeak( final_tag_pr2{rep}, "$smooth_win", macs2_pval_thresh, peak_pr2_o_dir, "$group-pr2" )
 				add_file_to_report( gpeak_pr2{rep},"g. peak", "$group-pr2", "Peaks/MACS2/Pseudo-replicates/$long/Pseudo-replicate 2/Gapped peak" )			
 			}
 		}
@@ -1098,30 +1114,36 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 		pooled_o_dir	:= mkdir( "$peak_o_dir/pooled_rep" )
 		pooled_sig_o_dir:= mkdir( "$sig_o_dir/pooled_rep" )
 
-		// macs2 on pooled reps with p-val threshold 0.01, signal tracks are generated
-		// ( peak_pooled_001, gpeak_pooled_001, fc_bigwig_001{"pooled"}, pval_bigwig_001{"pooled"} ) \
+		// macs2 on pooled reps, signal tracks are generated
 		( peak_pooled_001, fc_bigwig_001{"pooled"}, pval_bigwig_001{"pooled"} ) \
-			= macs2_atac_npeak_and_signal( final_tag_pooled, "$smooth_win", 0.01, true, pooled_o_dir, pooled_sig_o_dir, "pooled_rep" )
-		add_file_to_report( peak_pooled_001, "n. peak\\np-val<0.01", "pooled_rep", "Peaks/MACS2/Pooled replicate/Narrow peak (p-val thresh=.01)" )
+			= macs2_atac_npeak_and_signal( final_tag_pooled, "$smooth_win", macs2_pval_thresh_bw, true, pooled_o_dir, pooled_sig_o_dir, "pooled_rep" )
+		add_file_to_report( peak_pooled_001, "n. peak\\np-val<$macs2_pval_thresh_bw", "pooled_rep", "Peaks/MACS2/Pooled replicate/Narrow peak (p-val thresh=.01)" )
 		add_file_to_report( fc_bigwig_001{"pooled"}, "signal fc", "pooled_rep", "Signal tracks/MACS2/Pooled replicate/Fold enrichment" )
 		add_file_to_report( pval_bigwig_001{"pooled"}, "signal p-val", "pooled_rep", "Signal tracks/MACS2/Pooled replicate/P-value" )
 
 		if ( !disable_gb_peak ) {
 			( gpeak_pooled_001, tmp ) \
-				= macs2_atac_gpeak_and_bpeak( final_tag_pooled, "$smooth_win", 0.01, pooled_o_dir, "pooled_rep" )
-			add_file_to_report( gpeak_pooled_001, "g. peak\\np-val<0.01", "pooled_rep", "Peaks/MACS2/Pooled replicate/Gapped peak (p-val thresh=.01)" )
+				= macs2_atac_gpeak_and_bpeak( final_tag_pooled, "$smooth_win", macs2_pval_thresh_bw, pooled_o_dir, "pooled_rep" )
+			add_file_to_report( gpeak_pooled_001, "g. peak\\np-val<$macs2_pval_thresh_bw", "pooled_rep", "Peaks/MACS2/Pooled replicate/Gapped peak (p-val thresh=.01)" )
 		}
 
-		// macs2 on pooled reps with p-val threshold 0.1
-		// ( peak_pooled, gpeak_pooled ) \
-		( peak_pooled, tmp ) \
-			= macs2_atac_npeak_and_signal( final_tag_pooled, "$smooth_win", 0.1, false, pooled_o_dir, pooled_sig_o_dir, "pooled_rep" )
-		add_file_to_report( peak_pooled, "n. peak", "pooled_rep", "Peaks/MACS2/Pooled replicate/Narrow peak" )
+		// macs2 on pooled reps
+		if ( macs2_pval_thresh_bw == macs2_pval_thresh ) { // if two p-val threshold are the same, skip one of them.
+			peak_pooled = peak_pooled_001
+			if ( !disable_gb_peak ) {
+				gpeak_pooled = gpeak_pooled_001
+			}
+		}
+		else {
+			( peak_pooled, tmp ) \
+				= macs2_atac_npeak_and_signal( final_tag_pooled, "$smooth_win", macs2_pval_thresh, false, pooled_o_dir, pooled_sig_o_dir, "pooled_rep" )
+			add_file_to_report( peak_pooled, "n. peak", "pooled_rep", "Peaks/MACS2/Pooled replicate/Narrow peak" )
 
-		if ( !disable_gb_peak ) {
-			( gpeak_pooled, tmp ) \
-				= macs2_atac_gpeak_and_bpeak( final_tag_pooled, "$smooth_win", 0.1, pooled_o_dir, "pooled_rep" )
-			add_file_to_report( gpeak_pooled, "g. peak", "pooled_rep", "Peaks/MACS2/Pooled replicate/Gapped peak" )
+			if ( !disable_gb_peak ) {
+				( gpeak_pooled, tmp ) \
+					= macs2_atac_gpeak_and_bpeak( final_tag_pooled, "$smooth_win", macs2_pval_thresh, pooled_o_dir, "pooled_rep" )
+				add_file_to_report( gpeak_pooled, "g. peak", "pooled_rep", "Peaks/MACS2/Pooled replicate/Gapped peak" )
+			}
 		}
 
 		if ( !true_rep ) {
@@ -1131,25 +1153,24 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 			ppr2_sig_o_dir 	:= mkdir( "$sig_o_dir/pooled_pseudo_reps/ppr2" )
 
 			// call peaks on ppr
-			// ( peak_ppr1, gpeak_ppr1 ) \
 			( peak_ppr1, tmp ) \
-				= macs2_atac_npeak_and_signal( final_tag_ppr1, "$smooth_win", 0.1, false, ppr1_o_dir, ppr1_sig_o_dir, "ppr1" )
+				= macs2_atac_npeak_and_signal( final_tag_ppr1, "$smooth_win", macs2_pval_thresh, false, ppr1_o_dir, ppr1_sig_o_dir, "ppr1" )
 			add_file_to_report( peak_ppr1, "n. peak", "ppr1", "Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Narrow peak" )
 
 			if ( !disable_gb_peak ) {
 				( gpeak_ppr1, tmp ) \
-					= macs2_atac_gpeak_and_bpeak( final_tag_ppr1, "$smooth_win", 0.1, ppr1_o_dir, "ppr1" )
+					= macs2_atac_gpeak_and_bpeak( final_tag_ppr1, "$smooth_win", macs2_pval_thresh, ppr1_o_dir, "ppr1" )
 				add_file_to_report( gpeak_ppr1, "g. peak", "ppr1","Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Gapped peak" )
 			}
 
 			// ( peak_ppr2, gpeak_ppr2 ) \
 			( peak_ppr2, tmp ) \
-				= macs2_atac_npeak_and_signal( final_tag_ppr2, "$smooth_win", 0.1, false, ppr2_o_dir, ppr2_sig_o_dir, "ppr2" )
+				= macs2_atac_npeak_and_signal( final_tag_ppr2, "$smooth_win", macs2_pval_thresh, false, ppr2_o_dir, ppr2_sig_o_dir, "ppr2" )
 			add_file_to_report( peak_ppr2, "n. peak", "ppr2", "Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Narrow peak" )
 
 			if ( !disable_gb_peak ) {
 				( gpeak_ppr2, tmp ) \
-					= macs2_atac_gpeak_and_bpeak( final_tag_ppr2, "$smooth_win", 0.1, ppr2_o_dir, "ppr2" )
+					= macs2_atac_gpeak_and_bpeak( final_tag_ppr2, "$smooth_win", macs2_pval_thresh, ppr2_o_dir, "ppr2" )
 				add_file_to_report( gpeak_ppr2, "g. peak", "ppr2","Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Gapped peak" )
 			}
 		}
@@ -1162,7 +1183,7 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 
 void do_idr() {
 
-	if ( align || no_idr ) return
+	if ( align || !enable_idr ) return
 
 	string{} top_peak, top_peak_pr1, top_peak_pr2
 	string top_peak_pooled, top_peak_ppr1, top_peak_ppr2
@@ -1173,25 +1194,25 @@ void do_idr() {
 	// take top $npeak_filt lines from narrowpeaks for idr
 	for ( int rep=1; rep<=get_num_rep(); rep++ ) {
 
-		top_peak{rep} 	= filt_top_peaks( "narrowPeak", peak{rep}, "", "rep$rep" )
+		top_peak{rep} 	= filt_top_peaks( "narrowPeak", peak{rep}, overlap_pval_thresh, "", "rep$rep" )
 		add_file_to_table( top_peak{rep}, "Peaks/MACS2/Replicate $rep/Filtered narrow peak" )
 
 		if ( !is_input_peak() && !disable_gb_peak ) {
-			filt_gpeak{rep} = filt_top_peaks( "gappedPeak", gpeak{rep}, "", "rep$rep" )
+			filt_gpeak{rep} = filt_top_peaks( "gappedPeak", gpeak{rep}, overlap_pval_thresh, "", "rep$rep" )
 			add_file_to_table( filt_gpeak{rep},"Peaks/MACS2/Replicate $rep/Filtered gapped peak" )
 		}
 
 		if ( !true_rep ) {
-			top_peak_pr1{rep}  = filt_top_peaks( "narrowPeak", peak_pr1{rep}, "", "rep$rep-pr1" )
-			top_peak_pr2{rep}  = filt_top_peaks( "narrowPeak", peak_pr2{rep}, "", "rep$rep-pr2" )
+			top_peak_pr1{rep}  = filt_top_peaks( "narrowPeak", peak_pr1{rep}, overlap_pval_thresh, "", "rep$rep-pr1" )
+			top_peak_pr2{rep}  = filt_top_peaks( "narrowPeak", peak_pr2{rep}, overlap_pval_thresh, "", "rep$rep-pr2" )
 			add_file_to_table( top_peak_pr1{rep}, \
 				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 1/Filtered narrow peak" )
 			add_file_to_table( top_peak_pr2{rep}, \
 				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 2/Filtered narrow peak" )
 
 			if ( !is_input_peak() && !disable_gb_peak ) {
-				filt_gpeak_pr1{rep} = filt_top_peaks( "gappedPeak", gpeak_pr1{rep}, "", "rep$rep-pr1" )
-				filt_gpeak_pr2{rep} = filt_top_peaks( "gappedPeak", gpeak_pr2{rep}, "", "rep$rep-pr2" )
+				filt_gpeak_pr1{rep} = filt_top_peaks( "gappedPeak", gpeak_pr1{rep}, overlap_pval_thresh, "", "rep$rep-pr1" )
+				filt_gpeak_pr2{rep} = filt_top_peaks( "gappedPeak", gpeak_pr2{rep}, overlap_pval_thresh, "", "rep$rep-pr2" )
 				add_file_to_table( filt_gpeak_pr1{rep}, \
 				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 1/Filtered gapped peak" )
 				add_file_to_table( filt_gpeak_pr2{rep}, \
@@ -1202,25 +1223,25 @@ void do_idr() {
 
 	if ( get_num_rep() > 1 ) {
 
-		top_peak_pooled = filt_top_peaks( "narrowPeak", peak_pooled, "", "pooled_rep" )
+		top_peak_pooled = filt_top_peaks( "narrowPeak", peak_pooled, overlap_pval_thresh, "", "pooled_rep" )
 		add_file_to_table( top_peak_pooled, "Peaks/MACS2/Pooled replicate/Filtered narrow peak" )
 
 		if ( !is_input_peak() && !disable_gb_peak ) {
-			filt_gpeak_pooled= filt_top_peaks( "gappedPeak", gpeak_pooled, "", "pooled_rep" )
+			filt_gpeak_pooled= filt_top_peaks( "gappedPeak", gpeak_pooled, overlap_pval_thresh, "", "pooled_rep" )
 			add_file_to_table( filt_gpeak_pooled, "Peaks/MACS2/Pooled replicate/Filtered gapped peak" )
 		}
 
 		if ( !true_rep ) {
-			top_peak_ppr1 	= filt_top_peaks( "narrowPeak", peak_ppr1, "", "ppr1" )			
-			top_peak_ppr2 	= filt_top_peaks( "narrowPeak", peak_ppr2, "", "ppr2" )
+			top_peak_ppr1 	= filt_top_peaks( "narrowPeak", peak_ppr1, overlap_pval_thresh, "", "ppr1" )
+			top_peak_ppr2 	= filt_top_peaks( "narrowPeak", peak_ppr2, overlap_pval_thresh, "", "ppr2" )
 			add_file_to_table( top_peak_ppr1, \
 				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Filtered narrow peak" )
 			add_file_to_table( top_peak_ppr2, \
 				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Filtered narrow peak" )
 
 			if ( !is_input_peak() && !disable_gb_peak  ) {
-				filt_gpeak_ppr1 = filt_top_peaks( "gappedPeak", gpeak_ppr1, "", "ppr1" )
-				filt_gpeak_ppr2 = filt_top_peaks( "gappedPeak", gpeak_ppr2, "", "ppr2" )
+				filt_gpeak_ppr1 = filt_top_peaks( "gappedPeak", gpeak_ppr1, overlap_pval_thresh, "", "ppr1" )
+				filt_gpeak_ppr2 = filt_top_peaks( "gappedPeak", gpeak_ppr2, overlap_pval_thresh, "", "ppr2" )
 				add_file_to_table( filt_gpeak_ppr1, \
 					"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Filtered gapped peak" )
 				add_file_to_table( filt_gpeak_ppr2, \
@@ -1249,12 +1270,25 @@ void do_idr() {
 		}
 	}
 	else {
-		peak_overlap = naive_overlap_peak( "narrowPeak", top_peak_pooled, map_to_array( top_peak ), \
+		if ( !exclude_ppr_in_naive_overlap ) {
+			peak_overlap = naive_overlap_peak( "narrowPeak", top_peak_pooled, map_to_array( top_peak ), \
 								  top_peak_ppr1, top_peak_ppr2, overlap_o_dir, "" )
+		}
+		else {
+			peak_overlap = naive_overlap_peak( "narrowPeak", top_peak_pooled, map_to_array( top_peak ), \
+								  "", "", overlap_o_dir, "" )
+		}
 
 		if ( !is_input_peak() && !disable_gb_peak ) {
-			gpeak_overlap_tmp := naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, map_to_array( filt_gpeak ), \
-								  filt_gpeak_ppr1, filt_gpeak_ppr2, overlap_o_dir, "" )
+			string gpeak_overlap_tmp
+			if ( !exclude_ppr_in_naive_overlap ) {
+				gpeak_overlap_tmp = naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, map_to_array( filt_gpeak ), \
+									  filt_gpeak_ppr1, filt_gpeak_ppr2, overlap_o_dir, "" )
+			}
+			else {
+				gpeak_overlap_tmp = naive_overlap_peak( "gappedPeak", filt_gpeak_pooled, map_to_array( filt_gpeak ), \
+									  "", "", overlap_o_dir, "" )				
+			}
 			wait
 			gpeak_overlap = overlap_gpeak_over_npeak( gpeak_overlap_tmp, peak_overlap, overlap_o_dir, "" )
 		}
@@ -1466,7 +1500,7 @@ void filter_peak_and_convert_to_bigbed() {
 	wait
 
 	string ENCODE_step_name
-	if ( !no_idr && idr_qc && idr_opt && idr_consv ) {
+	if ( enable_idr && idr_qc && idr_opt && idr_consv ) {
 
 		string[] idr_ENCODE 
 		// IDR peaks
@@ -1591,8 +1625,8 @@ void ataqc() {
 
 void ataqc( int rep ) {
 
-	if ( true_rep || no_idr ) {
-		print("Warning: ATAQC cannot run with the flag -true_rep or -no_idr\n");
+	if ( true_rep || !enable_idr ) {
+		print("Warning: ATAQC needs a flag -enable_idr activated and cannot run with a flag -true_rep\n");
 		return
 	}
 	if ( no_dup_removal ) {
@@ -1610,7 +1644,7 @@ void ataqc( int rep ) {
 
 		string idr_ataqc, peak
 
-		if ( no_idr ) 			{
+		if ( !enable_idr ) {
 			idr_ataqc = ""
 		}
 		else if ( get_num_rep() == 1 ) 	{
@@ -1797,7 +1831,7 @@ bool is_dnase_seq() {
 }
 
 void tar_all_logs() {
-	if ( !no_idr && idr_qc && idr_opt && idr_consv ) {
+	if ( enable_idr && idr_qc && idr_opt && idr_consv ) {
 		// *.align.log: bowtie2 log
 		// *_qc.txt: ATAQC text report
 		// *_qc.html: ATAQC HTML report

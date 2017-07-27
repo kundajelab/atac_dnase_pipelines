@@ -21,12 +21,14 @@ void init_callpeak_etc() {
 }
 
 // sort in a descending order of p-value and take top $npeak_filt peaks
-string filt_top_peaks( string filetype, string peakfile, string o_dir, string group ) {
+// if pval <= 0, no p-value filtering
+string filt_top_peaks( string filetype, string peakfile, real pval_thresh, string o_dir, string group ) {
 
 	prefix 		:= replace_dir( rm_ext( peakfile, \
 						["narrowPeak","gappedPeak","broadPeak","regionPeak"] ), o_dir )
 	ext 		:= get_actual_ext( peakfile )
-	peakfile_filt 	:= "$prefix."+metric_prefix( npeak_filt )+".$ext"
+	peakfile_filt 	:= "$prefix."+metric_prefix( npeak_filt )+(pval_thresh>0.0 ? ".pval$pval_thresh.$ext" : ".$ext")
+	pval_filt_cmd 	:= pval_thresh>0.0 ? _get_pval_filt_cmd( filetype, pval_thresh ) : ""
 	sort_param 	:= _get_sort_param( filetype )
 
 	in 	:= [ peakfile ]
@@ -46,7 +48,7 @@ string filt_top_peaks( string filetype, string peakfile, string o_dir, string gr
 		sys set +o pipefail
 
 		// sort by 8th (-log10(pval) ) column and take top $npeak_filt lines
-		sys zcat $peakfile | sort $sort_param | head -n $npeak_filt | gzip -nc > $peakfile_filt
+		sys zcat $peakfile | $pval_filt_cmd sort $sort_param | head -n $npeak_filt | gzip -nc > $peakfile_filt
 
 		sys $shcmd_finalize
 	}
@@ -67,6 +69,21 @@ string _get_sort_param( string filetype ) {
 	else if ( filetype.toLower() == "gappedpeak") { 
 		// p-value is at 14th column
 		return "-grk14"
+	}
+	else {
+		error("Unsupport peak file type! ($filetype)\n")
+	}
+}
+
+string _get_pval_filt_cmd( string filetype, real pval ) {
+	
+	if ( filetype.toLower() == "narrowpeak" || filetype.toLower() == "regionpeak" || filetype.toLower() == "broadpeak" ) {
+		// p-value is at 8th column
+		return "awk '{if ($8>-log($pval)/log(10)) print}' | "
+	}
+	else if ( filetype.toLower() == "gappedpeak") { 
+		// p-value is at 14th column
+		return "awk '{if ($14>-log($pval)/log(10)) print}' | "
 	}
 	else {
 		error("Unsupport peak file type! ($filetype)\n")
