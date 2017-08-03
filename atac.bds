@@ -523,25 +523,26 @@ void align_SE( int rep, int nth_rep ) {
 			bam{rep} = bam_
 		}
 
+		string deduped_reads
 		if ( no_dup_removal ) {
 			string tmp
-			( filt_bam_, flagstat_nodup_qc_, pbc_qc ) \
-						= dedup_bam( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
+			( filt_bam_, tmp ) = dedup_bam( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
+			wait
 		}
 		else {
 			( filt_bam_, dup_qc_, flagstat_nodup_qc_, pbc_qc_ ) \
 						= dedup_bam( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
 			dup_qc{rep} = dup_qc_
+			pbc_qc{rep} = pbc_qc_
+			flagstat_nodup_qc{rep} = flagstat_nodup_qc_
 			add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
+			add_file_to_table( pbc_qc_, "QC and logs/$long/PBC log")
+			add_file_to_table( flagstat_nodup_qc_, "QC and logs/$long/Filtered flagstat log")
+			wait
+			tmp_log := parse_flagstat( flagstat_nodup_qc_ )
+			deduped_reads = metric_prefix( parse_int( tmp_log{"total"} ) )
 		}
-		pbc_qc{rep} = pbc_qc_
-		add_file_to_table( pbc_qc_, "QC and logs/$long/PBC log")
-		wait
 		// add to report
-		flagstat_nodup_qc{rep} = flagstat_nodup_qc_
-		add_file_to_table( flagstat_nodup_qc_, "QC and logs/$long/Filtered flagstat log")
-		tmp_log := parse_flagstat( flagstat_nodup_qc_ )
-		deduped_reads := metric_prefix( parse_int( tmp_log{"total"} ) )
 		filt_bam{rep} = filt_bam_
 		add_file_to_report( filt_bam_, "filt. bam" + (deduped_reads ? "\\n$deduped_reads" : ""), group, \
 			"Alignment/$long/Filtered & deduped bam" + (deduped_reads ? " ($deduped_reads)" : "") )
@@ -809,25 +810,27 @@ void align_PE( int rep, int nth_rep ) {
 			bam{rep} = bam_
 		}
 
+		string deduped_reads
 		if ( no_dup_removal ) {
 			string tmp
-			(filt_bam_, flagstat_nodup_qc_, pbc_qc_ ) \
+			(filt_bam_, tmp ) \
 				= dedup_bam_PE( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
+			wait
 		}
 		else {
 			(filt_bam_, dup_qc_, flagstat_nodup_qc_, pbc_qc_ ) \
 				= dedup_bam_PE( bam_, aln_o_dir, qc_o_dir, group, nth_rep )
 			dup_qc{rep} = dup_qc_
+			pbc_qc{rep} = pbc_qc_
+			flagstat_nodup_qc{rep} = flagstat_nodup_qc_
 			add_file_to_table( dup_qc_, "QC and logs/$long/Dedup. log")
+			add_file_to_table( pbc_qc_, "QC and logs/$long/PBC log")
+			add_file_to_table( flagstat_nodup_qc_, "QC and logs/$long/Filtered flagstat log")
+			wait
+			tmp_log := parse_flagstat( flagstat_nodup_qc_ )
+			deduped_reads = metric_prefix( parse_int( tmp_log{"total"} ) )			
 		}
-		pbc_qc{rep} = pbc_qc_
-		add_file_to_table( pbc_qc_, "QC and logs/$long/PBC log")
-		wait
 		// add to report
-		flagstat_nodup_qc{rep} = flagstat_nodup_qc_
-		add_file_to_table( flagstat_nodup_qc_, "QC and logs/$long/Filtered flagstat log")		
-		tmp_log := parse_flagstat( flagstat_nodup_qc_ )
-		deduped_reads := metric_prefix( parse_int( tmp_log{"total"} ) )
 		filt_bam{rep} = filt_bam_
 		add_file_to_report( filt_bam_, "filt. bam" + (deduped_reads ? "\\n$deduped_reads" : ""), group, \
 			"Alignment/$long/Filtered & deduped bam" + (deduped_reads ? " ($deduped_reads)" : "") )
@@ -1686,16 +1689,20 @@ string html_atac_QC() {
 	html += "<div style='float:left'>"
 	html += html_table_multiple_logs( "Flagstat (raw) QC", false, "flagstat", groups, flagstat_qcs )
 	html += "</div>"
-	html += "<div style='float:left'>"
-	html += html_table_multiple_logs( "Dup. QC", false, "dup", groups, dup_qcs )
-	html += "</div>"
+	if ( !no_dup_removal ) {
+		html += "<div style='float:left'>"
+		html += html_table_multiple_logs( "Dup. QC", false, "dup", groups, dup_qcs )
+		html += "</div>"
+	}
 	html += "<div style='float:left'>"
 	html += html_table_multiple_logs( "Flagstat (filtered) QC", false, "flagstat_filt", groups, flagstat_nodup_qcs )
 	html += "</div>"
-	html += "<div style='float:left'>"
-	html += html_table_multiple_logs( "Library Complexity QC", false, has_pe() ? "pbc_PE" : "pbc", groups, pbc_qcs )
-	if ( pbc_qcs.size()>0 ) html += html_help_pbc()
-	html += "</div>"
+	if ( !no_dup_removal ) {
+		html += "<div style='float:left'>"
+		html += html_table_multiple_logs( "Library Complexity QC", false, has_pe() ? "pbc_PE" : "pbc", groups, pbc_qcs )
+		if ( pbc_qcs.size()>0 ) html += html_help_pbc()
+		html += "</div>"
+	}
 	html += "<div style='float:left'>"
 	html += html_table_multiple_logs( "Enrichment QC (strand cross-correlation measures)", false, "xcor", groups, xcor_qcs )
 	if ( xcor_qcs.size()>0 ) html += html_help_xcor( subsample_xcor, has_se(), has_pe() )
