@@ -1693,11 +1693,9 @@ string html_atac_QC() {
 		html += "<div style='float:left'>"
 		html += html_table_multiple_logs( "Dup. QC", false, "dup", groups, dup_qcs )
 		html += "</div>"
-	}
-	html += "<div style='float:left'>"
-	html += html_table_multiple_logs( "Flagstat (filtered) QC", false, "flagstat_filt", groups, flagstat_nodup_qcs )
-	html += "</div>"
-	if ( !no_dup_removal ) {
+		html += "<div style='float:left'>"
+		html += html_table_multiple_logs( "Flagstat (filtered) QC", false, "flagstat_filt", groups, flagstat_nodup_qcs )
+		html += "</div>"
 		html += "<div style='float:left'>"
 		html += html_table_multiple_logs( "Library Complexity QC", false, has_pe() ? "pbc_PE" : "pbc", groups, pbc_qcs )
 		if ( pbc_qcs.size()>0 ) html += html_help_pbc()
