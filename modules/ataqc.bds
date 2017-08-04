@@ -143,7 +143,7 @@ string[] ataqc( string fastq1, string fastq2, string bam, string align_log, stri
 		    --bigwig $bigwig \
 		    --peaks $peak $param_overlap $param_idr $param_use_sambamba \
 		    $param_reg2map $param_reg2map_bed $param_meta
-		sys rm -f test.log
+		sys rm -f test.log test.png
 
 		sys $shcmd_finalize
 	}

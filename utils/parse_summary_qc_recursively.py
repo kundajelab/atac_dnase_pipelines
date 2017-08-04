@@ -63,6 +63,9 @@ for json in jsons:
         if not qc_type in headers or len(headers[qc_type])<len(header_list):
             headers[qc_type] = header_list
 
+qc_type = 'files_to_be_submitted'
+headers[qc_type] = []
+
 # second add missing items for each qc_type
 for json in jsons:
     for qc_file in json['qc_files']:
@@ -71,6 +74,12 @@ for json in jsons:
         for header_item in header_list:
             if not header_item in headers[qc_type]:
                 headers[qc_type].append(header_item)
+    # files to be submitted to ENCODE portal
+    qc_type = 'files_to_be_submitted'
+    for data_file in json['data_files']:
+        header_item = ":".join([data_file['output_type'],data_file['file_format']])
+	if not header_item in headers[qc_type]:
+	    headers[qc_type].append(header_item)
 
 # write header1
 args.out_file.write( '\t'.join( [ qc_type+'\t'*(len(headers[qc_type])-1) \
@@ -101,6 +110,17 @@ for json in jsons:
             json['title']+'\t'+\
             rep
         for qc_type in headers:
+    	    if qc_type == 'files_to_be_submitted':
+		for header in headers[qc_type]:
+                    header_found = False
+    		    for data_file in json['data_files']:                        
+                        if header == ':'.join([data_file['output_type'],data_file['file_format']]):
+                            result += '\t'+ data_file['submitted_file_name']
+                            header_found = True
+                            break
+                    if not header_found:
+                        result += '\t'
+
             if qc_type=='common':
                 continue
             registered_header_list = headers[qc_type]
@@ -122,6 +142,7 @@ for json in jsons:
                             result += ('\t')
                     found = True
                     break
+		
             if not found:
                 result += ('\t'*len(registered_header_list))
 
