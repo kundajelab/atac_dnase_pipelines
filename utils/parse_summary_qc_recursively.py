@@ -110,15 +110,17 @@ for json in jsons:
             json['title']+'\t'+\
             rep
         for qc_type in headers:
-    	    if qc_type == 'files_to_be_submitted':
+    	    if rep == 'rep1' and qc_type == 'files_to_be_submitted':
 		for header in headers[qc_type]:
                     header_found = False
-    		    for data_file in json['data_files']:                        
+		    tmp_result = []
+    		    for data_file in json['data_files']:
                         if header == ':'.join([data_file['output_type'],data_file['file_format']]):
-                            result += '\t'+ data_file['submitted_file_name']
+                            tmp_result.append(data_file['submitted_file_name'])
                             header_found = True
-                            break
-                    if not header_found:
+		    if header_found:
+                        result += '\t'+ ','.join(tmp_result)		
+                    else:
                         result += '\t'
 
             if qc_type=='common':
