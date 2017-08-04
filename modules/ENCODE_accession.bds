@@ -14,7 +14,8 @@ string ENCODE_assay_title = "" 			help ENCODE assay title.
 string ENCODE_award = "" 			help ENCODE award (e.g. /awards/U41HG007000/).
 string ENCODE_lab = "" 				help Lab (e.g. /labs/anshul-kundaje/)
 string ENCODE_assembly = "" 			help hg19, GRCh38, mm9, mm10.
-string ENCODE_alias_prefix = "KLAB_PIPELINE"	help Alias = Alias_prefix + filename
+string ENCODE_alias_prefix = "KLAB_PIPELINE"	help Alias prefix, Alias = alias_prefix: + filename + alias_suffix
+string ENCODE_alias_suffix = ""			help Alias suffix, Alias = alias_prefix: + filename + alias_suffix
 
 string[] _summary_qc
 string[] _summary_ENCODE_accession
@@ -48,6 +49,7 @@ void init_ENCODE_accession() {
 	ENCODE_lab 		= get_conf_val( ENCODE_lab, 		["ENCODE_lab"] )
 	ENCODE_assembly		= get_conf_val( ENCODE_assembly, 	["ENCODE_assembly"] )
 	ENCODE_alias_prefix	= get_conf_val( ENCODE_alias_prefix, 	["ENCODE_alias_prefix"] )
+	ENCODE_alias_suffix	= get_conf_val( ENCODE_alias_suffix, 	["ENCODE_alias_suffix"] )
 
 	print("\n\n== ENCODE accession settings\n")
 	print( "ENCODE experiment accession\t: $ENCODE_accession\n" )
@@ -58,6 +60,7 @@ void init_ENCODE_accession() {
 	print( "ENCODE lab\t\t\t\t: $ENCODE_lab\n" )
 	print( "ENCODE assembly genome\t\t: $ENCODE_assembly\n" )
 	print( "ENCODE alias prefix\t\t: $ENCODE_alias_prefix\n" )
+	print( "ENCODE alias suffix\t\t: $ENCODE_alias_suffix\n" )
 }
 
 void write_summary_json() {
@@ -274,7 +277,7 @@ string{} _read_metadata( string file ) { // read from .meta and write to a map
 	map{"award"} = ENCODE_award // ENCODE rfa
 	map{"lab"} = ENCODE_lab // lab
 	map{"assembly"} = ENCODE_assembly
-	map{"aliases:array"} = "[$ENCODE_alias_prefix:" + get_basename(file) + "]"
+	map{"aliases:array"} = "[$ENCODE_alias_prefix:" + get_basename(file) + "$ENCODE_alias_suffix]"
 	meta_file.write( map_to_conf_str(map) )
 
 	return map

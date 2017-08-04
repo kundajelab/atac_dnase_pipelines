@@ -1183,7 +1183,8 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 
 void do_idr() {
 
-	if ( align || !enable_idr ) return
+	//if ( align || !enable_idr ) return
+	if ( align ) return
 
 	string{} top_peak, top_peak_pr1, top_peak_pr2
 	string top_peak_pooled, top_peak_ppr1, top_peak_ppr2
@@ -1297,6 +1298,12 @@ void do_idr() {
 	add_file_to_report( peak_overlap, "n. peak\\noverlap", "", "Peaks/MACS2/Naive overlap/Narrow peak" )
 	if ( !is_input_peak() && !disable_gb_peak ) \
 		add_file_to_report( gpeak_overlap, "g. peak\\noverlap", "", "Peaks/MACS2/Naive overlap/Gapped peak" )
+
+	if ( !enable_idr ) {
+		wait
+		print( "\n== Done naive_overlap()\n" )
+		return
+	}
 
 	// do IDR
 	peak_o_dir := "$out_dir/peak/macs2"
@@ -1459,11 +1466,11 @@ void filter_peak_and_convert_to_bigbed() {
 		if ( is_input_fastq( rep ) ) {
 			if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-peaks-filter-step-run-single-rep-v1"
 			else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-peaks-filter-step-run-v1"
-			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "filtered peaks", \
+			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "raw peaks", \
 				ENCODE_step_name, filt_peak_001, [filt_bam{rep}])
 
 			if ( !disable_gb_peak ) {
-				add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "filtered peaks", \
+				add_ENCODE_metadata_to_summary_json( "bed", "gappedPeak", "raw peaks", \
 					ENCODE_step_name, filt_gpeak_001, [filt_bam{rep}])
 			}
 
@@ -1484,10 +1491,10 @@ void filter_peak_and_convert_to_bigbed() {
 			wait
 			if ( get_num_rep() == 1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-filtered-peaks-to-bigbed-step-run-single-rep-v1"
 			else 			  ENCODE_step_name = "anshul-kundaje:atac-seq-filtered-peaks-to-bigbed-step-run-v1"
-			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "filtered peaks", \
+			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "raw peaks", \
 				ENCODE_step_name, npeak_bb, [filt_peak_001])
 			if ( !disable_gb_peak ) {
-				add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "filtered peaks", \
+				add_ENCODE_metadata_to_summary_json( "bigBed", "gappedPeak", "raw peaks", \
 					ENCODE_step_name, gpeak_bb, [filt_gpeak_001])
 			}
 		}
@@ -1567,7 +1574,7 @@ void filter_peak_and_convert_to_bigbed() {
 	if ( peak_overlap ) {
 		if ( get_num_rep()==1 ) {
 			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-single-rep-v1"
-			ENCODE_peak_name = "stable peaks"
+			ENCODE_peak_name = "pseudoreplicated stable peaks"
 		}
 		else {
 			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-v1"
@@ -1586,7 +1593,7 @@ void filter_peak_and_convert_to_bigbed() {
 	if ( gpeak_overlap ) {
 		if ( get_num_rep()==1 ) {
 			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-single-rep-v1"
-			ENCODE_peak_name = "stable peaks"
+			ENCODE_peak_name = "pseudoreplicated stable peaks"
 		}
 		else {
 			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-v1"
@@ -1625,8 +1632,8 @@ void ataqc() {
 
 void ataqc( int rep ) {
 
-	if ( true_rep || !enable_idr ) {
-		print("Warning: ATAQC needs a flag -enable_idr activated and cannot run with a flag -true_rep\n");
+	if ( true_rep ) {
+		print("Warning: ATAQC cannot run with a flag -true_rep\n");
 		return
 	}
 	if ( no_dup_removal ) {
@@ -1646,6 +1653,7 @@ void ataqc( int rep ) {
 
 		if ( !enable_idr ) {
 			idr_ataqc = ""
+			peak = peak_overlap
 		}
 		else if ( get_num_rep() == 1 ) 	{
 			idr_ataqc = idr_pr{1}
