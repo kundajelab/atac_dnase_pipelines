@@ -225,13 +225,57 @@ string{} parse_dup( string log ) {
 	string{} result
 	line := get_stdout( "cat $log | grep -A1 UNPAIRED_READS_EXAMINED | grep -v UNPAIRED_READS_EXAMINED | awk '{ print $3,$4,$5,$6,$7,$8,$9; }'" )	
 	arr := line.trim().split(" ")
-	result{"unpaired_reads"} = arr[0]
-	result{"paired_reads"} = arr[1]
-	result{"unmapped_reads"} = arr[2]
-	result{"unpaired_dupes"} = arr[3]
-	result{"paired_dupes"} = arr[4]
-	result{"paired_opt_dupes"} = arr[5]
-	result{"dupes_pct"} = arr[6]
+	if ( arr.size() > 0 ) { // Picard
+		result{"unpaired_reads"} = arr[0]
+		result{"paired_reads"} = arr[1]
+		result{"unmapped_reads"} = arr[2]
+		result{"unpaired_dupes"} = arr[3]
+		result{"paired_dupes"} = arr[4]
+		result{"paired_opt_dupes"} = arr[5]
+		result{"dupes_pct"} = arr[6]
+	}
+	else { // sambamba
+		lines := log.readLines()
+		string paired_reads, unpaired_reads, unmapped_reads, unpaired_dupes, paired_dupes, paired_opt_dupes, dupes_pct
+		for ( string line : lines ) {
+			if ( line.indexOf(" end pairs") > -1 ) {
+				tmp1 := line.trim().split(" ")
+				paired_reads = tmp1[1]
+			}
+			if ( line.indexOf(" single ends ") > -1 ) {
+				tmp1 := line.trim().split(" ")
+				unpaired_reads = tmp1[1]
+				unmapped_reads = tmp1[6]
+			}
+			if ( line.indexOf("found ") > -1 ) {
+				tmp1 := line.trim().split(" ")
+				if ( paired_reads == "0" ) {
+					unpaired_dupes = tmp1[1] // SE
+					paired_dupes = 0
+				}
+				else {
+					unpaired_dupes = 0
+					paired_dupes = tmp1[1].parseInt()/2 // PE
+				}
+			}
+			if ( paired_reads == "0" ) { // SE
+				dupes_pct = ( unpaired_dupes.parseReal() / unpaired_reads.parseReal() )
+				dupes_pct = dupes_pct.substr(0, 8)
+			}
+			else {
+				dupes_pct = ( paired_dupes.parseReal() / paired_reads.parseReal() )
+				dupes_pct = dupes_pct.substr(0, 8)
+			}
+		}
+		paired_opt_dupes = "N/A"
+		result{"unpaired_reads"} = unpaired_reads
+		result{"paired_reads"} = paired_reads
+		result{"unmapped_reads"} = unmapped_reads
+		result{"unpaired_dupes"} = unpaired_dupes
+		result{"paired_dupes"} = paired_dupes
+		result{"paired_opt_dupes"} = paired_opt_dupes
+		result{"dupes_pct"} = dupes_pct
+	}
 	return result
 }
 

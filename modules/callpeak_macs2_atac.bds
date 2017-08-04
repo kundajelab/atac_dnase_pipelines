@@ -83,7 +83,6 @@ string[] macs2_atac_npeak_and_signal( string tag, string smooth_window, string p
 		//# Sort by Col8 in descending order and replace long peak names in Column 4 with Peak_<peakRank>
 		sys sort -k 8gr,8gr "$prefix"_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $peakfile
 		sys rm -f "$prefix"_peaks.narrowPeak
-		sys rm -f "$prefix"_peaks.xls
 		sys rm -f "$prefix"_summits.bed
 
 		sys if [[ $make_sig == "false" ]]; then \
