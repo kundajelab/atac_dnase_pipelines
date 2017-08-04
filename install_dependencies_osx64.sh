@@ -15,7 +15,7 @@ INSTALL_PEAKSEQ=0
 
 ## install packages from official channels (bioconda and r)
 
-conda create -n ${ENV_NAME} --file requirements.txt -y -c defaults -c bioconda -c r -c bcbio -c daler -c asmeurer -c conda-forge
+conda create -n ${ENV_NAME} --file requirements_osx64.txt -y -c defaults -c bioconda -c r -c bcbio -c daler -c asmeurer -c conda-forge
 conda create -n ${ENV_NAME_PY3} --file requirements_py3.txt -y -c defaults -c bioconda -c r -c bcbio -c daler -c asmeurer -c conda-forge
 
 ### bash function definition
