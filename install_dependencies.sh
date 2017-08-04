@@ -18,7 +18,7 @@ INSTALL_PEAKSEQ=0
 conda create -n ${ENV_NAME} --file requirements.txt -y -c defaults -c bioconda -c r -c bcbio -c daler -c asmeurer
 conda create -n ${ENV_NAME_PY3} --file requirements_py3.txt -y -c defaults -c bioconda -c r -c bcbio -c daler -c asmeurer
 
-### bash function definition
+### bash function definition†
 
 function add_to_activate {
   if [ ! -f $CONDA_INIT ]; then
@@ -46,6 +46,7 @@ conda install graphviz -c anaconda -y
 
 conda install ucsc-bedgraphtobigwig -c bioconda -y
 conda install ucsc-bedtobigbed -c bioconda -y
+conda install pyfaidx -c bioconda -y
 
 CONDA_BIN=$(dirname $(which activate))
 CONDA_EXTRA="$CONDA_BIN/../extra"
