@@ -439,10 +439,12 @@ void align_SE( int rep, int nth_rep ) {
 						wait tid
 
 						adapter := parse_adapter_log( adapter_log )
-						if ( adapter ) \
+						if ( adapter ) {
 							print("\nDetected adapter for $group (SE) : $adapter\n")
-						else \
-							print("\nDetected adapter for $group (SE) : No adapter detected.\n")
+						}
+						else {
+							error("Detected adapter for $group (SE) : No adapter detected.\n")
+						}
 						adapters.add( adapter )
 					}
 
@@ -708,10 +710,12 @@ void align_PE( int rep, int nth_rep ) {
 						adapter1 := parse_adapter_log( adapter_log1 )
 						adapter2 := parse_adapter_log( adapter_log2 )
 
-						if ( adapter1 && adapter2 ) \
+						if ( adapter1 && adapter2 ) {
 							print("\nDetected adapter for $group (PE) : $adapter1, $adapter2\n")
-						else \
-							print("\nDetected adapter for $group (SE) : No adapter detected.\n")
+						}
+						else {
+							error("Detected adapter for $group (SE) : No adapter detected (fastq1: $adapter1, fastq2: $adapter2).\n")
+						}
 						adapters.add( adapter1 )
 						adapters.add( adapter2 )
 					}
