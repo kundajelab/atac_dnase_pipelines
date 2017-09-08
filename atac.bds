@@ -24,6 +24,7 @@ overlap_pval_thresh := 0.01	help p-val threshold for overlapped peaks (default: 
 macs2_pval_thresh := 0.01	help MACS2 p-val threshold for calling peaks (default: 0.1).
 macs2_pval_thresh_bw := 0.01	help MACS2 p-val threshold for generating BIGWIG signal tracks (default: 0.1).
 enable_idr 	:= false 	help Enable IDR on called peaks.
+skip_adapter_check  := false	help Skip checking adapters detected.
 
 exclude_ppr_in_naive_overlap := false //help Exclude peaks from pooled pseudo replicates in naive overlap. This flag works for multiple replicate case only.
 disable_gb_peak := true // disable gapped/broad peak generation
@@ -145,6 +146,7 @@ void read_conf_atac() {
 	macs2_pval_thresh = get_conf_val_real( macs2_pval_thresh, ["macs2_pval_thresh"] )
 	macs2_pval_thresh_bw = get_conf_val_real( macs2_pval_thresh_bw, ["macs2_pval_thresh_bw"] )
 	enable_idr 	= get_conf_val_bool( enable_idr,	["enable_idr"] )
+	skip_adapter_check 	= get_conf_val_bool( skip_adapter_check,	["skip_adapter_check"] )
 }
 
 void init_etc_atac() {
@@ -178,6 +180,7 @@ void print_atac() {
 	print( "MACS2 p-val thresh. for peaks\t: $macs2_pval_thresh\n")
 	print( "MACS2 p-val thresh. for BIGWIGs\t\t: $macs2_pval_thresh_bw\n")
 	print( "Enable IDR on called peaks\t: $enable_idr\n")
+	print( "Skip checking adapters detected\t: $skip_adapter_check\n")	
 
 	if ( dnase_seq ) type = "dnase-seq"	
 }
@@ -441,6 +444,9 @@ void align_SE( int rep, int nth_rep ) {
 						adapter := parse_adapter_log( adapter_log )
 						if ( adapter ) {
 							print("\nDetected adapter for $group (SE) : $adapter\n")
+						}
+						else if ( skip_adapter_check ) {
+							print("\nDetected adapter for $group (SE) : No adapter detected.\n")
 						}
 						else {
 							error("Detected adapter for $group (SE) : No adapter detected.\n")
@@ -710,7 +716,7 @@ void align_PE( int rep, int nth_rep ) {
 						adapter1 := parse_adapter_log( adapter_log1 )
 						adapter2 := parse_adapter_log( adapter_log2 )
 
-						if ( adapter1 && adapter2 ) {
+						if ( adapter1 && adapter2 || skip_adapter_check ) {
 							print("\nDetected adapter for $group (PE) : $adapter1, $adapter2\n")
 						}
 						else {
