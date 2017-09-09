@@ -263,9 +263,9 @@ string{} _get_ENCODE_accession_template( string file, string[] derived_from ) {
 // basic ENCODE data are stored in .meta file
 string{} _read_metadata( string file ) { // read from .meta and write to a map 
 	string{} map
-
+	meta_o_dir := mkdir("$out_dir/meta")
 	// read .meta file if exists (format: conf in conf.bds, contents: md5sum, ...)
-	meta_file := "$file.meta"
+	meta_file := replace_dir( file, meta_o_dir ) + ".meta"
 	if ( path_exists( meta_file ) && !(meta_file<-file) ) {
 		map = read_conf( meta_file, "" )
 	}
