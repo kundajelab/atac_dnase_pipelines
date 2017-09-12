@@ -12,7 +12,7 @@ nice 		:= 0 		help Set process priority for all tasks (default: 0; -20 (highest)
 retrial		:= 0 		help # of Retrial for failed tasks (default: 0).
 q 		:= ""		help Submit tasks to a specified cluster queue.
 unlimited_mem_wt:= false 	help Use unlimited max. memory and walltime.
-
+java_tmp_dir 	:= "\${TMPDIR}" help Java temporary directory. (change it when you get 'Disk quota exceeded' error in Java, default: ${TMPDIR}).
 
 init_cluster()
 
@@ -25,6 +25,7 @@ void init_cluster() {
 	retrial 	= get_conf_val_int( retrial, 		["retrial","retry"] )
 	q 		= get_conf_val( q, 			["q"] )
 	unlimited_mem_wt= get_conf_val_bool( unlimited_mem_wt, 	["unlimited_mem_wt"] )
+	java_tmp_dir	= get_conf_val( java_tmp_dir, 		["java_tmp_dir"] )
 
 	if ( cmd_line_arg_has_key("mem") ) memory = get_cmd_line_arg_val( "mem" )
 	if ( cmd_line_arg_has_key("system") ) use_system = get_cmd_line_arg_val( "system" )
@@ -49,7 +50,8 @@ void init_cluster() {
 	print( "Process priority (niceness)\t: $nice\n" )
 	print( "Retiral for failed tasks\t: $retrial\n" )
 	print( "Submit tasks to a cluster queue\t: $q\n" )
-	print( "Unlimited cluster mem./walltime\t: $unlimited_mem_wt\n")	
+	print( "Unlimited cluster mem./walltime\t: $unlimited_mem_wt\n")
+	print( "Java temporary directory\t\t: $java_tmp_dir\n")
 }
 
 int get_res_wt( string str ) {
