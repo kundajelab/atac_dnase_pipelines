@@ -9,92 +9,72 @@ help         Single-ended : For replicate '-adapter[REP_ID]'
 help         Paired end : For replicate '-adapter[REP_ID]_[PAIR_ID]'
 
 
+string{} get_adapter( int ctl, int rep, int p ) {
+	// allow up to 99 adapters to be pooled (i.e. adapter1 adapter1:2 adapter1:3, ...)
+	string{} result
+	for ( int i=0; i<100; i++ ) {
+		suffix := i ? ":$i" : ""
+		key_wo_p := ( ctl > 0 ? "ctl_adapter" : "adapter" ) + "_rep" + rep
+		key := key_wo_p + "_p" + p + suffix
+		key_wo_p += suffix
 
-string[] get_adapters( int ctl, int rep ) {  // if paired-end return [PE1, PE2], elseif single-end else return [PE1], else []	
+		key_wo_p2 := ( ctl > 0 ? "ctl_adapter" : "adapter" ) + rep
+		key2 := key_wo_p2 + "_" + p + suffix
+		key_wo_p2 += suffix
 
-	string[] ret
+		key_wo_p3 := ( ctl > 0 ? "ctl_adapter" : "adapter" )
+		key3 := key_wo_p3 + "_" + p + suffix
+		key_wo_p3 += suffix
 
-	for ( int pe=1; pe<=2; pe++ ) {
-		str := get_adapter( ctl, rep, pe )
-		if ( str.length() > 0 ) { // if not null, append
-			ret.add( str )
+		formatted_i := format_digit(i,2)
+		if ( (p==1) && cmd_line_arg_has_key( key_wo_p ) ) {
+			result{formatted_i}= get_cmd_line_arg_val( key_wo_p )
+		}
+		else if ( (p==1) && cmd_line_arg_has_key( key_wo_p2 ) ) {
+			result{formatted_i}= get_cmd_line_arg_val( key_wo_p2 )
+		}
+		else if ( (p==1) && (rep==1) && cmd_line_arg_has_key( key_wo_p3 ) ) {
+			result{formatted_i}= get_cmd_line_arg_val( key_wo_p3 )
+		}
+		else if ( cmd_line_arg_has_key( key ) ) {
+			result{formatted_i}= get_cmd_line_arg_val( key )
+		}
+		else if ( cmd_line_arg_has_key( key2 ) ) {
+			result{formatted_i}= get_cmd_line_arg_val( key2 )
+		}	
+		else if ( (rep==1) && cmd_line_arg_has_key( key3 ) ) {
+			result{formatted_i}= get_cmd_line_arg_val( key3 )
+		}
+		else if ( (p==1) && conf.hasKey( key_wo_p ) ) {
+			result{formatted_i}= conf{ key_wo_p }
+		}
+		else if ( (p==1) && conf.hasKey( key_wo_p2 ) ) {
+			result{formatted_i}= conf{ key_wo_p2 }
+		}
+		else if ( (p==1) && (rep==1) && conf.hasKey( key_wo_p3 ) ) {
+			result{formatted_i}= conf{ key_wo_p3 }
+		}
+		else if ( conf.hasKey( key ) ) {
+			result{formatted_i}= conf{ key }
+		}
+		else if ( conf.hasKey( key2 ) ) {
+			result{formatted_i}= conf{ key2 }
+		}
+		else if ( (rep==1) && conf.hasKey( key3 ) ) {
+			result{formatted_i}= conf{ key3 }
 		}
 	}
-
-	return ret
+	return result
 }
 
-string[] get_adapters( int rep ) {
-
-	return get_adapters( 0, rep )
-}
-
-string get_adapter( int ctl, int rep, int p ) {
-
-	key_wo_p := ( ctl > 0 ? "ctl_adapter" : "adapter" ) + "_rep" + rep 
-	key := key_wo_p + "_p" + p
-
-	key_wo_p2 := ( ctl > 0 ? "ctl_adapter" : "adapter" ) + rep 
-	key2 := key_wo_p2 + "_" + p
-
-	key_wo_p3 := ( ctl > 0 ? "ctl_adapter" : "adapter" )
-	key3 := key_wo_p3 + "_" + p
-
-	if ( (p==1) && cmd_line_arg_has_key( key_wo_p ) ) {
-		return get_cmd_line_arg_val( key_wo_p )
-	}
-	else if ( (p==1) && cmd_line_arg_has_key( key_wo_p2 ) ) {
-		return get_cmd_line_arg_val( key_wo_p2 )
-	}
-	else if ( (p==1) && (rep==1) && cmd_line_arg_has_key( key_wo_p3 ) ) {
-		return get_cmd_line_arg_val( key_wo_p3 )
-	}
-	else if ( cmd_line_arg_has_key( key ) ) {
-		return get_cmd_line_arg_val( key )
-	}
-	else if ( cmd_line_arg_has_key( key2 ) ) {
-		return get_cmd_line_arg_val( key2 )
-	}	
-	else if ( (rep==1) && cmd_line_arg_has_key( key3 ) ) {
-		return get_cmd_line_arg_val( key3 )
-	}
-	else if ( (p==1) && conf.hasKey( key_wo_p ) ) {
-		return conf{ key_wo_p }
-	}
-	else if ( (p==1) && conf.hasKey( key_wo_p2 ) ) {
-		return conf{ key_wo_p2 }
-	}
-	else if ( (p==1) && (rep==1) && conf.hasKey( key_wo_p3 ) ) {
-		return conf{ key_wo_p3 }
-	}
-	else if ( conf.hasKey( key ) ) {
-		return conf{ key }
-	}
-	else if ( conf.hasKey( key2 ) ) {
-		return conf{ key2 }
-	}
-	else if ( (rep==1) && conf.hasKey( key3 ) ) {
-		return conf{ key3 }
-	}
-
-	return ""
-}
-/*
-string get_adapter( int rep, int p ) {
-
-	return get_adapter( 0, rep, p )
-}
-*/
-int get_num_adapter( int ctl ) {
-
+int get_num_rep_adapter( int ctl ) {
 	rep := 1
+	while( get_adapter( ctl, rep, 1 ).size() > 0 ) rep++
 
-	while( get_adapters( ctl, rep ).size() > 0 ) rep++
-
-	return rep-1
+	num_rep := rep-1	
+	return num_rep
 }
 
-int get_num_adapter() {
-
-	return get_num_adapter( 0 )
+int get_num_rep_adapter() {
+	return get_num_rep_adapter( 0 )
 }

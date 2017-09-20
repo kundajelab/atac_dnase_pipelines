@@ -248,8 +248,26 @@ string{} merge( string{} a, string{} b ) {
 
 string[] map_to_array( string{} map ) {
 	string[] array
-	for ( string str : map ) array.add( str )
+	for ( string key : map.keys() ) {
+		array.add( map{key} )
+	}
 	return array
+}
+
+bool equals( string[] arr1, string[] arr2 ) {
+	if ( arr1.size() != arr2.size() ) return false
+	for (int i=0;i<arr1.size();i++) {
+		if ( arr1[i] != arr2[i] ) return false
+	}
+	return true
+}
+
+bool equals( string{} map1, string{} map2 ) {
+	if ( map1.size() != map2.size() ) return false
+	for ( string key : map1.keys() ) {
+		if ( map1{key} != map2{key} ) return false
+	}
+	return true
 }
 
 // returns an array of length 2
@@ -463,4 +481,22 @@ bool match_str( string str, string search ) {
 	else { // if * not found
 		return str == search
 	}
+}
+
+int pow(int a, int b) {
+	ret:=1
+	for(int i=1;i<=b;i++) {
+		ret *= a
+	}
+	return ret
+}
+
+string format_digit(int number, int digit) {
+	d := 1
+	string ret = number
+	while(d<digit) {
+		if (number/pow(10,d)==0) ret = "0" + ret
+		d += 1
+	}
+	return ret
 }

@@ -8,100 +8,84 @@ help == fastq input definition :
 help         Single-ended : For replicate '-fastq[REP_ID]', For control '-ctl_fastq[REP_ID]'
 help         Paired end : For replicate '-fastq[REP_ID]_[PAIR_ID]', For control '-ctl_fastq[REP_ID]_[PAIR_ID]'
 
-
-
-string[] get_fastqs( int ctl, int rep ) {  // if paired-end return [PE1, PE2], elseif single-end else return [PE1], else []	
-
-	string[] ret
-	for ( int pe=1; pe<=2; pe++ ) {
-		ret += get_fastq( ctl, rep, pe )
-	}
-
-	return ret
-}
-
-string[] get_fastqs( int rep ) {  // if paired-end return [PE1, PE2], elseif single-end else return [PE1], else []	
-
-	return get_fastqs( 0, rep )
-}
-
-string[] get_fastq( int ctl, int rep, int p ) {
-
-	// allow up to 10 fastqs to be pooled (i.e. fastq1 fastq1:2 fastq1:3, ...)
-	string[] suffix
-	suffix.add("")
-	for ( int i=1; i<=99; i++ ) {
-		suffix.add(":$i")
-	}
-
-	string[] result
-	for ( int i=0; i<suffix.size(); i++ ) {
+string{} get_fastq( int ctl, int rep, int p ) {
+	// allow up to 99 fastqs to be pooled (i.e. fastq1 fastq1:2 fastq1:3, ...)
+	string{} result
+	for ( int i=0; i<100; i++ ) {
+		suffix := i ? ":$i" : ""
 		key_wo_p := ( ctl > 0 ? "ctl_fastq" : "fastq" ) + "_rep" + rep
-		key := key_wo_p + "_p" + p + suffix[i]
-		key_wo_p += suffix[i]
+		key := key_wo_p + "_p" + p + suffix
+		key_wo_p += suffix
 
 		key_wo_p2 := ( ctl > 0 ? "ctl_fastq" : "fastq" ) + rep
-		key2 := key_wo_p2 + "_" + p + suffix[i]
-		key_wo_p2 += suffix[i]
+		key2 := key_wo_p2 + "_" + p + suffix
+		key_wo_p2 += suffix
 
 		key_wo_p3 := ( ctl > 0 ? "ctl_fastq" : "fastq" )
-		key3 := key_wo_p3 + "_" + p + suffix[i]
-		key_wo_p3 += suffix[i]
+		key3 := key_wo_p3 + "_" + p + suffix
+		key_wo_p3 += suffix
 
+		formatted_i := format_digit(i,2)
 		if ( (p==1) && cmd_line_arg_has_key( key_wo_p ) ) {
-			result.add( get_path( get_cmd_line_arg_val( key_wo_p ) ) )
+			result{formatted_i}= get_path( get_cmd_line_arg_val( key_wo_p ) )
 		}
 		else if ( (p==1) && cmd_line_arg_has_key( key_wo_p2 ) ) {
-			result.add( get_path( get_cmd_line_arg_val( key_wo_p2 ) ) )
+			result{formatted_i}= get_path( get_cmd_line_arg_val( key_wo_p2 ) )
 		}
 		else if ( (p==1) && (rep==1) && cmd_line_arg_has_key( key_wo_p3 ) ) {
-			result.add( get_path( get_cmd_line_arg_val( key_wo_p3 ) ) )
+			result{formatted_i}= get_path( get_cmd_line_arg_val( key_wo_p3 ) )
 		}
 		else if ( cmd_line_arg_has_key( key ) ) {
-			result.add( get_path( get_cmd_line_arg_val( key ) ) )
+			result{formatted_i}= get_path( get_cmd_line_arg_val( key ) )
 		}
 		else if ( cmd_line_arg_has_key( key2 ) ) {
-			result.add( get_path( get_cmd_line_arg_val( key2 ) ) )
+			result{formatted_i}= get_path( get_cmd_line_arg_val( key2 ) )
 		}	
 		else if ( (rep==1) && cmd_line_arg_has_key( key3 ) ) {
-			result.add( get_path( get_cmd_line_arg_val( key3 ) ) )
+			result{formatted_i}= get_path( get_cmd_line_arg_val( key3 ) )
 		}
 		else if ( (p==1) && conf.hasKey( key_wo_p ) ) {
-			result.add( get_path( conf{ key_wo_p } ) )
+			result{formatted_i}= get_path( conf{ key_wo_p } )
 		}
 		else if ( (p==1) && conf.hasKey( key_wo_p2 ) ) {
-			result.add( get_path( conf{ key_wo_p2 } ) )
+			result{formatted_i}= get_path( conf{ key_wo_p2 } )
 		}
 		else if ( (p==1) && (rep==1) && conf.hasKey( key_wo_p3 ) ) {
-			result.add( get_path( conf{ key_wo_p3 } ) )
+			result{formatted_i}= get_path( conf{ key_wo_p3 } )
 		}
 		else if ( conf.hasKey( key ) ) {
-			result.add( get_path( conf{ key } ) )
+			result{formatted_i}= get_path( conf{ key } )
 		}
 		else if ( conf.hasKey( key2 ) ) {
-			result.add( get_path( conf{ key2 } ) )
+			result{formatted_i}= get_path( conf{ key2 } )
 		}
 		else if ( (rep==1) && conf.hasKey( key3 ) ) {
-			result.add( get_path( conf{ key3 } ) )
+			result{formatted_i}= get_path( conf{ key3 } )
 		}
 	}
-
 	return result
 }
 
-string[] get_fastq( int rep, int p ) {
+string[] get_fastqs( int ctl, int rep ) {
+	string[] result 
+	for (int p=1;p<=2;p++) {		
+		for ( string fastq : get_fastq( ctl, rep, p ) ) {
+			result.add( fastq )
+		}
+	}
+	return result
+}
 
-	return get_fastq( 0, rep, p )
+string[] get_fastqs( int rep ) {
+	return get_fastqs( 0, rep )
 }
 
 bool is_input_fastq( int ctl, int rep ) {
-
-	fastqs := get_fastqs( ctl, rep )
+	fastqs := get_fastq( ctl, rep, 1 )
 	if ( fastqs.size() > 0 ) return true
 	return false
 }
 
 bool is_input_fastq( int rep ) {
-
 	return is_input_fastq( 0, rep )	
 }

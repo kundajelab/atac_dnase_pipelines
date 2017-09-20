@@ -92,9 +92,6 @@ void chk_input( bool true_rep, bool no_pseudo_rep ) {
 string[] get_input_files( int ctl, int rep ) {
 	string[] empty
 
-	if ( (ctl==1) && (rep>2) ) {
-		return empty
-	}
 	if ( is_input_fastq( ctl, rep ) ) {
 		return get_fastqs( ctl, rep )
 	}

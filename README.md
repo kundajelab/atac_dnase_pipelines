@@ -210,17 +210,15 @@ For DNase-seq: (it's <b>NOT `-dnase`</b>!)
 -dnase_seq
 ```
 
-The pipeline can automatically detect adapters if you remove `-adapter` from your command line.
+The pipeline does not trim adapters by default. To automatically detect adapters,
 
-To use old adapter trimmers (`trim_galore` for SE and `trimAdapter.py` for PE):
 ```
--old_trimmer
+-auto_detect_adapter
 ```
 
-If your fastqs are already trimmed, add the following to the command line to skip trimming stage.
-```
--trimmed_fastq
-```
+To specify adapter for each fastq, add `-adapter[REPLICATE_ID]_[PAIR_ID]:[POOL_ID]` for paired end dataset and `-adapter[REPLICATE_ID]:[POOL_ID]` for single ended one.
+You can skip `:[POOL_ID]` if you have single fastq per replicate (SE) or single pair of fastqs per replicate (PE).
+
 <b>IMPORTANT!</b> If your data set is <b>SINGLE ENDED</b> add the following to the command line, otherwise the pipeline works for PE by default.
 ```
 -se 
@@ -240,19 +238,19 @@ If you don't want ATAQC, add the following to command line.
 ```
 -no_ataqc 
 ```
-If you have just one replicate (PE), define fastqs with `-fastq[REP_ID]_[PAIR_ID]`.
+If you have just one replicate (PE), specify fastqs with `-fastq[REP_ID]_[PAIR_ID]`.
 ```
 -fastq1_1 [READ_PAIR1] -fastq1_2 [READ_PAIR2] \
 ```
-For multiple replicates (PE), define fastqs with `-fastq[REP_ID]_[PAIR_ID]`. Add `-fastq[]_[]` for each replicate and pair to the command line:replicates.
+For multiple replicates (PE), specify fastqs with `-fastq[REP_ID]_[PAIR_ID]`. Add `-fastq[]_[]` for each replicate and pair to the command line:replicates.
 ```
 -fastq1_1 [READ_REP1_PAIR1] -fastq1_2 [READ_REP1_PAIR2] -fastq2_1 [READ_REP2_PAIR1] -fastq2_2 [READ_REP2_PAIR2] ...
 ```
-For multiple replicates (SE), define fastqs with `-fastq[REP_ID]`:
+For multiple replicates (SE), specify fastqs with `-fastq[REP_ID]`:
 ```
 -se -fastq1 [READ_REP1] -fastq2 [READ_REP2] ...
 ```
-You can also specify an adapter to be trimmed for each fastq. Example: `-adapter1_1 [ADAPTER1_1] -adapter1_2 [ADAPTER1_2] ...` for PE or `-adapter1 [ADAPTER1] -adapter2 [ADAPTER2] ...`. Define adapters just like how you defined your fastqs.
+You can also specify an adapter to be trimmed for each fastq. Example: `-adapter1_1 [ADAPTER1_1] -adapter1_2 [ADAPTER1_2] ...` for PE or `-adapter1 [ADAPTER1] -adapter2 [ADAPTER2] ...`.
 
 You can start from bam files. There are two kinds of bam files (raw or deduped) and you need to explicitly choose between raw bam (bam) and deduped one (filt_bam) with `-input [BAM_TYPE]`. Don't forget to add `-se` if they are not paired end (PE). For raw bams,
 ```
@@ -316,7 +314,6 @@ $ bds atac.bds
 == atac pipeline settings
         -type <string>                   : Type of the pipeline. atac-seq or dnase-seq (default: atac-seq).
         -dnase_seq <bool>                : DNase-Seq (no tn5 shifting).
-        -trimmed_fastq <bool>            : Skip fastq-trimming stage.
         -align <bool>                    : Align only (no MACS2 peak calling or IDR or ataqc analysis).
         -subsample_xcor <string>         : # reads to subsample for cross corr. analysis (default: 25M).
         -subsample <string>              : # reads to subsample exp. replicates. Subsampled tagalign will be used for steps downstream (default: 0; no subsampling).
@@ -326,7 +323,6 @@ $ bds atac.bds
         -csem <bool>                     : Use CSEM for alignment.
         -smooth_win <string>             : Smoothing window size for MACS2 peak calling (default: 150).
         -idr_thresh <real>               : IDR threshold : -log_10(score) (default: 0.1).
-        -old_trimmer <bool>              : Use legacy trim adapters (trim_galore and trimAdapter.py).
         -ENCODE3 <bool>                  : Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE3.
         -ENCODE <bool>                   : Force to use parameter set (-smooth_win 73 -idr_thresh 0.05 -multimapping 4) for ENCODE.
         -no_browser_tracks <bool>        : Disable generation of genome browser tracks (workaround for bzip2 shared library issue).
@@ -334,6 +330,7 @@ $ bds atac.bds
         -macs2_pval_thresh <real>        : MACS2 p-val threshold for calling peaks (default: 0.1).
         -macs2_pval_thresh_bw <real>     : MACS2 p-val threshold for generating BIGWIG signal tracks (default: 0.1).
         -enable_idr <bool>               : Enable IDR on called peaks.
+        -auto_detect_adapter <bool>      : Automatically find and trim adapters.
 == configuration file settings
         -c <string>                      : Configuration file path.
         -env <string>                    : Environment file path.
@@ -650,7 +647,8 @@ out                               # root dir. of outputs
 │ ...
 │ └ pooled_rep                    #   for pooled replicate
 │ 
-└ report                          # files for HTML report
+├ report                          # files for HTML report
+└ meta                            # text files containing md5sum of output files and other metadata
 ```
 
 # ENCODE accession guideline
@@ -769,6 +767,13 @@ Unload any Anaconda Python modules. Remove locally installed Anaconda Python fro
 * The [Encyclopedia of DNA Elements (ENCODE) Project](https://www.encodeproject.org/pipelines/) is in the process of adopting this pipeline for uniform processing of ENCODE ATAC-seq data. The [official ENCODE implementation](https://github.com/ENCODE-DCC) by the ENCODE Data Coordination Center will be an exact mirror of our pipeline on [the DNAnexus cloud](https://www.dnanexus.com/) (i.e. results will be exactly reproducible). Note that using this service requires a user to pay for cloud compute time.
 
 * [Epinomics](http://www.epinomics.co/) provides an independent, *free*, cloud-based pipeline implementation that adheres to the analysis protocol specifications of our pipeline. This implementation can be accessed at [https://open.epigenomics.co/#/encode](https://open.epigenomics.co/#/encode).
+
+### Error: Java disk space error: Disk quota exceeded
+
+This error happens when `${TMPDIR}` or `/tmp` is full so Java cannot write temporary files on it. You can specify Java temporary directory with the following paramter.
+```
+-java_tmp_dir [PATH]
+```
 
 # Contributors
 
