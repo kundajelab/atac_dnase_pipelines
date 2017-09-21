@@ -93,6 +93,10 @@ elif [ $GENOME == "mm10" ]; then
   REG2MAP="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mm10_dnase_avg_fseq_signal_formatted.txt.gz"
   ROADMAP_META="http://mitra.stanford.edu/kundaje/genome_data/mm10/ataqc/mm10_dnase_avg_fseq_signal_metadata.txt"
 
+elif [ $GENOME == "saccer3" ]; then
+
+  REF_FA="http://hgdownload-test.cse.ucsc.edu/goldenPath/sacCer3/bigZips/sacCer3.2bit"
+
 elif [ $GENOME == "macam7" ]; then
 
   REF_FA="http://www.unmc.edu/rhesusgenechip/MacaM_Rhesus_Genome_v7.fasta.bz2"
@@ -116,12 +120,6 @@ fi
 
 if [[ ${BLACKLIST} == "" ]]; then
   echo "Warning: blacklist is not provided for $GENOME. IDR peaks will not be filtered."
-  echo "Press any key to continue..."
-  read -n1
-fi
-
-if [[ ${UMAP} == "" ]] && [[ ${CONDA_ENV} == "aquas_chipseq" ]]; then
-  echo "Warning: unique mappability tracks are not provided for $GENOME."
   echo "Press any key to continue..."
   read -n1
 fi
