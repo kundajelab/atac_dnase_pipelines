@@ -68,6 +68,8 @@ add_to_activate
 ### disable locally installed python package lookup
 CONTENTS=("export PYTHONNOUSERSITE=True")
 add_to_activate
+CONTENTS=("export PYTHONPATH=$CONDA_LIB/python2.7/site-packages:\$PYTHONPATH")
+add_to_activate
 
 if [ ${INSTALL_WIGGLER_AND_MCR} == 1 ]; then
   conda install -y -c conda-forge bc
@@ -122,7 +124,14 @@ source activate ${ENV_NAME_PY3}
 
 CONDA_BIN=$(dirname $(which activate))
 CONDA_EXTRA="$CONDA_BIN/../extra"
-mkdir -p $CONDA_EXTRA
+CONDA_ACTIVATE_D="$CONDA_BIN/../etc/conda/activate.d"
+CONDA_INIT="$CONDA_ACTIVATE_D/init.sh"
+CONDA_LIB="$CONDA_BIN/../lib"
+if [[ $(find $CONDA_LIB -name '*egg-info*' -not -perm -o+r | wc -l ) > 0 ]]; then
+  find $CONDA_LIB -name '*egg-info*' -not -perm -o+r -exec dirname {} \; | xargs chmod o+r -R
+fi
+
+mkdir -p $CONDA_EXTRA $CONDA_ACTIVATE_D
 
 ### uninstall IDR 2.0.3 and install the latest one
 conda uninstall idr -y
@@ -132,6 +141,12 @@ cd idr
 python3 setup.py install
 cd $CONDA_EXTRA
 rm -rf idr
+
+### disable locally installed python package lookup
+CONTENTS=("export PYTHONNOUSERSITE=True")
+add_to_activate
+CONTENTS=("export PYTHONPATH=$CONDA_LIB/python3.5/site-packages:\$PYTHONPATH")
+add_to_activate
 
 # install GEM
 if [ ${INSTALL_GEM} == 1 ]; then
