@@ -88,7 +88,7 @@ string[] bowtie2_csem( string fastq, string o_dir, string log_o_dir, string grou
 	srt_bam		:= "$prefix.csem.sorted.bam"
 	srt_bam_prefix 	:= "$prefix.csem"
 	bam 		:= "$prefix.csem.bam"
-	param 	:= multimapping ? "-k 4" : ""	
+	param 	:= multimapping ? "-k $multimapping" : ""
 	param3 	:= scoremin_bwt2 ? "--score-min scoremin_bwt2" : ""
 
 	in 	:= [ fastq ]
@@ -128,7 +128,7 @@ string[] bowtie2_PE( string fastq1, string fastq2, string o_dir, string log_o_di
 	prefix2 := replace_dir( prefix, log_o_dir )
 	bam 	:= "$prefix.bam"
 	log 	:= "$prefix2.align.log"
-	param 	:= multimapping ? "-k 4" : ""
+	param 	:= multimapping ? "-k $multimapping" : ""
 	param3 	:= scoremin_bwt2 ? "--score-min scoremin_bwt2" : ""
 
 	in 	:= [ fastq1, fastq2 ]
