@@ -34,8 +34,8 @@ function add_to_activate {
 ## install useful tools for BigDataScript
 
 mkdir -p $HOME/.bds
-cp --remove-destination ./utils/bds_scr ./utils/bds_scr_5min ./utils/kill_scr bds.config $HOME/.bds/
-cp --remove-destination -rf ./utils/clusterGeneric/ $HOME/.bds/
+cp -f ./utils/bds_scr ./utils/bds_scr_5min ./utils/kill_scr bds.config $HOME/.bds/
+cp -rf ./utils/clusterGeneric/ $HOME/.bds/
 
 ## install additional packages
 

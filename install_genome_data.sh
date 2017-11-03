@@ -39,7 +39,7 @@ echo
 if [ $GENOME == "hg19" ]; then
 
   REF_FA="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/encodeDCC/referenceSequences/male.hg19.fa.gz"
-  UMAP="http://mitra.stanford.edu/kundaje/genome_data/hg19/globalmap_k20tok54.tgz"
+  # UMAP="http://mitra.stanford.edu/kundaje/genome_data/hg19/globalmap_k20tok54.tgz"
   BLACKLIST="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/encodeDCC/wgEncodeMapability/wgEncodeDacMapabilityConsensusExcludable.bed.gz"
 
   # data for ATAQC
@@ -53,7 +53,7 @@ if [ $GENOME == "hg19" ]; then
 elif [ $GENOME == "mm9" ]; then
 
   REF_FA="http://hgdownload.cse.ucsc.edu/goldenPath/mm9/bigZips/mm9.2bit"
-  UMAP="http://mitra.stanford.edu/kundaje/genome_data/mm9/globalmap_k20tok54.tgz"
+  # UMAP="http://mitra.stanford.edu/kundaje/genome_data/mm9/globalmap_k20tok54.tgz"
   BLACKLIST="http://mitra.stanford.edu/kundaje/genome_data/mm9/mm9-blacklist.bed.gz"
 
   # data for ATAQC
@@ -139,7 +139,7 @@ mkdir -p ${DATA_DIR}/$GENOME/seq
 ## download files
 echo "Downloading files..."
 cd ${DATA_DIR}/$GENOME
-if [[ $UMAP != "" ]]; then wget -N -c $UMAP; fi
+# if [[ $UMAP != "" ]]; then wget -N -c $UMAP; fi
 wget -c -O $(basename ${REF_FA}) ${REF_FA}
 if [[ $BLACKLIST != "" ]]; then wget -N -c $BLACKLIST; fi
 mkdir -p ataqc && cd ataqc
@@ -152,8 +152,8 @@ if [[ $REG2MAP_BED != "" ]]; then wget -N -c $REG2MAP_BED; fi
 if [[ $ROADMAP_META != "" ]]; then wget -N -c $ROADMAP_META; fi
 
 ## extract unique mappability tracks
-cd ${DATA_DIR}/$GENOME
-if [[ $UMAP != "" ]]; then tar zxvf $(basename $UMAP) --skip-old-files; fi
+# cd ${DATA_DIR}/$GENOME
+# if [[ $UMAP != "" ]]; then tar zxvf $(basename $UMAP) --skip-old-files; fi
 
 ## extract fasta and get prefix of reference genome
 echo "Extracting/processing data files..."
@@ -181,7 +181,7 @@ cd seq
 rm -f ${REF_FA_PREFIX}
 ln -s ../${REF_FA_PREFIX} ${REF_FA_PREFIX}
 faidx -x ${REF_FA_PREFIX}
-cp --remove-destination *.fai ../
+cp -f *.fai ../
 
 ## create chrom sizes file
 CHRSZ=$GENOME.chrom.sizes
@@ -223,7 +223,7 @@ echo "Creating species file... (${SPECIES_FILE})"
 cd ${DATA_DIR} && touch ${SPECIES_FILE}
 
 if [[ $(grep "\[$GENOME\]" ${SPECIES_FILE} | wc -l) < 1 ]]; then
-  if [[ $UMAP != "" ]]; then UMAP_PATH="${DATA_DIR}/$GENOME/$(basename $UMAP .tgz)"; fi
+  # if [[ $UMAP != "" ]]; then UMAP_PATH="${DATA_DIR}/$GENOME/$(basename $UMAP .tgz)"; fi
   if [[ $BLACKLIST != "" ]]; then BLACKLIST_PATH="${DATA_DIR}/$GENOME/$(basename $BLACKLIST)"; fi
   if [[ $TSS_ENRICH != "" ]]; then TSS_ENRICH_PATH="${DATA_DIR}/$GENOME/ataqc/$(basename $TSS_ENRICH)"; fi
   if [[ $DNASE != "" ]]; then DNASE_PATH="${DATA_DIR}/$GENOME/ataqc/$(basename $DNASE)"; fi
@@ -237,7 +237,7 @@ if [[ $(grep "\[$GENOME\]" ${SPECIES_FILE} | wc -l) < 1 ]]; then
   echo -e "chrsz\t= ${DATA_DIR}/$GENOME/$(basename $CHRSZ)" >> ${SPECIES_FILE}
   echo -e "seq\t= ${DATA_DIR}/$GENOME/seq" >> ${SPECIES_FILE}
   echo -e "gensz\t= $GENSZ" >> ${SPECIES_FILE}
-  if [[ $UMAP != "" ]]; then echo -e "umap\t= ${UMAP_PATH}" >> ${SPECIES_FILE}; fi
+  # if [[ $UMAP != "" ]]; then echo -e "umap\t= ${UMAP_PATH}" >> ${SPECIES_FILE}; fi
   if [ ${BUILD_BWT2_IDX} == 1 ]; then
     echo -e "bwt2_idx\t= ${DATA_DIR}/$GENOME/bowtie2_index/${REF_FA_PREFIX}" >> ${SPECIES_FILE}
   fi

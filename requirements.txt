@@ -47,3 +47,4 @@ trim-galore ==0.4.1 # for old trimmer
 python-levenshtein # for old trimmer (trimAdapter.py)
 #glibc #segmentation fault in conda with openssl
 pyfaidx ==0.4.7.1
+six ==1.4.1
