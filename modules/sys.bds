@@ -140,7 +140,7 @@ string copy( string file, string o_dir ) {
 string get_stdout( string cmd ) {
 	rnd  := randInt()
 	cmd_ := "cmd_$rnd".path()
-	sys $cmd 1> $cmd_
+	sys $cmd &> $cmd_ || true
 	ret := cmd_.read()
 	sys rm -f $cmd_
 	return rm_str_at_end(ret,"\n")
@@ -172,6 +172,8 @@ int get_num_lines( string file ) {
 	}
 }
 
-string get_hostname() { 
-	return get_stdout("hostname -f").replace("\n","")
+string get_hostname() {
+	out := get_stdout("hostname -f").replace("\n","")
+	if (out.startsWith("hostname: ")) return "default"
+	else return out
 }
