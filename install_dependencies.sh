@@ -21,11 +21,11 @@ conda create -n ${ENV_NAME_PY3} --file requirements_py3.txt -y -c defaults -c bi
 ### bash function definition
 
 function add_to_activate {
-  if [ ! -f $CONDA_INIT ]; then
+  if [[ ! -f $CONDA_INIT ]]; then
     echo > $CONDA_INIT
   fi
   for i in "${CONTENTS[@]}"; do
-    if [ $(grep "$i" "$CONDA_INIT" | wc -l ) == 0 ]; then
+    if [[ $(grep "$i" "$CONDA_INIT" | wc -l ) == 0 ]]; then
       echo $i >> "$CONDA_INIT"
     fi
   done
@@ -71,7 +71,7 @@ add_to_activate
 CONTENTS=("export PYTHONPATH=$CONDA_LIB/python2.7/site-packages:\$PYTHONPATH")
 add_to_activate
 
-if [ ${INSTALL_WIGGLER_AND_MCR} == 1 ]; then
+if [[ ${INSTALL_WIGGLER_AND_MCR} == 1 ]]; then
   conda install -y -c conda-forge bc
   ### install Wiggler (for generating signal tracks)
   cd $CONDA_EXTRA
@@ -105,7 +105,7 @@ if [ ${INSTALL_WIGGLER_AND_MCR} == 1 ]; then
 fi
 
 # install PeakSeq
-if [ ${INSTALL_PEAKSEQ} == 1 ]; then
+if [[ ${INSTALL_PEAKSEQ} == 1 ]]; then
   cd $CONDA_EXTRA
   wget http://archive.gersteinlab.org/proj/PeakSeq/Scoring_ChIPSeq/Code/C/PeakSeq_1.31.zip -N --no-check-certificate
   unzip PeakSeq_1.31.zip
@@ -149,7 +149,7 @@ CONTENTS=("export PYTHONPATH=$CONDA_LIB/python3.5/site-packages:\$PYTHONPATH")
 add_to_activate
 
 # install GEM
-if [ ${INSTALL_GEM} == 1 ]; then
+if [[ ${INSTALL_GEM} == 1 ]]; then
   cd $CONDA_EXTRA
   wget http://groups.csail.mit.edu/cgs/gem/download/gem.v3.0.tar.gz -N --no-check-certificate
   tar zxvf gem.v3.0.tar.gz  
