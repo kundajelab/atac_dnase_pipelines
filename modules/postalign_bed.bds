@@ -105,7 +105,7 @@ string tn5_shift_tag( string tag, string o_dir, string group ) {
 
 		sys $shcmd_init
 
-		sys zcat $tag | awk -F $'\t' 'BEGIN {OFS = FS}{ if ($6 == "+") {$2 = $2 + 4} else if ($6 == "-") {$3 = $3 - 5} print $0}' | gzip -nc > $shifted_tag
+		sys zcat $tag | awk -F '\t' 'BEGIN {OFS = FS}{ if ($6 == "+") {$2 = $2 + 4} else if ($6 == "-") {$3 = $3 - 5} print $0}' | gzip -nc > $shifted_tag
 
 		sys $shcmd_finalize
 	}
