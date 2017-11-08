@@ -6,7 +6,7 @@ include "module_template.bds"
 
 
 help == callpeak etc settings
-npeak_filt	 	:= 500000 	help # top peaks filtered from a narrow peak files (default: 500000).
+npeak_filt	 	:= 300000 	help # top peaks filtered from a narrow peak files (default: 300000).
 
 
 init_callpeak_etc()

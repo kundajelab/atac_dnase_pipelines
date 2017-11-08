@@ -9,7 +9,7 @@ help == callpeak naive overlap settings
 nonamecheck	:= false        help bedtools intersect -nonamecheck (bedtools>=2.24.0, use this if you get bedtools intersect naming convenction warnings/errors).
 
 grp_color_naive_overlap := "skyblue"
-
+grp_color_peak_overlap_final := "green"
 
 init_callpeak_naive_overlap()
 
@@ -165,6 +165,132 @@ string naive_overlap_peak( string filetype, string peak_pooled, string[] peaks, 
 	add_task_to_graph( in, out, group, "NAIVE\\nOVERLAP\\n" + _get_short_filetype(filetype), grp_color_naive_overlap )
 	
 	return out
+}
+
+// peak_overlap_tr: overlapping peaks for true replicate (key:"rep_id1,rep_id2") e.g. "1,2" for rep1 and rep2
+// peak_overlap_pr: overlapping peaks for pseudo replicates (key:"rep") e.g. "1" for pseudo replicates of replicate 1
+string[] peak_overlap_final_qc( string{} peak_overlap_tr, string{} peak_overlap_pr, string peak_overlap_ppr, \
+			string peak_overlap_o_dir, string qc_o_dir, string group ) {
+	//// get # of lines in each IDR peak files
+
+	// pseudo replicates
+	int[] N
+	for ( string peak : peak_overlap_pr ) N.add( get_num_lines( peak ) )
+
+	// true replicates
+	Nt := 0
+	string peak_overlap_tr_best, key_tr_best
+
+	for ( string key : peak_overlap_tr.keys() ) { // key = rep id 1, rep id 2
+
+		peak := peak_overlap_tr{ key }
+		nlines := ( peak != "" ) ? get_num_lines( peak ) : 0
+
+		if ( nlines >= Nt ) {
+			Nt = nlines
+			peak_overlap_tr_best = peak
+			key_tr_best = key
+		}
+	}
+
+	// pooled pseudo replicates
+	Np := ( peak_overlap_ppr != "" ) ? get_num_lines( peak_overlap_ppr ) : 0
+
+	//// find optimal set and conservative set
+	string optimal_set, conservative_set
+	int N_opt, N_consv
+	string peak_overlap_opt_set, peak_overlap_consv_set
+	string peak_overlap_opt_set_new, peak_overlap_consv_set_new // copy of above two
+
+	if ( Nt > 0 ) {
+
+		// optimal set
+		optimal_set 	= (Nt > Np) ? _get_group_from_key(key_tr_best) : "pooled_pseudo_rep"
+		peak_overlap_opt_set 	= (Nt > Np) ? peak_overlap_tr_best : peak_overlap_ppr
+		N_opt 		= (Nt > Np) ? Nt : Np
+
+		// conservative set
+		conservative_set= _get_group_from_key(key_tr_best)
+		peak_overlap_consv_set  	= peak_overlap_tr_best
+		N_consv 	= Nt
+	}
+	else {
+		optimal_set 	= "self_pseudo_rep_rep1"
+		peak_overlap_opt_set 	= peak_overlap_pr{1}
+		N_opt 		= N[0]
+
+		conservative_set= optimal_set
+		peak_overlap_consv_set  	= peak_overlap_opt_set
+		N_consv 	= N_opt
+	}
+
+	// make copies of them
+	peak_overlap_opt_o_dir 		:= mkdir( "$peak_overlap_o_dir/optimal_set" )
+	peak_overlap_consv_o_dir 	:= mkdir( "$peak_overlap_o_dir/conservative_set" )
+
+	peak_overlap_opt_set_new	= copy( peak_overlap_opt_set, peak_overlap_opt_o_dir )	
+	peak_overlap_consv_set_new 	= copy( peak_overlap_consv_set, peak_overlap_consv_o_dir )
+	
+	wait
+
+	//// compute IDR scores
+
+	real max_Np_Nt = _max( Np, Nt )
+	real min_Np_Nt = _min( Np, Nt )
+
+	real max_N = N.size() > 0 ? _max( N ) : 0
+	real min_N = N.size() > 0 ? _min( N ) : 0
+
+	real rescue_ratio, self_consistency_ratio
+	if ( min_Np_Nt > 0 )	rescue_ratio 		= max_Np_Nt / min_Np_Nt
+	else 			rescue_ratio 		= 0.0
+	if ( min_N> 0 )  	self_consistency_ratio 	= max_N / min_N
+	else 			self_consistency_ratio 	= 1.0
+	reproducibility 	:= "pass"
+
+	if ( rescue_ratio > 2.0 || self_consistency_ratio > 2.0 ) reproducibility = "borderline" // BORDERLINE
+	if ( rescue_ratio > 2.0 && self_consistency_ratio > 2.0 ) reproducibility = "fail" // FAIL
+	
+	// write on IDR FINAL QC file
+	prefix 	:= "$qc_o_dir/" + (title=="" ? "" : (title+"_") ) + group
+	qc 	:= prefix+"peak_overlap_final.qc"
+
+	in 	:= map_to_array( peak_overlap_tr ) + map_to_array( peak_overlap_pr ); if (peak_overlap_ppr!="") in += [peak_overlap_ppr]
+	out 	:= qc
+
+	string col_lbl, col_val
+	if ( N.size() == 0 ) {
+		col_lbl = ""
+		col_val = ""
+	}
+	else if ( N.size() == 1 ) {
+		col_lbl = "N1\tN2\t"
+		col_val = (N[0] + "\t0" + "\t")
+	}
+	else {
+		for ( int rep=1; rep<=N.size(); rep++) col_lbl += "N$rep\t"
+		col_val = (N.join("\t") + "\t")
+	}
+
+	taskName:= "naive overlap final qc" + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys echo -e "Nt\t$col_lbl""Np\tN_opt\tN_consv\topt_set\tconsv_set\trescue_ratio\tself_consistency_ratio\treproducibility_test" > $qc
+		sys echo -e "$Nt\t$col_val""$Np\t$N_opt\t$N_consv\t$optimal_set\t$conservative_set\t$rescue_ratio\t$self_consistency_ratio\t$reproducibility" >> $qc
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group, "Naive overlap\\nQC", grp_color_peak_overlap_final )
+
+	return [qc, peak_overlap_opt_set_new, peak_overlap_consv_set_new]
 }
 
 // input peaks are already blacklist-filtered
