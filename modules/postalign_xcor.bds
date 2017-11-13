@@ -30,19 +30,21 @@ void init_postalign_xcor() {
 	print( "Extra parameters for cross-corr. analysis\t: $extra_param_xcor\n")
 }
 
-// This function is for cross correlation analysis in chipseq pipeline only for paired end data set
-// Output (subsampled) tagalign will restricted to one read end per pair
-string subsample_tag_PE_xcor( string tag, int nlines, string o_dir, string group ) {
+string subsample_tag_PE_for_xcor( string tag, int nlines, bool non_mito, string o_dir, string group ) {
 
-	prefix 		:= replace_dir( rm_ext( tag, ["tagAlign","bed"] ), o_dir )
+	prefix 		:= replace_dir( rm_ext( tag, ["tagAlign","tag","bed"] ), o_dir )
 	nreads_per_mill := metric_prefix( nlines )
 
-	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
+	subsampled_tag 	:= "$prefix."+(non_mito?"no_chrM.":"")+"$nreads_per_mill.R1.tagAlign.gz"
+	non_mito_param 	:= non_mito ? "grep -v \"chrM\" | " : ""
+
+	joined 		:= "$prefix.joined" // temporary file
+	joined_subsampled := "$prefix.joined.subsampled" // temporary file
 
 	in 	:= [ tag ]
 	out 	:= subsampled_tag
 
-	taskName:= "subsample_tag_PE " + group
+	taskName:= "subsample_tag_PE_4_xcor " + group
 	mem := get_res_mem(mem_shuf,1)
 
 	wait_par( cpus )
@@ -51,46 +53,18 @@ string subsample_tag_PE_xcor( string tag, int nlines, string o_dir, string group
 
 		sys $shcmd_init
 
-		// join two consecutive lines in tag, subsample it and then take one read per pair
-		sys zcat $tag | sed 'N;s/\n/\t/' | \
-			grep -v "chrM" | shuf -n $nlines --random-source=$tag | \
-			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' | gzip -nc > $subsampled_tag
+		// join consecutive two lines into one
+		sys zcat $tag | sed 'N;s/\n/\t/' > $joined
 
-		sys $shcmd_finalize
-	}
-
-	register_par( tid, cpus )
-
-	add_task_to_graph( in, out, group )
-
-	return out
-}
-
-// This function is for cross correlation analysis in chipseq pipeline only for paired end data set
-// Output (subsampled) tagalign will restricted to one read end per pair
-string subsample_bedpe_to_tag_xcor( string bedpe, int nlines, string o_dir, string group ) {
+		//# Shuffle and split temporary combined file into 2 equal parts
+		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
+		sys cat $joined | $non_mito_param shuf -n $nlines --random-source=$tag > $joined_subsampled
 	
-	prefix 		:= replace_dir( rm_ext( bedpe, ["bedpe","bed"] ), o_dir )
-	nreads_per_mill := metric_prefix( nlines )
-
-	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
-
-	in 	:= [ bedpe ]
-	out 	:= subsampled_tag
-	taskName:= "subsample_bedpe2tag " + group
-	mem := get_res_mem(mem_shuf,1)
-
-	wait_par( cpus )
-
-	tid := task( out<-in ) {
-
-		sys $shcmd_init
-
 		//# Subsample tagAlign file
-		//# Restrict to one read end per pair for CC analysis
-		sys zcat $bedpe | \
-			grep -v "chrM" | shuf -n $nlines --random-source=$bedpe | \
-			awk 'BEGIN{OFS="\t"}{print $1,$2,$3,"N","1000",$9}' | gzip -nc > $subsampled_tag
+		sys awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' $joined_subsampled | \
+			gzip -nc > $subsampled_tag
+
+		sys rm -f $joined $joined_subsampled
 
 		sys $shcmd_finalize
 	}

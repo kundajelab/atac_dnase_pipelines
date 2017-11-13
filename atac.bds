@@ -23,6 +23,7 @@ macs2_pval_thresh := 0.01	help MACS2 p-val threshold for calling peaks (default:
 macs2_pval_thresh_bw := 0.01	help MACS2 p-val threshold for generating BIGWIG signal tracks (default: 0.1).
 enable_idr 	:= false 	help Enable IDR on called peaks.
 auto_detect_adapter := false 	help Automatically find and trim adapters.
+adjust_bedpe 	:= false //	help (BETA) adjust BEDPE (by Daniel Kim).
 
 exclude_ppr_in_naive_overlap := false //help Exclude peaks from pooled pseudo replicates in naive overlap. This flag works for multiple replicate case only.
 disable_gb_peak := true // disable gapped/broad peak generation
@@ -43,7 +44,6 @@ include "modules/postalign_xcor.bds"
 
 include "modules/callpeak_macs2_atac.bds"
 include "modules/callpeak_naive_overlap.bds"
-include "modules/callpeak_filter.bds"
 include "modules/callpeak_idr.bds"
 include "modules/callpeak_blacklist_filter.bds"
 include "modules/callpeak_bigbed.bds"
@@ -98,7 +98,11 @@ void main() { // atac pipeline starts here
 
 	read_input_peak() // if inputs are peaks, read them
 
+	do_naive_overlap()
+
 	do_idr()
+
+	wait
 
 	log_number_of_peaks()
 
@@ -147,6 +151,7 @@ void read_conf_atac() {
 	macs2_pval_thresh_bw = get_conf_val_real( macs2_pval_thresh_bw, ["macs2_pval_thresh_bw"] )
 	enable_idr 	= get_conf_val_bool( enable_idr,	["enable_idr"] )
 	auto_detect_adapter 	= get_conf_val_bool( auto_detect_adapter,	["auto_detect_adapter"] )
+	// adjust_bedpe 	= get_conf_val_bool( adjust_bedpe,	["adjust_bedpe"] )
 }
 
 void init_etc_atac() {
@@ -179,6 +184,7 @@ void print_atac() {
 	print( "MACS2 p-val thresh. for BIGWIGs\t\t: $macs2_pval_thresh_bw\n")
 	print( "Enable IDR on called peaks\t: $enable_idr\n")
 	print( "Automatically find/trim adapters\t: $auto_detect_adapter\n")
+	// print( "(BETA) adjust BEDPE (by Daniel Kim)\t: $adjust_bedpe\n")
 
 	if ( dnase_seq ) type = "dnase-seq"	
 }
@@ -622,7 +628,7 @@ void align_SE( int rep, int nth_rep ) {
 		string subsampled_tag
 
 		if ( parse_number( subsample ) != 0 ) {
-			subsampled_tag = subsample_tag( tag, parse_number( subsample ), aln_o_dir, group )
+			subsampled_tag = subsample_tag( tag, parse_number( subsample ), false, aln_o_dir, group )
 			wait
 		}
 		else {
@@ -659,7 +665,7 @@ void align_SE( int rep, int nth_rep ) {
 
 		if ( !no_xcor ) {
 			// cross-corr. analysis
-			subsampled_tag_xcor := subsample_tag( tag, parse_number( subsample_xcor ), aln_o_dir, group )
+			subsampled_tag_xcor := subsample_tag( tag, parse_number( subsample_xcor ), true, aln_o_dir, group )
 			wait
 
 			// xcor
@@ -895,7 +901,8 @@ void align_PE( int rep, int nth_rep ) {
 		}
 	}
 
-	string bedpe, subsampled_bedpe, tag
+	// string bedpe, subsampled_bedpe, tag
+	string bedpe, tag
 
 	if ( is_input_fastq( rep ) || is_input_bam( rep ) || is_input_filt_bam( rep ) ) {
 
@@ -907,16 +914,12 @@ void align_PE( int rep, int nth_rep ) {
 		bedpe = bam_to_bedpe( filt_bam_, aln_o_dir, group )
 		wait
 
-		if ( parse_number( subsample )!=0 ) {
-
-			subsampled_bedpe = subsample_bedpe( bedpe, parse_number( subsample ), aln_o_dir, group )
+		if ( adjust_bedpe ) {
+			tag = bedpe_to_tag_adj( bedpe, aln_o_dir, group )
 		}
 		else {
-			subsampled_bedpe = bedpe
+			tag = bedpe_to_tag( bedpe, aln_o_dir, group )
 		}
-		wait
-
-		tag = bedpe_to_tag( subsampled_bedpe, aln_o_dir, group )
 		wait
 	}
 
@@ -926,64 +929,42 @@ void align_PE( int rep, int nth_rep ) {
 
 		if ( is_input_tag( rep ) ) tag = get_tag( 0, rep )
 
-		string aln_pr1_o_dir, aln_pr2_o_dir
-		string tag_pr1, tag_pr2
-
-		if ( !true_rep ) {
-
-			aln_pr1_o_dir = mkdir( "$out_dir/align/pseudo_reps/$group/pr1" )
-			aln_pr2_o_dir = mkdir( "$out_dir/align/pseudo_reps/$group/pr2" )
-
-			if ( is_input_tag( rep ) ) {
-				( tag_pr1, tag_pr2 ) = spr_tag_PE( tag, aln_pr1_o_dir, aln_pr2_o_dir, group )
-			}
-			else {
-				( tag_pr1, tag_pr2 ) = spr_PE( subsampled_bedpe, aln_pr1_o_dir, aln_pr2_o_dir, group )
-			}
+		string subsampled_tag
+		if ( parse_number( subsample ) != 0 ) {
+			subsampled_tag = subsample_tag_PE( tag, parse_number( subsample ), false, aln_o_dir, group )
 			wait
 		}
-
+		else {
+			subsampled_tag = tag
+		}
 		if ( is_dnase_seq() ) {
-			final_tag_ = tag
+			final_tag_ = subsampled_tag
 		}
 		else {
-			final_tag_ = tn5_shift_tag( tag, aln_o_dir, group )
+			final_tag_ = tn5_shift_tag( subsampled_tag, aln_o_dir, group )
 		}		
 		final_tag{rep} = final_tag_
 
 		add_file_to_report( final_tag_, "tag-align", group, "Alignment/$long/Tag-align" )
 
 		if ( !true_rep ) {
+			aln_pr1_o_dir := mkdir( "$out_dir/align/pseudo_reps/$group/pr1" )
+			aln_pr2_o_dir := mkdir( "$out_dir/align/pseudo_reps/$group/pr2" )
 
-			if ( is_dnase_seq() ) {
-				final_tag_pr1_ = tag_pr1
-				final_tag_pr2_ = tag_pr2
-			}
-			else {
-				final_tag_pr1_ = tn5_shift_tag( tag_pr1, aln_pr1_o_dir, group )
-				final_tag_pr2_ = tn5_shift_tag( tag_pr2, aln_pr2_o_dir, group )
-			}
+			( final_tag_pr1_, final_tag_pr2_ ) = spr_tag_PE( final_tag_, aln_pr1_o_dir, aln_pr2_o_dir, group )
 			final_tag_pr1{rep} = final_tag_pr1_
 			final_tag_pr2{rep} = final_tag_pr2_
-
 			add_file_to_report( final_tag_pr1_, "tag-align", "$group-pr1", \
 				"Alignment/Pseudo-replicates/$long/Pseudo-replicate 1/Tag-align" )
 			add_file_to_report( final_tag_pr2_, "tag-align", "$group-pr2", \
 				"Alignment/Pseudo-replicates/$long/Pseudo-replicate 2/Tag-align" )			
+			wait
 		}
-		wait
-
-		string subsampled_tag_xcor
-
-		if ( bedpe == "" ) {
-			subsampled_tag_xcor = subsample_tag_PE_xcor( tag, parse_number( subsample_xcor ), aln_o_dir, group )
-		}
-		else {
-			subsampled_tag_xcor = subsample_bedpe_to_tag_xcor( bedpe, parse_number( subsample_xcor ), aln_o_dir, group )
-		}
-		wait
 
 		if ( !no_xcor ) {
+			subsampled_tag_xcor := subsample_tag_PE_for_xcor( tag, parse_number( subsample_xcor ), true, aln_o_dir, group )
+			wait
+
 			// cross-corr. analysis
 			string xcor_qc_, xcor_plot_
 			( xcor_qc_, xcor_plot_ ) = xcor( subsampled_tag_xcor, qc_o_dir, group, nth_rep ) 
@@ -1222,77 +1203,8 @@ void call_peaks() { // for pooling two replicates and calling peaks on them
 	print( "\n== Done call_peaks()\n" )
 }
 
-void do_idr() {
-
-	//if ( align || !enable_idr ) return
+void do_naive_overlap() {
 	if ( align ) return
-
-	string{} top_peak, top_peak_pr1, top_peak_pr2
-	string top_peak_pooled, top_peak_ppr1, top_peak_ppr2
-
-	string{} filt_gpeak, filt_gpeak_pr1, filt_gpeak_pr2
-	string filt_gpeak_pooled, filt_gpeak_ppr1, filt_gpeak_ppr2
-
-	// take top $npeak_filt lines from narrowpeaks for idr
-	for ( int rep=1; rep<=get_num_rep(); rep++ ) {
-
-		top_peak{rep} 	= filt_top_peaks( "narrowPeak", peak{rep}, overlap_pval_thresh, "", "rep$rep" )
-		add_file_to_table( top_peak{rep}, "Peaks/MACS2/Replicate $rep/Filtered narrow peak" )
-
-		if ( !is_input_peak() && !disable_gb_peak ) {
-			filt_gpeak{rep} = filt_top_peaks( "gappedPeak", gpeak{rep}, overlap_pval_thresh, "", "rep$rep" )
-			add_file_to_table( filt_gpeak{rep},"Peaks/MACS2/Replicate $rep/Filtered gapped peak" )
-		}
-
-		if ( !true_rep ) {
-			top_peak_pr1{rep}  = filt_top_peaks( "narrowPeak", peak_pr1{rep}, overlap_pval_thresh, "", "rep$rep-pr1" )
-			top_peak_pr2{rep}  = filt_top_peaks( "narrowPeak", peak_pr2{rep}, overlap_pval_thresh, "", "rep$rep-pr2" )
-			add_file_to_table( top_peak_pr1{rep}, \
-				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 1/Filtered narrow peak" )
-			add_file_to_table( top_peak_pr2{rep}, \
-				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 2/Filtered narrow peak" )
-
-			if ( !is_input_peak() && !disable_gb_peak ) {
-				filt_gpeak_pr1{rep} = filt_top_peaks( "gappedPeak", gpeak_pr1{rep}, overlap_pval_thresh, "", "rep$rep-pr1" )
-				filt_gpeak_pr2{rep} = filt_top_peaks( "gappedPeak", gpeak_pr2{rep}, overlap_pval_thresh, "", "rep$rep-pr2" )
-				add_file_to_table( filt_gpeak_pr1{rep}, \
-				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 1/Filtered gapped peak" )
-				add_file_to_table( filt_gpeak_pr2{rep}, \
-				"Peaks/MACS2/Pseudo-replicates/Replicate $rep/Pseudo-replicate 2/Filtered gapped peak" )
-			}
-		}
-	}
-
-	if ( get_num_rep() > 1 ) {
-
-		top_peak_pooled = filt_top_peaks( "narrowPeak", peak_pooled, overlap_pval_thresh, "", "pooled_rep" )
-		add_file_to_table( top_peak_pooled, "Peaks/MACS2/Pooled replicate/Filtered narrow peak" )
-
-		if ( !is_input_peak() && !disable_gb_peak ) {
-			filt_gpeak_pooled= filt_top_peaks( "gappedPeak", gpeak_pooled, overlap_pval_thresh, "", "pooled_rep" )
-			add_file_to_table( filt_gpeak_pooled, "Peaks/MACS2/Pooled replicate/Filtered gapped peak" )
-		}
-
-		if ( !true_rep ) {
-			top_peak_ppr1 	= filt_top_peaks( "narrowPeak", peak_ppr1, overlap_pval_thresh, "", "ppr1" )
-			top_peak_ppr2 	= filt_top_peaks( "narrowPeak", peak_ppr2, overlap_pval_thresh, "", "ppr2" )
-			add_file_to_table( top_peak_ppr1, \
-				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Filtered narrow peak" )
-			add_file_to_table( top_peak_ppr2, \
-				"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Filtered narrow peak" )
-
-			if ( !is_input_peak() && !disable_gb_peak  ) {
-				filt_gpeak_ppr1 = filt_top_peaks( "gappedPeak", gpeak_ppr1, overlap_pval_thresh, "", "ppr1" )
-				filt_gpeak_ppr2 = filt_top_peaks( "gappedPeak", gpeak_ppr2, overlap_pval_thresh, "", "ppr2" )
-				add_file_to_table( filt_gpeak_ppr1, \
-					"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 1/Filtered gapped peak" )
-				add_file_to_table( filt_gpeak_ppr2, \
-					"Peaks/MACS2/Pooled pseudo-replicates/Pooled pseudo-replicate 2/Filtered gapped peak" )
-			}
-		}
-	}
-
-	wait
 
 	// naive overlap peak
 	overlap_o_dir := mkdir( "$out_dir/peak/macs2/overlap" )
@@ -1300,7 +1212,7 @@ void do_idr() {
 		for ( int j=i+1; j<=get_num_rep(); j++ ) {
 			peak_overlap_true_o_dir	:= mkdir( "$overlap_o_dir/true_reps/rep$i-rep$j" )
 			peak_overlap_tr{"$i,$j"} \
-				= naive_overlap_peak( "narrowPeak", top_peak{i}, top_peak{j}, top_peak_pooled, \
+				= naive_overlap_peak( "narrowPeak", peak{i}, peak{j}, peak_pooled, \
 					peak_overlap_true_o_dir, "rep$i-rep$j" )
 			add_file_to_report( peak_overlap_tr{"$i,$j"}, "n. peak\\noverlap", "rep$i-rep$j", \
 				"Peaks/MACS2/Naive overlap/True replicates/Rep. $i vs. Rep. $j/Narrow peak" )
@@ -1309,7 +1221,7 @@ void do_idr() {
 		if ( !true_rep ) {
 			peak_overlap_pr_o_dir := mkdir( "$overlap_o_dir/pseudo_reps/rep$i" )
 			peak_overlap_pr{i} \
-				= naive_overlap_peak( "narrowPeak", top_peak_pr1{i}, top_peak_pr2{i}, top_peak{i}, \
+				= naive_overlap_peak( "narrowPeak", peak_pr1{i}, peak_pr2{i}, peak{i}, \
 					peak_overlap_pr_o_dir, "rep$i-pr" )
 			add_file_to_report( peak_overlap_pr{i}, "n. peak\\noverlap", "rep$i-pr", \
 				"Peaks/MACS2/Naive overlap/Pseudo-replicates/Replicate $i/Narrow peak" )
@@ -1319,7 +1231,7 @@ void do_idr() {
 	if ( !true_rep && get_num_rep() > 1 ) {
 		peak_overlap_ppr_o_dir := mkdir( "$overlap_o_dir/pooled_pseudo_reps" )
 		peak_overlap_ppr \
-			= naive_overlap_peak( "narrowPeak", top_peak_ppr1, top_peak_ppr2, top_peak_pooled, \
+			= naive_overlap_peak( "narrowPeak", peak_ppr1, peak_ppr2, peak_pooled, \
 				peak_overlap_ppr_o_dir, "ppr" )
 		add_file_to_report( peak_overlap_ppr, "n. peak\\noverlap", "ppr", \
 			"Peaks/MACS2/Naive overlap/Pooled pseudo-replicates/Narrow peak" )
@@ -1363,11 +1275,10 @@ void do_idr() {
 	add_file_to_report( peak_overlap_opt, "opt. naive overlap peak", "", "Peaks/MACS2/Naive overlap/Optimal set/Overlapping peak" )
 	add_file_to_report( peak_overlap_consv, "consv. naive overlap peak", "", "Peaks/MACS2/Naive overlap/Conservative set/Overlapping peak" )
 	print( "\n== Done naive_overlap()\n" )
+}
 
-	if ( !enable_idr ) {
-		wait
-		return
-	}
+void do_idr() {
+	if ( align || !enable_idr ) return
 
 	// do IDR
 	peak_o_dir := "$out_dir/peak/macs2"
@@ -1394,7 +1305,7 @@ void do_idr() {
 			idr_true_o_dir 	:= mkdir( "$idr_o_dir/true_reps/rep$i-rep$j" )
 
 			(idr_tr{"$i,$j"}, idr_tr_png{"$i,$j"}, idr_tr_log{"$i,$j"} ) \
-				= idr2( top_peak{i}, top_peak{j}, top_peak_pooled, idr_thresh, "p.value", idr_true_o_dir, "rep$i-rep$j" )
+				= idr2( peak{i}, peak{j}, peak_pooled, idr_thresh, "p.value", idr_true_o_dir, "rep$i-rep$j" )
 
 			add_file_to_report( idr_tr{"$i,$j"}, "IDR peak", "rep$i-rep$j", "Peaks/MACS2/IDR/True replicates/Rep. $i vs. Rep. $j/IDR peak" )
 			add_file_to_table( idr_tr_png{"$i,$j"}, "QC and logs/IDR/True replicates/Rep. $i vs. Rep. $j/IDR plot" )	
@@ -1405,7 +1316,7 @@ void do_idr() {
 			idr_pr_o_dir := mkdir( "$idr_o_dir/pseudo_reps/rep$i" )
 
 			(idr_pr{i}, idr_pr_png{i}, idr_pr_log{i}) \
-				= idr2( top_peak_pr1{i}, top_peak_pr2{i}, top_peak{i}, idr_thresh, "p.value", idr_pr_o_dir, "rep$i-pr" )
+				= idr2( peak_pr1{i}, peak_pr2{i}, peak{i}, idr_thresh, "p.value", idr_pr_o_dir, "rep$i-pr" )
 
 			add_file_to_report( idr_pr{i}, "IDR peak", "rep$i-pr", "Peaks/MACS2/IDR/Pseudo-replicates/Replicate $i/IDR peak" )
 			add_file_to_table( idr_pr_png{i}, "QC and logs/IDR/Pseudo-replicates/Replicate $i/IDR plot" )
@@ -1417,7 +1328,7 @@ void do_idr() {
 		idr_ppr_o_dir := mkdir( "$idr_o_dir/pooled_pseudo_reps" )
 
 		(idr_ppr, idr_ppr_png, idr_ppr_log) \
-			= idr2( top_peak_ppr1, top_peak_ppr2, top_peak_pooled, idr_thresh, "p.value", idr_ppr_o_dir, "ppr" )
+			= idr2( peak_ppr1, peak_ppr2, peak_pooled, idr_thresh, "p.value", idr_ppr_o_dir, "ppr" )
 
 		add_file_to_report( idr_ppr, "IDR peak", "ppr", "Peaks/MACS2/IDR/Pooled pseudo-replicates/IDR peak" )
 		add_file_to_table( idr_ppr_png, "QC and logs/IDR/Pooled pseudo-replicates/IDR plot" )
@@ -1454,6 +1365,7 @@ void do_idr() {
 	}
 	wait
 
+	qc_o_dir := mkdir( "$out_dir/qc" ) // create qc output dir.
 	// get final idr qc score, use idr final idr narrow peak files from true, pseudo and pooled pseudo reps
 	(idr_qc, idr_opt, idr_consv) = idr_final_qc( idr_tr, idr_pr, idr_ppr, idr_o_dir, qc_o_dir, "" )
 
@@ -1484,8 +1396,8 @@ void log_number_of_peaks() {
 		lines += "ppr1\t"+get_num_lines( peak_ppr1 )+"\n"
 	if ( peak_ppr2 ) \
 		lines += "ppr2\t"+get_num_lines( peak_ppr2 )+"\n"
-	if ( peak_overlap_opt ) \
-		lines += "overlap\t"+get_num_lines( peak_overlap_opt )+"\n"
+	// if ( peak_overlap_opt ) \
+	// 	lines += "overlap\t"+get_num_lines( peak_overlap_opt )+"\n"
 	num_peak_log.write(lines)
 }
 
@@ -1629,26 +1541,59 @@ void filter_peak_and_convert_to_bigbed() {
 		}
 	}
 
-	// naive overlap peaks
-	string ENCODE_peak_name
-	if ( peak_overlap_opt ) {
-		if ( get_num_rep()==1 ) {
+	if ( peak_overlap_qc && peak_overlap_opt && peak_overlap_consv ) {
+
+		string[] peak_overlap_ENCODE 
+		// overlap peaks
+		if ( peak_overlap_pr.hasKey(1) && get_num_rep()==1 ) {
+
+			peak_overlap_ENCODE = [peak_overlap_pr{1}]
 			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-single-rep-v1"
-			ENCODE_peak_name = "pseudoreplicated stable peaks"
+			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "pseudoreplicated stable peaks", \
+				ENCODE_step_name, peak_overlap_pr{1}, filt_peaks )
+			peak_overlap_bb := peak_to_bigbed( "narrowPeak", peak_overlap_pr{1}, peak_overlap_pr{1}.dirName(), "overlap peak pr" )
+			wait
+			ENCODE_step_name = "anshul-kundaje:atac-seq-pseudoreplicated-overlap-peaks-conversion-step-run-single-rep-v1"			
+			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "pseudoreplicated overlap thresholded peaks", \
+				ENCODE_step_name, peak_overlap_bb, [peak_overlap_pr{1}] )
 		}
 		else {
+			// find peak_overlap_opt and peak_overlap_consv		
+			peak_overlap_ENCODE = [peak_overlap_opt]
 			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-v1"
-			ENCODE_peak_name = "replicated peaks"
+			add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "replicated peaks", \
+				ENCODE_step_name, peak_overlap_opt, filt_peaks )
+			peak_overlap_opt_bb := peak_to_bigbed( "narrowPeak", peak_overlap_opt, peak_overlap_opt.dirName(), "overlap peak opt" )
+			wait
+			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-peaks-conversion-step-run-v1"
+			add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "replicated peaks", \
+				ENCODE_step_name, peak_overlap_opt_bb, [peak_overlap_opt])
+
+			if ( peak_overlap_consv && get_basename( peak_overlap_opt )!=get_basename( peak_overlap_consv ) ) {
+				ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-v1"
+				add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", "conservative replicated peaks", \
+					ENCODE_step_name, peak_overlap_consv, filt_peaks )
+				peak_overlap_consv_bb := peak_to_bigbed( "narrowPeak", peak_overlap_consv, peak_overlap_consv.dirName(), "overlap peak consv" )
+				wait
+				ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-peaks-conversion-step-run-v1"
+				add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", "conservative replicated peaks", \
+					ENCODE_step_name, peak_overlap_consv_bb, [peak_overlap_consv] )
+			}
 		}
-		add_ENCODE_metadata_to_summary_json( "bed", "narrowPeak", ENCODE_peak_name, \
-			ENCODE_step_name, peak_overlap_opt, filt_peaks )
-		npeak_bb := peak_to_bigbed( "narrowPeak", peak_overlap_opt, peak_overlap_opt.dirName(), "peak overlap" )
-		wait
-		if ( get_num_rep()==1 )	ENCODE_step_name = "anshul-kundaje:atac-seq-stable-peaks-conversion-step-run-v1"
-		else 			ENCODE_step_name = "anshul-kundaje:atac-seq-replicated-peaks-conversion-step-run-v1"
-		add_ENCODE_metadata_to_summary_json( "bigBed", "narrowPeak", ENCODE_peak_name, \
-			ENCODE_step_name, npeak_bb, [peak_overlap_opt] )
-	}
+
+		if ( !true_rep ) {
+			if ( get_num_rep()==1 ) ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-single-rep-v1"
+			else 			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-v1"
+			add_ENCODE_quality_metrics_to_summary_json( "overlap_quality_metric", \
+				ENCODE_step_name, \
+				peak_overlap_ENCODE, \
+					[ peak_overlap_qc, \
+					peak_overlap_qc_FRiP.hasKey("ppr") ? peak_overlap_qc_FRiP{"ppr"} : "",\
+					peak_overlap_qc_FRiP.hasKey("rep1-rep2") ? peak_overlap_qc_FRiP{"rep1-rep2"} : "",\
+					peak_overlap_qc_FRiP.hasKey("rep1-pr") ? peak_overlap_qc_FRiP{"rep1-pr"} : "",\
+					peak_overlap_qc_FRiP.hasKey("rep2-pr") ? peak_overlap_qc_FRiP{"rep2-pr"} : ""])
+		}
+	}	
 	wait
 
 	print( "\n== Done filter_peak_and_convert_to_bigbed()\n" )	
@@ -1802,7 +1747,7 @@ string html_atac_QC() {
 		html += html_table_multiple_logs( "Enrichment QC (Fraction of reads in overlapping peaks)", false, "idr_FRiP", peak_overlap_qc_FRiP )
 		html += html_help_peak_overlap_FRiP()
 		html += "</div>"
-	}	
+	}
 	if ( peak_overlap_qc != "" ) {
 		html += "<div style='float:left'>"
 		html += html_table_multiple_logs( "Reproducibility QC and Peak Detection Statistics (Overlapping peaks)", \
@@ -1816,7 +1761,7 @@ string html_atac_QC() {
 		html += html_table_multiple_logs( "Enrichment QC (Fraction of reads in IDR peaks)", false, "idr_FRiP", idr_qc_FRiP )
 		html += html_help_idr_FRiP()
 		html += "</div>"
-	}	
+	}
 	if ( idr_qc != "" ) {
 		html += "<div style='float:left'>"
 		html += html_table_multiple_logs( "Reproducibility QC and Peak Detection Statistics (Irreproducible Discovery Rate)", \

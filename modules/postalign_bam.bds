@@ -225,7 +225,7 @@ string[] dedup_bam( string bam, string o_dir, string log_o_dir, string group, in
 		}
 	}
 
-	add_task_to_graph( in, out, group, "FILTER", grp_color_dedup_bam )
+	add_task_to_graph( in, out, group, "FILTER\\n(SE)", grp_color_dedup_bam )
 
 	return out
 }
@@ -367,7 +367,7 @@ string[] dedup_bam_PE( string bam, string o_dir, string log_o_dir, string group,
 		}
 	}
 
-	add_task_to_graph( in, out, group, "FILTER", grp_color_dedup_bam )
+	add_task_to_graph( in, out, group, "FILTER\\n(PE)", grp_color_dedup_bam )
 
 	return out
 }
@@ -588,7 +588,7 @@ string bam_to_tag( string bam, string o_dir, string group ) {
 
 	register_par( tid, cpus )
 
-	add_task_to_graph( in, out, group, "ALIGN", grp_color_align )
+	add_task_to_graph( in, out, group, "ALIGN\\n(SE)", grp_color_align )
 
 	return out
 }
@@ -628,7 +628,7 @@ string bam_to_bedpe( string bam, string o_dir, string group ) {
 		nmsrt_bam.rm()
 	}
 
-	add_task_to_graph( in, out, group, "ALIGN", grp_color_align )
+	add_task_to_graph( in, out, group, "ALIGN\\n(PE)", grp_color_align )
 
 	return out
 }
@@ -668,7 +668,41 @@ string bedpe_to_tag( string bedpe, string o_dir, string group ) {
 	return out
 }
 
+string bedpe_to_tag_adj( string bedpe, string o_dir, string group ) {
 
+	prefix 	:= replace_dir( rm_ext( bedpe, ["bedpe","bed"] ), o_dir )
+	tag 	:= "$prefix.adj.tagAlign.gz"
+	RM_CHR_ := "echo"
+	if ( rm_chr_from_tag != "" ) {
+		RM_CHR_ = "zcat $tag | grep -P -v '$rm_chr_from_tag' | gzip -nc > $prefix.rm_chr.tmp.gz; mv $prefix.rm_chr.tmp.gz $tag"
+	}
+
+	in 	:= [ bedpe ]
+	out 	:= tag
+
+	taskName:= "bedpe_to_tag " + group
+
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+
+		sys $shcmd_init
+
+		sys zcat $bedpe | awk -F '\t' '{ if ($9=="+") {fraglen=$6-$2} else {fraglen=$3-$5}; print $1"\t"$2"\t"$3"\tN\t1000\t"$9"\t"fraglen"\n"$4"\t"$5"\t"$6"\tN\t1000\t"$10"\t"fraglen }' | awk -F '\t' 'BEGIN{ OFS=FS }{ if ($7 < 120 || $7 > 200) {if ($6=="+") {$2=$2+int($7/2)-4; $3=$3+int($7/2)+5} else {$3=$3-int($7/2)+5; $2=$2-int($7/2)-4} } print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6 }' | \
+			gzip -nc > $tag
+		// sys zcat $bedpe | awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' | \
+		// 	gzip -nc > $tag
+		sys $RM_CHR_
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+
+	add_task_to_graph( in, out, group )
+
+	return out
+}
 
 string pool_fastq( string fastq1, string fastq2, string o_dir, string group ) {
 	// LINUX has limit on filename length (255), make it as shorter as possible

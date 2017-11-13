@@ -49,7 +49,7 @@ string[] bowtie2( string fastq, string o_dir, string log_o_dir, string group, in
 	bam 	:= "$prefix.bam"
 	log 	:= "$prefix2.align.log"
 	param 	:= multimapping>0 ? "-k $multimapping" : ""
-	param3 	:= scoremin_bwt2 ? "--score-min scoremin_bwt2" : ""
+	param3 	:= scoremin_bwt2 ? "--score-min $scoremin_bwt2" : ""
 
 	in 	:= [ fastq ]
 	out 	:= [ bam, log ]
@@ -74,7 +74,7 @@ string[] bowtie2( string fastq, string o_dir, string log_o_dir, string group, in
 
 	register_par( tid, cpus )
 
-	add_task_to_graph( in, out, group, "BOWTIE2", grp_color_bwt2 )
+	add_task_to_graph( in, out, group, "BOWTIE2\\n(SE)", grp_color_bwt2 )
 
 	return out
 }
@@ -89,7 +89,7 @@ string[] bowtie2_csem( string fastq, string o_dir, string log_o_dir, string grou
 	srt_bam_prefix 	:= "$prefix.csem"
 	bam 		:= "$prefix.csem.bam"
 	param 	:= multimapping ? "-k $multimapping" : ""
-	param3 	:= scoremin_bwt2 ? "--score-min scoremin_bwt2" : ""
+	param3 	:= scoremin_bwt2 ? "--score-min $scoremin_bwt2" : ""
 
 	in 	:= [ fastq ]
 	out 	:= [ bam, log ]
@@ -117,7 +117,7 @@ string[] bowtie2_csem( string fastq, string o_dir, string log_o_dir, string grou
 
 	register_par( tid, cpus )
 
-	add_task_to_graph( in, out, group, "BOWTIE2\\nCSEM", grp_color_bwt2 )
+	add_task_to_graph( in, out, group, "BOWTIE2\\n(CSEM)", grp_color_bwt2 )
 
 	return out
 }
@@ -129,7 +129,7 @@ string[] bowtie2_PE( string fastq1, string fastq2, string o_dir, string log_o_di
 	bam 	:= "$prefix.bam"
 	log 	:= "$prefix2.align.log"
 	param 	:= multimapping ? "-k $multimapping" : ""
-	param3 	:= scoremin_bwt2 ? "--score-min scoremin_bwt2" : ""
+	param3 	:= scoremin_bwt2 ? "--score-min $scoremin_bwt2" : ""
 
 	in 	:= [ fastq1, fastq2 ]
 	out 	:= [ bam, log ]
@@ -156,7 +156,7 @@ string[] bowtie2_PE( string fastq1, string fastq2, string o_dir, string log_o_di
 
 	register_par( tid, cpus )
 
-	add_task_to_graph( in, out, group, "BOWTIE2", grp_color_bwt2 )
+	add_task_to_graph( in, out, group, "BOWTIE2\\n(PE)", grp_color_bwt2 )
 
 	return out
 }

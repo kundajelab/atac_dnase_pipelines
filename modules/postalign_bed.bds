@@ -23,12 +23,13 @@ void init_postalign_bed() {
 	print( "Max. memory for UNIX shuf\t\t\t: $mem_shuf\n")
 }
 
-string subsample_tag( string tag, int nlines, string o_dir, string group ) {
+string subsample_tag( string tag, int nlines, bool non_mito, string o_dir, string group ) {
 
 	prefix 		:= replace_dir( rm_ext( tag, ["tagAlign","tag","bed"] ), o_dir )
 	nreads_per_mill := metric_prefix( nlines )
 
-	subsampled_tag 	:= "$prefix.$nreads_per_mill.tagAlign.gz"
+	subsampled_tag 	:= "$prefix."+(non_mito?"no_chrM.":"")+"$nreads_per_mill.tagAlign.gz"
+	non_mito_param 	:= non_mito ? "grep -v \"chrM\" | " : ""	
 
 	in 	:= [ tag ]
 	out 	:= subsampled_tag
@@ -44,7 +45,7 @@ string subsample_tag( string tag, int nlines, string o_dir, string group ) {
 	
 		//# Subsample tagAlign file
 		sys zcat $tag | \
-			grep -v "chrM" | shuf -n $nlines --random-source=$tag | gzip -nc > $subsampled_tag
+			$non_mito_param shuf -n $nlines --random-source=$tag | gzip -nc > $subsampled_tag
 
 		sys $shcmd_finalize
 	}
@@ -56,17 +57,21 @@ string subsample_tag( string tag, int nlines, string o_dir, string group ) {
 	return out
 }
 
-string subsample_bedpe( string bedpe, int nlines, string o_dir, string group ) {
-	
-	prefix 		:= replace_dir( rm_ext( bedpe, ["bedpe","bed"] ), o_dir )
+string subsample_tag_PE( string tag, int nlines, bool non_mito, string o_dir, string group ) {
+
+	prefix 		:= replace_dir( rm_ext( tag, ["tagAlign","tag","bed"] ), o_dir )
 	nreads_per_mill := metric_prefix( nlines )
 
-	subsampled_bedpe:= "$prefix.$nreads_per_mill.bedpe.gz"
+	subsampled_tag 	:= "$prefix."+(non_mito?"no_chrM.":"")+"$nreads_per_mill.tagAlign.gz"
+	non_mito_param 	:= non_mito ? "grep -v \"chrM\" | " : ""
 
-	in 	:= [ bedpe ]
-	out 	:= subsampled_bedpe
+	joined 		:= "$prefix.joined" // temporary file
+	joined_subsampled := "$prefix.joined.subsampled" // temporary file
 
-	taskName:= "subsample_bedpe " + group
+	in 	:= [ tag ]
+	out 	:= subsampled_tag
+
+	taskName:= "subsample_tag_PE " + group
 	mem := get_res_mem(mem_shuf,1)
 
 	wait_par( cpus )
@@ -75,7 +80,18 @@ string subsample_bedpe( string bedpe, int nlines, string o_dir, string group ) {
 
 		sys $shcmd_init
 
-		sys zcat $bedpe | grep -v "chrM" | shuf -n $nlines --random-source=$bedpe | gzip -nc > $subsampled_bedpe
+		// join consecutive two lines into one
+		sys zcat $tag | sed 'N;s/\n/\t/' > $joined
+
+		//# Shuffle and split temporary combined file into 2 equal parts
+		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
+		sys cat $joined | $non_mito_param shuf -n $nlines --random-source=$tag > $joined_subsampled
+	
+		//# Subsample tagAlign file
+		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\t%s\t%s\t%s\n%s\t%s\t%s\t%s\t%s\t%s\n",$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' $joined_subsampled | \
+			gzip -nc > $subsampled_tag
+
+		sys rm -f $joined $joined_subsampled
 
 		sys $shcmd_finalize
 	}
@@ -154,52 +170,6 @@ string[] spr( string tag, string pr1_o_dir, string pr2_o_dir, string group ) {
 		sys $shcmd_finalize
 	}
 
-	register_par( tid, cpus )
-
-	add_task_to_graph( in, out, ["$group PR 1", "$group PR 2"] )
-
-	return out
-}
-
-string[] spr_PE( string bedpe, string pr1_o_dir, string pr2_o_dir, string group ) {
-	
-	prefix_pr1 	:= replace_dir( rm_ext( bedpe, ["bedpe","bed","tagAlign"] ), pr1_o_dir )
-	prefix_pr2 	:= replace_dir( rm_ext( bedpe, ["bedpe","bed","tagAlign"] ), pr2_o_dir )
-
-	tag_pr1	:= "$prefix_pr1.pr1.tagAlign.gz"
-	tag_pr2	:= "$prefix_pr2.pr2.tagAlign.gz"
-
-	in 	:= [ bedpe ]
-	out 	:= [ tag_pr1, tag_pr2 ]
-
-	taskName:= "spr_PE " + group
-	mem := get_res_mem(mem_shuf,1)
-
-	wait_par( cpus )
-
-	tid := task( out<-in ) {
-
-		sys $shcmd_init
-
-		//# Get total number of read pairs
-		sys nlines=$( zcat $bedpe | wc -l )
-		sys nlines=$(( (nlines + 1) / 2 ))
-
-		//# Shuffle and split BEDPE file into 2 equal parts
-		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
-		sys zcat $bedpe | shuf --random-source=$bedpe | split -d -l $((nlines)) - $prefix_pr1.  
-
-		//# Convert read pairs to reads into standard tagAlign file
-		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$prefix_pr1.00" | \
-			gzip -nc > $tag_pr1
-		sys rm -f $prefix_pr1.00
-		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\tN\t1000\t%s\n%s\t%s\t%s\tN\t1000\t%s\n",$1,$2,$3,$9,$4,$5,$6,$10}' "$prefix_pr1.01" | \
-			gzip -nc > $tag_pr2
-		sys rm -f $prefix_pr1.01
-
-		sys $shcmd_finalize
-	}
-	
 	register_par( tid, cpus )
 
 	add_task_to_graph( in, out, ["$group PR 1", "$group PR 2"] )

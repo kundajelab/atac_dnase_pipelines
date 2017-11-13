@@ -9,6 +9,7 @@ help == callpeak macs2 settings (requirements: -chrsz -gensz)
 gensz 		:= ""		help Genome size; hs for human, mm for mouse.
 wt_macs2	:= "23h"	help Walltime for MACS2 (default: 23h, 23:00:00).
 mem_macs2	:= "15G" 	help Max. memory for MACS2 (default: 15G).
+cap_num_peak_macs2 := "300K"	help Cap number of peaks by taking top N peaks for MACS2 (default: 300K).
 extra_param_macs2 := ""		help Extra parameters for macs2 callpeak.
 
 
@@ -23,12 +24,14 @@ void init_callpeak_macs2() {
 	gensz		= get_conf_val( gensz, 		["gensz"])
 	wt_macs2 	= get_conf_val( wt_macs2, 	["wt_macs2"] )
 	mem_macs2	= get_conf_val( mem_macs2, 	["mem_macs2"] )
+	cap_num_peak_macs2	= get_conf_val( cap_num_peak_macs2, ["cap_num_peak_macs2"] )
 	extra_param_macs2	= get_conf_val( extra_param_macs2, 	["extra_param_macs2"] )
 
 	print("\n\n== callpeak macs2 settings\n")
 	print( "Genome size (hs,mm)\t\t: $gensz\n" )
 	print( "Walltime (macs2)\t\t: $wt_macs2\n")
 	print( "Max. memory (macs2)\t\t: $mem_macs2\n")
+	print( "Cap number of peaks (macs2)\t: $cap_num_peak_macs2\n")
 	print( "Extra parameters for macs2 callpeak\t\t: $extra_param_macs2\n")
 }
 
@@ -41,14 +44,11 @@ void chk_callpeak_macs2() {
 string[] macs2_atac_npeak_and_signal( string tag, string smooth_window, string pval_thresh, bool make_sig, \
 			string peak_o_dir, string sig_o_dir, string group ) {
 
-	pval_str 	:= (pval_thresh=="0.01") ? "" : ".pval$pval_thresh"	
-	prefix 		:= replace_dir( rm_ext( tag, ["bed","tagAlign"] ), peak_o_dir ) + ".pf$pval_str"
+	prefix 		:= replace_dir( rm_ext( tag, ["bed","tagAlign"] ), peak_o_dir ) + ".pf"
 	prefix_sig 	:= replace_dir( prefix, sig_o_dir )
-	
+	int_cap_num_peak_macs2 := parse_number( cap_num_peak_macs2 )
 	// peaks
-	peakfile 	:= "$prefix.narrowPeak.gz"
-	bpeakfile	:= "$prefix.broadPeak.gz"
-	gpeakfile	:= "$prefix.gappedPeak.gz"
+	peakfile 	:= "$prefix.pval$pval_thresh.$cap_num_peak_macs2.narrowPeak.gz"
 
 	fc_bedgraph 	:= "$prefix.fc.signal.bedgraph"
 	fc_bedgraph_srt	:= "$prefix.fc.signal.srt.bedgraph"	
@@ -66,7 +66,7 @@ string[] macs2_atac_npeak_and_signal( string tag, string smooth_window, string p
 	// out 	:= make_sig ? [ peakfile, gpeakfile, fc_bigwig, pval_bigwig ] : [ peakfile, gpeakfile ]
 	out 	:= make_sig ? [ peakfile, fc_bigwig, pval_bigwig ] : [ peakfile ]
 
-	taskName:= "macs2 n/s " + group + pval_str
+	taskName:= "macs2 n/s " + group
 	mem := get_res_mem(mem_macs2,1);	timeout := get_res_wt(wt_macs2)
 
 	wait_par( cpus )
@@ -81,7 +81,11 @@ string[] macs2_atac_npeak_and_signal( string tag, string smooth_window, string p
 			--nomodel --shift -$shiftsize --extsize $smooth_window -B --SPMR --keep-dup all --call-summits $extra_param_macs2
 
 		//# Sort by Col8 in descending order and replace long peak names in Column 4 with Peak_<peakRank>
-		sys sort -k 8gr,8gr "$prefix"_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $peakfile
+		// sys sort -k 8gr,8gr "$prefix"_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | head -n $int_cap_num_peak_macs2 | gzip -nc > $peakfile
+		sys sort -k 8gr,8gr "$prefix"_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' > $peakfile.tmp
+		// sys zcat -f "$prefix"_peaks.narrowPeak | sort -k 8gr,8gr | head -n $int_cap_num_peak_macs2 | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $peakfile
+		sys head -n $int_cap_num_peak_macs2 $peakfile.tmp | gzip -nc > $peakfile
+		sys rm -f $peakfile.tmp 
 		sys rm -f "$prefix"_peaks.narrowPeak
 		sys rm -f "$prefix"_summits.bed
 
@@ -128,11 +132,12 @@ string[] macs2_atac_npeak_and_signal( string tag, string smooth_window, string p
 string[] macs2_atac_gpeak_and_bpeak( string tag, string smooth_window, string pval_thresh, \
 			string peak_o_dir, string group ) {
 
-	pval_str 	:= (pval_thresh=="0.01") ? "" : ".pval$pval_thresh"	
-	prefix 		:= replace_dir( rm_ext( tag, ["bed","tagAlign"] ), peak_o_dir ) + ".pf$pval_str"
+	prefix 		:= replace_dir( rm_ext( tag, ["bed","tagAlign"] ), peak_o_dir ) + ".pf"
 	// peaks
-	bpeakfile	:= "$prefix.broadPeak.gz"
-	gpeakfile	:= "$prefix.gappedPeak.gz"
+	bpeakfile	:= "$prefix.pval$pval_thresh.$cap_num_peak_macs2.broadPeak.gz"
+	gpeakfile	:= "$prefix.pval$pval_thresh.$cap_num_peak_macs2.gappedPeak.gz"
+	int_cap_num_peak_macs2 := parse_number( cap_num_peak_macs2 )
+	// peaks
 
 	shiftsize := round( smooth_window.parseReal()/2.0 )
 
@@ -142,7 +147,7 @@ string[] macs2_atac_gpeak_and_bpeak( string tag, string smooth_window, string pv
 	// out 	:= make_sig ? [ peakfile, gpeakfile, fc_bigwig, pval_bigwig ] : [ peakfile, gpeakfile ]
 	out 	:= [ gpeakfile, bpeakfile ]
 
-	taskName:= "macs2 g/b " + group + pval_str
+	taskName:= "macs2 g/b " + group
 	mem := get_res_mem(mem_macs2,1);	timeout := get_res_wt(wt_macs2)
 
 	wait_par( cpus )
@@ -158,8 +163,12 @@ string[] macs2_atac_gpeak_and_bpeak( string tag, string smooth_window, string pv
 			--nomodel --shift -$shiftsize --extsize $smooth_window --broad --keep-dup all $extra_param_macs2
 
 		//# Sort by Col8 in descending order and replace long peak names in Column 4 with Peak_<peakRank>
-		sys sort -k 8gr,8gr "$prefix.tmp"_peaks.broadPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $bpeakfile
-		sys sort -k 14gr,14gr "$prefix.tmp"_peaks.gappedPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $gpeakfile
+		sys sort -k 8gr,8gr "$prefix.tmp"_peaks.broadPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' > $bpeakfile.tmp
+		sys sort -k 14gr,14gr "$prefix.tmp"_peaks.gappedPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' > $gpeakfile.tmp
+		sys head -n $int_cap_num_peak_macs2 $bpeakfile.tmp | gzip -nc > $bpeakfile
+		sys head -n $int_cap_num_peak_macs2 $gpeakfile.tmp | gzip -nc > $gpeakfile
+		sys rm -f $bpeakfile.tmp $gpeakfile.tmp 
+
 		sys rm -f "$prefix.tmp"_peaks.broadPeak
 		sys rm -f "$prefix.tmp"_peaks.gappedPeak
 		sys rm -f "$prefix.tmp"_peaks.xls
