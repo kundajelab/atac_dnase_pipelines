@@ -67,6 +67,7 @@ string[] bowtie2( string fastq, string o_dir, string log_o_dir, string group, in
 		//	samtools view -Su /dev/stdin | sambamba sort -t 1 /dev/stdin -o $bam
 		sys bowtie2 $extra_param_bwt2 $param $param3 --local -x $bwt2_idx --threads $nth_bwt2 -U <(zcat -f $fastq) 2> $log | \
 			samtools view -Su /dev/stdin | samtools sort - $prefix
+		sys cat $log
 		sys samtools index $bam
 
 		sys $shcmd_finalize
@@ -104,6 +105,7 @@ string[] bowtie2_csem( string fastq, string o_dir, string log_o_dir, string grou
 		sys $shcmd_init
 
 		sys bowtie2 $extra_param_bwt2 $param $param3 --local -x $bwt2_idx --threads $nth_bwt2 -U <(zcat -f $fastq) 2> $log > $sam
+		sys cat $log
 		sys run-csem --sam -p $nth_bwt2 $sam 100 $srt_bam_prefix
 
 		sys mv $srt_bam $bam
@@ -149,6 +151,7 @@ string[] bowtie2_PE( string fastq1, string fastq2, string o_dir, string log_o_di
 		sys bowtie2 $extra_param_bwt2 $param $param3 -X2000 --mm --local --threads $nth_bwt2 -x $bwt2_idx \
 			-1 $fastq1 -2 $fastq2 2>$log | \
 			samtools view -Su /dev/stdin | samtools sort - $prefix
+		sys cat $log
 		sys samtools index $bam
 
 		sys $shcmd_finalize
