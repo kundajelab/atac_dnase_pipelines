@@ -202,6 +202,31 @@ string html_table_multiple_logs( string table_name, bool horz, string qc_type, s
 	return html
 }
 
+string html_table_horz_table( string table_name, string log, string[] groups ) {
+	html := "<div id='table_"+table_name.replace(" ","-")+"'>" + \
+		"<b>$table_name</b>\n<table border='1' style='margin-right:15px;margin-bottom:15px'>\n"
+	header := parse_horz_table(log, groups[0])
+	html += "<tr><th>&nbsp</th>"
+	for ( int i=0; i<groups.size(); i++ ) {
+		group := groups[i]
+		html += "<th nowrap align=left>$group</th>"
+	}
+	html += "</tr>"
+	for ( string key : header.keys() ) {
+		html += "<tr><th nowrap align=left>$key</th>"
+		for ( int i=0; i<groups.size(); i++ ) {
+			group := groups[i]
+			map := parse_horz_table(log, group)
+			val := map{key}
+			html += "<td>$val</td>"
+		}
+		html += "</tr>"
+	}
+	html += "</table>"
+	html += "</div>"
+	return html
+}
+
 string html_help_pbc() {
 	return "<div id='help-pbc'><p>" + "NRF (non redundant fraction) <br>" + \
 			"PBC1 (PCR Bottleneck coefficient 1) <br>" + \

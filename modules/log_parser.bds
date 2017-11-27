@@ -298,7 +298,7 @@ string{} parse_pbc( string log ) {
 // Cross correlation analysis log (*.cc.qc): 1 table + img (png converted from pdf)
 string{} parse_xcor( string log ) {
 	string{} result
-	lines := log.readLines();
+	lines := log.readLines()
 	items := lines[0].split("\t")
 	items.removeIdx(0) // remove file name
 	items.removeIdx(items.size()-1) // remove quality tag		
@@ -342,7 +342,7 @@ string{} parse_idr_FRiP( string log ) {
 //	-> result{NAME_OF_CONTENT-3}=VAL3
 string{} parse_multi_col_txt( string log ) {
 	string{} result
-	lines := log.readLines();
+	lines := log.readLines()
 	string table_header, content
 	for ( string line : lines ) {
 		line = line.replace(" reads; of these:","")
@@ -358,7 +358,7 @@ string{} parse_multi_col_txt( string log ) {
 
 string[] get_header_multi_col_txt( string log ) {
 	string[] result
-	lines := log.readLines();
+	lines := log.readLines()
 	string table_header
 	for ( string line : lines ) {
 		line = line.replace(" reads; of these:","").replace(":","-")
@@ -371,3 +371,17 @@ string[] get_header_multi_col_txt( string log ) {
 	return result
 }
 
+string{} parse_horz_table( string log, string col1 ) {
+	string{} result
+	lines := log.readLines()
+	header := lines[0].split("\t")
+	for ( int i=1;i<lines.size();i++) {
+		content := lines[i].split("\t")
+		if ( col1==content[0] ) {
+			for ( int j=1;j<header.size();j++) {
+				result{header[j]}=content[j]
+			}
+		}
+	}
+	return result
+}

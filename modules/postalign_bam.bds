@@ -773,3 +773,40 @@ string pool_fastq( string[] fastqs, string o_dir, string group ) {
 
 	return out
 }
+
+string[] jsd( string[] bams, string ctl_bam1, string[] labels, \
+			string o_dir, int nth_jsd ) {
+	prefix 	:= "$o_dir/"+ (title ? ("$title"+"_") : "" ) + "jsd"
+	png 	:= "$prefix.png"
+	tab 	:= "$prefix.tsv"
+	qc 	:= "$prefix.qc"
+	in 	:= bams + [ctl_bam1]
+	out 	:= [png, tab, qc]
+	// fraglen_param := fraglen <= 0 ? "" : "--minFragmentLength $fraglen"
+
+	// plot jsd
+	bams_str  := array_to_str(bams + [ctl_bam1]," ")
+	labels_str:= array_to_str(labels," ")
+
+	cpus := nth_jsd
+	taskName:= "jsd"
+	wait_par( cpus )
+
+	tid := task( out<-in ) {
+		sys $shcmd_init
+		sys plotFingerprint -b $bams_str --JSDsample $ctl_bam1 \
+			--labels $labels_str \
+			--outQualityMetrics $qc \
+			--minMappingQuality $mapq_thresh \
+			-T "Fingerprints of different samples" \
+			--blackListFileName $blacklist \
+			--numberOfProcessors $nth_jsd \
+			--plotFile $png --outRawCounts $tab
+
+		sys $shcmd_finalize
+	}
+
+	register_par( tid, cpus )
+	add_task_to_graph( in, out, "" )
+	return out
+}
