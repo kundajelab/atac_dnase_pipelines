@@ -35,6 +35,10 @@ header_xcor := ["num_reads:Reads","est_frag_len:Est. Fragment Len.","corr_est_fr
 header_idr := ["Nt:Nt","N1:N1","N2:N2","Np:Np","N_opt:N optimal","N_consv:N conservative","opt_set:Optimal Set","consv_set:Conservative Set",\
 		"rescue_ratio:Rescue Ratio","self_consistency_ratio:Self Consistency Ratio","reproducibility_test:Reproducibility Test"]
 header_idr_FRiP := ["FRiP:Fraction of Reads in Peak"]
+header_jsd := ["pct_gen_enrich:% genome enriched", "auc:AUC", "ch_div:CHANCE divergence", "elbow_pt:Elbow Point", \
+		"jsd:JS Distance", "syn_auc:Synthetic AUC", "syn_elbow_pt:Synthetic Elbow Point", \
+		"syn_jsd:Synthetic JS Distance", "syn_x_intcpt:Synthetic X-intercept", \
+		"x_intcpt:X-intercept", "diff_enrich:diff. enrichment"]
 
 string[] get_log_header( string qc_type ) {
 	if ( qc_type == "flagstat" || qc_type == "flagstat_filt" ) {
@@ -52,15 +56,18 @@ string[] get_log_header( string qc_type ) {
 	else if ( qc_type == "xcor" ) {
 		return header_xcor
 	}
-	else if ( qc_type == "idr" ) {
+	else if ( qc_type == "idr" || qc_type == "overlap" ) {
 		return header_idr
 	}
-	else if ( qc_type == "idr_FRiP" ) {		
+	else if ( qc_type == "idr_FRiP" || qc_type == "overlap_FRiP" || qc_type == "FRiP" ) {
 		return header_idr_FRiP
 	}
 	else if ( qc_type == "ataqc" || qc_type == "num_peaks" ) {
 		string[] empty
 		return empty
+	}
+	else if ( qc_type == "jsd" ) {
+		return header_jsd
 	}
 	else {
 		error("unsupported qc_type($qc_type)!")
@@ -80,18 +87,39 @@ string{} parse_log( string qc_type, string log ) {
 	else if ( qc_type == "xcor" ) {
 		return parse_xcor( log )
 	}
-	else if ( qc_type == "idr" ) {
+	else if ( qc_type == "idr" || qc_type == "overlap" ) {
 		return parse_idr( log )
 	}
-	else if ( qc_type == "idr_FRiP" ) {
+	else if ( qc_type == "idr_FRiP" || qc_type == "overlap_FRiP" || qc_type == "FRiP" ) {
 		return parse_idr_FRiP( log )
 	}
 	else if ( qc_type == "ataqc" || qc_type == "num_peaks" ) {
 		return parse_multi_col_txt( log )
 	}
+	else if ( qc_type == "jsd" ) {
+		return parse_jsd( log )
+	}
 	else {
 		error("unsupported qc_type($qc_type)!")
 	}
+}
+
+string{} parse_jsd( string log ) {
+	string{} result
+	line := log.read()
+	arr := line.trim().split("\t")
+	result{"pct_gen_enrich"} = arr[0]
+	result{"auc"} = arr[1]
+	result{"ch_div"} = arr[2]
+	result{"elbow_pt"} = arr[3]
+	result{"jsd"} = arr[4]
+	result{"syn_auc"} = arr[5]
+	result{"syn_elbow_pt"} = arr[6]
+	result{"syn_jsd"} = arr[7]
+	result{"syn_x_intcpt"} = arr[8]
+	result{"x_intcpt"} = arr[9]
+	result{"diff_enrich"} = arr[10]
+	return result
 }
 
 // samtools flagstats (*.flagstat.qc)

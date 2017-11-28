@@ -106,6 +106,24 @@ string samtools_flagstat_bam( string bam, string o_dir, string group ) {
 	return out
 }
 
+string samtools_index( string bam, string group, int nth_sam_idx ) {
+	bai 	:= "$bam.bai"
+	in 	:= [ bam ]
+	out 	:= bai
+
+	taskName:= "samtools_index " + group
+	wait_par( cpus )
+	tid := task( out<-in ) {
+		sys $shcmd_init
+		sys sambamba index -t $nth_sam_idx $bam
+		sys $shcmd_finalize
+	}
+	register_par( tid, cpus )
+	add_task_to_graph( in, out, group )
+
+	return out
+}
+
 string[] dedup_bam( string bam, string o_dir, string log_o_dir, string group, int nth_dedup ) {
 
 	prefix 		:= replace_dir( rm_ext( bam, "bam" ), o_dir )
@@ -778,10 +796,9 @@ string[] jsd( string[] bams, string ctl_bam1, string[] labels, \
 			string o_dir, int nth_jsd ) {
 	prefix 	:= "$o_dir/"+ (title ? ("$title"+"_") : "" ) + "jsd"
 	png 	:= "$prefix.png"
-	tab 	:= "$prefix.tsv"
 	qc 	:= "$prefix.qc"
 	in 	:= bams + [ctl_bam1]
-	out 	:= [png, tab, qc]
+	out 	:= [png, qc]
 	// fraglen_param := fraglen <= 0 ? "" : "--minFragmentLength $fraglen"
 
 	// plot jsd
@@ -801,7 +818,7 @@ string[] jsd( string[] bams, string ctl_bam1, string[] labels, \
 			-T "Fingerprints of different samples" \
 			--blackListFileName $blacklist \
 			--numberOfProcessors $nth_jsd \
-			--plotFile $png --outRawCounts $tab
+			--plotFile $png
 
 		sys $shcmd_finalize
 	}
