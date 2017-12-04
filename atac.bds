@@ -664,7 +664,7 @@ void align_SE( int rep, int nth_rep ) {
 
 		if ( !no_xcor ) {
 			// cross-corr. analysis
-			subsampled_tag_xcor := subsample_tag( tag, parse_number( subsample_xcor ), true, aln_o_dir, group )
+			subsampled_tag_xcor := subsample_tag( final_tag_, parse_number( subsample_xcor ), true, aln_o_dir, group )
 			wait
 
 			// xcor
@@ -961,7 +961,7 @@ void align_PE( int rep, int nth_rep ) {
 		}
 
 		if ( !no_xcor ) {
-			subsampled_tag_xcor := subsample_tag_PE_for_xcor( tag, parse_number( subsample_xcor ), true, aln_o_dir, group )
+			subsampled_tag_xcor := subsample_tag_PE_for_xcor( final_tag_, parse_number( subsample_xcor ), true, aln_o_dir, group )
 			wait
 
 			// cross-corr. analysis
