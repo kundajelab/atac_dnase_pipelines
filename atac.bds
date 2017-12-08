@@ -1743,7 +1743,7 @@ string html_atac_QC() {
 	// FRiP (Naive overlap)
 	if ( peak_overlap_qc_FRiP.size()>0 ) {
 		html += "<div style='float:left'>"
-		html += html_table_multiple_logs( "Enrichment QC (Fraction of reads in overlapping peaks)", false, "idr_FRiP", peak_overlap_qc_FRiP )
+		html += html_table_multiple_logs( "Enrichment QC (Fraction of reads in overlapping peaks)", false, "overlap_FRiP", peak_overlap_qc_FRiP )
 		html += html_help_peak_overlap_FRiP()
 		html += "</div>"
 	}
@@ -1868,21 +1868,24 @@ void tar_all_logs() {
 
 	wait
 
-	if ( enable_idr && idr_qc && idr_opt && idr_consv ) {
+	if ( peak_overlap_opt ) {
 		string[] quality_metric_of
 		string ENCODE_step_name
-		if ( idr_pr.hasKey(1) && get_num_rep()==1 ) {
-			ENCODE_step_name = "anshul-kundaje:atac-seq-unreplicated-idr-step-run-single-rep-v1"
-			quality_metric_of.add(idr_pr{1})
+		if ( peak_overlap_pr.hasKey(1) && get_num_rep()==1 ) {
+			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-single-rep-v1"
+			quality_metric_of.add(peak_overlap_pr{1})
 		}
 		else {
-			ENCODE_step_name = "anshul-kundaje:atac-seq-idr-step-run-v1"
-			quality_metric_of.add(idr_opt)
+			ENCODE_step_name = "anshul-kundaje:atac-seq-overlap-step-run-v1"
+			quality_metric_of.add(peak_overlap_opt)
 		}
 		add_ENCODE_quality_metrics_to_summary_json( "generic_quality_metric", ENCODE_step_name, \
 								quality_metric_of, [tar] )
 	}
 }
+
+
+
 
 void ENCODE3_overall_qc() {
 	if ( !ENCODE3 ) return
@@ -1900,12 +1903,19 @@ void ENCODE3_overall_qc() {
 				QC{"04_No. of naive overlap peaks"} = num_overlap_peaks
 				QC{"04_Naive overlap peaks pass? (> 150K)"} = num_overlap_peaks >= 150000 ? "OK" : "FAIL"
 			}
-			// FRIP >0.1 ok
+			// FRIP >0.1 ok (idr)
 			if ( idr_qc_FRiP.hasKey("ppr") ) {
 				idr_qc_FRiP_log := parse_idr_FRiP( idr_qc_FRiP{"ppr"} )
 				FRiP := parse_real( idr_qc_FRiP_log{"FRiP"} )
-				QC{"06_FRiP of pooled sample"} = FRiP
-				QC{"06_FRiP of pooled sample QC pass? (> 0.1)"} = FRiP >= 0.1 ? "OK" : "FAIL"
+				QC{"06_IDR FRiP of pooled sample"} = FRiP
+				QC{"06_IDR FRiP of pooled sample QC pass? (> 0.1)"} = FRiP >= 0.1 ? "OK" : "FAIL"
+			}
+			// FRIP >0.1 ok (overlapping peaks)
+			if ( peak_overlap_qc_FRiP.hasKey("ppr") ) {
+				peak_overlap_qc_FRiP_log := parse_idr_FRiP( peak_overlap_qc_FRiP{"ppr"} )
+				FRiP := parse_real( peak_overlap_qc_FRiP_log{"FRiP"} )
+				QC{"06_Overlap FRiP of pooled sample"} = FRiP
+				QC{"06_Overlap FRiP of pooled sample QC pass? (> 0.1)"} = FRiP >= 0.1 ? "OK" : "FAIL"
 			}
 			// IDR reproducibility test (IDR)
 			if ( idr_qc ) {

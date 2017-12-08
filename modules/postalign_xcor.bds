@@ -9,8 +9,9 @@ help == postalign bed/tagalign settings
 fraglen0	 := false 	help (LEGACY PARAM) Set predefined fragment length as zero for cross corr. analysis (add -speak=0 to run_spp.R).
 speak_xcor 	 := -1		help Set user-defined cross-corr. peak strandshift (-speak= in run_spp.R). Use -1 to disable (default: -1).
 extra_param_xcor := ""		help Set extra parameters for run_spp.R (cross-corr. analysis only).
-grp_color_xcor 	 := "yellowgreen"
+mem_xcor	 := "15G"	help Max. memory for cross-corr. analysis (default: 15G).
 
+grp_color_xcor 	 := "yellowgreen"
 
 init_postalign_xcor()
 
@@ -20,6 +21,7 @@ void init_postalign_xcor() {
 	fraglen0 	= get_conf_val_bool( fraglen0,		["fraglen0"] )
 	speak_xcor	= get_conf_val_int( speak_xcor,		["speak_xcor"] )
 	extra_param_xcor= get_conf_val( extra_param_xcor,	["extra_param_xcor"] )
+	mem_xcor	= get_conf_val( mem_xcor,		["mem_xcor"] )
 
 	// backward compatibility
 	if ( speak_xcor == -1 && fraglen0 ) speak_xcor = 0
@@ -28,6 +30,7 @@ void init_postalign_xcor() {
 	print( "Max. memory for UNIX shuf\t\t\t: $mem_shuf\n")
 	print( "User-defined cross-corr. peak strandshift\t: $speak_xcor\n")
 	print( "Extra parameters for cross-corr. analysis\t: $extra_param_xcor\n")
+	print( "Max. memory for cross-corr. analysis\t\t: $mem_xcor\n")
 }
 
 string subsample_tag_PE_for_xcor( string tag, int nlines, bool non_mito, string o_dir, string group ) {
@@ -88,7 +91,7 @@ string[] xcor( string tag, string o_dir, string group, int nth_xcor ) {
 	out 	:= [ xcor_score, xcor_plot ]
 
 	taskName:= "xcor " + group
-	cpus 	:= (nth_xcor==1) ? -1 : nth_xcor;	mem := get_res_mem(memory,nth_xcor);
+	cpus 	:= (nth_xcor==1) ? -1 : nth_xcor;	mem := get_res_mem(mem_xcor,nth_xcor);
 
 	wait_par( cpus )
 

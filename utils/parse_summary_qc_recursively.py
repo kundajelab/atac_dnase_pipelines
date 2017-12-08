@@ -78,8 +78,8 @@ for json in jsons:
     qc_type = 'files_to_be_submitted'
     for data_file in json['data_files']:
         header_item = ":".join([data_file['output_type'],data_file['file_format']])
-	if not header_item in headers[qc_type]:
-	    headers[qc_type].append(header_item)
+        if not header_item in headers[qc_type]:
+            headers[qc_type].append(header_item)
 
 # write header1
 args.out_file.write( '\t'.join( [ qc_type+'\t'*(len(headers[qc_type])-1) \
@@ -110,11 +110,11 @@ for json in jsons:
             json['title']+'\t'+\
             rep
         for qc_type in headers:
-    	    if rep == 'rep1' and qc_type == 'files_to_be_submitted':
+            if rep == 'rep1' and qc_type == 'files_to_be_submitted':
                 for header in headers[qc_type]:
                     header_found = False
-        		    tmp_result = []
-        		    for data_file in json['data_files']:
+                    tmp_result = []
+                    for data_file in json['data_files']:
                         if header == ':'.join([data_file['output_type'],data_file['file_format']]):
                             tmp_result.append(data_file['submitted_file_name'])
                             header_found = True
@@ -122,7 +122,6 @@ for json in jsons:
                         result += '\t'+ ','.join(tmp_result)		
                     else:
                         result += '\t'
-
             if qc_type=='common':
                 continue
             registered_header_list = headers[qc_type]
