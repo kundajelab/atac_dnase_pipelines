@@ -1,5 +1,6 @@
 # channels : defaults, r, bioconda
 
+nomkl
 bowtie ==1.1.2
 bowtie2 ==2.2.6
 ncurses
@@ -15,10 +16,10 @@ ucsc-bedclip
 ucsc-bigWigAverageOverBed
 ucsc-bedtobigbed
 ucsc-twobittofa
-macs2 ==2.1.0
+macs2 ==2.1.1.20160309 #2.1.0 (no binaries for OSX)
 boost ==1.57.0
 gnuplot #==5.0.3
-numpy ==1.10.2 #1.9.0, 1.8.2 conflicts with ATAQC
+numpy ==1.13.3 #1.10.2 (no binaries for OSX) #1.9.0, 1.8.2 conflicts with ATAQC
 scipy # ==0.17.0: to fix 'undefined symbol: PyUnicodeUCS2_DecodeUTF8'
 matplotlib
 libgfortran==3.0 # ataqc

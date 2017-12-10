@@ -1,3 +1,4 @@
+nomkl
 idr ==2.0.3
 bedtools ==2.22
 python ==3.5

@@ -1750,7 +1750,7 @@ string html_atac_QC() {
 	if ( peak_overlap_qc != "" ) {
 		html += "<div style='float:left'>"
 		html += html_table_multiple_logs( "Reproducibility QC and Peak Detection Statistics (Overlapping peaks)", \
-							false, "idr", ["rep1"], [peak_overlap_qc] )
+							false, "overlap", ["rep1"], [peak_overlap_qc] )
 		html += html_help_peak_overlap()
 		html += "</div>"
 	}
