@@ -7,9 +7,6 @@ set -e
 ENV_NAME=bds_atac
 ENV_NAME_PY3=bds_atac_py3
 
-## install wiggler or not
-
-INSTALL_WIGGLER_AND_MCR=0
 INSTALL_GEM=0
 INSTALL_PEAKSEQ=0
 
@@ -68,41 +65,8 @@ add_to_activate
 ### disable locally installed python package lookup
 CONTENTS=("export PYTHONNOUSERSITE=True")
 add_to_activate
-CONTENTS=("export PYTHONPATH=$CONDA_LIB/python2.7/site-packages:\$PYTHONPATH")
-add_to_activate
-
-if [[ ${INSTALL_WIGGLER_AND_MCR} == 1 ]]; then
-  conda install -y -c conda-forge bc
-  ### install Wiggler (for generating signal tracks)
-  cd $CONDA_EXTRA
-  wget https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/align2rawsignal/align2rawsignal.2.0.tgz -N --no-check-certificate
-  tar zxvf align2rawsignal.2.0.tgz
-  rm -f align2rawsignal.2.0.tgz
-  CONTENTS=("export PATH=\$PATH:$CONDA_EXTRA/align2rawsignal/bin")
-  add_to_activate
-
-  ### install MCR (560MB)
-  cd $CONDA_EXTRA
-  wget http://mitra.stanford.edu/kundaje/software/MCR2010b.bin -N --no-check-certificate
-  #wget https://personal.broadinstitute.org/anshul/softwareRepo/MCR2010b.bin -N --no-check-certificate
-  chmod 755 MCR2010b.bin
-  echo '-P installLocation="'${CONDA_EXTRA}'/MATLAB_Compiler_Runtime"' > tmp.stdin
-  ./MCR2010b.bin -silent -options "tmp.stdin"
-  rm -f tmp.stdin
-  rm -f MCR2010b.bin
-  CONTENTS=(
-  "MCRROOT=${CONDA_EXTRA}/MATLAB_Compiler_Runtime/v714" 
-  "LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\${MCRROOT}/runtime/glnxa64" 
-  "LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\${MCRROOT}/bin/glnxa64" 
-  "MCRJRE=\${MCRROOT}/sys/java/jre/glnxa64/jre/lib/amd64" 
-  "LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\${MCRJRE}/native_threads" 
-  "LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\${MCRJRE}/server" 
-  "LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\${MCRJRE}" 
-  "XAPPLRESDIR=\${MCRROOT}/X11/app-defaults" 
-  "export LD_LIBRARY_PATH" 
-  "export XAPPLRESDIR")
-  add_to_activate
-fi
+#CONTENTS=("export PYTHONPATH=$CONDA_LIB/python2.7/site-packages:\$PYTHONPATH")
+#add_to_activate
 
 # install PeakSeq
 if [[ ${INSTALL_PEAKSEQ} == 1 ]]; then
