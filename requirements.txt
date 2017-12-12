@@ -17,7 +17,7 @@ boost ==1.57.0
 openblas ==0.2.19
 numpy ==1.11.3 #1.13.3 #1.10.2 (no binaries for OSX) #1.9.0, 1.8.2 conflicts with ATAQC
 matplotlib ==1.5.1
-six==1.11.0 # to fix (ImportError: cannot import name _thread)
+six==1.10.0 # to fix (ImportError: cannot import name _thread)
 python-dateutil==2.6.1
 libgfortran==3.0
 graphviz ==2.38.0
