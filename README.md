@@ -32,12 +32,16 @@ Install software/database in a correct order according to your system. For examp
   * [Pipeline](#pipeline)
 
 * Stanford SCG cluster
+  * [Conda](#conda)
   * [BigDataScript](#bigdatascript)
   * [Pipeline](#pipeline)
+  * [Dependencies](#dependencies)
 
 * Stanford Sherlock cluster
+  * [Conda](#conda)
   * [BigDataScript](#bigdatascript)
   * [Pipeline](#pipeline)
+  * [Dependencies](#dependencies)
 
 ## Java
 
