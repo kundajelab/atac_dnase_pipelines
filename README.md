@@ -273,9 +273,9 @@ IDR analysis is optional in the pipeline by default. If there are more than two 
 ```
 -enable_idr
 ```
-For multimapping, 
+For multimapping, (multimapping is disabled by default).
 ```
--multimapping [NO_MULTIMAPPING; 4 by default]
+-multimapping [MULTIMAPPING; use 4 for ENCODE samples]
 ```
 To force a set of parameters (`-smooth_win 73 -idr_thresh 0.05 -multimapping 4`) for ENCODE3.
 ```
