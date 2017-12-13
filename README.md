@@ -124,21 +124,6 @@ $ cp bds.config ./utils/bds_scr $HOME/.bds
 
 If `install_dependencies.sh` fails, run `./uninstall_dependencies.sh`, fix problems and then try `bash install_dependencies.sh` again.
 
-If you have super-user privileges on your system, it is recommended to install Miniconda3 on `/opt/miniconda3/` and share conda environment with others.
-
-```
-$ sudo su
-$ bash install_dependencies.sh
-$ chmod 755 -R /opt/miniconda3/  # if you get some annoying permission issues.
-```
-
-In order to make Miniconda3 accessible for all users, create an intialization script `/etc/profile.d/conda_init.sh`.
-
-```
-$ echo '#!/bin/bash' > /etc/profile.d/conda_init.sh
-$ echo 'export PATH=$PATH:/opt/miniconda3/bin' >> /etc/profile.d/conda_init.sh
-```
-
 ## Genome data
 
 Install genome data for a specific genome `[GENOME]`. Currently `hg19`, `mm9`, `hg38` and `mm10` are available. Specify a directory `[DATA_DIR]` to download genome data. A species file generated on `[DATA_DIR]` will be automatically added to your `./default.env` so that the pipeline knows that you have installed genome data using `install_genome_data.sh`. If you want to install multiple genomes make sure that you use the same directory `[DATA_DIR]` for them. Each genome data will be installed on `[DATA_DIR]/[GENOME]`. If you use other BDS pipelines, it is recommended to use the same directory `[DATA_DIR]` to save disk space.
