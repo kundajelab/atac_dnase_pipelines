@@ -1884,11 +1884,7 @@ void tar_all_logs() {
 	}
 }
 
-
-
-
 void ENCODE3_overall_qc() {
-	if ( !ENCODE3 ) return
 	//// QC for individual replicate	
 	for ( int rep=1; rep<=get_num_rep(); rep++ ) {
 		string{} QC
@@ -1897,7 +1893,7 @@ void ENCODE3_overall_qc() {
 				npeak := get_num_lines( idr_opt )
 				QC{"03_No. of IDR peaks"} = npeak
 				QC{"03_IDR peaks pass? (threshold > 70K)"} = npeak >= 70000 ? "OK" : "FAIL"
-			}	
+			}
 			if ( peak_overlap_opt ) {
 				num_overlap_peaks := get_num_lines( peak_overlap_opt )
 				QC{"04_No. of naive overlap peaks"} = num_overlap_peaks
@@ -1922,6 +1918,16 @@ void ENCODE3_overall_qc() {
 				idr_log := parse_idr( idr_qc )
 				QC{"07_IDR reproducibility"} = idr_log{"reproducibility_test"}.toUpper()
 			}
+		}
+		if ( idr_qc_FRiP.hasKey("rep$rep-pr") ) {
+			idr_qc_FRiP_log := parse_idr_FRiP( idr_qc_FRiP{"rep$rep-pr"} )
+			FRiP := parse_real( idr_qc_FRiP_log{"FRiP"} )
+			QC{"06_IDR FRiP"} = FRiP
+		}
+		if ( peak_overlap_qc_FRiP.hasKey("rep$rep-pr") ) {
+			peak_overlap_qc_FRiP_log := parse_idr_FRiP( peak_overlap_qc_FRiP{"rep$rep-pr"} )
+			FRiP := parse_real( peak_overlap_qc_FRiP_log{"FRiP"} )
+			QC{"06_Overlap FRiP"} = FRiP
 		}
 		if ( flagstat_qc.hasKey(rep) && flagstat_nodup_qc.hasKey(rep) ) {
 			flagstat_log := parse_flagstat(flagstat_qc{rep})
