@@ -44,7 +44,7 @@ conda install graphviz -c anaconda -y
 conda install ucsc-bedgraphtobigwig -c bioconda -y
 conda install ucsc-bedtobigbed -c bioconda -y
 
-CONDA_BIN=$(dirname $(which activate))
+CONDA_BIN=$(dirname $(which activate))/../envs/${ENV_NAME}/bin
 CONDA_EXTRA="$CONDA_BIN/../extra"
 CONDA_ACTIVATE_D="$CONDA_BIN/../etc/conda/activate.d"
 CONDA_INIT="$CONDA_ACTIVATE_D/init.sh"
@@ -56,6 +56,7 @@ fi
 mkdir -p $CONDA_EXTRA $CONDA_ACTIVATE_D
 
 ### install Anshul's phantompeakqualtool
+echo $CONDA_EXTRA
 cd $CONDA_EXTRA
 git clone https://github.com/kundajelab/phantompeakqualtools
 chmod 755 -R phantompeakqualtools
@@ -86,7 +87,7 @@ source deactivate
 
 source activate ${ENV_NAME_PY3}
 
-CONDA_BIN=$(dirname $(which activate))
+CONDA_BIN=$(dirname $(which activate))/../envs/${ENV_NAME_PY3}/bin
 CONDA_EXTRA="$CONDA_BIN/../extra"
 CONDA_ACTIVATE_D="$CONDA_BIN/../etc/conda/activate.d"
 CONDA_INIT="$CONDA_ACTIVATE_D/init.sh"
