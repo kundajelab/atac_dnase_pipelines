@@ -32,7 +32,7 @@ def get_read_length(fastq_file):
     return int(max_length)
 
 def main():
-    print get_read_length(sys.argv[1])
+    print(get_read_length(sys.argv[1]))
     
 if __name__ == "__main__":
     main()
