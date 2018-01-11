@@ -45,7 +45,8 @@ conda install ucsc-bedgraphtobigwig -c bioconda -y
 conda install ucsc-bedtobigbed -c bioconda -y
 
 #CONDA_BIN=$(dirname $(which activate))/../envs/${ENV_NAME}/bin
-CONDA_BIN=$(dirname $(which activate))
+#CONDA_BIN=$(dirname $(which activate))
+CONDA_BIN=$(dirname $(which bedtools))
 CONDA_EXTRA="$CONDA_BIN/../extra"
 CONDA_ACTIVATE_D="$CONDA_BIN/../etc/conda/activate.d"
 CONDA_INIT="$CONDA_ACTIVATE_D/init.sh"
@@ -89,7 +90,8 @@ source deactivate
 source activate ${ENV_NAME_PY3}
 
 #CONDA_BIN=$(dirname $(which activate))/../envs/${ENV_NAME_PY3}/bin
-CONDA_BIN=$(dirname $(which activate))
+#CONDA_BIN=$(dirname $(which activate))
+CONDA_BIN=$(dirname $(which bedtools))
 CONDA_EXTRA="$CONDA_BIN/../extra"
 CONDA_ACTIVATE_D="$CONDA_BIN/../etc/conda/activate.d"
 CONDA_INIT="$CONDA_ACTIVATE_D/init.sh"
