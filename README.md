@@ -273,7 +273,7 @@ IDR analysis is optional in the pipeline by default. If there are more than two 
 ```
 -enable_idr
 ```
-For multimapping, (multimapping is disabled by default).
+For multimapping, (multimapping is disabled by default). Using this parameter implies `-mapq_thresh 30` (MapQ Thresh for the pipeline is fixed at 30).
 ```
 -multimapping [MULTIMAPPING; use 4 for ENCODE samples]
 ```
