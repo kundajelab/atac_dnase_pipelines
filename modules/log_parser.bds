@@ -260,7 +260,7 @@ string{} parse_dup( string log ) {
 		result{"unpaired_dupes"} = arr[3]
 		result{"paired_dupes"} = arr[4]
 		result{"paired_opt_dupes"} = arr[5]
-		result{"dupes_pct"} = arr[6]
+		result{"dupes_pct"} = arr.size()>=7 ? arr[6] : "0"
 	}
 	else { // sambamba
 		lines := log.readLines()
