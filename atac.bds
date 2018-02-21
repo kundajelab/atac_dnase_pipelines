@@ -1269,10 +1269,12 @@ void do_naive_overlap() {
 
 	qc_o_dir := mkdir( "$out_dir/qc" ) // create qc output dir.
 	// get final idr qc score, use idr final idr narrow peak files from true, pseudo and pooled pseudo reps
-	(peak_overlap_qc, peak_overlap_opt, peak_overlap_consv) = peak_overlap_final_qc( peak_overlap_tr, peak_overlap_pr, peak_overlap_ppr, overlap_o_dir, qc_o_dir, "" )
-	add_file_to_report( peak_overlap_qc, "Naive overlap QC log", "", "QC and logs/Naive overlap/Naive overlap QC log" )
-	add_file_to_report( peak_overlap_opt, "opt. naive overlap peak", "", "Peaks/MACS2/Naive overlap/Optimal set/Overlapping peak" )
-	add_file_to_report( peak_overlap_consv, "consv. naive overlap peak", "", "Peaks/MACS2/Naive overlap/Conservative set/Overlapping peak" )
+	if ( !true_rep ) {
+		(peak_overlap_qc, peak_overlap_opt, peak_overlap_consv) = peak_overlap_final_qc( peak_overlap_tr, peak_overlap_pr, peak_overlap_ppr, overlap_o_dir, qc_o_dir, "" )
+		add_file_to_report( peak_overlap_qc, "Naive overlap QC log", "", "QC and logs/Naive overlap/Naive overlap QC log" )
+		add_file_to_report( peak_overlap_opt, "opt. naive overlap peak", "", "Peaks/MACS2/Naive overlap/Optimal set/Overlapping peak" )
+		add_file_to_report( peak_overlap_consv, "consv. naive overlap peak", "", "Peaks/MACS2/Naive overlap/Conservative set/Overlapping peak" )
+	}
 	print( "\n== Done naive_overlap()\n" )
 }
 
@@ -1366,11 +1368,13 @@ void do_idr() {
 
 	qc_o_dir := mkdir( "$out_dir/qc" ) // create qc output dir.
 	// get final idr qc score, use idr final idr narrow peak files from true, pseudo and pooled pseudo reps
-	(idr_qc, idr_opt, idr_consv) = idr_final_qc( idr_tr, idr_pr, idr_ppr, idr_o_dir, qc_o_dir, "" )
+	if ( !true_rep ) {
+		(idr_qc, idr_opt, idr_consv) = idr_final_qc( idr_tr, idr_pr, idr_ppr, idr_o_dir, qc_o_dir, "" )
 
-	add_file_to_report( idr_qc, "IDR QC log", "", "QC and logs/IDR/IDR QC log" )
-	add_file_to_report( idr_opt, "opt. IDR peak", "", "Peaks/MACS2/IDR/Optimal set/IDR peak" )
-	add_file_to_report( idr_consv, "consv. IDR peak", "", "Peaks/MACS2/IDR/Conservative set/IDR peak" )
+		add_file_to_report( idr_qc, "IDR QC log", "", "QC and logs/IDR/IDR QC log" )
+		add_file_to_report( idr_opt, "opt. IDR peak", "", "Peaks/MACS2/IDR/Optimal set/IDR peak" )
+		add_file_to_report( idr_consv, "consv. IDR peak", "", "Peaks/MACS2/IDR/Conservative set/IDR peak" )
+	}
 
 	print( "\n== Done do_idr()\n" )
 }
