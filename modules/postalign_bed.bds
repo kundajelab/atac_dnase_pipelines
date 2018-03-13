@@ -9,6 +9,7 @@ include "module_template.bds"
 
 help == postalign bed/tagalign settings
 mem_shuf 		:= "12G"	help Max. memory for UNIX shuf (default: 12G).
+no_random_source 	:= false 	help Disable --random-source for UNIX shuf. Hot fix for end of file error.
 
 
 init_postalign_bed()
@@ -18,9 +19,11 @@ void init_postalign_bed() {
 
 	// fraglen0 	= get_conf_val_bool( fraglen0,	["fraglen0"] )
 	mem_shuf	= get_conf_val( mem_shuf,	["mem_shuf"] )
+	no_random_source = get_conf_val_bool( no_random_source,	["no_random_source"] )
 
 	print("\n\n== postalign bed/tagalign settings\n")
 	print( "Max. memory for UNIX shuf\t\t\t: $mem_shuf\n")
+	print( "No --random-source for UNIX shuf\t\t: $no_random_source\n")
 }
 
 string subsample_tag( string tag, int nlines, bool non_mito, string o_dir, string group ) {
@@ -30,6 +33,7 @@ string subsample_tag( string tag, int nlines, bool non_mito, string o_dir, strin
 
 	subsampled_tag 	:= "$prefix."+(non_mito?"no_chrM.":"")+"$nreads_per_mill.tagAlign.gz"
 	non_mito_param 	:= non_mito ? "grep -v \"chrM\" | " : ""	
+	random_source_param := no_random_source ? "" : "--random-source=$tag"
 
 	in 	:= [ tag ]
 	out 	:= subsampled_tag
@@ -45,7 +49,7 @@ string subsample_tag( string tag, int nlines, bool non_mito, string o_dir, strin
 	
 		//# Subsample tagAlign file
 		sys zcat $tag | \
-			$non_mito_param shuf -n $nlines --random-source=$tag | gzip -nc > $subsampled_tag
+			$non_mito_param shuf -n $nlines $random_source_param | gzip -nc > $subsampled_tag
 
 		sys $shcmd_finalize
 	}
@@ -64,6 +68,7 @@ string subsample_tag_PE( string tag, int nlines, bool non_mito, string o_dir, st
 
 	subsampled_tag 	:= "$prefix."+(non_mito?"no_chrM.":"")+"$nreads_per_mill.tagAlign.gz"
 	non_mito_param 	:= non_mito ? "grep -v \"chrM\" | " : ""
+	random_source_param := no_random_source ? "" : "--random-source=$tag"
 
 	joined 		:= "$prefix.joined" // temporary file
 	joined_subsampled := "$prefix.joined.subsampled" // temporary file
@@ -85,7 +90,7 @@ string subsample_tag_PE( string tag, int nlines, bool non_mito, string o_dir, st
 
 		//# Shuffle and split temporary combined file into 2 equal parts
 		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
-		sys cat $joined | $non_mito_param shuf -n $nlines --random-source=$tag > $joined_subsampled
+		sys cat $joined | $non_mito_param shuf -n $nlines $random_source_param > $joined_subsampled
 	
 		//# Subsample tagAlign file
 		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\t%s\t%s\t%s\n%s\t%s\t%s\t%s\t%s\t%s\n",$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' $joined_subsampled | \
@@ -140,6 +145,7 @@ string[] spr( string tag, string pr1_o_dir, string pr2_o_dir, string group ) {
 	prefix_pr2	:= replace_dir( rm_ext( tag, ["tagAlign","tag","bed"] ), pr2_o_dir )
 	tag_pr1		:= "$prefix_pr1.pr1.tagAlign.gz"
 	tag_pr2		:= "$prefix_pr2.pr2.tagAlign.gz"
+	random_source_param := no_random_source ? "" : "--random-source=$tag"
 
 	in 	:= [ tag ]
 	out 	:= [ tag_pr1, tag_pr2 ]
@@ -159,7 +165,7 @@ string[] spr( string tag, string pr1_o_dir, string pr2_o_dir, string group ) {
 		
 		//# Shuffle and split BEDPE file into 2 equal parts
 		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
-		sys zcat $tag | shuf --random-source=$tag | split -d -l $((nlines)) - $prefix_pr1.
+		sys zcat $tag | shuf $random_source_param | split -d -l $((nlines)) - $prefix_pr1.
 
 		//# Convert read pairs to reads into standard tagAlign file
 		sys gzip -nc $prefix_pr1.00 > $tag_pr1
@@ -186,6 +192,7 @@ string[] spr_tag_PE( string tag, string pr1_o_dir, string pr2_o_dir, string grou
 
 	tag_pr1	:= "$prefix_pr1.pr1.tagAlign.gz"
 	tag_pr2	:= "$prefix_pr2.pr2.tagAlign.gz"
+	random_source_param := no_random_source ? "" : "--random-source=$tag"
 
 	in 	:= [ tag ]
 	out 	:= [ tag_pr1, tag_pr2 ]
@@ -208,7 +215,7 @@ string[] spr_tag_PE( string tag, string pr1_o_dir, string pr2_o_dir, string grou
 
 		//# Shuffle and split temporary combined file into 2 equal parts
 		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
-		sys cat $joined | shuf --random-source=$tag | split -d -l $((nlines)) - $prefix_pr1.  
+		sys cat $joined | shuf $random_source_param | split -d -l $((nlines)) - $prefix_pr1.  
 
 		//# Convert read pairs to reads into standard tagAlign file
 		sys awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\t%s\t%s\t%s\n%s\t%s\t%s\t%s\t%s\t%s\n",$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' "$prefix_pr1.00" | \
