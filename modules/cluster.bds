@@ -34,7 +34,7 @@ void init_cluster() {
 	if ( nice <= -20 ) nice = -20
 	if ( nice > 19 ) nice = 19	
 	if ( use_system != "" ) system = use_system.toLower()
-	if ( system == "slurm" || "generic" ) { // for new SCG, which uses --account instead of -p (partition)
+	if ( system == "slurm" || system == "generic" ) { // for new SCG, which uses --account instead of -p (partition)
 		system = "generic"
 		if ( q != "" ) {
 			if ( q_for_slurm_account ) {
