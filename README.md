@@ -31,7 +31,13 @@ Install software/database in a correct order according to your system. For examp
 * Kundaje lab's clusters
   * [Pipeline](#pipeline)
 
-* Stanford SCG cluster
+* Stanford NEW SCG cluster
+  * [Conda](#conda)
+  * [BigDataScript](#bigdatascript)
+  * [Pipeline](#pipeline)
+  * [Dependencies](#dependencies)
+
+* Stanford OLD SCG cluster
   * [Conda](#conda)
   * [BigDataScript](#bigdatascript)
   * [Pipeline](#pipeline)
@@ -69,6 +75,8 @@ Install Java 8 (jdk >= 1.8 or jre >= 1.8) on your system. If you don't have supe
 
 ## Conda
 
+**REMOVE ANY ANACONDA OR OTHER VERSIONS OF CONDA FROM YOUR BASH STARTUP SCRIPT. WE CANNOT GUARANTEE THAT PIPELINE WORKS WITH OTHER VERSIONS OF CONDA. ALSO REMOVE R AND OTHER CONFLICTING MODULES FROM IT TOO**. Remove any other Anaconda from your `$PATH`. Check your loaded modules with `$ module list` and unload any Anaconda modules in your bash startup scripts (`$HOME/.bashrc` or `$HOME/.bash_profile`). Add `unset PYTHONPATH` to your bash start up scripts.
+
 Install Miniconda3 [latest](https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh) on your system. **IMPORTANT** Make sure that the absolute path of the destination directory is short. Long path will cause an error in the depenecies installation step [issue #8](https://github.com/kundajelab/TF_chipseq_pipeline/issues/8).
 
 ```
@@ -84,7 +92,8 @@ to PATH in your /your/home/.bashrc ? [yes|no]
 [no] >>> yes
 ```
 
-Remove any other Anaconda from your `$PATH`. Check your loaded modules with `$ module list` and unload any Anaconda modules in your `$HOME/.bashrc`. Open a new terminal after installation.
+Open a new terminal after installation.
+
 
 ## BigDataScript
 
