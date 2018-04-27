@@ -334,11 +334,11 @@ SLURM example to make an interactive node for 100 pipelines: 1 cpus, 100GB memor
 $ srun -n 1 --mem 100G -t 3-0 -p [YOUR_PARTITON] --qos normal --pty /bin/bash -i -l 
 ```
 
-Once you get an interactive node, repeat the following commands per sample to run a pipeline with using [`bds_scr`](#managing-multiple-pipelines).
+Once you get an interactive node, repeat the following commands per sample to run a pipeline with using [`bds_scr`](#managing-multiple-pipelines). Add `-q_for_slurm_account` to the command line to use the parameter `-q` for SLURM account (`sbatch --acount`) instead of partition (`sbatch -p`).
 
 ```
 $ cd [WORK_DIR]
-$ bds_scr [SCREEN_NAME] [LOG_FILE_PATH] atac.bds -q [SGE_QUEUE_OR_SLURM_PARTITION] -nth [MAX_NUM_THREAD_PER_PIPELINE] ...
+$ bds_scr [SCREEN_NAME] [LOG_FILE_PATH] atac.bds -system [CLUSTER_ENGINE: slurm or sge] -q [SGE_QUEUE_OR_SLURM_PARTITION] -nth [MAX_NUM_THREAD_PER_PIPELINE] ...
 $ sleep 2 # wait for 2 seconds for safety
 ```
 
@@ -362,13 +362,15 @@ qsub -V -pe shm [NTH_ALLOCATED_FOR_APP] -h_vmem=[MEM_APP]/[NTH_ALLOCATED_FOR_APP
 
 This ensures that total memory reserved for a cluster job equals to `[MEM_APP]`. The same policy applies to SLURM.
 
-## Specifying cluster queue
+## Specifying a cluster queue/partition
 
-You can let BDS submit its subtasks to a specific queue `[QUEUE_NAME]` on Sun Grid Engine.
+You can specifiy a queue `[QUEUE_NAME]` on Sun Grid Engine or partition/account on SLURM. But you cannot specify both account and partition at the same time for SLURM. You can skip `-q_for_slurm_account` on Stanford SCG cluster since the pipeline will automatically detect SCG servers and add it.
 ```
-bds -q [QUEUE_NAME] -s sge atac.bds ...
-bds -s sge atac.bds -q [QUEUE_NAME] ...
+bds atac.bds -system sge -q [SGE_QUEUE_NAME] ...
+bds atac.bds -system slurm -q [SLURM_PARTITON_NAME] ... # Sherlock example
+bds atac.bds -system slurm -q_for_slurm_account -q [SLURM_ACCOUNT_NAME] ... # SCG example
 ```
+
 
 ## Managing multiple pipelines
 
