@@ -8,6 +8,7 @@ include "module_template.bds"
 help == postalign bed/tagalign settings
 fraglen0	 := false 	help (LEGACY PARAM) Set predefined fragment length as zero for cross corr. analysis (add -speak=0 to run_spp.R).
 speak_xcor 	 := -1		help Set user-defined cross-corr. peak strandshift (-speak= in run_spp.R). Use -1 to disable (default: -1).
+max_ppsize_xcor	 := ""		help R stack size (R parameter --max-ppsize=; between 5000 and 5000000) for cross corr. analysis.
 extra_param_xcor := ""		help Set extra parameters for run_spp.R (cross-corr. analysis only).
 mem_xcor	 := "15G"	help Max. memory for cross-corr. analysis (default: 15G).
 
@@ -22,6 +23,7 @@ void init_postalign_xcor() {
 	speak_xcor	= get_conf_val_int( speak_xcor,		["speak_xcor"] )
 	extra_param_xcor= get_conf_val( extra_param_xcor,	["extra_param_xcor"] )
 	mem_xcor	= get_conf_val( mem_xcor,		["mem_xcor"] )
+	max_ppsize_xcor = get_conf_val( max_ppsize_xcor, 	["max_ppsize_xcor"] )
 
 	// backward compatibility
 	if ( speak_xcor == -1 && fraglen0 ) speak_xcor = 0
@@ -31,6 +33,7 @@ void init_postalign_xcor() {
 	print( "User-defined cross-corr. peak strandshift\t: $speak_xcor\n")
 	print( "Extra parameters for cross-corr. analysis\t: $extra_param_xcor\n")
 	print( "Max. memory for cross-corr. analysis\t\t: $mem_xcor\n")
+	print( "Stack size for cross-corr. analysis\t\t:$max_ppsize_xcor\n")
 }
 
 string subsample_tag_PE_for_xcor( string tag, int nlines, bool non_mito, string o_dir, string group ) {
@@ -86,6 +89,7 @@ string[] xcor( string tag, string o_dir, string group, int nth_xcor ) {
 	xcor_score 	:= "$prefix.cc.qc"
 	xcor_plot 	:= "$prefix.cc.plot.pdf"	
         param_speak     := speak_xcor > -1 ? "-speak=$speak_xcor" : ""
+        extra_param 	:= max_ppsize_xcor ? "--max-ppsize=$max_ppsize_xcor " : ""
 
 	in 	:= [ tag ]
 	out 	:= [ xcor_score, xcor_plot ]
@@ -106,7 +110,7 @@ string[] xcor( string tag, string o_dir, string group, int nth_xcor ) {
 
 		//# CCSCORE FILE format
 		//# Filename <tab> numReads <tab> estFragLen <tab> correstFragLen <tab> PhantomPeak <tab> corrphantomPeak <tab> argmincorr <tab> mincorr <tab> phantomPeakCoef <tab> relPhantomPeakCoef <tab> QualityTag
-		sys Rscript ${RUN_SPP} -rf \
+		sys Rscript $extra_param ${RUN_SPP} -rf \
 			-c=$tag -p=$nth_xcor \
 			-filtchr=chrM -savp=$xcor_plot -out=$xcor_score $param_speak $extra_param_xcor
 		sys sed -r 's/,[^\t]+//g' $xcor_score > $xcor_score.tmp
