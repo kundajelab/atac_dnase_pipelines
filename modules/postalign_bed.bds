@@ -33,7 +33,7 @@ string subsample_tag( string tag, int nlines, bool non_mito, string o_dir, strin
 
 	subsampled_tag 	:= "$prefix."+(non_mito?"no_chrM.":"")+"$nreads_per_mill.tagAlign.gz"
 	non_mito_param 	:= non_mito ? "grep -v \"chrM\" | " : ""	
-	random_source_param := no_random_source ? "" : "--random-source=$tag"
+	random_source_param := no_random_source ? "" : "--random-source=<(openssl enc -aes-256-ctr -pass pass:$(zcat -f $tag | wc -c) -nosalt </dev/zero 2>/dev/null)"
 
 	in 	:= [ tag ]
 	out 	:= subsampled_tag
@@ -68,7 +68,7 @@ string subsample_tag_PE( string tag, int nlines, bool non_mito, string o_dir, st
 
 	subsampled_tag 	:= "$prefix."+(non_mito?"no_chrM.":"")+"$nreads_per_mill.tagAlign.gz"
 	non_mito_param 	:= non_mito ? "grep -v \"chrM\" | " : ""
-	random_source_param := no_random_source ? "" : "--random-source=$tag"
+	random_source_param := no_random_source ? "" : "--random-source=<(openssl enc -aes-256-ctr -pass pass:$(zcat -f $tag | wc -c) -nosalt </dev/zero 2>/dev/null)"
 
 	joined 		:= "$prefix.joined" // temporary file
 	joined_subsampled := "$prefix.joined.subsampled" // temporary file
@@ -145,7 +145,7 @@ string[] spr( string tag, string pr1_o_dir, string pr2_o_dir, string group ) {
 	prefix_pr2	:= replace_dir( rm_ext( tag, ["tagAlign","tag","bed"] ), pr2_o_dir )
 	tag_pr1		:= "$prefix_pr1.pr1.tagAlign.gz"
 	tag_pr2		:= "$prefix_pr2.pr2.tagAlign.gz"
-	random_source_param := no_random_source ? "" : "--random-source=$tag"
+	random_source_param := no_random_source ? "" : "--random-source=<(openssl enc -aes-256-ctr -pass pass:$(zcat -f $tag | wc -c) -nosalt </dev/zero 2>/dev/null)"
 
 	in 	:= [ tag ]
 	out 	:= [ tag_pr1, tag_pr2 ]
@@ -192,7 +192,7 @@ string[] spr_tag_PE( string tag, string pr1_o_dir, string pr2_o_dir, string grou
 
 	tag_pr1	:= "$prefix_pr1.pr1.tagAlign.gz"
 	tag_pr2	:= "$prefix_pr2.pr2.tagAlign.gz"
-	random_source_param := no_random_source ? "" : "--random-source=$tag"
+	random_source_param := no_random_source ? "" : "--random-source=<(openssl enc -aes-256-ctr -pass pass:$(zcat -f $tag | wc -c) -nosalt </dev/zero 2>/dev/null)"
 
 	in 	:= [ tag ]
 	out 	:= [ tag_pr1, tag_pr2 ]

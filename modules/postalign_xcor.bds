@@ -64,7 +64,7 @@ string subsample_tag_PE_for_xcor( string tag, int nlines, bool non_mito, string 
 
 		//# Shuffle and split temporary combined file into 2 equal parts
 		//# Will produce $PR_PREFIX00 and $PR_PREFIX01
-		sys cat $joined | $non_mito_param shuf -n $nlines --random-source=$tag > $joined_subsampled
+		sys cat $joined | $non_mito_param shuf -n $nlines --random-source=<(openssl enc -aes-256-ctr -pass pass:$(zcat -f $tag | wc -c) -nosalt </dev/zero 2>/dev/null) > $joined_subsampled
 	
 		//# Subsample tagAlign file
 		sys awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6}' $joined_subsampled | \
