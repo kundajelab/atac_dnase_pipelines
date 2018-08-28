@@ -72,8 +72,8 @@ add_to_activate
 #add_to_activate
 
 ### decompress MACS2 python egg
-cd $CONDA_LIB/python2.7/site-packages
-unzip -o MACS2-2.1.1.20160309-py2.7-linux-x86_64.egg
+#cd $CONDA_LIB/python2.7/site-packages
+#unzip -o MACS2-2.1.1.20160309-py2.7-linux-x86_64.egg
 
 # install PeakSeq
 if [[ ${INSTALL_PEAKSEQ} == 1 ]]; then
