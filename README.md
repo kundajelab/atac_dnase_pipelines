@@ -1,3 +1,7 @@
+This pipeline has been deprecated
+===================================================
+New WDL-based pipeline is [here](https://github.com/kundajelab/atac-seq-pipeline).
+
 ATAC-Seq / DNase-Seq Pipeline
 ===================================================
 
