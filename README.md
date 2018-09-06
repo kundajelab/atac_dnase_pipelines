@@ -1,6 +1,7 @@
-This pipeline has been deprecated
+This pipeline has been deprecated as of June 2018. Please update your pipelines to the WDL-based pipeline at [https://github.com/kundajelab/atac-seq-pipeline](https://github.com/kundajelab/atac-seq-pipeline)
 ===================================================
-New WDL-based pipeline is [here](https://github.com/kundajelab/atac-seq-pipeline).
+
+*June 2018:* Note that the updated official ENCODE DCC pipeline is an exact replica of the pipeline in this repository except that it uses WDL instead of BigDataScript for workflow management. We recommend transitioning to the WDL version since it easier to install. Also all future updates and bug fixes will be made to the WDL-based pipeline. If you have processed datasets using the pipeline in this repository, you do NOT need to rerun anything. For future runs, we recommend switching to the WDL-based pipeline.
 
 ATAC-Seq / DNase-Seq Pipeline
 ===================================================
@@ -11,7 +12,7 @@ This pipeline is designed for automated end-to-end quality control and processin
 
 The ATAC-seq pipeline specification is also the official pipeline specification of the Encyclopedia of DNA Elements (ENCODE) consortium. The ATAC-seq pipeline protocol definition is [here](https://docs.google.com/document/d/1f0Cm4vRyDQDu0bMehHD7P7KOMxTOP-HiNoIvL1VcBt8/edit?usp=sharing). Some parts of the ATAC-seq pipeline were developed in collaboration with Jason Buenrostro, Alicia Schep and Will Greenleaf at Stanford.
 
-The DNase-seq pipeline specification is [here](https://docs.google.com/document/d/1e3cCormg0SnQW6zr7VYBWvXC1GiPc5GSy80qlKBPwlA/edit?usp=sharing). Note that this is NOT the same as the official ENCODE DNase-seq pipeline.
+The DNase-seq pipeline specification is [here](https://docs.google.com/document/d/1e3cCormg0SnQW6zr7VYBWvXC1GiPc5GSy80qlKBPwlA/edit?usp=sharing). Note that this is NOT the same as the official ENCODE DNase-seq pipeline (which is based on John Stam lab's processing pipeline).
 
 * Go to [Genomic pipelines in Kundaje lab](https://kundajelab.github.io/bds_pipeline_modules)
 * Go to [Discussion channel](https://groups.google.com/forum/#!forum/klab_genomic_pipelines_discuss)
