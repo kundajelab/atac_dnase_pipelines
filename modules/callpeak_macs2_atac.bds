@@ -82,7 +82,7 @@ string[] macs2_atac_npeak_and_signal( string tag, string smooth_window, string p
 
 		//# Sort by Col8 in descending order and replace long peak names in Column 4 with Peak_<peakRank>
 		// sys sort -k 8gr,8gr "$prefix"_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | head -n $int_cap_num_peak_macs2 | gzip -nc > $peakfile
-		sys sort -k 8gr,8gr "$prefix"_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' > $peakfile.tmp
+		sys sort -k 8gr,8gr "$prefix"_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR; if ($2<0) $2=0; if ($3<0) $3=0; print $0}' > $peakfile.tmp
 		// sys zcat -f "$prefix"_peaks.narrowPeak | sort -k 8gr,8gr | head -n $int_cap_num_peak_macs2 | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' | gzip -nc > $peakfile
 		sys head -n $int_cap_num_peak_macs2 $peakfile.tmp | gzip -nc > $peakfile
 		sys rm -f $peakfile.tmp 
