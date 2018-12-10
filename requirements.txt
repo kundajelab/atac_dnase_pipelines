@@ -52,3 +52,4 @@ jinja2 # ataqc
 gsl # for preseq
 pysam==0.8.2.1 # 0.8.3, 0.9 from bioconda has an issue with ATAQC (segmentation fault), need to use -c bcbio
 pybedtools==0.6.9 # same issue as in pysam
+openssl==1.0.2p
