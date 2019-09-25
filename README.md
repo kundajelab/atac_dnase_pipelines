@@ -1,7 +1,5 @@
-This pipeline has been deprecated as of June 2018. Please update your pipelines to the WDL-based pipeline at [https://github.com/kundajelab/atac-seq-pipeline](https://github.com/kundajelab/atac-seq-pipeline)
+This pipeline has been deprecated as of June 2018. Please update your pipelines to the WDL-based pipeline at [https://github.com/ENCODE-DCC/atac-seq-pipeline](https://github.com/ENCODE-DCC/atac-seq-pipeline)
 ===================================================
-
-*June 2018:* Note that the updated official ENCODE DCC pipeline is an exact replica of the pipeline in this repository except that it uses WDL instead of BigDataScript for workflow management. We recommend transitioning to the WDL version since it easier to install. Also all future updates and bug fixes will be made to the WDL-based pipeline. If you have processed datasets using the pipeline in this repository, you do NOT need to rerun anything. For future runs, we recommend switching to the WDL-based pipeline.
 
 ATAC-Seq / DNase-Seq Pipeline
 ===================================================
